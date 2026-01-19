@@ -66,10 +66,27 @@ export default function LoginScreen() {
 
   const pinInputRef = React.useRef<TextInput>(null);
 
+  // Check connection on mount
+  React.useEffect(() => {
+    // Simple health check to warm up connection
+    const warmUp = async () => {
+      try {
+        const { default: apiClient } = await import("../src/services/httpClient");
+        await apiClient.get("/health", { timeout: 2000 });
+      } catch (_e) {
+        // Ignore warm-up errors
+      }
+    };
+    warmUp();
+  }, []);
+
   const handlePinChange = useCallback(
     async (newPin: string) => {
       // Only allow numeric input
       if (!/^\d*$/.test(newPin)) return;
+      
+      // Prevent input while loading
+      if (isLoading) return;
 
       setPin(newPin);
       if (newPin.length > pin.length) {
@@ -79,27 +96,32 @@ export default function LoginScreen() {
       // Auto-login when 4 digits entered
       if (newPin.length === 4) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        try {
-          const result = await loginWithPin(newPin);
-          if (!result.success) {
-            Alert.alert("Login Failed", result.message || "Invalid PIN");
+        
+        // Small delay to ensure UI updates before freezing for network request
+        setTimeout(async () => {
+          try {
+            const result = await loginWithPin(newPin);
+            if (!result.success) {
+              Alert.alert("Login Failed", result.message || "Invalid PIN");
+              setPin("");
+            }
+          } catch (_error) {
+            Alert.alert("Login Failed", "Please check your PIN and try again.");
             setPin("");
           }
-        } catch (_error) {
-          Alert.alert("Login Failed", "Please check your PIN and try again.");
-          setPin("");
-        }
+        }, 100);
       }
     },
-    [pin, loginWithPin],
+    [pin, loginWithPin, isLoading],
   );
 
   const handleBiometricAuth = useCallback(async () => {
+    if (isLoading) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     // Placeholder for biometric auth
     // In a real app, use expo-local-authentication here
     Alert.alert("Biometric Auth", "Biometric authentication would run here.");
-  }, []);
+  }, [isLoading]);
 
   const handleForgotPin = useCallback(() => {
     Alert.alert(
