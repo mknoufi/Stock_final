@@ -177,12 +177,15 @@ class SearchService:
         fields = search_fields or ["barcode", "item_code", "item_name"]
 
         if is_barcode:
-            # Prioritize exact and prefix barcode matches
+            # Prioritize exact and prefix barcode matches, but include name search
             return {
                 "$or": [
                     {"barcode": query},  # Exact match
                     {"barcode": {"$regex": f"^{query}"}},  # Prefix match
                     {"item_code": query},  # Exact code match
+                    {
+                        "item_name": {"$regex": query, "$options": "i"}
+                    },  # Name match for numeric names
                 ]
             }
 
