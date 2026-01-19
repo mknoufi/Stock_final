@@ -78,7 +78,7 @@ class SearchService:
 
     # Search limits
     MAX_CANDIDATES = 200  # Max items to fetch for scoring
-    MIN_QUERY_LENGTH = 2  # Minimum chars before search
+    MIN_QUERY_LENGTH = 3  # Minimum chars before search
 
     def __init__(self, db: AsyncIOMotorDatabase, cache: Optional[Any] = None):
         self.db = db
@@ -345,7 +345,7 @@ class SearchService:
         Returns:
             List of suggested item names/barcodes
         """
-        if len(prefix) < 2:
+        if len(prefix) < 3:
             return []
 
         try:
