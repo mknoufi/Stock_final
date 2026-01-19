@@ -8,6 +8,7 @@ import { Platform, View, Text, ActivityIndicator } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import "react-native-reanimated";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { useAuthStore } from "../src/store/authStore";
 import { initializeNetworkListener } from "../src/services/networkService";
@@ -64,7 +65,7 @@ function RootStack() {
   const theme = useTheme();
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style={theme.isDark ? "light" : "dark"} />
       <Stack
         screenOptions={{
@@ -79,7 +80,7 @@ function RootStack() {
         <Stack.Screen name="help" />
         <Stack.Screen name="+not-found" />
       </Stack>
-    </>
+    </GestureHandlerRootView>
   );
 }
 
@@ -121,7 +122,7 @@ export default function RootLayout() {
       setTimeout(async () => {
         try {
           await SplashScreen.hideAsync();
-        } catch (e) {
+        } catch (_) {
           // Ignore error
         }
       }, 2000);
