@@ -13,7 +13,7 @@ from backend.db.runtime import get_db
 from backend.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/v1/notifications", tags=["Notifications"])
+router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 
 
 # Response Models

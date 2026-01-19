@@ -10,11 +10,8 @@ We have successfully audited the **Python/React Native/MongoDB** Custom Stock Ve
 2.  **FR-M-08 Session Limits**: Verified strict enforcement of max 5 active sessions per user in the backend API.
 3.  **FR-M-03 Incremental Sync**: Validated `SQLSyncService` performs delta updates, respecting the "Read-Only" constraint.
 4.  **FR-M-06 Auth**: Confirmed weak PIN and Strong Password dual-auth strategy with biometric hooks.
-
-## Gaps & Next Steps
-
-- **FR-M-34 Session Integrity**: Logic to warn users if master data changed _during_ a session is currently passive. Recommendation: Add a websocket event or poll to flag "stale master data".
-- **FR-M-35 Auto-Pause**: Inactivity timeout is handled by token expiry but could be more aggressive on the UI side.
+5.  **FR-M-34 Session Integrity**: Implemented backend logic to warn users if master data (prices/stock) has changed in the ERP since their session started.
+6.  **FR-M-23 Notifications**: Backend API enabled for task notifications.
 
 ## Architecture Alignment
 

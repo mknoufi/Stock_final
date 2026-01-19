@@ -5,6 +5,7 @@ Extends existing session API with rack-based workflow support
 
 import logging
 import time
+from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -61,6 +62,17 @@ class HeartbeatResponse(BaseModel):
     rack_lock_renewed: bool
     user_presence_updated: bool
     lock_ttl_remaining: int
+    message: str
+
+
+class SessionIntegrityResponse(BaseModel):
+    """Session integrity check response (FR-M-34)"""
+
+    valid: bool
+    last_sync: Optional[float] = None
+    session_start: float
+    updates_detected: bool
+    affected_items: int
     message: str
 
 
@@ -534,3 +546,49 @@ async def get_user_session_history(
         )
 
     return result
+
+
+@router.get("/{session_id}/integrity", response_model=SessionIntegrityResponse)
+async def check_session_integrity(
+    session_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> SessionIntegrityResponse:
+    """Check if master data has changed since session start (FR-M-34)"""
+    session = await db.verification_sessions.find_one({"session_id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    start_time = session.get("started_at")
+    # Handle datetime vs float mismatch
+    if isinstance(start_time, datetime):
+        start_ts = start_time.timestamp()
+        start_dt = start_time
+    else:
+        start_ts = float(start_time)
+        start_dt = datetime.fromtimestamp(start_ts)
+
+    # Check for items updated after session start
+    affected_count = await db.erp_items.count_documents({"updated_at": {"$gt": start_dt}})
+
+    # Get last sync time
+    sync_meta = await db.sync_metadata.find_one({"_id": "sql_qty_sync"})
+    last_sync_ts = None
+    if sync_meta and "last_sync" in sync_meta:
+        ls = sync_meta["last_sync"]
+        last_sync_ts = ls.timestamp() if isinstance(ls, datetime) else float(ls)
+
+    valid = affected_count == 0
+
+    msg = "Session integrity verified."
+    if not valid:
+        msg = f"Warning: {affected_count} items updated in master data since session start."
+
+    return SessionIntegrityResponse(
+        valid=valid,
+        last_sync=last_sync_ts,
+        session_start=start_ts,
+        updates_detected=not valid,
+        affected_items=affected_count,
+        message=msg,
+    )

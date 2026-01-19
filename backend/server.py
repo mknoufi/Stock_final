@@ -34,6 +34,7 @@ from backend.api.logs_api import router as logs_router
 from backend.api.mapping_api import router as mapping_router
 from backend.api.master_settings_api import master_settings_router
 from backend.api.metrics_api import metrics_router
+from backend.api.notifications_api import router as notifications_router
 
 # New feature API routers
 from backend.api.permissions_api import permissions_router
@@ -1376,6 +1377,8 @@ async def get_count_lines(
 app.include_router(
     api_router, prefix="/api"
 )  # Main API endpoints with auth, sessions, items, count-lines
+
+app.include_router(notifications_router)
 
 
 # Run the server if executed directly
