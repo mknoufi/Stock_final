@@ -1,0 +1,130 @@
+image: ubuntu:latest
+
+stages:
+  - checks
+  - test
+  - security
+  - build
+  - deploy
+
+variables:
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "18"
+  # Service definitions for database tests
+  MONGO_HOST: "mongo"
+  MONGO_PORT: "27017"
+  MONGO_URL: "mongodb://mongo:27017/test_db"
+  JWT_SECRET: "test-jwt-secret-for-ci-testing-only-min-32-chars-1234567890"
+
+# Global Cache Settings
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - backend/.venv
+    - frontend/node_modules
+    - ~/.cache/pip
+    - ~/.npm
+
+# --- Backend Jobs ---
+
+.backend-setup:
+  image: python:3.11
+  before_script:
+    - cd backend
+    - apt-get update && apt-get install -y unixodbc-dev freetds-dev
+    - python -m venv .venv
+    - source .venv/bin/activate
+    - pip install --upgrade pip
+    - pip install -r requirements.txt
+    - pip install black ruff mypy pytest pytest-cov httpx
+
+backend-quality:
+  extends: .backend-setup
+  stage: checks
+  script:
+    - echo "Running Black..."
+    - black --check --line-length=100 .
+    - echo "Running Ruff..."
+    - ruff check .
+    - echo "Running MyPy..."
+    - mypy . --ignore-missing-imports --python-version=3.11 || true
+
+backend-tests:
+  extends: .backend-setup
+  stage: test
+  services:
+    - name: mongo:7.0
+      alias: mongo
+  script:
+    - echo "Running Pytest..."
+    - pytest tests/ -v --tb=short --cov=. --cov-report=xml
+
+# --- Frontend Jobs ---
+
+.frontend-setup:
+  image: node:20
+  before_script:
+    - cd frontend
+    - npm ci --legacy-peer-deps
+
+frontend-quality:
+  extends: .frontend-setup
+  stage: checks
+  script:
+    - echo "Running Lint..."
+    - npm run lint
+    - echo "Running Typecheck..."
+    - npm run typecheck
+
+frontend-tests:
+  extends: .frontend-setup
+  stage: test
+  script:
+    - echo "Running Tests..."
+    - npm test -- --watchAll=false --passWithNoTests
+
+# --- Security Jobs ---
+
+trivy-scan:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy fs . --format table --exit-code 0
+  allow_failure: true
+
+# --- Build Jobs ---
+
+docker-build:
+  stage: build
+  image: docker:stable
+  services:
+    - docker:dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+  script:
+    - echo "Logging in to registry..."
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
+    - echo "Building Backend..."
+    - docker build -t $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA ./backend
+    - docker push $CI_REGISTRY_IMAGE/backend:$CI_COMMIT_SHA
+    - echo "Building Frontend..."
+    - docker build -t $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA ./frontend
+    - docker push $CI_REGISTRY_IMAGE/frontend:$CI_COMMIT_SHA
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+
+# --- Deploy Jobs (Example Stub) ---
+
+deploy-production:
+  stage: deploy
+  image: dtzar/helm-kubectl
+  script:
+    - echo "Deploying to production..."
+    # - kubectl config use-context ...
+    # - kubectl set image ...
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: manual
