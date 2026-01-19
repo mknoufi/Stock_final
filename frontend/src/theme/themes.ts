@@ -216,11 +216,11 @@ export const themes: Record<string, AppTheme> = {
   light: {
     colors: {
       background: {
-        default: "#FAFBFC",
+        default: "#FFFFFF",
         paper: "#FFFFFF",
-        elevated: "#F8F9FB",
+        elevated: "#FFFFFF",
         overlay: "rgba(27, 31, 36, 0.5)",
-        glass: "rgba(255, 255, 255, 0.85)",
+        glass: "rgba(255, 255, 255, 0.95)",
       },
       text: {
         primary: "#0D1117",
@@ -766,4 +766,4 @@ export const themes: Record<string, AppTheme> = {
 };
 
 // Default theme export for quick access
-export const defaultTheme = themes.premium;
+export const defaultTheme = themes.light;
