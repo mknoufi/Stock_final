@@ -113,6 +113,10 @@ export default function ItemDetailScreen() {
   const [sameNameVariants, setSameNameVariants] = useState<any[]>([]);
   const [loadingVariants, setLoadingVariants] = useState(false);
 
+  // Submit Delay State (FR-M-20)
+  const [submitCountdown, setSubmitCountdown] = useState<number | null>(null);
+  const submitTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+
   // Damage State
   const [isDamageEnabled, setIsDamageEnabled] = useState(false);
   const [damageQty, setDamageQty] = useState("");
@@ -751,7 +755,7 @@ export default function ItemDetailScreen() {
     return true;
   }, [isSerializedItem, quantity, serialNumbers]);
 
-  const handleSubmit = async () => {
+  const handleSubmitPress = async () => {
     if (!item || !sessionId) return;
 
     const qty = parseFloat(quantity);
@@ -784,7 +788,40 @@ export default function ItemDetailScreen() {
       }
     }
 
+    // Start countdown instead of immediate submit (FR-M-20)
+    setSubmitCountdown(5);
+  };
+
+  // Handle countdown effect
+  useEffect(() => {
+    if (submitCountdown === null) return;
+
+    if (submitCountdown > 0) {
+      submitTimerRef.current = setTimeout(() => {
+        setSubmitCountdown((prev) => (prev !== null ? prev - 1 : null));
+      }, 1000);
+    } else {
+      // Countdown finished, trigger actual submit
+      executeSubmit();
+    }
+
+    return () => {
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    };
+  }, [submitCountdown, executeSubmit]);
+
+  const cancelSubmit = () => {
+    if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    setSubmitCountdown(null);
+  };
+
+  const executeSubmit = async () => {
+    setSubmitCountdown(null);
     setSubmitting(true);
+    
+    // Re-read quantity from state
+    const qty = parseFloat(quantity);
+
     try {
       // Collect valid serial numbers from either serialized item array or legacy field
       const validSerials = isSerializedItem
@@ -2349,11 +2386,11 @@ export default function ItemDetailScreen() {
         ]}
       >
         <ModernButton
-          title="Save & Verify"
-          onPress={handleSubmit}
+          title={submitCountdown !== null ? `Undo (${submitCountdown}s)` : "Save & Verify"}
+          onPress={submitCountdown !== null ? cancelSubmit : handleSubmitPress}
           loading={submitting}
-          variant="primary"
-          icon="checkmark-circle"
+          variant={submitCountdown !== null ? "destructive" : "primary"}
+          icon={submitCountdown !== null ? "close-circle" : "checkmark-circle"}
           fullWidth
         />
       </View>
