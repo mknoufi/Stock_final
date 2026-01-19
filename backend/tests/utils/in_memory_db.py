@@ -267,6 +267,7 @@ class InMemoryDatabase:
     def __init__(self):
         self.client = self
         self.users = InMemoryCollection()
+        self.pin_authentication = InMemoryCollection()  # Added for PIN auth
         self.refresh_tokens = InMemoryCollection()
         self.login_attempts = InMemoryCollection()
         self.activity_logs = InMemoryCollection()
@@ -502,10 +503,12 @@ def _setup_auth_and_seed_users(monkeypatch, fake_db, server_module) -> None:
 def _seed_default_users(fake_db, server_module) -> None:
     """Seed default test users."""
 
+    # Updated seed function to populate both users collection and pin_authentication collection
     def _seed_user(username: str, password: str, full_name: str, role: str):
+        user_id = os.urandom(12).hex()  # Generate persistent ID
         fake_db.users._documents.append(
             {
-                "_id": os.urandom(12).hex(),
+                "_id": user_id,
                 "username": username,
                 "hashed_password": server_module.get_password_hash(password),
                 "full_name": full_name,
@@ -515,35 +518,34 @@ def _seed_default_users(fake_db, server_module) -> None:
                 "created_at": datetime.utcnow(),
             }
         )
+        return user_id
 
-    _seed_user("staff1", "staff123", "Staff Member", "staff")
-
-    # Manually add PIN hash for staff1
-    from passlib.context import CryptContext
-
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-    # Find via direct list access since we just appended it
-    # But safer to find by username in case order changes
-    for user in fake_db.users._documents:
-        if user["username"] == "staff1":
-            user["pin_hash"] = pwd_context.hash("1234")
-            break
-
-    # Manually add PIN hash for staff1 (pin="1234")
-    # Hash for "1234" using passlib's PBKDF2 (approximate, or just direct patch if using verify/hash)
-    # Actually, let's use the context from server_module if available, or just a known hash if we can.
-    # But since we have access to server_module.pwd_context, let's use it or patch it.
-
-    # Better yet, let's just update the document directly after seeding if possible,
-    # OR since we can't easily import pwd_context here without circular imports,
-    # let's assume we can mock the verification or just update the seed function to accept pin.
-
-    # Let's modify _seed_user to optional pin
-    pass
-
+    # Create users
+    staff_id = _seed_user("staff1", "staff123", "Staff Member", "staff")
     _seed_user("supervisor", "super123", "Supervisor", "supervisor")
     _seed_user("admin", "admin123", "Administrator", "admin")
+
+    # Manually add PIN hash for staff1 using same argon2+bcrypt context as main app
+    from passlib.context import CryptContext
+
+    # We must match the schemes from backend.utils.auth_utils to avoid verification errors
+    pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
+
+    hashed_pin = pwd_context.hash("1234")
+
+    # Populate pin_authentication collection
+    fake_db.pin_authentication._documents.append(
+        {
+            "_id": os.urandom(12).hex(),
+            "user_id": staff_id,
+            "pin_hash": hashed_pin,
+            "created_at": datetime.utcnow(),
+            "enabled": True,
+            "failed_attempts": 0,
+            "locked_until": None,
+            "last_used": None,
+        }
+    )
 
 
 class _FakeRedisService:

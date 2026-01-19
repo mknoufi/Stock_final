@@ -9,6 +9,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from backend.config import settings
 from backend.utils.auth_utils import get_password_hash
+from backend.utils.crypto_utils import get_pin_lookup_hash
 
 
 async def set_pin(username: str, pin: str):
@@ -24,8 +25,11 @@ async def set_pin(username: str, pin: str):
         return
 
     pin_hash = get_password_hash(pin)
+    pin_lookup_hash = get_pin_lookup_hash(pin)
 
-    result = await db.users.update_one({"username": username}, {"$set": {"pin_hash": pin_hash}})
+    result = await db.users.update_one(
+        {"username": username}, {"$set": {"pin_hash": pin_hash, "pin_lookup_hash": pin_lookup_hash}}
+    )
 
     if result.modified_count > 0:
         print(f"Success: PIN set for '{username}'.")

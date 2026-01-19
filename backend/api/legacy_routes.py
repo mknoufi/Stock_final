@@ -1,6 +1,7 @@
 # ruff: noqa: E402
 # cSpell:ignore bson hashpw gensalt checkpw unverify
 
+import asyncio
 import logging
 import os
 import sys
@@ -737,17 +738,20 @@ async def create_session(
 
     await db.sessions.insert_one(session.model_dump())
 
-    # Log activity
-    await activity_log_service.log_activity(
-        user=current_user["username"],
-        role=current_user["role"],
-        action="create_session",
-        entity_type="session",
-        entity_id=session.id,
-        details={"warehouse": session_data.warehouse},
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent") if request else None,
-    )
+    # Log activity asynchronously (fire-and-forget to avoid blocking response)
+    if activity_log_service:
+        asyncio.create_task(
+            activity_log_service.log_activity(
+                user=current_user["username"],
+                role=current_user["role"],
+                action="create_session",
+                entity_type="session",
+                entity_id=session.id,
+                details={"warehouse": session_data.warehouse},
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent") if request else None,
+            )
+        )
 
     return session
 

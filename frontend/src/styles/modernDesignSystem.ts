@@ -530,10 +530,10 @@ export const modernBorderRadius = {
   full: 9999,
 
   // Component-specific
-  button: 14,
-  card: 20,
-  input: 14,
-  modal: 28,
+  button: 12,
+  card: 16,
+  input: 12,
+  modal: 24,
   badge: 9999,
 };
 

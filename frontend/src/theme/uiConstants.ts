@@ -149,16 +149,16 @@ export const LineHeights = {
 // COMPONENT SIZES
 // =============================================================================
 export const ComponentSizes = {
-  /** Button heights */
+  /** Button heights - 44px minimum for accessibility */
   button: {
-    sm: 32,
-    md: 44,
-    lg: 52,
-    xl: 60,
+    sm: 40,
+    md: 48,
+    lg: 56,
+    xl: 64,
   },
-  /** Input heights */
+  /** Input heights - 48px standard */
   input: {
-    sm: 36,
+    sm: 44,
     md: 48,
     lg: 56,
   },
