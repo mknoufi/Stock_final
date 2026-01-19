@@ -224,8 +224,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   const { settings } = useSettingsStore();
 
   // State
-  const [themeKey, setThemeKeyState] = useState<ThemeKey>("premium");
-  const [themeMode, setThemeModeState] = useState<ThemeMode>("system");
+  const [themeKey, setThemeKeyState] = useState<ThemeKey>("light");
+  const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
   const [pattern, setPatternState] = useState<PatternType>("none");
   const [layout, setLayoutState] = useState<LayoutArrangement>("default");
   const [isInitialized, setIsInitialized] = useState(false);

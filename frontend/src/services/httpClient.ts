@@ -208,7 +208,7 @@ apiClient.interceptors.response.use(
         });
       }
     } else if (error.request) {
-      log.error("API no response received", { url: fullUrl });
+      log.warn("API no response received (timeout/network)", { url: fullUrl });
     } else {
       log.error("API error", {
         url: fullUrl,
