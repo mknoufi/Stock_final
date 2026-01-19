@@ -1297,8 +1297,14 @@ export const createCountLine = async (
   const user = useAuthStore.getState().user;
 
   try {
-    if (!isOnline()) {
-      log.debug("Offline mode - creating offline count line");
+    // If offline OR working with an offline-created session, use local logic
+    const isOfflineSession = String(countData.session_id || "").startsWith("offline_");
+
+    if (!isOnline() || isOfflineSession) {
+      log.debug("Offline mode or offline session - creating offline count line", {
+        isOnline: isOnline(),
+        isOfflineSession,
+      });
 
       const itemName = await resolveItemName();
       const offlineCountLine = (await createOfflineCountLine(countData, {
