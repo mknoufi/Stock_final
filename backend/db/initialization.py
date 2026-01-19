@@ -1,6 +1,7 @@
 import logging
 from datetime import datetime
 
+from backend.services.pin_auth_service import PINAuthService
 from backend.utils.auth_utils import get_password_hash
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,7 @@ async def init_default_users(db):
 
             pin_lookup_hash = get_pin_lookup_hash("1234")
 
-            await db.users.insert_one(
+            result = await db.users.insert_one(
                 {
                     "username": "staff1",
                     "hashed_password": hashed_pwd,
@@ -33,6 +34,9 @@ async def init_default_users(db):
                     "created_at": datetime.utcnow(),
                 }
             )
+            # Initialize PIN in separate collection using service
+            pin_service = PINAuthService(db)
+            await pin_service.set_pin(str(result.inserted_id), "1234")
             logger.info("Default user created: staff1")
 
         # Check for supervisor
@@ -45,7 +49,7 @@ async def init_default_users(db):
 
             pin_lookup_hash = get_pin_lookup_hash("1234")
 
-            await db.users.insert_one(
+            result = await db.users.insert_one(
                 {
                     "username": "supervisor",
                     "hashed_password": hashed_pwd,
@@ -58,6 +62,9 @@ async def init_default_users(db):
                     "created_at": datetime.utcnow(),
                 }
             )
+            # Initialize PIN
+            pin_service = PINAuthService(db)
+            await pin_service.set_pin(str(result.inserted_id), "1234")
             logger.info("Default user created: supervisor")
 
         # Check for admin
@@ -70,7 +77,7 @@ async def init_default_users(db):
 
             pin_lookup_hash = get_pin_lookup_hash("1234")
 
-            await db.users.insert_one(
+            result = await db.users.insert_one(
                 {
                     "username": "admin",
                     "hashed_password": hashed_pwd,
@@ -83,6 +90,9 @@ async def init_default_users(db):
                     "created_at": datetime.utcnow(),
                 }
             )
+            # Initialize PIN
+            pin_service = PINAuthService(db)
+            await pin_service.set_pin(str(result.inserted_id), "1234")
             logger.info("Default user created: admin")
 
     except Exception as e:

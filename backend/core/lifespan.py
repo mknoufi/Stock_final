@@ -35,7 +35,7 @@ from backend.auth.dependencies import init_auth_dependencies
 from backend.config import settings
 from backend.core import globals as g
 from backend.db.indexes import create_indexes
-from backend.db.initialization import init_default_users
+from backend.db.initialization import init_default_users, init_mock_erp_data
 from backend.db.migrations import MigrationManager
 from backend.db.runtime import set_client, set_db
 
@@ -445,9 +445,13 @@ async def lifespan(app: FastAPI):  # noqa: C901
     try:
         await init_default_users(db)
         logger.info("OK: Default users initialized")
+
+        # Initialize mock ERP data (if empty) to ensure search works
+        await init_mock_erp_data(db)
+        logger.info("OK: Mock ERP data check complete")
     except Exception as e:
         logger.warning(
-            f"Could not initialize default users (may be due to MongoDB unavailability): {str(e)}"
+            f"Could not initialize default data (may be due to MongoDB unavailability): {str(e)}"
         )
 
     # Run migrations
