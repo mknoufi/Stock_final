@@ -10,12 +10,11 @@ Provides comprehensive dashboard KPIs for admin/supervisor monitoring:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
 from fastapi import APIRouter, Depends, Query, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
-from backend.auth.dependencies import get_current_user
 from backend.auth.permissions import Permission, require_permission
 from backend.db.runtime import get_db
 

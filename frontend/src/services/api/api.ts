@@ -108,7 +108,9 @@ export const createSession = async (
       ...(sessionType && { type: sessionType }),
     };
 
-    const response = await api.post("/api/sessions", payload);
+    const response = await api.post("/api/sessions", payload, {
+      timeout: 3000, // Fail fast (3s) to fallback to offline mode if server is slow
+    });
     await cacheSession(response.data);
     log.debug("Created session via API", {
       id: response.data?.id,
