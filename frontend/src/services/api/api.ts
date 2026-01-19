@@ -3118,7 +3118,7 @@ export const syncBatch = async (operations: Record<string, unknown>[]) => {
     const response = await api.post("/api/sync/batch", { operations });
     return response.data;
   } catch (error: unknown) {
-    __DEV__ && console.error("Sync batch error:", error);
+    __DEV__ && console.warn("Sync batch error:", error);
     throw error;
   }
 };

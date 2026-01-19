@@ -4,7 +4,6 @@ import {
   updateQueueItemRetries,
   getCacheStats,
   OfflineQueueItem,
-  clearOfflineQueue,
   removeFromOfflineQueue,
 } from "./offline/offlineStorage";
 import { syncBatch, isOnline } from "./api/api";
@@ -14,7 +13,6 @@ import { createLogger } from "./logging";
 
 const log = createLogger("syncService");
 
-const MAX_SYNC_RETRIES = 3;
 const CLEANUP_RETRIES_THRESHOLD = 5;
 
 export interface SyncResult {
@@ -159,14 +157,15 @@ export const syncOfflineQueue = async (
         }
       } catch (batchError: unknown) {
         const errorMessage = batchError instanceof Error ? batchError.message : "Unknown batch error";
-        log.error(`Batch sync failed: ${errorMessage}`, batchError as Record<string, unknown>);
-
+        
         // Check if this is an auth error (401) - don't retry, just mark all as failed
         const axiosError = batchError as { response?: { status?: number } };
         if (axiosError.response?.status === 401) {
           log.warn("Auth error during sync - will retry after re-authentication");
           // Don't increment retries for auth errors - they may resolve after login
         } else {
+          log.error(`Batch sync failed: ${errorMessage}`, batchError as Record<string, unknown>);
+          
           // Mark all items in this batch as failed and increment retries
           failedCount += batch.length;
           for (const item of batch) {
