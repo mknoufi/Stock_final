@@ -291,6 +291,11 @@ export const getSession = async (sessionId: string) => {
       return await getSessionFromCache(sessionId);
     }
 
+    // If this is an offline session, use cache directly
+    if (sessionId.startsWith("offline_")) {
+      return await getSessionFromCache(sessionId);
+    }
+
     const response = await api.get(`/api/sessions/${sessionId}`);
     await cacheSession(response.data);
     return response.data;
@@ -298,8 +303,11 @@ export const getSession = async (sessionId: string) => {
     __DEV__ && console.error("Error getting session:", error);
 
     if (error?.response?.status === 404) {
-      await removeSessionFromCache(sessionId);
-      return null;
+      // Only remove if it's NOT an offline session
+      if (!sessionId.startsWith("offline_")) {
+        await removeSessionFromCache(sessionId);
+        return null;
+      }
     }
 
     // Fallback to cache
@@ -334,6 +342,11 @@ export const getSessionStats = async (
       return null;
     }
 
+    // If this is an offline session, don't query the API
+    if (sessionId.startsWith("offline_")) {
+      return null;
+    }
+
     const response = await api.get(`/api/sessions/${sessionId}/stats`);
     const data = response.data;
 
@@ -350,8 +363,11 @@ export const getSessionStats = async (
     };
   } catch (error: any) {
     if (error?.response?.status === 404) {
-      log.warn(`Session ${sessionId} not found on server, removing from cache`);
-      await removeSessionFromCache(sessionId);
+      // Vital: Do not remove offline sessions from cache just because API can't find them
+      if (!sessionId.startsWith("offline_")) {
+        log.warn(`Session ${sessionId} not found on server, removing from cache`);
+        await removeSessionFromCache(sessionId);
+      }
     } else {
       log.warn("Error fetching session stats:", error);
     }
