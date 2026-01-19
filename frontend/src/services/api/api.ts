@@ -674,6 +674,14 @@ export const getItemByBarcode = async (
     // Fix: Use proper fallback chain without redundancy
     const stockQty = itemData.stock_qty ?? itemData.current_stock ?? 0;
 
+    // Detect Source from response metadata
+    let dataSource: DataSource = "api";
+    if (response.data.metadata?.source === "sql_server_sync") {
+      dataSource = "sql";
+    } else if (response.data.metadata?.source === "cache") {
+      dataSource = "cache";
+    }
+
     const normalizedItem: Item & { _source: DataSource } = {
       id: itemData.id || itemData._id || itemData.item_code,
       name: itemData.name || displayName,
@@ -701,7 +709,7 @@ export const getItemByBarcode = async (
       // Serialized item flag - when true, serial number capture is required
       is_serialized: itemData.is_serialized ?? false,
       // Source metadata
-      _source: "api",
+      _source: dataSource,
     };
 
     log.debug("Found via API", { itemCode: normalizedItem.item_code });

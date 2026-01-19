@@ -17,7 +17,7 @@ const STORAGE_KEYS = {
 /**
  * Data source metadata for cached items
  */
-export type DataSource = "api" | "cache" | "offline";
+export type DataSource = "api" | "cache" | "offline" | "sql";
 
 /**
  * Extended result with source metadata
@@ -414,7 +414,7 @@ export const removeSessionFromCache = async (sessionId: string) => {
   try {
     const cache = await getSessionsCache();
     if (cache[sessionId]) {
-      const { [sessionId]: removed, ...rest } = cache;
+      const { [sessionId]: _removed, ...rest } = cache;
       await storage.set(STORAGE_KEYS.SESSIONS_CACHE, rest);
       log.debug("Removed session from cache", { sessionId });
     }
