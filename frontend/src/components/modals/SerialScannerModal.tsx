@@ -4,7 +4,7 @@
  * Auto-increments quantity when new serials are scanned
  */
 import React, { useRef, useCallback, useState } from "react";
-import { View, Text, TouchableOpacity, Modal, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, Modal, StyleSheet, TextInput, Keyboard, KeyboardAvoidingView, Platform } from "react-native";
 import { CameraView } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -51,6 +51,37 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
     type: "success" | "error" | "warning";
     message: string;
   } | null>(null);
+
+  // Manual Input State
+  const [showManualInput, setShowManualInput] = useState(false);
+  const [manualText, setManualText] = useState("");
+
+  const handleBulkProcess = useCallback(() => {
+    if (!manualText.trim()) return;
+
+    const tokens = manualText.split(/[\n, \t]+/).filter(t => t.trim().length > 0);
+    let addedCount = 0;
+    
+    tokens.forEach(token => {
+      const validation = validateScannedSerial(token, [...existingSerials, ...tokens.slice(0, addedCount)]); // Approximate check
+      if (validation.valid) {
+         const normalized = normalizeSerialValue(token);
+         onSerialScanned({
+           serial_number: normalized,
+           mrp: defaultMrp,
+         });
+         addedCount++;
+      }
+    });
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setScanFeedback({
+      type: "success",
+      message: `Processed ${addedCount} valid serials`,
+    });
+    setManualText("");
+    setShowManualInput(false);
+  }, [manualText, existingSerials, defaultMrp, onSerialScanned]);
 
   // Reset state when modal opens
   React.useEffect(() => {
@@ -230,8 +261,48 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
                 Done ({existingSerials.length} serials)
               </Text>
             </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.doneButton, { marginTop: spacing.sm, backgroundColor: colors.neutral[700] }]} 
+              onPress={() => setShowManualInput(true)}
+            >
+              <Ionicons name="create-outline" size={24} color={colors.white} />
+              <Text style={styles.doneButtonText}>
+                Manual / Bulk Paste
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
+
+        {/* Manual Input Overlay */}
+        <Modal visible={showManualInput} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowManualInput(false)}>
+           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.manualContainer}>
+              <View style={styles.manualHeader}>
+                <Text style={styles.manualTitle}>Manual / Bulk Input</Text>
+                <TouchableOpacity onPress={() => setShowManualInput(false)}>
+                   <Ionicons name="close" size={28} color={colors.neutral[900]} />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.manualHelperText}>
+                Enter serial numbers separated by commas, spaces, or new lines.
+              </Text>
+
+              <TextInput
+                style={styles.manualInput}
+                multiline
+                placeholder="Paste serial numbers here..."
+                value={manualText}
+                onChangeText={setManualText}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+
+              <TouchableOpacity style={[styles.doneButton, { margin: spacing.lg }]} onPress={handleBulkProcess}>
+                <Text style={styles.doneButtonText}>Process Serials</Text>
+              </TouchableOpacity>
+           </KeyboardAvoidingView>
+        </Modal>
       </View>
     </Modal>
   );
@@ -413,6 +484,40 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.semiBold,
     color: colors.white,
   },
+  manualContainer: {
+    flex: 1,
+    backgroundColor: colors.white,
+    paddingTop: Platform.OS === 'ios' ? 20 : 0
+  },
+  manualHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.neutral[200]
+  },
+  manualTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.neutral[900]
+  },
+  manualHelperText: {
+    padding: spacing.lg,
+    color: colors.neutral[500],
+    fontSize: fontSize.sm
+  },
+  manualInput: {
+    flex: 1,
+    margin: spacing.lg,
+    marginTop: 0,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    fontSize: fontSize.md,
+    textAlignVertical: 'top'
+  }
 });
 
 export default SerialScannerModal;
