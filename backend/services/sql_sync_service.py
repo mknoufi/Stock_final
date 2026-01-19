@@ -525,6 +525,7 @@ class SQLSyncService:
             "qty_updated": 0,
             "items_created": 0,
             "variances_found": 0,
+            "qty_changes_detected": 0,  # Required by _update_existing_item
             "errors": 0,
             "duration": 0,
         }
@@ -534,7 +535,7 @@ class SQLSyncService:
 
             # Fetch ALL items from SQL Server
             sql_items = await asyncio.to_thread(self.sql_connector.get_all_items)
-            stats["items_checked"] = len(sql_items)
+            # stats["items_checked"] = len(sql_items) -- Removed to avoid double counting, incremented in _sync_single_item
             logger.info(f"Retrieved {len(sql_items)} items from SQL Server for verification")
 
             # Get all MongoDB item codes for comparison

@@ -178,7 +178,7 @@ SQL_TEMPLATES = {
     """,
     "get_all_items": LAST_PURCHASE_CTE  # nosec
     + """
-        SELECT DISTINCT TOP 1000
+        SELECT DISTINCT TOP 50000
             P.ProductID as item_id,
             P.ProductCode as item_code,
             P.ProductName as item_name,
