@@ -13,8 +13,46 @@ logger = logging.getLogger(__name__)
 class SQLServerConnectionBuilder:
     """Centralized SQL Server connection string builder and connection utilities"""
 
-    DEFAULT_DRIVER = "ODBC Driver 17 for SQL Server"
+    # Try drivers in order of preference (newest to oldest)
+    DRIVER_PRIORITY = [
+        "ODBC Driver 18 for SQL Server",
+        "ODBC Driver 17 for SQL Server",
+        "SQL Server Native Client 11.0",
+        "SQL Server",  # Legacy driver (usually installed by default on Windows)
+    ]
     DEFAULT_TIMEOUT = 30
+    _detected_driver: Optional[str] = None
+
+    @classmethod
+    def get_available_driver(cls) -> Optional[str]:
+        """Detect and cache the best available ODBC driver"""
+        if cls._detected_driver:
+            return cls._detected_driver
+
+        # Get list of installed drivers
+        try:
+            installed_drivers = [driver for driver in pyodbc.drivers()]
+            logger.debug(f"Installed ODBC drivers: {installed_drivers}")
+
+            # Try each driver in priority order
+            for driver in cls.DRIVER_PRIORITY:
+                if driver in installed_drivers:
+                    cls._detected_driver = driver
+                    logger.info(f"Selected ODBC driver: {driver}")
+                    return driver
+
+            # If no preferred driver found, try any SQL Server driver
+            for driver in installed_drivers:
+                if "sql" in driver.lower():
+                    cls._detected_driver = driver
+                    logger.info(f"Using available SQL driver: {driver}")
+                    return driver
+
+            logger.error("No SQL Server ODBC driver found!")
+            return None
+        except Exception as e:
+            logger.error(f"Error detecting ODBC drivers: {e}")
+            return None
 
     @staticmethod
     def build_connection_string(
@@ -43,23 +81,35 @@ class SQLServerConnectionBuilder:
         """
         server = f"{host},{port}" if port else host
 
-        logger.debug(
-            "SQLServerConnectionBuilder using driver: %s",
-            SQLServerConnectionBuilder.DEFAULT_DRIVER,
-        )
+        # Get the best available driver
+        driver = SQLServerConnectionBuilder.get_available_driver()
+        if not driver:
+            raise RuntimeError(
+                "No SQL Server ODBC driver installed. "
+                "Please install 'ODBC Driver 17 for SQL Server' from Microsoft."
+            )
+
+        logger.debug(f"SQLServerConnectionBuilder using driver: {driver}")
+
         # Base connection string components with performance optimizations
         base_params = [
-            f"DRIVER={{{SQLServerConnectionBuilder.DEFAULT_DRIVER}}}",
+            f"DRIVER={{{driver}}}",
             f"SERVER={server}",
             f"DATABASE={database}",
             "TrustServerCertificate=yes",
             f"Connection Timeout={timeout}",
             f"Login Timeout={timeout}",
-            # Performance optimizations
-            "Pooling=True",  # Enable connection pooling at driver level
-            "MARS Connection=True",  # Multiple Active Result Sets for better concurrency
-            "ApplicationIntent=ReadWrite",
         ]
+
+        # Only add advanced features for modern drivers
+        if "ODBC Driver" in driver:
+            base_params.extend(
+                [
+                    "Pooling=True",  # Enable connection pooling at driver level
+                    "MARS Connection=True",  # Multiple Active Result Sets
+                    "ApplicationIntent=ReadWrite",
+                ]
+            )
 
         # Authentication
         if user and password:

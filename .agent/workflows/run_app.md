@@ -25,6 +25,19 @@ chmod +x start_all_complete.sh
 ./start_all_complete.sh
 ```
 
+## Windows Startup
+
+For Windows users, a PowerShell script is available to handle setup and execution.
+
+```powershell
+# 1. Setup Environment & Install Dependencies (First time only)
+.\setup_env.ps1
+.\install_deps.ps1
+
+# 2. Run the App (Opens Backend and Frontend in new windows)
+.\start_app.ps1
+```
+
 ## Manual Startup
 
 If you prefer to start services individually:
@@ -49,6 +62,7 @@ npx expo start --clear
 ```
 
 **Access**:
+
 - Web: `http://localhost:8081`
 - Mobile: Scan QR code with Expo Go
 

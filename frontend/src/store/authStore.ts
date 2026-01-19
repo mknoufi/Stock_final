@@ -4,6 +4,7 @@ import apiClient from "../services/httpClient";
 import { useSettingsStore } from "./settingsStore";
 import { setUnauthorizedHandler } from "../services/authUnauthorizedHandler";
 import { createLogger } from "../services/logging";
+import { useNetworkStore } from "./networkStore";
 
 interface User {
   id: string;
@@ -81,6 +82,20 @@ export const useAuthStore = create<AuthState>((set) => ({
         // Sync user settings from backend after successful login
         useSettingsStore.getState().syncFromBackend();
 
+        // Trigger offline queue sync after successful login
+        const networkState = useNetworkStore.getState();
+        if (networkState.isOnline) {
+          log.debug("Online after login, triggering sync");
+          const { syncOfflineQueue } = await import("../services/syncService");
+          syncOfflineQueue({ background: true }).catch((err) => {
+            log.warn("Sync after login failed", {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+        } else {
+          log.debug("Offline after login, sync will trigger when online");
+        }
+
         return { success: true };
       }
 
@@ -150,6 +165,20 @@ export const useAuthStore = create<AuthState>((set) => ({
         // Sync user settings from backend after successful PIN login
         useSettingsStore.getState().syncFromBackend();
 
+        // Trigger offline queue sync after successful PIN login
+        const networkState = useNetworkStore.getState();
+        if (networkState.isOnline) {
+          log.debug("Online after PIN login, triggering sync");
+          const { syncOfflineQueue } = await import("../services/syncService");
+          syncOfflineQueue({ background: true }).catch((err) => {
+            log.warn("Sync after PIN login failed", {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+        } else {
+          log.debug("Offline after PIN login, sync will trigger when online");
+        }
+
         return { success: true };
       }
 
@@ -202,6 +231,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       isAuthenticated: false,
       isLoading: false,
     });
+
+    // Clear offline queue on logout to prevent orphaned data
+    // The items may be associated with a different user/session
+    const { clearOfflineQueue } = await import("../services/offline/offlineStorage");
+    await clearOfflineQueue();
+    log.info("Logged out and cleared offline queue");
   },
 
   setLoading: (loading: boolean) => set({ isLoading: loading }),
@@ -227,6 +262,18 @@ export const useAuthStore = create<AuthState>((set) => ({
           isLoading: false,
           isInitialized: true,
         });
+
+        // Trigger sync after restoring stored auth
+        const networkState = useNetworkStore.getState();
+        if (networkState.isOnline) {
+          log.debug("Online after restoring stored auth, triggering sync");
+          const { syncOfflineQueue } = await import("../services/syncService");
+          syncOfflineQueue({ background: true }).catch((err) => {
+            log.warn("Sync after restoring stored auth failed", {
+              error: err instanceof Error ? err.message : String(err),
+            });
+          });
+        }
       } else {
         log.debug("No stored credentials found");
         set({

@@ -106,7 +106,7 @@ export class BackupService {
       return backup;
     } catch (error) {
       __DEV__ && console.error("Error creating backup:", error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -132,7 +132,7 @@ export class BackupService {
       });
     } catch (error) {
       __DEV__ && console.error("Error sharing backup:", error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -182,7 +182,7 @@ export class BackupService {
       __DEV__ && console.log("Backup restored successfully");
     } catch (error) {
       __DEV__ && console.error("Error restoring backup:", error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -245,7 +245,7 @@ export class BackupService {
       __DEV__ && console.log("All data cleared");
     } catch (error) {
       __DEV__ && console.error("Error clearing data:", error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 }

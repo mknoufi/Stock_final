@@ -6,7 +6,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform } from "react-native";
 import Slider from "@react-native-community/slider";
-import * as Haptics from "expo-haptics";
+import { selectionAsync } from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 
 import { auroraTheme } from "../../theme/auroraTheme";
@@ -44,7 +44,7 @@ export const FontSizeSlider: React.FC<FontSizeSliderProps> = ({
     // Only trigger haptics and callback when value actually changes
     if (snappedValue !== value) {
       if (Platform.OS !== "web") {
-        Haptics.selectionAsync();
+        selectionAsync();
       }
       onValueChange(snappedValue);
     }

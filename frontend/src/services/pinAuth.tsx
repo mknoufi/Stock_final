@@ -158,11 +158,9 @@ export class PINAuthService {
         `Incorrect PIN. ${remainingAttempts} attempts remaining.`,
       );
     } catch (error) {
-      errorReporter.report(
-        error instanceof Error ? error : new Error(String(error)),
-        "PINAuthService.verifyPIN",
-      );
-      throw error;
+      const typedError = error instanceof Error ? error : new Error(String(error));
+      errorReporter.report(typedError, "PINAuthService.verifyPIN");
+      throw typedError;
     }
   }
 
@@ -191,11 +189,9 @@ export class PINAuthService {
       await SecureStore.deleteItemAsync("pin_enabled");
       this.attemptCount = 0;
     } catch (error) {
-      errorReporter.report(
-        error instanceof Error ? error : new Error(String(error)),
-        "PINAuthService.disablePIN",
-      );
-      throw error;
+      const typedError = error instanceof Error ? error : new Error(String(error));
+      errorReporter.report(typedError, "PINAuthService.disablePIN");
+      throw typedError;
     }
   }
 

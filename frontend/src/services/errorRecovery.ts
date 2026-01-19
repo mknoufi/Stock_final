@@ -5,12 +5,13 @@ export const handleErrorWithRecovery = async (
   try {
     return await operation();
   } catch (error: any) {
-    // Don't show generic alert if the caller handles it, or show specific message
+    // Don't show generic alert if caller handles it, or show specific message
+    const typedError = error instanceof Error ? error : new Error(String(error));
     if (options?.showAlert) {
-      // Use a more specific message if available, but prefer letting the caller handle UI
-      // console.warn("handleErrorWithRecovery caught error:", error);
+      // Use a more specific message if available, but prefer letting caller handle UI
+      // console.warn("handleErrorWithRecovery caught error:", typedError);
     }
-    throw error;
+    throw typedError;
   }
 };
 

@@ -19,7 +19,7 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as Haptics from "expo-haptics";
+import { impactAsync, ImpactFeedbackStyle } from "expo-haptics";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -71,7 +71,7 @@ export function PasswordInput({
 
     // Haptic feedback
     if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      impactAsync(ImpactFeedbackStyle.Light);
     }
 
     // Animate icon

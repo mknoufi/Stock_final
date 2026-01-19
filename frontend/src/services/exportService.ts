@@ -68,7 +68,7 @@ export class ExportService {
         error instanceof Error ? error.message : "Failed to export CSV";
       __DEV__ && console.error("CSV export error:", error);
       Alert.alert("Export Error", errorMessage);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -93,7 +93,7 @@ export class ExportService {
         error instanceof Error ? error.message : "Failed to export JSON";
       __DEV__ && console.error("JSON export error:", error);
       Alert.alert("Export Error", errorMessage);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -132,7 +132,7 @@ export class ExportService {
         error instanceof Error ? error.message : "Failed to export text";
       __DEV__ && console.error("Text export error:", error);
       Alert.alert("Export Error", errorMessage);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -208,7 +208,7 @@ export class ExportService {
           "❌ [Export] Failed to export sessions with details:",
           error,
         );
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -259,7 +259,7 @@ export class ExportService {
     } catch (error: unknown) {
       __DEV__ &&
         console.error("❌ [Export] Failed to export variance report:", error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -311,7 +311,7 @@ export class ExportService {
     } catch (error: unknown) {
       __DEV__ &&
         console.error("❌ [Export] Failed to export summary report:", error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 

@@ -4,9 +4,18 @@ import {
   updateQueueItemRetries,
   getCacheStats,
   OfflineQueueItem,
+  clearOfflineQueue,
+  removeFromOfflineQueue,
 } from "./offline/offlineStorage";
 import { syncBatch, isOnline } from "./api/api";
 import { useNetworkStore } from "../store/networkStore";
+import { useAuthStore } from "../store/authStore";
+import { createLogger } from "./logging";
+
+const log = createLogger("syncService");
+
+const MAX_SYNC_RETRIES = 3;
+const CLEANUP_RETRIES_THRESHOLD = 5;
 
 export interface SyncResult {
   success: number;
@@ -24,12 +33,23 @@ export interface SyncOptions {
 let isSyncing = false;
 
 export const initializeSyncService = () => {
-  // Setup auto-sync when network comes online
+  let networkReady = false;
+
   const unsubscribe = useNetworkStore.subscribe((state) => {
-    if (state.isOnline) {
-      // Debounce slightly to allow connection to stabilize
+    const wasOnline = networkReady;
+    networkReady = state.isOnline;
+
+    if (state.isOnline && !wasOnline) {
+      log.debug("Network came online, scheduling sync");
+
       setTimeout(() => {
-        syncOfflineQueue({ background: true });
+        const authState = useAuthStore.getState();
+        if (authState.isAuthenticated && authState.user) {
+          log.debug("Authenticated and online, triggering sync");
+          syncOfflineQueue({ background: true });
+        } else {
+          log.debug("Not authenticated yet, skipping sync until login");
+        }
       }, 2000);
     }
   });
@@ -58,12 +78,18 @@ export const syncOfflineQueue = async (
   options?: SyncOptions,
 ): Promise<SyncResult> => {
   if (isSyncing) {
-    console.log("Sync already in progress, skipping");
+    log.debug("Sync already in progress, skipping");
     return { success: 0, failed: 0, total: 0, errors: [] };
   }
 
   if (!isOnline()) {
-    console.log("Offline, skipping sync");
+    log.debug("Offline, skipping sync");
+    return { success: 0, failed: 0, total: 0, errors: [] };
+  }
+
+  const authState = useAuthStore.getState();
+  if (!authState.isAuthenticated || !authState.user) {
+    log.debug("Not authenticated, skipping sync");
     return { success: 0, failed: 0, total: 0, errors: [] };
   }
 
@@ -77,7 +103,7 @@ export const syncOfflineQueue = async (
     }
 
     const total = queue.length;
-    console.log(`Syncing ${total} items...`);
+    log.info(`Syncing ${total} items from offline queue`);
 
     // Process in batches of 50 to avoid payload size issues
     const BATCH_SIZE = 50;
@@ -98,6 +124,14 @@ export const syncOfflineQueue = async (
           timestamp: item.timestamp,
         }));
 
+        log.debug(`Processing batch ${Math.floor(i / BATCH_SIZE) + 1}`, {
+          batchSize: batch.length,
+          operations: operations.map((op: Record<string, unknown>) => ({
+            id: op.id,
+            type: op.type,
+          })),
+        });
+
         const response = await syncBatch(operations);
 
         // Handle response
@@ -110,7 +144,9 @@ export const syncOfflineQueue = async (
             successCount++;
           } else {
             failedCount++;
-            errors.push({ id: res.id, error: res.message || "Unknown error" });
+            const errorMessage = res.message || "Unknown error";
+            errors.push({ id: res.id, error: errorMessage });
+            log.warn(`Sync item failed: ${res.id} - ${errorMessage}`);
             // Update retry count for failed items
             await updateQueueItemRetries(res.id);
           }
@@ -119,17 +155,38 @@ export const syncOfflineQueue = async (
         // Remove successful items locally
         if (successIds.length > 0) {
           await removeManyFromOfflineQueue(successIds);
+          log.debug(`Removed ${successIds.length} synced items from queue`);
         }
       } catch (batchError: unknown) {
-        console.error("Batch sync failed:", batchError);
-        // If the entire batch fails (e.g. network error), mark all as failed
-        failedCount += batch.length;
-        // Maybe increment retries for all?
+        const errorMessage = batchError instanceof Error ? batchError.message : "Unknown batch error";
+        log.error(`Batch sync failed: ${errorMessage}`, batchError as Record<string, unknown>);
+
+        // Check if this is an auth error (401) - don't retry, just mark all as failed
+        const axiosError = batchError as { response?: { status?: number } };
+        if (axiosError.response?.status === 401) {
+          log.warn("Auth error during sync - will retry after re-authentication");
+          // Don't increment retries for auth errors - they may resolve after login
+        } else {
+          // Mark all items in this batch as failed and increment retries
+          failedCount += batch.length;
+          for (const item of batch) {
+            await updateQueueItemRetries(item.id);
+          }
+        }
       }
 
       processed += batch.length;
       options?.onProgress?.(processed, total);
     }
+
+    log.info(`Sync complete: ${successCount} succeeded, ${failedCount} failed`, {
+      total,
+      successCount,
+      failedCount,
+      errorCount: errors.length,
+    });
+
+    await cleanupOldFailedItems();
 
     return {
       success: successCount,
@@ -138,7 +195,7 @@ export const syncOfflineQueue = async (
       errors,
     };
   } catch (error: unknown) {
-    console.error("Sync process error:", error);
+    log.error("Sync process error", error as Record<string, unknown>);
     const errorMessage =
       error instanceof Error ? error.message : "Unknown sync error";
     return {
@@ -154,4 +211,35 @@ export const syncOfflineQueue = async (
 
 export const forceSync = async (options?: SyncOptions): Promise<SyncResult> => {
   return syncOfflineQueue(options);
+};
+
+const cleanupOldFailedItems = async (): Promise<number> => {
+  try {
+    const queue = await getOfflineQueue();
+    const itemsToRemove: string[] = [];
+
+    for (const item of queue) {
+      if (item.retries >= CLEANUP_RETRIES_THRESHOLD) {
+        log.warn(`Removing item with too many retries`, {
+          id: item.id,
+          type: item.type,
+          retries: item.retries,
+        });
+        itemsToRemove.push(item.id);
+      }
+    }
+
+    for (const id of itemsToRemove) {
+      await removeFromOfflineQueue(id);
+    }
+
+    if (itemsToRemove.length > 0) {
+      log.info(`Cleaned up ${itemsToRemove.length} items that exceeded retry threshold`);
+    }
+
+    return itemsToRemove.length;
+  } catch (error) {
+    log.error("Error during cleanup", error as Record<string, unknown>);
+    return 0;
+  }
 };

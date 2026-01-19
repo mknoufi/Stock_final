@@ -69,7 +69,7 @@ export class SelfTestService {
       return suites;
     } catch (error) {
       console.error("Self-test suite error:", error);
-      throw error;
+      throw error instanceof Error ? error : new Error(String(error));
     }
   }
 
@@ -237,7 +237,8 @@ export class SelfTestService {
           if (error.response?.status === 404) {
             return true;
           }
-          throw error;
+          const typedError = error instanceof Error ? error : new Error(String(error));
+          throw typedError;
         }
       }),
     );

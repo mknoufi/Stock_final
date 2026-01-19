@@ -9,9 +9,10 @@ import {
 } from "react-native";
 import { useTheme } from "../../hooks/useTheme";
 import apiClient from "../../services/httpClient";
+import { errorReporter } from "../../services/errorRecovery";
 import { Ionicons } from "@expo/vector-icons";
 import { File, Paths } from "expo-file-system";
-import * as Sharing from "expo-sharing";
+import { isAvailableAsync, shareAsync } from "expo-sharing";
 
 interface ReportExportProps {
   days: number;
@@ -48,13 +49,15 @@ export const ReportExport: React.FC<ReportExportProps> = ({ days }) => {
 
       await file.write(base64, { encoding: "base64" });
 
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(file.uri);
+      if (await isAvailableAsync()) {
+        await shareAsync(file.uri);
       } else {
         Alert.alert("Success", `Report saved to ${file.uri}`);
       }
     } catch (error) {
-      console.error("Export failed:", error);
+      const typedError = error instanceof Error ? error : new Error(String(error));
+      __DEV__ && console.error("Export failed:", typedError);
+      errorReporter.report(typedError, "ReportExport.handleExportPDF");
       Alert.alert("Error", "Failed to export PDF report");
     } finally {
       setExporting(false);

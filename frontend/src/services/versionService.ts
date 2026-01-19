@@ -65,7 +65,7 @@ export const getBackendVersion = async (): Promise<{
     return response.data;
   } catch (error: any) {
     __DEV__ && console.error("Get backend version error:", error);
-    throw error;
+    throw error instanceof Error ? error : new Error(String(error));
   }
 };
 

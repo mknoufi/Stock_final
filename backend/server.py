@@ -8,7 +8,7 @@ from typing import Any, Optional, TypeVar, cast
 
 import jwt
 import uvicorn
-from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query
+from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 # from motor.motor_asyncio import AsyncIOMotorClient
@@ -42,7 +42,7 @@ from backend.api.rack_api import router as rack_router
 from backend.api.realtime_dashboard_api import realtime_dashboard_router
 from backend.api.report_generation_api import report_generation_router
 from backend.api.reporting_api import router as reporting_router
-from backend.api.schemas import ApiResponse, CountLineCreate, Session, SessionCreate, TokenResponse
+from backend.api.schemas import ApiResponse, CountLineCreate, Session, TokenResponse
 from backend.api.search_api import router as search_router
 from backend.api.security_api import security_router
 from backend.api.self_diagnosis_api import self_diagnosis_router
@@ -759,94 +759,6 @@ async def logout(
 
 
 # Session routes
-@api_router.post("/sessions", response_model=Session)
-async def create_session(
-    request: Request,
-    session_data: SessionCreate,
-    current_user: dict[str, Any] = Depends(get_current_user),
-) -> Session:
-    logger.debug(f"create_session called. User: {current_user.get('username')}")
-    # Input validation and sanitization
-    warehouse = session_data.warehouse.strip()
-    if not warehouse:
-        raise HTTPException(status_code=400, detail="Warehouse name cannot be empty")
-    if len(warehouse) < 2:
-        raise HTTPException(status_code=400, detail="Warehouse name must be at least 2 characters")
-    if len(warehouse) > 100:
-        raise HTTPException(
-            status_code=400, detail="Warehouse name must be less than 100 characters"
-        )
-    # Sanitize warehouse name (remove potentially dangerous characters)
-    warehouse = warehouse.replace("<", "").replace(">", "").replace('"', "").replace("'", "")
-
-    session = Session(
-        warehouse=warehouse,
-        staff_user=current_user["username"],
-        staff_name=current_user.get("full_name") or current_user["username"],
-        type=session_data.type or "STANDARD",
-    )
-
-    # Add session_id to satisfy the unique index on session_id
-    session_dict = session.model_dump()
-    session_dict["session_id"] = session.id
-    await db.sessions.insert_one(session_dict)
-
-    # Log activity
-    await activity_log_service.log_activity(
-        user=current_user["username"],
-        role=current_user["role"],
-        action="create_session",
-        entity_type="session",
-        entity_id=session.id,
-        details={"warehouse": session_data.warehouse},
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent") if request else None,
-    )
-
-    return session
-
-
-@api_router.get("/sessions", response_model=dict[str, Any])
-async def get_sessions(
-    current_user: dict[str, Any] = Depends(get_current_user),
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
-) -> dict[str, Any]:
-    """Get sessions with pagination"""
-    skip = (page - 1) * page_size
-
-    if current_user["role"] == "supervisor":
-        total = await db.sessions.count_documents({})
-        sessions_cursor = db.sessions.find().sort("started_at", -1).skip(skip).limit(page_size)
-    else:
-        filter_query = {"staff_user": current_user["username"]}
-        total = await db.sessions.count_documents(filter_query)
-        # Optimize query with projection and batch size
-        projection = {"_id": 0}
-        sessions_cursor = (
-            db.sessions.find(filter_query, projection)
-            .sort("started_at", -1)
-            .skip(skip)
-            .limit(page_size)
-        )
-        sessions_cursor.batch_size(min(page_size, 100))
-
-    sessions = await sessions_cursor.to_list(page_size)
-
-    return {
-        "items": [Session(**session) for session in sessions],
-        "pagination": {
-            "page": page,
-            "page_size": page_size,
-            "total": total,
-            "total_pages": (total + page_size - 1) // page_size,
-            "has_next": skip + page_size < total,
-            "has_prev": page > 1,
-        },
-    }
-
-
-# Bulk session operations
 @api_router.post("/sessions/bulk/close")
 async def bulk_close_sessions(
     session_ids: list[str], current_user: dict = Depends(get_current_user)

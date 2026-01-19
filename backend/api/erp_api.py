@@ -30,7 +30,7 @@ _ALPHANUMERIC_PATTERN = re.compile(r"^[A-Z0-9_\-]+$")
 
 
 def _normalize_barcode_input(
-    barcode: str, *, allow_alphanumeric: bool = True, strict_numeric: bool = True
+    barcode: str, *, allow_alphanumeric: bool = True, strict_numeric: bool = False
 ) -> str:
     """Normalize and validate barcode or item code input.
 
@@ -42,6 +42,9 @@ def _normalize_barcode_input(
       "TEST001" are allowed for endpoints like refresh-stock.
     """
 
+    logger.info(
+        f"Normalizing barcode: {barcode}, allow_alphanumeric={allow_alphanumeric}, strict_numeric={strict_numeric}"
+    )
     if not barcode or not barcode.strip():
         raise HTTPException(
             status_code=400,
