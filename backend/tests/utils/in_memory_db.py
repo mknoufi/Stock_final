@@ -279,6 +279,8 @@ class InMemoryDatabase:
         self.erp_sync_metadata = InMemoryCollection()
         self.erp_config = InMemoryCollection()
         self.verification_logs = InMemoryCollection()
+        self.verification_sessions = InMemoryCollection()
+        self.verification_records = InMemoryCollection()
         self.item_variances = InMemoryCollection()
         self.items = InMemoryCollection()
         self.variances = InMemoryCollection()
