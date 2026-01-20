@@ -3,7 +3,6 @@ Unit tests for NotificationService
 """
 
 import pytest
-from datetime import datetime
 from backend.services.notification_service import (
     NotificationService,
     NotificationType,
@@ -26,12 +25,15 @@ class MockCollection:
 
     async def insert_one(self, doc):
         """Mock insert_one"""
-        doc["_id"] = f"notif_{len(self.data)}"
-        self.data.append(doc)
-        return type("obj", (object,), {"inserted_id": doc["_id"]})
+        from bson import ObjectId
 
-    async def find(self, query):
-        """Mock find"""
+        doc["_id"] = ObjectId()
+        self.data.append(doc)
+        return type("obj", (object,), {"inserted_id": str(doc["_id"])})
+
+    def find(self, query):
+        """Mock find - returns cursor (sync like Motor)"""
+        self._last_query = query
         return self
 
     def sort(self, field, direction):
@@ -44,13 +46,17 @@ class MockCollection:
 
     async def to_list(self, length):
         """Mock to_list"""
-        user_id = None
-        for item in self.data:
-            if "user_id" in item:
-                user_id = item["user_id"]
-                break
-
-        return [n for n in self.data if n.get("user_id") == user_id][:length]
+        query = getattr(self, "_last_query", {})
+        result = []
+        for notif in self.data:
+            match = True
+            for key, value in query.items():
+                if notif.get(key) != value:
+                    match = False
+                    break
+            if match:
+                result.append(notif)
+        return result[:length]
 
     async def count_documents(self, query):
         """Mock count_documents"""
@@ -67,7 +73,6 @@ class MockCollection:
 
     async def update_one(self, query, update):
         """Mock update_one"""
-        from bson import ObjectId
 
         notif_id = query.get("_id")
 
@@ -164,6 +169,7 @@ async def test_notify_count_approved():
     notif_id = await service.notify_count_approved(
         user_id="user1", count_line_id="count_002", item_name="Test Item", approved_by="supervisor1"
     )
+    assert notif_id is not None
 
     notif = db.notifications.data[0]
     assert notif["type"] == "count_approved"
@@ -184,6 +190,7 @@ async def test_notify_count_rejected():
         reason="Photo required",
         rejected_by="supervisor1",
     )
+    assert notif_id is not None
 
     notif = db.notifications.data[0]
     assert notif["type"] == "count_rejected"
@@ -231,6 +238,7 @@ async def test_get_unread_notifications_only():
         title="Unread",
         message="Unread message",
     )
+    assert notif1_id is not None
 
     notif2_id = await service.create_notification(
         user_id="user1",

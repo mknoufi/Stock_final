@@ -3,10 +3,8 @@ Unit tests for CountLineStateMachine
 """
 
 import pytest
-from datetime import datetime
 from backend.services.count_state_machine import (
     CountLineStateMachine,
-    CountLineState,
     StateTransition,
     EditPermission,
 )

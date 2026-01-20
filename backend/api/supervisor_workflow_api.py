@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
-from backend.auth.dependencies import get_current_user
 from backend.auth.permissions import Permission, require_permission
 from backend.db.runtime import get_db
 from backend.services.count_state_machine import CountLineStateMachine, CountLineState

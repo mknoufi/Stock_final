@@ -6,7 +6,6 @@ Adds specific indexes to resolve "First Session Creation" delay
 import asyncio
 import logging
 import os
-from typing import Any
 
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient

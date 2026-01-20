@@ -2,8 +2,7 @@
 Admin API for managing variance threshold configurations
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from backend.auth.dependencies import get_current_user
+from fastapi import APIRouter, HTTPException, Query
 from backend.auth.permissions import Permission, require_permission
 from backend.db.runtime import get_db
 from backend.api.schemas_variance import VarianceThresholdConfig
@@ -165,7 +164,11 @@ async def delete_variance_threshold(
 
     # Delete
     try:
-        result = await db.variance_threshold_configs.delete_one({"_id": config["_id"]})
+        delete_result = await db.variance_threshold_configs.delete_one({"_id": config["_id"]})
+        if delete_result.deleted_count == 0:
+            raise HTTPException(status_code=500, detail="Failed to delete configuration")
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error deleting config: {e}")
         raise HTTPException(status_code=500, detail=str(e))

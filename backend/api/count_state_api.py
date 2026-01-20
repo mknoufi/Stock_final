@@ -21,8 +21,6 @@ from backend.db.runtime import get_db
 from backend.services.count_state_machine import (
     CountLineStateMachine,
     CountLineState,
-    StateTransition,
-    EditPermission,
 )
 
 logger = logging.getLogger(__name__)
