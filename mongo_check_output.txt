@@ -1,0 +1,5 @@
+Checking database: stock_count
+Collections: ['rack_registry', 'refresh_tokens', 'error_logs', 'security_ip_lists', 'security_sessions', 'item_serials', 'data_subject_requests', 'warehouses', 'sessions', 'verification_records', 'security_lockouts', 'enterprise_audit_logs', 'login_attempts', 'item_variances', 'count_lines', 'users', 'data_retention_policies', 'verification_sessions', 'erp_items', 'activity_logs', 'report_snapshots', 'security_events', 'erp_sync_metadata', 'migrations', 'feature_flags', 'erp_config', 'report_compare_jobs', 'data_archive']
+No 'items' collection found.
+ERP Items count: 4
+Sample ERP item: {'_id': ObjectId('696dd54af96708cb1896f344'), 'item_code': 'ITEM001', 'item_name': 'Rice Bag 25kg', 'barcode': '1234567890123', 'stock_qty': 150.0, 'mrp': 1200.0, 'category': 'Food', 'warehouse': 'Main'}
