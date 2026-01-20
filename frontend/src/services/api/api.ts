@@ -3176,3 +3176,67 @@ export const getWarehouses = async (zone?: string) => {
     throw error;
   }
 };
+
+// Notification API functions (FR-M-23)
+export interface Notification {
+  _id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  priority: string;
+  read: boolean;
+  action_url?: string;
+  metadata?: Record<string, any>;
+  created_at: string;
+}
+
+export const getNotifications = async (unreadOnly = false, limit = 50): Promise<Notification[]> => {
+  try {
+    const params = new URLSearchParams({
+      unread_only: unreadOnly.toString(),
+      limit: limit.toString(),
+    });
+    const response = await api.get(`/api/notifications?${params}`);
+    return response.data;
+  } catch (error: any) {
+    __DEV__ && console.error("Error fetching notifications:", error);
+    throw error;
+  }
+};
+
+export const getUnreadNotificationCount = async (): Promise<number> => {
+  try {
+    const response = await await api.get("/api/notifications?unread_only=true&limit=1");
+    // Backend returns array, count unread from response or separate count endpoint
+    if (Array.isArray(response.data)) {
+      return response.data.length;
+    }
+    // If response has count field
+    if (typeof response.data?.count === "number") {
+      return response.data.count;
+    }
+    return 0;
+  } catch (error: any) {
+    __DEV__ && console.error("Error getting unread notification count:", error);
+    return 0;
+  }
+};
+
+export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
+  try {
+    await api.put(`/api/notifications/${notificationId}/read`);
+  } catch (error: any) {
+    __DEV__ && console.error("Error marking notification as read:", error);
+    throw error;
+  }
+};
+
+export const markAllNotificationsAsRead = async (): Promise<void> => {
+  try {
+    await api.put("/api/notifications/read-all");
+  } catch (error: any) {
+    __DEV__ && console.error("Error marking all notifications as read:", error);
+    throw error;
+  }
+};
