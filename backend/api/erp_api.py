@@ -132,7 +132,9 @@ async def get_item_by_barcode(barcode: str, current_user: dict = Depends(get_cur
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     # For barcode lookups, we only accept numeric barcodes with valid prefixes
-    normalized_barcode = _normalize_barcode_input(barcode, allow_alphanumeric=False)
+    normalized_barcode = _normalize_barcode_input(
+        barcode, allow_alphanumeric=False, strict_numeric=True
+    )
 
     # Check cache first
     cached_item = await _cache_service.get("items", normalized_barcode)

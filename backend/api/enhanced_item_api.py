@@ -73,7 +73,7 @@ def _validate_barcode_format(barcode: Optional[str]) -> str:
 
     # Delegate to the shared normalizer and disallow alphanumeric-only codes
     # for the enhanced barcode endpoint.
-    return _normalize_barcode_input(barcode, allow_alphanumeric=False, strict_numeric=False)
+    return _normalize_barcode_input(barcode, allow_alphanumeric=False, strict_numeric=True)
 
 
 # Enhanced router with comprehensive item management
