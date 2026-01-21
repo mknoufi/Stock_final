@@ -4,7 +4,7 @@ Tests for Authentication endpoints
 
 import pytest
 from fastapi.testclient import TestClient
-from server import app
+from backend.server import app
 
 from backend.tests.utils.in_memory_db import setup_server_with_in_memory_db
 
@@ -49,10 +49,9 @@ class TestLogin:
         assert response.status_code == 200
         payload = response.json()
         assert payload.get("success") is True
-        data = payload.get("data", {})
-        assert "access_token" in data
-        assert "refresh_token" in data
-        assert "user" in data
+        assert "access_token" in payload
+        assert "refresh_token" in payload
+        assert "user" in payload
 
     def test_login_invalid_credentials(self, client):
         """Test login with invalid credentials"""

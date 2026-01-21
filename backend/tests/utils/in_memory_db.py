@@ -56,7 +56,19 @@ def _match_condition(value: Any, condition: dict[str, Any]) -> bool:
             return False
         if op == "$ne" and not (value != expected):
             return False
-        if op not in {"$lt", "$lte", "$gt", "$gte", "$ne", "$regex", "$options"}:
+        if op == "$in":
+            if not isinstance(expected, list):
+                return False
+            if value not in expected:
+                return False
+            continue
+        if op == "$nin":
+            if not isinstance(expected, list):
+                return False
+            if value in expected:
+                return False
+            continue
+        if op not in {"$lt", "$lte", "$gt", "$gte", "$ne", "$regex", "$options", "$in", "$nin"}:
             raise ValueError(f"Unsupported operator: {op}")
     return True
 
@@ -185,6 +197,15 @@ class InMemoryCollection:
         self._documents.append(doc_copy)
         return InsertOneResult(inserted_id=doc_copy["_id"])
 
+    async def insert_many(self, documents: list[dict[str, Any]], ordered: bool = True) -> list[str]:
+        ids = []
+        for document in documents:
+            doc_copy = copy.deepcopy(document)
+            self._ensure_id(doc_copy)
+            self._documents.append(doc_copy)
+            ids.append(doc_copy["_id"])
+        return ids
+
     async def update_one(
         self,
         filter_query: dict[str, Optional[Any]],
@@ -288,10 +309,21 @@ class InMemoryDatabase:
         self.user_settings = InMemoryCollection()
         self.audit_logs = InMemoryCollection()
         self.system_events = InMemoryCollection()
+        self.item_serials = InMemoryCollection()
 
     async def command(self, *_args, **_kwargs):
         """Simulate db.command('ping')."""
         return {"ok": 1}
+
+    def __getitem__(self, name: str) -> InMemoryCollection:
+        """Allow accessing collections via db['name']."""
+        if hasattr(self, name):
+            return getattr(self, name)
+
+        # Create dynamically if not exists (mimics Mongo behavior)
+        collection = InMemoryCollection()
+        setattr(self, name, collection)
+        return collection
 
 
 def setup_server_with_in_memory_db(monkeypatch) -> InMemoryDatabase:
@@ -529,13 +561,22 @@ def _seed_default_users(fake_db, server_module) -> None:
 
     # Manually add PIN hash for staff1 using same argon2+bcrypt context as main app
     from passlib.context import CryptContext
+    from backend.utils.crypto_utils import get_pin_lookup_hash
 
     # We must match the schemes from backend.utils.auth_utils to avoid verification errors
     pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
 
     hashed_pin = pwd_context.hash("1234")
+    lookup_hash = get_pin_lookup_hash("1234")
 
-    # Populate pin_authentication collection
+    # Update the user document for auth.py's implementation
+    for user in fake_db.users._documents:
+        if user["username"] == "staff1":
+            user["pin_hash"] = hashed_pin
+            user["pin_lookup_hash"] = lookup_hash
+            break
+
+    # Populate pin_authentication collection for pin_auth_api.py's implementation
     fake_db.pin_authentication._documents.append(
         {
             "_id": os.urandom(12).hex(),

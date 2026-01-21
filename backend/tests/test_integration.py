@@ -42,9 +42,8 @@ class TestAuthenticationWorkflow:
 
         # Verify token in response
         response_data = login_response.json()
-        assert "data" in response_data
-        assert "access_token" in response_data["data"]
-        assert "refresh_token" in response_data["data"]
+        assert "access_token" in response_data
+        assert "refresh_token" in response_data
 
         logger.info("✓ User registration and login successful")
 
@@ -68,7 +67,7 @@ class TestSessionWorkflow:
             json={"username": user_data["username"], "password": user_data["password"]},
         )
 
-        token = login_response.json()["data"]["access_token"]
+        token = login_response.json()["access_token"]
         return {"Authorization": f"Bearer {token}"}
 
     @pytest.mark.asyncio
@@ -82,7 +81,9 @@ class TestSessionWorkflow:
             "notes": "Integration test session",
         }
 
-        response = await async_client.post("/api/sessions", json=session_data, headers=auth_headers)
+        response = await async_client.post(
+            "/api/sessions/", json=session_data, headers=auth_headers
+        )
 
         assert response.status_code == status.HTTP_200_OK
         response_data = response.json()
@@ -111,7 +112,7 @@ class TestCountLineWorkflow:
             json={"username": user_data["username"], "password": user_data["password"]},
         )
 
-        token = login_response.json()["data"]["access_token"]
+        token = login_response.json()["access_token"]
         return {"Authorization": f"Bearer {token}"}
 
     @pytest.mark.asyncio
@@ -159,7 +160,7 @@ class TestERPItemsWorkflow:
             json={"username": user_data["username"], "password": user_data["password"]},
         )
 
-        token = login_response.json()["data"]["access_token"]
+        token = login_response.json()["access_token"]
         return {"Authorization": f"Bearer {token}"}
 
     @pytest.mark.asyncio
