@@ -26,6 +26,7 @@ import { getNetworkStatus } from "../../utils/network";
 import { AppError } from "../../utils/errors";
 import { createLogger } from "../logging";
 import { generateOfflineId } from "../../utils/uuid";
+import { Platform } from "react-native";
 
 const log = createLogger("ApiService");
 
@@ -61,12 +62,26 @@ export const isOnline = () => {
   return status !== "OFFLINE";
 };
 
+export interface CreateSessionParams {
+  warehouse?: string; // Legacy support
+  type?: string;
+  location_type?: string;
+  location_name?: string;
+  rack_no?: string;
+}
+
 // Create session (with offline support)
 export const createSession = async (
-  params: string | { warehouse: string; type?: string },
+  params: string | CreateSessionParams,
 ) => {
   const warehouse = typeof params === "string" ? params : params.warehouse;
   const sessionType = typeof params !== "string" ? params.type : undefined;
+
+  // Structured fields
+  const locationType = typeof params !== "string" ? params.location_type : undefined;
+  const locationName = typeof params !== "string" ? params.location_name : undefined;
+  const rackNo = typeof params !== "string" ? params.rack_no : undefined;
+
   const networkStatus = getNetworkStatus();
 
   log.debug("Create session requested", {
@@ -79,6 +94,9 @@ export const createSession = async (
   const createOfflineSession = () => ({
     id: generateOfflineId(),
     warehouse,
+    location_type: locationType,
+    location_name: locationName,
+    rack_no: rackNo,
     status: "OPEN",
     type: sessionType || "STANDARD",
     staff_user: "offline_user",
@@ -105,12 +123,16 @@ export const createSession = async (
 
     const payload = {
       warehouse,
+      location_type: locationType,
+      location_name: locationName,
+      rack_no: rackNo,
       ...(sessionType && { type: sessionType }),
     };
 
     const response = await api.post("/api/sessions", payload, {
       timeout: 3000, // Fail fast (3s) to fallback to offline mode if server is slow
-    });
+      skipOfflineQueue: true,
+    } as any);
     await cacheSession(response.data);
     log.debug("Created session via API", {
       id: response.data?.id,
@@ -487,7 +509,6 @@ export const getRackProgress = async (sessionId: string) => {
         },
       };
     }
-    // Note: The backend response wrapper puts the actual array in data.data
     const response = await api.get(
       `/api/v2/sessions/${sessionId}/rack-progress`,
     );
@@ -502,7 +523,9 @@ export const getRackProgress = async (sessionId: string) => {
 // Bulk close sessions
 export const bulkCloseSessions = async (sessionIds: string[]) => {
   try {
-    const response = await api.post("/api/sessions/bulk/close", sessionIds);
+    const response = await api.post("/api/sessions/bulk/close", sessionIds, {
+      skipOfflineQueue: true,
+    } as any);
     return response.data;
   } catch (error: unknown) {
     __DEV__ && console.error("Bulk close sessions error:", error);
@@ -513,7 +536,9 @@ export const bulkCloseSessions = async (sessionIds: string[]) => {
 // Bulk reconcile sessions
 export const bulkReconcileSessions = async (sessionIds: string[]) => {
   try {
-    const response = await api.post("/api/sessions/bulk/reconcile", sessionIds);
+    const response = await api.post("/api/sessions/bulk/reconcile", sessionIds, {
+      skipOfflineQueue: true,
+    } as any);
     return response.data;
   } catch (error: unknown) {
     __DEV__ && console.error("Bulk reconcile sessions error:", error);
@@ -560,6 +585,8 @@ export const getSessionsAnalytics = async () => {
 export const getItemByBarcode = async (
   barcode: string,
   retryCount: number = 3,
+  sessionId?: string,
+  rackNo?: string,
 ): Promise<
   Item & { _source?: DataSource; _cachedAt?: string; _stale?: boolean }
 > => {
@@ -636,6 +663,12 @@ export const getItemByBarcode = async (
       () =>
         api.get(
           `/api/v2/erp/items/barcode/${encodeURIComponent(trimmedBarcode)}/enhanced`,
+          {
+            params: {
+              session_id: sessionId,
+              rack_no: rackNo,
+            },
+          },
         ),
       {
         retries: retryCount,
@@ -804,6 +837,34 @@ export const getItemByBarcode = async (
   }
 };
 
+/**
+ * Check if a serial number has already been used in this session (global check)
+ */
+export const checkSerialUniqueness = async (
+  sessionId: string,
+  serialNumber: string,
+): Promise<{
+  exists: boolean;
+  item_code?: string;
+  item_name?: string;
+  counted_by?: string;
+  floor_no?: string;
+  rack_no?: string;
+  status?: string;
+}> => {
+  try {
+    const response = await api.get(
+      `/api/v2/count-lines/check-serial/${sessionId}/${serialNumber}`,
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error checking serial uniqueness:", error);
+    // In case of error (e.g. offline), default to not exists to allow work,
+    // but log it. Real validation will happen at submission.
+    return { exists: false };
+  }
+};
+
 // Search items (with offline support)
 /**
  * Search items by query with offline fallback.
@@ -811,95 +872,38 @@ export const getItemByBarcode = async (
  */
 export const searchItems = async (
   query: string,
-): Promise<(Item & { _source?: DataSource })[]> => {
-  // Helper to map cached items to frontend Item interface
-  const mapCachedItems = (
-    items: any[],
-    source: DataSource = "cache",
-  ): (Item & { _source: DataSource })[] => {
-    return items.map((item) => ({
-      id: item.item_code,
-      name: item.item_name,
-      item_code: item.item_code,
-      barcode: item.barcode,
-      item_name: item.item_name,
-      description: item.description,
-      uom: item.uom,
-      stock_qty: item.current_stock,
-      manual_barcode: item.manual_barcode,
-      unit2_barcode: item.unit2_barcode,
-      unit_m_barcode: item.unit_m_barcode,
-      batch_id: item.batch_id,
-      _source: source,
-    }));
-  };
-
+  cursor?: string,
+  limit: number = 10,
+): Promise<{
+  items: (Item & { _source?: DataSource })[];
+  nextCursor?: string;
+  total: number;
+  hasMore: boolean;
+}> => {
   try {
-    if (!isOnline()) {
-      log.debug("Offline mode - searching cache", { query });
-      const cachedItems = await searchItemsInCache(query);
-      return mapCachedItems(cachedItems, "cache");
-    }
-
-    // Use new optimized search endpoint (fallback to cache on network errors)
-    let response;
-    try {
-      log.debug("Searching via API", { query });
-      response = await api.get("/api/items/search/optimized", {
-        params: { q: query },
-      });
-    } catch (error: any) {
-      log.warn("Search API failed, falling back to cache", {
-        error: error.message,
-      });
-      const cachedItems = await searchItemsInCache(query);
-      return mapCachedItems(cachedItems, "cache").map(
-        (item) =>
-          ({
-            ...item,
-            _degraded: true, // API failed
-          }) as any,
-      );
-    }
-
-    // Handle ApiResponse wrapper
-    const apiResponse = response.data;
-    const data = apiResponse.data || { items: [] };
-    const items = data.items || [];
-
-    // Map backend fields to frontend Item interface
-    const mappedItems: (Item & { _source: DataSource })[] = items.map(
-      (item: Record<string, unknown>) => {
-        const mapped = { ...item } as unknown as Item & { _source: DataSource };
-        if (item.item_name && !mapped.name) {
-          mapped.name = item.item_name as string;
-        }
-        if (item.uom_name && !mapped.uom) {
-          mapped.uom = item.uom_name as string;
-        }
-        if (item._id && !mapped.id) {
-          mapped.id = item._id as string;
-        } else if (item.item_code && !mapped.id) {
-          mapped.id = item.item_code as string;
-        }
-        mapped._source = "api";
-        return mapped;
-      },
-    );
-
-    log.debug("Found items via API", { count: mappedItems.length });
-
-    // Cache the items
-    for (const item of mappedItems) {
-      await cacheItem({
-        item_code: item.item_code!,
+    const result = await searchItemsOptimized(query, 1, limit, cursor);
+    return {
+      items: result.items as (Item & { _source?: DataSource })[],
+      nextCursor: result.next_cursor,
+      total: result.total,
+      hasMore: !!result.has_more,
+    };
+  } catch (error: any) {
+    log.error("searchItems failed, falling back to cache", { error: error.message });
+    const cachedItems = await searchItemsInCache(query);
+    return {
+      items: cachedItems.map((item) => ({
+        id: item.item_code,
+        name: item.item_name,
+        item_code: item.item_code,
         barcode: item.barcode,
-        item_name: item.item_name || item.name,
-        description: (item as any).description,
-        uom: (item as any).uom_name || (item as any).uom,
-        current_stock: item.stock_qty,
+        item_name: item.item_name,
+        description: item.description,
+        uom: item.uom,
+        stock_qty: item.current_stock,
         mrp: item.mrp,
         sale_price: item.sale_price,
+        sales_price: item.sales_price,
         category: item.category,
         subcategory: item.subcategory,
         warehouse: item.warehouse,
@@ -907,27 +911,11 @@ export const searchItems = async (
         unit2_barcode: item.unit2_barcode,
         unit_m_barcode: item.unit_m_barcode,
         batch_id: item.batch_id,
-      });
-    }
-
-    return mappedItems;
-  } catch (error: any) {
-    log.error("Error searching items", { error: error.message });
-
-    // Fallback to cache
-    try {
-      const cachedItems = await searchItemsInCache(query);
-      return mapCachedItems(cachedItems, "cache").map(
-        (item) =>
-          ({
-            ...item,
-            _degraded: true,
-          }) as any,
-      );
-    } catch (fallbackError: any) {
-      log.error("Cache fallback error", { error: fallbackError.message });
-      return [];
-    }
+        _source: "cache",
+      })),
+      total: cachedItems.length,
+      hasMore: false,
+    };
   }
 };
 
@@ -939,16 +927,18 @@ export interface OptimizedSearchResult {
   page_size: number;
   query: string;
   search_time_ms: number;
+  next_cursor?: string;
+  has_more?: boolean;
 }
 
 export const searchItemsOptimized = async (
   query: string,
   page: number = 1,
-  pageSize: number = 20,
+  pageSize: number = 10,
+  cursor?: string,
 ): Promise<OptimizedSearchResult> => {
   try {
     if (!isOnline()) {
-      // Fallback to cache search for offline
       const cachedItems = await searchItemsInCache(query);
       const mappedItems = cachedItems.map((item) => ({
         id: item.item_code,
@@ -969,6 +959,7 @@ export const searchItemsOptimized = async (
         unit2_barcode: item.unit2_barcode,
         unit_m_barcode: item.unit_m_barcode,
         batch_id: item.batch_id,
+        _source: "cache" as DataSource,
       }));
       return {
         items: mappedItems,
@@ -977,29 +968,26 @@ export const searchItemsOptimized = async (
         page_size: mappedItems.length,
         query,
         search_time_ms: 0,
+        has_more: false,
       };
     }
 
-    // Use new optimized search endpoint
     const response = await api.get("/api/items/search/optimized", {
       params: {
         q: query,
         limit: pageSize,
-        offset: Math.max(0, (page - 1) * pageSize),
+        cursor: cursor || undefined,
+        offset: cursor ? undefined : Math.max(0, (page - 1) * pageSize),
       },
     });
 
-    // Unwrap ApiResponse
     const apiResponse = response.data;
     const data = apiResponse.data || { items: [] };
     const items = data.items || [];
+    const metadata = data.metadata || {};
 
-    // Map backend fields to frontend Item interface with relevance info
     const mappedItems: Item[] = items.map((item: Record<string, unknown>) => ({
-      id:
-        (item.id as string) ||
-        (item._id as string) ||
-        (item.item_code as string),
+      id: (item.id as string) || (item._id as string) || (item.item_code as string),
       item_code: item.item_code as string,
       barcode: item.barcode as string,
       name: item.item_name as string,
@@ -1007,8 +995,7 @@ export const searchItemsOptimized = async (
       description: item.description as string,
       uom: (item.uom_name as string) || (item.uom as string),
       uom_name: (item.uom_name as string) || (item.uom as string),
-      stock_qty:
-        (item.stock_qty as number) ?? (item.current_stock as number) ?? 0,
+      stock_qty: (item.stock_qty as number) ?? (item.current_stock as number) ?? 0,
       mrp: item.mrp as number,
       sale_price: item.sale_price as number,
       sales_price: (item.sale_price as number) || (item.sales_price as number),
@@ -1019,86 +1006,29 @@ export const searchItemsOptimized = async (
       category: item.category as string,
       subcategory: item.subcategory as string,
       warehouse: item.warehouse as string,
-      // Relevance metadata from optimized search
       relevance_score: item.relevance_score as number,
       match_type: item.match_type as string,
+      _source: "api" as DataSource,
     }));
 
-    // Cache top items for offline access
+    // Cache top items
     for (const item of mappedItems.slice(0, 10)) {
-      await cacheItem({
-        item_code: item.item_code!,
-        barcode: item.barcode,
-        item_name: item.item_name || item.name,
-        description: (item as any).description,
-        uom: (item as any).uom,
-        current_stock: item.stock_qty,
-        mrp: item.mrp,
-        sale_price: item.sale_price,
-        sales_price: item.sales_price,
-        category: item.category,
-        subcategory: item.subcategory,
-        warehouse: item.warehouse,
-        manual_barcode: item.manual_barcode,
-        unit2_barcode: item.unit2_barcode,
-        unit_m_barcode: item.unit_m_barcode,
-        batch_id: item.batch_id,
-      });
+       await cacheItem(item as any);
     }
 
     return {
       items: mappedItems,
-      total: data.total || mappedItems.length,
-      page: data.page || page,
+      total: data.total || items.length,
+      page: data.page || 1,
       page_size: data.page_size || pageSize,
-      query: data.query || query,
+      query,
       search_time_ms: data.search_time_ms || 0,
+      next_cursor: metadata.next_cursor,
+      has_more: metadata.has_more,
     };
-  } catch (error) {
-    __DEV__ && console.error("Error in optimized search:", error);
-
-    // Fallback to cache
-    try {
-      const cachedItems = await searchItemsInCache(query);
-      const mappedItems = cachedItems.map((item) => ({
-        id: item.item_code,
-        name: item.item_name,
-        item_code: item.item_code,
-        barcode: item.barcode,
-        item_name: item.item_name,
-        description: item.description,
-        uom: item.uom,
-        stock_qty: item.current_stock,
-        mrp: item.mrp,
-        sale_price: item.sale_price,
-        sales_price: item.sales_price,
-        category: item.category,
-        subcategory: item.subcategory,
-        warehouse: item.warehouse,
-        manual_barcode: item.manual_barcode,
-        unit2_barcode: item.unit2_barcode,
-        unit_m_barcode: item.unit_m_barcode,
-        batch_id: item.batch_id,
-      }));
-      return {
-        items: mappedItems,
-        total: mappedItems.length,
-        page: 1,
-        page_size: mappedItems.length,
-        query,
-        search_time_ms: 0,
-      };
-    } catch (fallbackError) {
-      __DEV__ && console.error("Cache fallback error:", fallbackError);
-      return {
-        items: [],
-        total: 0,
-        page: 1,
-        page_size: pageSize,
-        query,
-        search_time_ms: 0,
-      };
-    }
+  } catch (error: any) {
+    log.error("searchItemsOptimized failed", { error: error.message });
+    throw error;
   }
 };
 
@@ -1287,6 +1217,18 @@ export const checkItemScanStatus = async (
  * Create a count line with offline fallback.
  * Uses createOfflineCountLine helper for consistent offline object creation.
  */
+// Save draft for real-time dashboard
+export const saveDraft = async (lineData: CreateCountLinePayload) => {
+  try {
+    if (!isOnline()) return null;
+    const response = await api.post("/api/count-lines/draft", lineData);
+    return response.data;
+  } catch (error: any) {
+    log.warn("Failed to save draft", { error: error?.message || String(error) });
+    return null;
+  }
+};
+
 export const createCountLine = async (
   countData: CreateCountLinePayload,
 ): Promise<any & { _source?: DataSource; _offline?: boolean }> => {
@@ -1333,7 +1275,9 @@ export const createCountLine = async (
 
     // Online - make API call
     log.debug("Online mode - creating count line via API");
-    const response = await api.post("/api/count-lines", countData);
+    const response = await api.post("/api/count-lines", countData, {
+      skipOfflineQueue: true,
+    } as any);
     await cacheCountLine(response.data);
 
     log.debug("Created count line via API", {
@@ -1593,7 +1537,9 @@ export const createUnknownItem = async (itemData: Record<string, unknown>) => {
       return { success: true, offline: true };
     }
 
-    const response = await api.post("/api/unknown-items", itemData);
+    const response = await api.post("/api/unknown-items", itemData, {
+      skipOfflineQueue: true,
+    } as any);
     return response.data;
   } catch (error) {
     __DEV__ && console.error("Error creating unknown item:", error);
@@ -2508,20 +2454,71 @@ export const getAvailableReports = async () => {
   }
 };
 
+export type AdminControlReportFormat = "json" | "csv" | "excel";
+
+export type GenerateAdminControlReportResult =
+  | { kind: "json"; data: any }
+  | { kind: "file"; blob: Blob; fileName: string; contentType?: string }
+  | {
+      kind: "file";
+      arrayBuffer: ArrayBuffer;
+      fileName: string;
+      contentType?: string;
+    };
+
 export const generateReport = async (
   reportId: string,
-  format: string = "json",
-  startDate?: string,
-  endDate?: string,
-) => {
+  options: {
+    format?: AdminControlReportFormat;
+    startDate?: string;
+    endDate?: string;
+  } = {},
+): Promise<GenerateAdminControlReportResult> => {
   try {
-    const response = await api.post("/api/admin/control/reports/generate", {
+    const format = options.format ?? "json";
+    const params = {
       report_id: reportId,
       format,
-      start_date: startDate,
-      end_date: endDate,
+      start_date: options.startDate,
+      end_date: options.endDate,
+    };
+
+    const responseType =
+      format === "json" ? "json" : Platform.OS === "web" ? "blob" : "arraybuffer";
+
+    const response = await api.post("/api/admin/control/reports/generate", null, {
+      params,
+      responseType: responseType as any,
     });
-    return response.data;
+
+    const header =
+      (response.headers?.["content-disposition"] as string | undefined) ||
+      (response.headers?.["Content-Disposition"] as string | undefined);
+
+    const fileName =
+      header?.match(/filename\*?=(?:UTF-8''|")?([^\";]+)/i)?.[1]?.trim() ||
+      `${reportId}_${new Date().toISOString().slice(0, 10)}.${format === "excel" ? "xlsx" : format}`;
+
+    if (format === "json") {
+      return { kind: "json", data: response.data };
+    }
+
+    const contentType = response.headers?.["content-type"] as string | undefined;
+    if (Platform.OS === "web") {
+      return {
+        kind: "file",
+        blob: response.data as Blob,
+        fileName,
+        contentType,
+      };
+    }
+
+    return {
+      kind: "file",
+      arrayBuffer: response.data as ArrayBuffer,
+      fileName,
+      contentType,
+    };
   } catch (error: unknown) {
     __DEV__ && console.error("Generate report error:", error);
     throw error;
@@ -3177,66 +3174,6 @@ export const getWarehouses = async (zone?: string) => {
   }
 };
 
-// Notification API functions (FR-M-23)
-export interface Notification {
-  _id: string;
-  user_id: string;
-  type: string;
-  title: string;
-  message: string;
-  priority: string;
-  read: boolean;
-  action_url?: string;
-  metadata?: Record<string, any>;
-  created_at: string;
-}
+// Notification API functions (FR-M-23) - Now unified in notificationApi.ts
+export * from "./notificationApi";
 
-export const getNotifications = async (unreadOnly = false, limit = 50): Promise<Notification[]> => {
-  try {
-    const params = new URLSearchParams({
-      unread_only: unreadOnly.toString(),
-      limit: limit.toString(),
-    });
-    const response = await api.get(`/api/notifications?${params}`);
-    return response.data;
-  } catch (error: any) {
-    __DEV__ && console.error("Error fetching notifications:", error);
-    throw error;
-  }
-};
-
-export const getUnreadNotificationCount = async (): Promise<number> => {
-  try {
-    const response = await await api.get("/api/notifications?unread_only=true&limit=1");
-    // Backend returns array, count unread from response or separate count endpoint
-    if (Array.isArray(response.data)) {
-      return response.data.length;
-    }
-    // If response has count field
-    if (typeof response.data?.count === "number") {
-      return response.data.count;
-    }
-    return 0;
-  } catch (error: any) {
-    __DEV__ && console.error("Error getting unread notification count:", error);
-    return 0;
-  }
-};
-
-export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
-  try {
-    await api.put(`/api/notifications/${notificationId}/read`);
-  } catch (error: any) {
-    __DEV__ && console.error("Error marking notification as read:", error);
-    throw error;
-  }
-};
-
-export const markAllNotificationsAsRead = async (): Promise<void> => {
-  try {
-    await api.put("/api/notifications/read-all");
-  } catch (error: any) {
-    __DEV__ && console.error("Error marking all notifications as read:", error);
-    throw error;
-  }
-};

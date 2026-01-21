@@ -74,7 +74,7 @@ def require_admin(current_user: dict = Depends(get_current_user)):
 
 def _match_process_on_ports(
     ports: Iterable[int], matcher: Callable[[str], bool]
-) -> tuple[int, int, psutil.Process]:
+) -> Optional[tuple[int, int, psutil.Process]]:
     """Return (port, pid, process) for the first process whose command line matches."""
     for port in ports:
         if not ServiceManager.is_port_in_use(port):
@@ -329,7 +329,7 @@ async def get_services_status(current_user: dict = Depends(require_admin)):
         ) from e
 
 
-def _find_running_backend_process() -> dict[str, Optional[Any]]:
+def _find_running_backend_process() -> Optional[dict[str, Any]]:
     for port in BACKEND_PORTS:
         if not ServiceManager.is_port_in_use(port):
             continue
@@ -570,7 +570,7 @@ async def get_available_reports(current_user: dict = Depends(require_admin)):
                     "category": "users",
                 },
                 {
-                    "id": "system_metrics",
+                    "id": "system_health",
                     "name": "System Metrics Report",
                     "description": "System performance and health metrics",
                     "category": "system",
@@ -621,6 +621,8 @@ async def generate_report(
                 "data": data,
             }
         elif format == "csv":
+            if not data:
+                data = "message\nNo data\n"
             return Response(
                 content=data,
                 media_type="text/csv",
@@ -629,6 +631,13 @@ async def generate_report(
                 },
             )
         elif format == "excel":
+            if not data:
+                import pandas as pd
+
+                output = io.BytesIO()
+                with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+                    pd.DataFrame([{"message": "No data"}]).to_excel(writer, index=False)
+                data = output.getvalue()
             return StreamingResponse(
                 io.BytesIO(data),
                 media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -645,7 +654,7 @@ async def generate_report(
         )
 
 
-def _parse_log_line(line: str) -> dict[str, Optional[str]]:
+def _parse_log_line(line: str) -> Optional[dict[str, Optional[str]]]:
     try:
         # Parse standard format: 2023-10-27 10:00:00 - logger - LEVEL - Message
         parts = line.strip().split(" - ", 3)
@@ -665,7 +674,7 @@ def _read_log_file(
     log_path: Path, lines: int, level: Optional[str], service: str
 ) -> list[dict[str, Any]]:
     """Read and parse log file"""
-    logs = []
+    logs: list[dict[str, Any]] = []
     if not log_path.exists():
         return logs
 
@@ -687,10 +696,9 @@ def _read_log_file(
 
                 # Filter for SQL Server if requested
                 if service == "sql_server":
-                    if (
-                        "sql" not in log_entry["logger"].lower()
-                        and "sql" not in log_entry["message"].lower()
-                    ):
+                    logger_name = (log_entry.get("logger") or "").lower()
+                    message_text = (log_entry.get("message") or "").lower()
+                    if "sql" not in logger_name and "sql" not in message_text:
                         continue
 
                 logs.append(log_entry)
@@ -845,7 +853,7 @@ async def test_sql_server_connection(
                 raise HTTPException(status_code=400, detail="Host and database are required")
 
             # Try to connect
-            sql_connector.connect(host, int(port), database, user, password)
+            sql_connector.connect(host, int(port or 1433), database, user, password)
             return {"success": True, "message": "Connection successful"}
         else:
             # Test existing connection

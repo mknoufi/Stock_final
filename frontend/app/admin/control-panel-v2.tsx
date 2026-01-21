@@ -235,7 +235,7 @@ export default function AdminControlPanelV2() {
     { title: "User Management", icon: "people", route: "/admin/users" },
     { title: "System Settings", icon: "settings", route: "/admin/settings" },
     { title: "Audit Logs", icon: "list", route: "/admin/logs" },
-    { title: "Database Tools", icon: "server", route: "/admin/database" },
+    { title: "Database Tools", icon: "server", route: "/admin/sql-config" },
   ];
 
   return (

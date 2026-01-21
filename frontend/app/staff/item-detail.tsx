@@ -8,49 +8,54 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   Alert,
   Switch,
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   TextInput,
   Modal,
   FlatList,
   Pressable,
+  InteractionManager,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown } from "react-native-reanimated";
+import * as ImagePicker from "expo-image-picker";
+import { useDebounce } from "use-debounce";
 
-import { useScanSessionStore } from "../../src/store/scanSessionStore";
+import { useScanSessionStore } from "@/store/scanSessionStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import {
   getItemByBarcode,
   createCountLine,
+  saveDraft,
   checkItemScanStatus,
   searchItems,
-} from "../../src/services/api/api";
-import { RecentItemsService } from "../../src/services/enhancedFeatures";
-import { toastService } from "../../src/services/utils/toastService";
+  checkSerialUniqueness,
+} from "@/services/api/api";
+import { RecentItemsService } from "@/services/enhancedFeatures";
+import { toastService } from "@/services/utils/toastService";
 import {
+  Item,
   CreateCountLinePayload,
   SerialEntryData,
   DateFormatType,
-} from "../../src/types/scan";
+} from "@/types/scan";
 import {
   normalizeSerialValue,
   validateSerialNumber,
   validateSerialNumbers,
-  validateScannedSerial,
-} from "../../src/utils/scanUtils";
-import { SerialScannerModal } from "../../src/components/modals/SerialScannerModal";
+} from "@/utils/scanUtils";
+import { SerialScannerModal } from "@/components/modals/SerialScannerModal";
 
-import ModernHeader from "../../src/components/ui/ModernHeader";
-import ModernCard from "../../src/components/ui/ModernCard";
-import ModernButton from "../../src/components/ui/ModernButton";
-import ModernInput from "../../src/components/ui/ModernInput";
-import { ThemedScreen } from "../../src/components/ui/ThemedScreen";
+import ModernHeader from "@/components/ui/ModernHeader";
+import ModernCard from "@/components/ui/ModernCard";
+import ModernButton from "@/components/ui/ModernButton";
+import ModernInput from "@/components/ui/ModernInput";
+import { ThemedScreen } from "@/components/ui/ThemedScreen";
 import {
   colors,
   semanticColors,
@@ -59,22 +64,15 @@ import {
   fontWeight,
   radius as borderRadius,
   shadows,
-} from "../../src/theme/unified";
+} from "@/theme/unified";
 
-const CONDITION_OPTIONS = [
-  "Good",
-  "Aging",
-  "Non-moving",
-  "Rate Issue",
-  "Scratches",
-  "Damaged",
-];
 
 export default function ItemDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ barcode: string; sessionId: string }>();
   const { barcode, sessionId } = params;
   const { currentFloor, currentRack } = useScanSessionStore();
+  const { settings } = useSettingsStore();
 
   // State
   const [loading, setLoading] = useState(false);
@@ -85,7 +83,7 @@ export default function ItemDetailScreen() {
   const [quantity, setQuantity] = useState("0");
   const [mrp, setMrp] = useState("");
   const [mrpEditable, setMrpEditable] = useState(false);
-  const [condition, setCondition] = useState("Good");
+  const [condition] = useState("Good");
   const [remark, setRemark] = useState("");
 
   // Serial Number State - Enhanced for serialized items with per-serial MRP/mfg date
@@ -95,7 +93,6 @@ export default function ItemDetailScreen() {
     string[]
   >([]);
   const [showSerialScanner, setShowSerialScanner] = useState(false);
-  const [activeSerialIndex, setActiveSerialIndex] = useState(0);
 
   // Legacy array for backward compatibility
   const serialNumbers = useMemo(
@@ -103,15 +100,12 @@ export default function ItemDetailScreen() {
     [serialEntries],
   );
 
-  // Legacy single serial (for backward compatibility)
-  const [serialNumber, setSerialNumber] = useState("");
   const [varianceRemark, setVarianceRemark] = useState("");
   const [mrpVariants, setMrpVariants] = useState<any[]>([]);
   const [selectedMrpVariant, setSelectedMrpVariant] = useState<any>(null);
 
   // Variants with same name
   const [sameNameVariants, setSameNameVariants] = useState<any[]>([]);
-  const [loadingVariants, setLoadingVariants] = useState(false);
 
   // Submit Delay State (FR-M-20)
   const [submitCountdown, setSubmitCountdown] = useState<number | null>(null);
@@ -123,6 +117,8 @@ export default function ItemDetailScreen() {
   const [damageType, setDamageType] = useState<"returnable" | "nonreturnable">(
     "returnable",
   );
+  const [damagePhoto, setDamagePhoto] = useState<string | null>(null);
+  const [itemPhotos, setItemPhotos] = useState<string[]>([]);
 
   // Manufacturing & Expiry Date State (for item-level or non-serialized items)
   const [hasMfgDate, setHasMfgDate] = useState(false);
@@ -134,11 +130,30 @@ export default function ItemDetailScreen() {
   const [itemExpiryDateFormat, setItemExpiryDateFormat] =
     useState<DateFormatType>("full");
 
+  const isMfgFull = itemMfgDateFormat === "full";
+  const isMfgMonthYear = itemMfgDateFormat === "month_year";
+  const isExpiryFull = itemExpiryDateFormat === "full";
+  const isExpiryMonthYear = itemExpiryDateFormat === "month_year";
+
+  const [isInteractionsComplete, setIsInteractionsComplete] = useState(false);
+
+  useEffect(() => {
+    const task = InteractionManager.runAfterInteractions(() => {
+      setIsInteractionsComplete(true);
+    });
+    return () => task.cancel();
+  }, []);
+
   const loadItem = useCallback(async () => {
     if (!barcode) return;
     setLoading(true);
     try {
-      const itemData = await getItemByBarcode(barcode);
+      const itemData = await getItemByBarcode(
+        barcode,
+        3,
+        sessionId || undefined,
+        currentRack || undefined,
+      );
       if (itemData) {
         setItem(itemData);
         setMrp(String(itemData.mrp || ""));
@@ -207,31 +222,59 @@ export default function ItemDetailScreen() {
 
   // Load variants with same name
   useEffect(() => {
-    const loadVariants = async () => {
-      if (!item?.item_name) return;
+    if (!item?.item_name) return;
 
-      setLoadingVariants(true);
+    const loadVariants = async () => {
       try {
         const results = await searchItems(item.item_name);
         // Filter out current item and items with 0 stock
-        const filtered = results.filter(
-          (v) =>
+        const filtered = results.items.filter(
+          (v: Item) =>
             v.item_code !== item.item_code &&
             v.barcode !== item.barcode &&
-            (v.stock_qty || 0) > 0,
+            (v.stock_qty || v.current_stock || 0) > 0,
         );
-        setSameNameVariants(filtered);
+        setSameNameVariants(filtered.slice(0, 5));
       } catch (error) {
         console.warn("Failed to load variants:", error);
-      } finally {
-        setLoadingVariants(false);
       }
     };
 
-    if (item) {
-      loadVariants();
-    }
-  }, [item?.item_name, item?.item_code, item?.barcode]);
+    loadVariants();
+  }, [item]);
+
+  // Auto-save draft effect
+  const [debouncedFormData] = useDebounce(
+    {
+      quantity,
+      mrp,
+      remark,
+      serialEntries
+    },
+    2000 // 2 seconds debounce
+  );
+
+  useEffect(() => {
+    if (!item || !sessionId || quantity === "0" || submitting) return;
+
+    const performAutosave = async () => {
+      const payload: CreateCountLinePayload = {
+        session_id: sessionId,
+        item_code: item.item_code,
+        counted_qty: parseFloat(quantity) || 0,
+        mrp_counted: parseFloat(mrp) || item.mrp,
+        remark,
+        status: "DRAFT",
+        floor_no: currentFloor || "",
+        rack_no: currentRack || "",
+        // Add other necessary fields for the payload...
+      };
+
+      await saveDraft(payload);
+    };
+
+    performAutosave();
+  }, [debouncedFormData, item, sessionId, quantity, mrp, remark, submitting, currentFloor, currentRack]);
 
   // Check if item uses weight-based UOM (kg) - allows fractional quantities
   const isWeightBasedUOM = useMemo(() => {
@@ -297,7 +340,7 @@ export default function ItemDetailScreen() {
 
   // Get quantity step for +/- buttons
   const getQuantityStep = useCallback((): number => {
-    return isWeightBasedUOM ? 0.25 : 1;
+    return isWeightBasedUOM ? 0.1 : 1;
   }, [isWeightBasedUOM]);
 
   // Sync quantity with serial entries count for serialized items
@@ -330,11 +373,38 @@ export default function ItemDetailScreen() {
 
   // Handle scanned serial from SerialScannerModal (auto-increments quantity)
   const handleSerialScanned = useCallback(
-    (data: {
+    async (data: {
       serial_number: string;
       mrp?: number;
       manufacturing_date?: string;
     }) => {
+      const normalized = data.serial_number.trim().toUpperCase();
+
+      // local duplicate check
+      const isLocalDuplicate = serialEntries.some(
+        (e) => e.serial_number.toUpperCase() === normalized,
+      );
+      if (isLocalDuplicate) {
+        Alert.alert("Duplicate Serial", "This serial number is already in your list.");
+        return;
+      }
+
+      // global uniqueness check
+      if (sessionId) {
+        const result = await checkSerialUniqueness(sessionId, normalized);
+        if (result.exists) {
+          Alert.alert(
+            "Serial Already Counted",
+            `Serial ${normalized} was already counted in this session.\n\n` +
+              `Item: ${result.item_name || result.item_code}\n` +
+              `Location: Floor ${result.floor_no}, Rack ${result.rack_no}\n` +
+              `Counted by: ${result.counted_by}`,
+            [{ text: "OK" }],
+          );
+          return;
+        }
+      }
+
       const newEntry: SerialEntryData = {
         id: `serial_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         serial_number: data.serial_number,
@@ -347,7 +417,7 @@ export default function ItemDetailScreen() {
       setSerialEntries((prev) => [...prev, newEntry]);
       // Quantity auto-increments via useEffect above
     },
-    [mrp, item],
+    [mrp, item, serialEntries, sessionId],
   );
 
   // Add empty serial entry for manual input
@@ -490,14 +560,6 @@ export default function ItemDetailScreen() {
     return "";
   }, [expiryDay, expiryMonth, expiryYear, itemExpiryDateFormat]);
 
-  const isMfgFull = itemMfgDateFormat === "full";
-  const isMfgMonthYear = itemMfgDateFormat === "month_year";
-  const isMfgYearOnly = itemMfgDateFormat === "year_only";
-
-  const isExpiryFull = itemExpiryDateFormat === "full";
-  const isExpiryMonthYear = itemExpiryDateFormat === "month_year";
-  const isExpiryYearOnly = itemExpiryDateFormat === "year_only";
-
   const generateMonthOptions = useCallback((): string[] => {
     return Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
   }, []);
@@ -600,32 +662,6 @@ export default function ItemDetailScreen() {
     ],
   );
 
-  // Parse user date input based on format
-  const parseDateInput = useCallback(
-    (input: string, format: DateFormatType): string => {
-      const cleanInput = input.replace(/[^0-9/]/g, "");
-
-      switch (format) {
-        case "full":
-          // Auto-format as DD/MM/YYYY
-          if (cleanInput.length <= 2) return cleanInput;
-          if (cleanInput.length <= 4)
-            return `${cleanInput.slice(0, 2)}/${cleanInput.slice(2)}`;
-          return `${cleanInput.slice(0, 2)}/${cleanInput.slice(2, 4)}/${cleanInput.slice(4, 8)}`;
-        case "month_year":
-          // Auto-format as MM/YYYY
-          if (cleanInput.length <= 2) return cleanInput;
-          return `${cleanInput.slice(0, 2)}/${cleanInput.slice(2, 6)}`;
-        case "year_only":
-          // Just year YYYY
-          return cleanInput.slice(0, 4);
-        default:
-          return cleanInput;
-      }
-    },
-    [],
-  );
-
   // Validate date input based on format
   const validateDateInput = useCallback(
     (input: string, format: DateFormatType): boolean => {
@@ -677,65 +713,6 @@ export default function ItemDetailScreen() {
     [earliestYear],
   );
 
-  // Handle date input change with auto-formatting
-  const handleDateInputChange = useCallback(
-    (value: string, format: DateFormatType, setter: (val: string) => void) => {
-      const formatted = parseDateInput(value, format);
-      setter(formatted);
-    },
-    [parseDateInput],
-  );
-
-  // Handle serial entry date change
-  const handleSerialDateChange = useCallback(
-    (
-      index: number,
-      field: "manufacturing_date" | "expiry_date",
-      value: string,
-      format: DateFormatType,
-    ) => {
-      const formatted = parseDateInput(value, format);
-      setSerialEntries((prev) => {
-        const updated = [...prev];
-        if (updated[index]) {
-          updated[index] = {
-            ...updated[index],
-            [field]: formatted,
-            [field === "manufacturing_date"
-              ? "mfg_date_format"
-              : "expiry_date_format"]: format,
-          };
-        }
-        return updated;
-      });
-    },
-    [parseDateInput],
-  );
-
-  // Update serial entry date format
-  const handleSerialDateFormatChange = useCallback(
-    (
-      index: number,
-      field: "mfg_date_format" | "expiry_date_format",
-      format: DateFormatType,
-    ) => {
-      setSerialEntries((prev) => {
-        const updated = [...prev];
-        if (updated[index]) {
-          // Clear the date when format changes
-          const dateField =
-            field === "mfg_date_format" ? "manufacturing_date" : "expiry_date";
-          updated[index] = {
-            ...updated[index],
-            [field]: format,
-            [dateField]: "",
-          };
-        }
-        return updated;
-      });
-    },
-    [],
-  );
 
   const validateSerials = useCallback((): boolean => {
     if (!isSerializedItem) return true;
@@ -754,6 +731,60 @@ export default function ItemDetailScreen() {
     setSerialValidationErrors([]);
     return true;
   }, [isSerializedItem, quantity, serialNumbers]);
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Camera permission is required for damage proof capture.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0]) {
+        setDamagePhoto(result.assets[0].uri);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (_error) {
+      toastService.show("Failed to open camera", { type: "error" });
+    }
+  };
+
+  const handleCaptureItemPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Camera permission is required to capture item photos.",
+        );
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        quality: 0.7,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0 && result.assets[0]) {
+        setItemPhotos((prev) => [...prev, result.assets[0]!.uri]);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (_error) {
+      toastService.show("Failed to capture photo", { type: "error" });
+    }
+  };
 
   const handleSubmitPress = async () => {
     if (!item || !sessionId) return;
@@ -786,51 +817,34 @@ export default function ItemDetailScreen() {
         );
         return;
       }
+
+      if (!damagePhoto) {
+        Alert.alert(
+          "Photo Required",
+          "Mandatory photo proof is required for all damage reports. Please capture a photo of the damaged item.",
+        );
+        return;
+      }
     }
 
     // Start countdown instead of immediate submit (FR-M-20)
     setSubmitCountdown(5);
   };
 
-  // Handle countdown effect
-  useEffect(() => {
-    if (submitCountdown === null) return;
-
-    if (submitCountdown > 0) {
-      submitTimerRef.current = setTimeout(() => {
-        setSubmitCountdown((prev) => (prev !== null ? prev - 1 : null));
-      }, 1000);
-    } else {
-      // Countdown finished, trigger actual submit
-      executeSubmit();
-    }
-
-    return () => {
-      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
-    };
-  }, [submitCountdown, executeSubmit]);
-
-  const cancelSubmit = () => {
-    if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
-    setSubmitCountdown(null);
-  };
-
-  const executeSubmit = async () => {
+  const executeSubmit = useCallback(async () => {
     setSubmitCountdown(null);
     setSubmitting(true);
-    
+
     // Re-read quantity from state
     const qty = parseFloat(quantity);
 
     try {
-      // Collect valid serial numbers from either serialized item array or legacy field
+      // Collect valid serial numbers from serialized item array
       const validSerials = isSerializedItem
         ? serialNumbers
             .filter((s) => s.trim().length > 0)
             .map(normalizeSerialValue)
-        : serialNumber
-          ? [normalizeSerialValue(serialNumber)]
-          : [];
+        : [];
 
       // Prepare serial entries data with full details (for serialized items)
       const serialEntriesData = isSerializedItem
@@ -883,6 +897,25 @@ export default function ItemDetailScreen() {
         mfg_date_format: hasMfgDate ? itemMfgDateFormat : undefined,
         expiry_date: expDate,
         expiry_date_format: hasExpiryDate ? itemExpiryDateFormat : undefined,
+        damage_photo: damagePhoto || undefined,
+        photo_proofs: [
+          ...(damagePhoto
+            ? [
+                {
+                  type: "DAMAGE" as any,
+                  uri: damagePhoto,
+                  capturedAt: new Date().toISOString(),
+                  base64: "", // Would need base64 if uploading directly
+                },
+              ]
+            : []),
+          ...itemPhotos.map((uri) => ({
+            type: "ITEM" as any,
+            uri: uri,
+            capturedAt: new Date().toISOString(),
+            base64: "",
+          })),
+        ],
       };
 
       await createCountLine(payload);
@@ -894,122 +927,107 @@ export default function ItemDetailScreen() {
     } finally {
       setSubmitting(false);
     }
+  }, [
+    barcode,
+    condition,
+    currentFloor,
+    currentRack,
+    damageQty,
+    damageType,
+    hasExpiryDate,
+    hasMfgDate,
+    isDamageEnabled,
+    isSerializedItem,
+    item,
+    itemExpiryDate,
+    itemExpiryDateFormat,
+    itemMfgDate,
+    itemMfgDateFormat,
+    mrp,
+    quantity,
+    remark,
+    router,
+    serialEntries,
+    serialNumbers,
+    sessionId,
+    varianceRemark,
+    damagePhoto,
+    itemPhotos,
+  ]);
+
+  // Handle countdown effect
+  useEffect(() => {
+    if (submitCountdown === null) return;
+
+    if (submitCountdown > 0) {
+      submitTimerRef.current = setTimeout(() => {
+        setSubmitCountdown((prev) => (prev !== null ? prev - 1 : null));
+      }, 1000);
+    } else {
+      // Countdown finished, trigger actual submit
+      executeSubmit();
+    }
+
+    return () => {
+      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    };
+  }, [executeSubmit, submitCountdown]);
+
+  const cancelSubmit = () => {
+    if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
+    setSubmitCountdown(null);
   };
 
-  // Skeleton Loader Component for enterprise loading state
-  const SkeletonLoader = ({ style }: { style?: any }) => (
-    <View style={[styles.skeleton, style]} />
-  );
 
-  // Loading Skeleton Screen
-  const LoadingSkeleton = () => (
-    <ThemedScreen>
-      <ModernHeader
-        title="Verify Item"
-        showBackButton
-        onBackPress={() => router.back()}
-      />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Item Card Skeleton */}
-        <ModernCard style={styles.itemCard}>
-          <View style={styles.itemHeader}>
-            <SkeletonLoader
-              style={{ width: 48, height: 48, borderRadius: 24 }}
-            />
-            <View style={[styles.itemInfo, { marginLeft: spacing.md }]}>
-              <SkeletonLoader
-                style={{ width: "70%", height: 20, borderRadius: 6 }}
-              />
-              <SkeletonLoader
-                style={{
-                  width: "40%",
-                  height: 14,
-                  borderRadius: 4,
-                  marginTop: 8,
-                }}
-              />
-            </View>
-          </View>
-          <View style={styles.detailsGrid}>
-            {[1, 2, 3].map((i) => (
-              <View key={i} style={styles.detailItem}>
-                <SkeletonLoader
-                  style={{ width: 40, height: 12, borderRadius: 4 }}
-                />
-                <SkeletonLoader
-                  style={{
-                    width: 50,
-                    height: 18,
-                    borderRadius: 4,
-                    marginTop: 4,
-                  }}
-                />
-              </View>
-            ))}
-          </View>
-        </ModernCard>
 
-        {/* Quantity Skeleton */}
-        <ModernCard style={{ marginTop: spacing.lg, padding: spacing.lg }}>
-          <SkeletonLoader style={{ width: 80, height: 14, borderRadius: 4 }} />
-          <SkeletonLoader
-            style={{
-              width: "100%",
-              height: 72,
-              borderRadius: 12,
-              marginTop: spacing.md,
-            }}
-          />
-        </ModernCard>
-
-        {/* Condition Skeleton */}
-        <ModernCard style={{ marginTop: spacing.lg, padding: spacing.lg }}>
-          <SkeletonLoader style={{ width: 80, height: 14, borderRadius: 4 }} />
-          <View
-            style={{
-              flexDirection: "row",
-              flexWrap: "wrap",
-              marginTop: spacing.md,
-              gap: spacing.sm,
-            }}
-          >
-            {[1, 2, 3, 4].map((i) => (
-              <SkeletonLoader
-                key={i}
-                style={{ width: 80, height: 36, borderRadius: 18 }}
-              />
-            ))}
-          </View>
-        </ModernCard>
-      </ScrollView>
-    </ThemedScreen>
-  );
 
   if (loading) {
-    return <LoadingSkeleton />;
+    return (
+      <ThemedScreen>
+        <ModernHeader title="Verify Item" showBackButton onBackPress={() => router.back()} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary[600]} />
+          <Text style={{ marginTop: 12, color: semanticColors.text.secondary }}>Loading item details...</Text>
+        </View>
+      </ThemedScreen>
+    );
   }
 
-  if (!item) return null;
+  if (!item) {
+    return (
+      <ThemedScreen>
+        <ModernHeader title="Verify Item" showBackButton onBackPress={() => router.back()} />
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={colors.error[500]} />
+          <Text style={styles.errorTitle}>Item Not Found</Text>
+          <Text style={styles.errorText}>We couldn't retrieve details for the scanned barcode.</Text>
+          <ModernButton
+            title="Try Again"
+            onPress={() => router.back()}
+            style={{ marginTop: 24, width: '100%' }}
+          />
+        </View>
+      </ThemedScreen>
+    );
+  }
 
   return (
-    <ThemedScreen>
+    <ThemedScreen dismissKeyboardOnTap={false}>
       <ModernHeader
         title="Verify Item"
         showBackButton
         onBackPress={() => router.back()}
       />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
+      <View style={{ flex: 1 }}>
+        <KeyboardAwareScrollView
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="always"
-          keyboardDismissMode="none"
+          keyboardShouldPersistTaps="handled"
+          enableOnAndroid
+          extraScrollHeight={24}
         >
           {/* Item Header Card */}
-          <Animated.View entering={FadeInDown.duration(500)}>
+          <View>
             <ModernCard style={styles.itemCard}>
               <View style={styles.itemHeader}>
                 <View
@@ -1055,12 +1073,15 @@ export default function ItemDetailScreen() {
                       styles.detailValue,
                       { color: semanticColors.text.primary },
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
                   >
-                    {(() => {
+                    {settings.showItemStock ? (() => {
                       const qty = item.current_stock ?? item.stock_qty ?? 0;
                       const uom = item.uom_name || item.uom_code || "";
                       return uom ? `${qty} ${uom}` : String(qty);
-                    })()}
+                    })() : "---"}
                   </Text>
                 </View>
                 <View style={styles.detailItem}>
@@ -1077,8 +1098,11 @@ export default function ItemDetailScreen() {
                       styles.detailValue,
                       { color: semanticColors.text.primary },
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
                   >
-                    ₹{item.mrp || 0}
+                    {settings.showItemPrices ? `₹${item.mrp || 0}` : "---"}
                   </Text>
                 </View>
                 <View style={styles.detailItem}>
@@ -1095,1316 +1119,1202 @@ export default function ItemDetailScreen() {
                       styles.detailValue,
                       { color: semanticColors.text.primary },
                     ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
                   >
-                    ₹{item.sale_price || item.sales_price || 0}
+                    {settings.showItemPrices ? `₹${item.sale_price || item.sales_price || 0}` : "---"}
                   </Text>
                 </View>
               </View>
             </ModernCard>
-          </Animated.View>
+          </View>
 
-          {/* Quantity Input - PRIMARY SECTION */}
-          <Animated.View
-            entering={FadeInDown.delay(50).duration(500)}
-            style={styles.section}
-          >
-            {/* Barcode Display */}
-            <View style={{ alignItems: "center", marginBottom: spacing.md }}>
-              <Text
-                style={{
-                  fontSize: fontSize.sm,
-                  color: semanticColors.text.secondary,
-                  marginBottom: 4,
-                }}
-              >
-                Barcode
-              </Text>
-              <Text
-                style={{
-                  fontSize: fontSize.xl,
-                  fontWeight: fontWeight.bold,
-                  color: semanticColors.text.primary,
-                  letterSpacing: 1,
-                }}
-              >
-                {item.item_code || barcode}
-              </Text>
-            </View>
-
-            <View style={styles.sectionHeader}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: semanticColors.text.primary },
-                ]}
-              >
-                Counted Quantity{" "}
-                {isWeightBasedUOM && (
-                  <Text style={styles.uomHint}>({item?.uom || "kg"})</Text>
-                )}
-              </Text>
-            </View>
-            <View style={styles.quantityContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.qtyButton,
-                  { backgroundColor: colors.neutral[200] },
-                ]}
-                onPress={() => {
-                  const val = parseFloat(quantity) || 0;
-                  const step = getQuantityStep();
-                  if (val > step) {
-                    const newVal = val - step;
-                    setQuantity(formatQuantity(String(newVal)));
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  } else if (val > 0) {
-                    setQuantity("0");
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="remove"
-                  size={28}
-                  color={semanticColors.text.primary}
-                />
-              </TouchableOpacity>
-
-              <View
-                style={[
-                  styles.qtyDisplay,
-                  {
-                    backgroundColor: semanticColors.background.paper,
-                    borderColor: colors.primary[200],
-                  },
-                ]}
-              >
-                <TextInput
-                  style={[
-                    styles.qtyText,
-                    { color: semanticColors.text.primary },
-                  ]}
-                  value={quantity}
-                  onChangeText={handleQuantityChange}
-                  onBlur={() => {
-                    // Format on blur
-                    if (quantity && quantity !== "." && quantity !== "0.") {
-                      setQuantity(formatQuantity(quantity));
-                    } else {
-                      setQuantity("0");
-                    }
-                  }}
-                  keyboardType={isWeightBasedUOM ? "decimal-pad" : "number-pad"}
-                  selectTextOnFocus
-                  placeholder="0"
-                  placeholderTextColor={semanticColors.text.disabled}
-                />
-              </View>
-
-              <TouchableOpacity
-                style={[
-                  styles.qtyButton,
-                  { backgroundColor: colors.primary[600] },
-                ]}
-                onPress={() => {
-                  const val = parseFloat(quantity) || 0;
-                  const step = getQuantityStep();
-                  const newVal = val + step;
-                  setQuantity(formatQuantity(String(newVal)));
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="add" size={28} color={colors.white} />
-              </TouchableOpacity>
-            </View>
-            {isWeightBasedUOM && (
-              <Text
-                style={[
-                  styles.quantityHint,
-                  { color: semanticColors.text.secondary },
-                ]}
-              >
-                +/- {getQuantityStep()} per tap • Max 2 decimal places
-              </Text>
-            )}
-          </Animated.View>
-
-          {/* Batch History List */}
-          {sameNameVariants.length > 0 && (
-            <Animated.View
-              entering={FadeInDown.delay(60).duration(500)}
-              style={styles.section}
-            >
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: semanticColors.text.primary },
-                ]}
-              >
-                Batch History
-              </Text>
-              <View style={{ gap: spacing.sm }}>
-                {sameNameVariants.map((variant) => (
-                  <ModernCard
-                    key={variant.item_code}
-                    style={{ padding: spacing.sm }}
+          {isInteractionsComplete && (
+            <>
+              {/* Quantity Input - PRIMARY SECTION */}
+              <View style={styles.section}>
+                {/* Barcode Display */}
+                <View style={{ alignItems: "center", marginBottom: spacing.md }}>
+                  <Text
+                    style={{
+                      fontSize: fontSize.sm,
+                      color: semanticColors.text.secondary,
+                      marginBottom: 4,
+                    }}
                   >
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        marginBottom: 4,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: fontSize.md,
-                          fontWeight: fontWeight.bold,
-                          color: semanticColors.text.primary,
-                        }}
-                      >
-                        {variant.batch_no || variant.item_code}
-                      </Text>
-                      <View
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: 4,
-                        }}
-                      >
-                        <Ionicons
-                          name="cube-outline"
-                          size={14}
-                          color={semanticColors.text.secondary}
-                        />
-                        <Text
-                          style={{
-                            fontSize: fontSize.sm,
-                            fontWeight: fontWeight.medium,
-                            color: semanticColors.text.primary,
-                          }}
-                        >
-                          {variant.stock_qty || 0}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        marginBottom: 4,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: fontSize.xs,
-                          color: semanticColors.text.secondary,
-                        }}
-                      >
-                        Exp:{" "}
-                        {variant.expiry_date
-                          ? new Date(variant.expiry_date).toLocaleDateString()
-                          : "N/A"}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: fontSize.xs,
-                          color: semanticColors.text.secondary,
-                        }}
-                      >
-                        Mfg:{" "}
-                        {variant.manufacturing_date
-                          ? new Date(
-                              variant.manufacturing_date,
-                            ).toLocaleDateString()
-                          : "N/A"}
-                      </Text>
-                    </View>
-
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        justifyContent: "space-between",
-                        borderTopWidth: 1,
-                        borderTopColor: semanticColors.border.default,
-                        paddingTop: 4,
-                        marginTop: 4,
-                      }}
-                    >
-                      <Text
-                        style={{
-                          fontSize: fontSize.xs,
-                          color: semanticColors.text.secondary,
-                        }}
-                      >
-                        MRP: ₹{variant.mrp || 0}
-                      </Text>
-                      <Text
-                        style={{
-                          fontSize: fontSize.xs,
-                          color: semanticColors.text.secondary,
-                        }}
-                      >
-                        Barcode: {variant.barcode || variant.item_code}
-                      </Text>
-                    </View>
-                  </ModernCard>
-                ))}
-              </View>
-            </Animated.View>
-          )}
-
-          {/* Manufacturing & Expiry Date Toggle Section */}
-          <Animated.View
-            entering={FadeInDown.delay(75).duration(500)}
-            style={styles.section}
-          >
-            {/* Has Manufacturing Date Toggle */}
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLabelContainer}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={20}
-                  color={colors.primary[600]}
-                />
-                <Text
-                  style={[
-                    styles.toggleLabel,
-                    { color: semanticColors.text.primary },
-                  ]}
-                >
-                  Has Manufacturing Date
-                </Text>
-              </View>
-              <Switch
-                value={hasMfgDate}
-                onValueChange={(val) => {
-                  setHasMfgDate(val);
-                  if (!val) {
-                    setItemMfgDate("");
-                  }
-                }}
-                trackColor={{
-                  false: colors.neutral[200],
-                  true: colors.primary[600],
-                }}
-                thumbColor={hasMfgDate ? colors.white : colors.neutral[50]}
-              />
-            </View>
-
-            {/* Manufacturing Date Input */}
-            {hasMfgDate && (
-              <View style={styles.itemDateSection}>
-                <View style={styles.dateLabelRow}>
-                  <Text style={styles.itemDateLabel}>Manufacturing Date</Text>
-                  <View style={styles.dateFormatPicker}>
-                    {DATE_FORMAT_OPTIONS.map((opt) => (
-                      <TouchableOpacity
-                        key={opt.value}
-                        style={[
-                          styles.dateFormatOption,
-                          itemMfgDateFormat === opt.value &&
-                            styles.dateFormatOptionActive,
-                        ]}
-                        onPress={() => {
-                          setItemMfgDateFormat(opt.value);
-                          setItemMfgDate("");
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.dateFormatOptionText,
-                            itemMfgDateFormat === opt.value &&
-                              styles.dateFormatOptionTextActive,
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                <View
-                  style={[
-                    styles.itemDateInput,
-                    {
-                      borderColor:
-                        itemMfgDate &&
-                        !validateDateInput(itemMfgDate, itemMfgDateFormat)
-                          ? colors.error[500]
-                          : colors.neutral[300],
-                      backgroundColor: semanticColors.background.paper,
-                    },
-                  ]}
-                >
-                  {isMfgFull && (
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("day")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !mfgDay && styles.placeholderText,
-                          ]}
-                        >
-                          {mfgDay || "DD"}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("month")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !mfgMonth && styles.placeholderText,
-                          ]}
-                        >
-                          {mfgMonth || "MM"}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("year")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !mfgYear && styles.placeholderText,
-                          ]}
-                        >
-                          {mfgYear || "YYYY"}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {isMfgMonthYear && (
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("month")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !mfgMonth && styles.placeholderText,
-                          ]}
-                        >
-                          {mfgMonth || "MM"}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("year")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !mfgYear && styles.placeholderText,
-                          ]}
-                        >
-                          {mfgYear || "YYYY"}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {isMfgYearOnly && (
-                    <TouchableOpacity
-                      style={styles.smallPickerFull}
-                      onPress={() => openSelect("year")}
-                    >
-                      <Text
-                        style={[
-                          styles.smallPickerText,
-                          !mfgYear && styles.placeholderText,
-                        ]}
-                      >
-                        {mfgYear || "YYYY"}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {/* Selection handled globally below */}
-                </View>
-              </View>
-            )}
-
-            {/* Has Expiry Date Toggle */}
-            <View style={[styles.toggleRow, { marginTop: spacing.md }]}>
-              <View style={styles.toggleLabelContainer}>
-                <Ionicons
-                  name="time-outline"
-                  size={20}
-                  color={colors.warning[600]}
-                />
-                <Text
-                  style={[
-                    styles.toggleLabel,
-                    { color: semanticColors.text.primary },
-                  ]}
-                >
-                  Has Expiry Date
-                </Text>
-              </View>
-              <Switch
-                value={hasExpiryDate}
-                onValueChange={(val) => {
-                  setHasExpiryDate(val);
-                  if (!val) {
-                    setItemExpiryDate("");
-                  }
-                }}
-                trackColor={{
-                  false: colors.neutral[200],
-                  true: colors.warning[600],
-                }}
-                thumbColor={hasExpiryDate ? colors.white : colors.neutral[50]}
-              />
-            </View>
-
-            {/* Expiry Date Input */}
-            {hasExpiryDate && (
-              <View style={styles.itemDateSection}>
-                <View style={styles.dateLabelRow}>
-                  <Text style={styles.itemDateLabel}>Expiry Date</Text>
-                  <View style={styles.dateFormatPicker}>
-                    {DATE_FORMAT_OPTIONS.map((opt) => (
-                      <TouchableOpacity
-                        key={opt.value}
-                        style={[
-                          styles.dateFormatOption,
-                          itemExpiryDateFormat === opt.value &&
-                            styles.dateFormatOptionActive,
-                        ]}
-                        onPress={() => {
-                          setItemExpiryDateFormat(opt.value);
-                          setItemExpiryDate("");
-                        }}
-                      >
-                        <Text
-                          style={[
-                            styles.dateFormatOptionText,
-                            itemExpiryDateFormat === opt.value &&
-                              styles.dateFormatOptionTextActive,
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-                <View
-                  style={[
-                    styles.itemDateInput,
-                    {
-                      borderColor:
-                        itemExpiryDate &&
-                        !validateDateInput(itemExpiryDate, itemExpiryDateFormat)
-                          ? colors.error[500]
-                          : colors.neutral[300],
-                      backgroundColor: semanticColors.background.paper,
-                    },
-                  ]}
-                >
-                  {isExpiryFull && (
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("day", "exp")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !expiryDay && styles.placeholderText,
-                          ]}
-                        >
-                          {expiryDay || "DD"}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("month", "exp")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !expiryMonth && styles.placeholderText,
-                          ]}
-                        >
-                          {expiryMonth || "MM"}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("year", "exp")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !expiryYear && styles.placeholderText,
-                          ]}
-                        >
-                          {expiryYear || "YYYY"}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {isExpiryMonthYear && (
-                    <View style={{ flexDirection: "row", gap: 8 }}>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("month", "exp")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !expiryMonth && styles.placeholderText,
-                          ]}
-                        >
-                          {expiryMonth || "MM"}
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.smallPicker}
-                        onPress={() => openSelect("year", "exp")}
-                      >
-                        <Text
-                          style={[
-                            styles.smallPickerText,
-                            !expiryYear && styles.placeholderText,
-                          ]}
-                        >
-                          {expiryYear || "YYYY"}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {isExpiryYearOnly && (
-                    <TouchableOpacity
-                      style={styles.smallPickerFull}
-                      onPress={() => openSelect("year", "exp")}
-                    >
-                      <Text
-                        style={[
-                          styles.smallPickerText,
-                          !expiryYear && styles.placeholderText,
-                        ]}
-                      >
-                        {expiryYear || "YYYY"}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            )}
-
-            {/* Global Selection Modal */}
-            <Modal visible={selectVisible} transparent animationType="slide">
-              <View style={styles.modalBackdrop}>
-                <View style={styles.modalContent}>
-                  <Text style={styles.modalTitle}>{selectTitle}</Text>
-                  <FlatList
-                    data={selectOptions}
-                    keyExtractor={(i) => i}
-                    renderItem={({ item: opt }) => (
-                      <Pressable
-                        onPress={() => onSelectOption(opt)}
-                        style={({ pressed }) => [
-                          styles.modalOption,
-                          pressed && { opacity: 0.6 },
-                        ]}
-                      >
-                        <Text style={styles.modalOptionText}>{opt}</Text>
-                      </Pressable>
-                    )}
-                  />
-                  <TouchableOpacity
-                    style={styles.modalClose}
-                    onPress={() => setSelectVisible(false)}
+                    Barcode
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: fontSize.xl,
+                      fontWeight: fontWeight.bold,
+                      color: semanticColors.text.primary,
+                      letterSpacing: 1,
+                    }}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.6}
                   >
-                    <Text style={styles.modalCloseText}>Close</Text>
-                  </TouchableOpacity>
+                    {item.item_code || barcode}
+                  </Text>
                 </View>
-              </View>
-            </Modal>
-          </Animated.View>
 
-          {/* Is Serialized Toggle */}
-          <Animated.View
-            entering={FadeInDown.delay(75).duration(500)}
-            style={styles.section}
-          >
-            <View style={styles.toggleRow}>
-              <View style={styles.toggleLabelContainer}>
-                <Ionicons
-                  name="barcode-outline"
-                  size={20}
-                  color={colors.primary[600]}
-                />
-                <Text
-                  style={[
-                    styles.toggleLabel,
-                    { color: semanticColors.text.primary },
-                  ]}
-                >
-                  Is Serialized Item
-                </Text>
-              </View>
-              <Switch
-                value={isSerializedItem}
-                onValueChange={setIsSerializedItem}
-                trackColor={{
-                  false: colors.neutral[200],
-                  true: colors.primary[600],
-                }}
-                thumbColor={
-                  isSerializedItem ? colors.white : colors.neutral[50]
-                }
-              />
-            </View>
-            <Text
-              style={[
-                styles.toggleHint,
-                { color: semanticColors.text.secondary },
-              ]}
-            >
-              {isSerializedItem
-                ? "Enable to capture individual serial numbers for each unit"
-                : "Turn on if this item has unique serial numbers"}
-            </Text>
-          </Animated.View>
-
-          {/* Serial Number Input - Only visible when Is Serialized is enabled */}
-          {isSerializedItem && (
-            <Animated.View
-              entering={FadeInDown.delay(100).duration(500)}
-              style={styles.section}
-            >
-              {/* Multiple serial inputs for serialized items with per-serial MRP/mfg date */}
-              <View>
-                <View style={styles.serialHeader}>
-                  <View style={styles.serialTitleRow}>
-                    <Ionicons
-                      name="barcode-outline"
-                      size={20}
-                      color={colors.primary[600]}
-                    />
+                {item?.is_bundle && item?.components && (
+                  <View style={styles.bundleSection}>
                     <Text
                       style={[
-                        styles.sectionTitle,
-                        {
-                          color: semanticColors.text.primary,
-                          marginLeft: spacing.xs,
-                        },
+                        styles.bundleTitle,
+                        { color: semanticColors.text.primary },
                       ]}
                     >
-                      Serial Numbers
+                      Bundle Components
                     </Text>
+                    {item.components.map((comp: any, idx: number) => (
+                      <View key={idx} style={styles.bundleItem}>
+                        <Ionicons
+                          name="cube-outline"
+                          size={18}
+                          color={colors.primary[600]}
+                        />
+                        <Text
+                          style={[
+                            styles.bundleItemName,
+                            { color: semanticColors.text.primary },
+                          ]}
+                        >
+                          {comp.item_name || comp.item_code}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.bundleItemQty,
+                            { color: colors.primary[700] },
+                          ]}
+                        >
+                          x{comp.qty_per_bundle}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
+                )}
+
+                {item?._source === "mongodb" && (
+                  <View style={styles.staleWarning}>
+                    <Ionicons
+                      name="warning"
+                      size={18}
+                      color={colors.warning[700]}
+                    />
+                    <View style={styles.staleWarningContent}>
+                      <Text style={styles.staleWarningTitle}>ERP Offline</Text>
+                      <Text style={styles.staleWarningText}>
+                        Variance is based on a cached stock snapshot.
+                      </Text>
+                    </View>
+                  </View>
+                )}
+
+                <View style={styles.sectionHeader}>
                   <Text
                     style={[
-                      styles.serialHelperText,
+                      styles.sectionTitle,
+                      { color: semanticColors.text.primary },
+                    ]}
+                  >
+                    Counted Quantity{" "}
+                    {isWeightBasedUOM && (
+                      <Text style={styles.uomHint}>({item?.uom || "kg"})</Text>
+                    )}
+                  </Text>
+                </View>
+                <View style={styles.quantityContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.qtyButton,
+                      { backgroundColor: colors.neutral[200] },
+                    ]}
+                    onPress={() => {
+                      const val = parseFloat(quantity) || 0;
+                      const step = getQuantityStep();
+                      if (val > step) {
+                        const newVal = val - step;
+                        setQuantity(formatQuantity(String(newVal)));
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      } else if (val > 0) {
+                        setQuantity("0");
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="remove"
+                      size={28}
+                      color={semanticColors.text.primary}
+                    />
+                  </TouchableOpacity>
+
+                  <View
+                    style={[
+                      styles.qtyDisplay,
+                      {
+                        backgroundColor: semanticColors.background.paper,
+                        borderColor: colors.primary[200],
+                      },
+                    ]}
+                  >
+                    <TextInput
+                      style={[
+                        styles.qtyText,
+                        { color: semanticColors.text.primary },
+                      ]}
+                      value={quantity}
+                      onChangeText={handleQuantityChange}
+                      onBlur={() => {
+                        if (quantity && quantity !== "." && quantity !== "0.") {
+                          setQuantity(formatQuantity(quantity));
+                        } else {
+                          setQuantity("0");
+                        }
+                      }}
+                      keyboardType={isWeightBasedUOM ? "decimal-pad" : "number-pad"}
+                      selectTextOnFocus
+                      placeholder="0"
+                      placeholderTextColor={semanticColors.text.disabled}
+                    />
+                  </View>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.qtyButton,
+                      { backgroundColor: colors.primary[600] },
+                    ]}
+                    onPress={() => {
+                      const val = parseFloat(quantity) || 0;
+                      const step = getQuantityStep();
+                      const newVal = val + step;
+                      setQuantity(formatQuantity(String(newVal)));
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="add" size={28} color={colors.white} />
+                  </TouchableOpacity>
+                </View>
+                {isWeightBasedUOM && (
+                  <Text
+                    style={[
+                      styles.quantityHint,
                       { color: semanticColors.text.secondary },
                     ]}
                   >
-                    Scan or type serial numbers - quantity auto-updates (
-                    {serialEntries.length} scanned)
+                    +/- {getQuantityStep()} per tap • Up to 2 decimal places
                   </Text>
-                </View>
+                )}
+              </View>
 
-                {/* Scan Button - Primary Action */}
-                <TouchableOpacity
-                  style={styles.scanSerialButton}
-                  onPress={() => setShowSerialScanner(true)}
-                >
-                  <Ionicons name="scan" size={24} color={colors.white} />
-                  <Text style={styles.scanSerialButtonText}>
-                    Scan Serial Numbers
+              {/* Batch History List */}
+              {sameNameVariants.length > 0 && (
+                <View style={styles.section}>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: semanticColors.text.primary },
+                    ]}
+                  >
+                    Batch History
                   </Text>
-                </TouchableOpacity>
+                  <View style={{ gap: spacing.sm }}>
+                    {sameNameVariants.map((variant) => (
+                      <ModernCard
+                        key={variant.item_code}
+                        style={{ padding: spacing.sm }}
+                      >
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: fontSize.md,
+                              fontWeight: fontWeight.bold,
+                              color: semanticColors.text.primary,
+                            }}
+                          >
+                            {variant.batch_no || variant.item_code}
+                          </Text>
+                          <View
+                            style={{
+                              flexDirection: "row",
+                              alignItems: "center",
+                              gap: 4,
+                            }}
+                          >
+                            <Ionicons
+                              name="cube-outline"
+                              size={14}
+                              color={semanticColors.text.secondary}
+                            />
+                            <Text
+                              style={{
+                                fontSize: fontSize.sm,
+                                fontWeight: fontWeight.medium,
+                                color: semanticColors.text.primary,
+                              }}
+                            >
+                              {variant.stock_qty || 0}
+                            </Text>
+                          </View>
+                        </View>
 
-                {/* Validation Errors */}
-                {serialValidationErrors.length > 0 && (
-                  <View style={styles.validationErrorContainer}>
-                    {serialValidationErrors.map((error, idx) => (
-                      <Text key={idx} style={styles.validationErrorText}>
-                        • {error}
-                      </Text>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            marginBottom: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: fontSize.xs,
+                              color: semanticColors.text.secondary,
+                            }}
+                          >
+                            Exp:{" "}
+                            {variant.expiry_date
+                              ? new Date(variant.expiry_date).toLocaleDateString()
+                              : "N/A"}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: fontSize.xs,
+                              color: semanticColors.text.secondary,
+                            }}
+                          >
+                            Mfg:{" "}
+                            {variant.manufacturing_date
+                              ? new Date(
+                                  variant.manufacturing_date,
+                                ).toLocaleDateString()
+                              : "N/A"}
+                          </Text>
+                        </View>
+
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            borderTopWidth: 1,
+                            borderTopColor: semanticColors.border.default,
+                            paddingTop: 4,
+                            marginTop: 4,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontSize: fontSize.xs,
+                              color: semanticColors.text.secondary,
+                            }}
+                          >
+                            MRP: ₹{variant.mrp || 0}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: fontSize.xs,
+                              color: semanticColors.text.secondary,
+                            }}
+                          >
+                            Barcode: {variant.barcode || variant.item_code}
+                          </Text>
+                        </View>
+                      </ModernCard>
                     ))}
                   </View>
-                )}
+                </View>
+              )}
 
-                {/* Serial Entries with per-item MRP and Manufacturing Date */}
-                {serialEntries.map((entry, index) => (
-                  <View key={entry.id} style={styles.serialEntryCard}>
-                    <View style={styles.serialEntryHeader}>
-                      <Text
-                        style={[
-                          styles.serialLabel,
-                          { color: semanticColors.text.secondary },
-                        ]}
-                      >
-                        Unit #{index + 1}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.removeSerialButton}
-                        onPress={() => handleRemoveSerial(index)}
-                      >
+              {/* Manufacturing & Expiry Date Section */}
+              {(settings.columnVisibility.mfgDate || settings.columnVisibility.expiryDate) && (
+                <View style={styles.section}>
+                  {/* Mfg Date Toggle */}
+                  {settings.columnVisibility.mfgDate && (
+                    <View style={styles.toggleRow}>
+                      <View style={styles.toggleLabelContainer}>
                         <Ionicons
-                          name="trash-outline"
-                          size={18}
-                          color={colors.error[500]}
+                          name="calendar-outline"
+                          size={20}
+                          color={colors.primary[600]}
                         />
-                      </TouchableOpacity>
-                    </View>
-
-                    {/* Serial Number Input */}
-                    <View style={styles.serialInputContainer}>
-                      <TextInput
-                        style={[
-                          styles.serialTextInput,
-                          {
-                            color: semanticColors.text.primary,
-                            backgroundColor: semanticColors.background.paper,
-                            borderColor: entry.serial_number.trim()
-                              ? validateSerialNumber(entry.serial_number)
-                                ? colors.error[500]
-                                : colors.success[500]
-                              : colors.neutral[300],
-                          },
-                        ]}
-                        value={entry.serial_number}
-                        onChangeText={(text) =>
-                          handleSerialChange(index, "serial_number", text)
-                        }
-                        placeholder="Serial number"
-                        placeholderTextColor={semanticColors.text.disabled}
-                        autoCapitalize="characters"
-                        autoCorrect={false}
+                        <Text
+                          style={[
+                            styles.toggleLabel,
+                            { color: semanticColors.text.primary },
+                          ]}
+                        >
+                          Has Manufacturing Date
+                        </Text>
+                      </View>
+                      <Switch
+                        value={hasMfgDate}
+                        onValueChange={(val) => {
+                          setHasMfgDate(val);
+                          if (!val) setItemMfgDate("");
+                        }}
+                        trackColor={{
+                          false: colors.neutral[200],
+                          true: colors.primary[600],
+                        }}
+                        thumbColor={hasMfgDate ? colors.white : colors.neutral[50]}
                       />
                     </View>
-                    {entry.serial_number.trim() &&
-                      validateSerialNumber(entry.serial_number) && (
-                        <Text style={styles.serialErrorText}>
-                          {validateSerialNumber(entry.serial_number)}
-                        </Text>
-                      )}
+                  )}
 
-                    {/* MRP Field */}
-                    <View style={styles.serialDetailsRow}>
-                      <View style={[styles.serialDetailField, { flex: 1 }]}>
-                        <Text style={styles.serialDetailLabel}>MRP (₹)</Text>
+                  {/* Manufacturing Date Input */}
+                  {settings.columnVisibility.mfgDate && hasMfgDate && (
+                    <View style={styles.itemDateSection}>
+                      <View style={styles.dateLabelRow}>
+                        <Text style={styles.itemDateLabel}>Manufacturing Date</Text>
+                        <View style={styles.dateFormatPicker}>
+                          {DATE_FORMAT_OPTIONS.map((opt) => (
+                            <TouchableOpacity
+                              key={opt.value}
+                              style={[
+                                styles.dateFormatOption,
+                                itemMfgDateFormat === opt.value &&
+                                  styles.dateFormatOptionActive,
+                              ]}
+                              onPress={() => {
+                                setItemMfgDateFormat(opt.value);
+                                setItemMfgDate("");
+                              }}
+                            >
+                              <Text
+                                style={[
+                                  styles.dateFormatOptionText,
+                                  itemMfgDateFormat === opt.value &&
+                                    styles.dateFormatOptionTextActive,
+                                ]}
+                              >
+                                {opt.label}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                      <View
+                        style={[
+                          styles.itemDateInput,
+                          {
+                            borderColor:
+                              itemMfgDate &&
+                              !validateDateInput(itemMfgDate, itemMfgDateFormat)
+                                ? colors.error[500]
+                                : colors.neutral[300],
+                            backgroundColor: semanticColors.background.paper,
+                          },
+                        ]}
+                      >
+                        {isMfgFull ? (
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("day")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !mfgDay && styles.placeholderText,
+                                ]}
+                              >
+                                {mfgDay || "DD"}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("month")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !mfgMonth && styles.placeholderText,
+                                ]}
+                              >
+                                {mfgMonth || "MM"}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("year")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !mfgYear && styles.placeholderText,
+                                ]}
+                              >
+                                {mfgYear || "YYYY"}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : isMfgMonthYear ? (
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("month")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !mfgMonth && styles.placeholderText,
+                                ]}
+                              >
+                                {mfgMonth || "MM"}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("year")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !mfgYear && styles.placeholderText,
+                                ]}
+                              >
+                                {mfgYear || "YYYY"}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.smallPickerFull}
+                            onPress={() => openSelect("year")}
+                          >
+                            <Text
+                              style={[
+                                styles.smallPickerText,
+                                !mfgYear && styles.placeholderText,
+                              ]}
+                            >
+                              {mfgYear || "YYYY"}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  )}
+
+                  {/* Exp Date Toggle */}
+                  {settings.columnVisibility.expiryDate && (
+                    <View style={[styles.toggleRow, { marginTop: spacing.md }]}>
+                      <View style={styles.toggleLabelContainer}>
+                        <Ionicons
+                          name="time-outline"
+                          size={20}
+                          color={colors.warning[600]}
+                        />
+                        <Text
+                          style={[
+                            styles.toggleLabel,
+                            { color: semanticColors.text.primary },
+                          ]}
+                        >
+                          Has Expiry Date
+                        </Text>
+                      </View>
+                      <Switch
+                        value={hasExpiryDate}
+                        onValueChange={(val) => {
+                          setHasExpiryDate(val);
+                          if (!val) setItemExpiryDate("");
+                        }}
+                        trackColor={{
+                          false: colors.neutral[200],
+                          true: colors.warning[600],
+                        }}
+                        thumbColor={hasExpiryDate ? colors.white : colors.neutral[50]}
+                      />
+                    </View>
+                  )}
+
+                  {/* Expiry Date Input */}
+                  {settings.columnVisibility.expiryDate && hasExpiryDate && (
+                    <View style={styles.itemDateSection}>
+                      <View style={styles.dateLabelRow}>
+                        <Text style={styles.itemDateLabel}>Expiry Date</Text>
+                        <View style={styles.dateFormatPicker}>
+                          {DATE_FORMAT_OPTIONS.map((opt) => (
+                            <TouchableOpacity
+                              key={opt.value}
+                              style={[
+                                styles.dateFormatOption,
+                                itemExpiryDateFormat === opt.value &&
+                                  styles.dateFormatOptionActive,
+                              ]}
+                              onPress={() => {
+                                setItemExpiryDateFormat(opt.value);
+                                setItemExpiryDate("");
+                              }}
+                            >
+                              <Text
+                                style={[
+                                  styles.dateFormatOptionText,
+                                  itemExpiryDateFormat === opt.value &&
+                                    styles.dateFormatOptionTextActive,
+                                ]}
+                              >
+                                {opt.label}
+                              </Text>
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </View>
+                      <View
+                        style={[
+                          styles.itemDateInput,
+                          {
+                            borderColor:
+                              itemExpiryDate &&
+                              !validateDateInput(itemExpiryDate, itemExpiryDateFormat)
+                                ? colors.error[500]
+                                : colors.neutral[300],
+                            backgroundColor: semanticColors.background.paper,
+                          },
+                        ]}
+                      >
+                        {isExpiryFull ? (
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("day", "exp")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !expiryDay && styles.placeholderText,
+                                ]}
+                              >
+                                {expiryDay || "DD"}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("month", "exp")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !expiryMonth && styles.placeholderText,
+                                ]}
+                              >
+                                {expiryMonth || "MM"}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("year", "exp")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !expiryYear && styles.placeholderText,
+                                ]}
+                              >
+                                {expiryYear || "YYYY"}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : isExpiryMonthYear ? (
+                          <View style={{ flexDirection: "row", gap: 8 }}>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("month", "exp")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !expiryMonth && styles.placeholderText,
+                                ]}
+                              >
+                                {expiryMonth || "MM"}
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              style={styles.smallPicker}
+                              onPress={() => openSelect("year", "exp")}
+                            >
+                              <Text
+                                style={[
+                                  styles.smallPickerText,
+                                  !expiryYear && styles.placeholderText,
+                                ]}
+                              >
+                                {expiryYear || "YYYY"}
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.smallPickerFull}
+                            onPress={() => openSelect("year", "exp")}
+                          >
+                            <Text
+                              style={[
+                                styles.smallPickerText,
+                                !expiryYear && styles.placeholderText,
+                              ]}
+                            >
+                              {expiryYear || "YYYY"}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {/* Is Serialized Toggle */}
+              {settings.columnVisibility.serialNumber && (
+                <View style={styles.section}>
+                  <View style={styles.toggleRow}>
+                    <View style={styles.toggleLabelContainer}>
+                      <Ionicons
+                        name="barcode-outline"
+                        size={20}
+                        color={colors.primary[600]}
+                      />
+                      <Text
+                        style={[
+                          styles.toggleLabel,
+                          { color: semanticColors.text.primary },
+                        ]}
+                      >
+                        Is Serialized Item
+                      </Text>
+                    </View>
+                    <Switch
+                      value={isSerializedItem}
+                      onValueChange={setIsSerializedItem}
+                      trackColor={{
+                        false: colors.neutral[200],
+                        true: colors.primary[600],
+                      }}
+                      thumbColor={
+                        isSerializedItem ? colors.white : colors.neutral[50]
+                      }
+                    />
+                  </View>
+                  <Text
+                    style={[
+                      styles.toggleHint,
+                      { color: semanticColors.text.secondary },
+                    ]}
+                  >
+                    {isSerializedItem
+                      ? "Enable to capture individual serial numbers for each unit"
+                      : "Turn on if this item has unique serial numbers"}
+                  </Text>
+                </View>
+              )}
+
+              {/* Serial Number Input - Only visible when Is Serialized is enabled */}
+              {settings.columnVisibility.serialNumber && isSerializedItem && (
+                <View style={styles.section}>
+                  <View style={styles.serialHeader}>
+                    <View style={styles.serialTitleRow}>
+                      <Ionicons
+                        name="barcode-outline"
+                        size={20}
+                        color={colors.primary[600]}
+                      />
+                      <Text
+                        style={[
+                          styles.sectionTitle,
+                          {
+                            color: semanticColors.text.primary,
+                            marginLeft: spacing.xs,
+                          },
+                        ]}
+                      >
+                        Serial Numbers
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.serialHelperText,
+                        { color: semanticColors.text.secondary },
+                      ]}
+                    >
+                      Scan or type serial numbers - quantity auto-updates (
+                      {serialEntries.length} scanned)
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.scanSerialButton}
+                    onPress={() => setShowSerialScanner(true)}
+                  >
+                    <Ionicons name="scan" size={24} color={colors.white} />
+                    <Text style={styles.scanSerialButtonText}>
+                      Scan Serial Numbers
+                    </Text>
+                  </TouchableOpacity>
+
+                  {serialValidationErrors.length > 0 && (
+                    <View style={styles.validationErrorContainer}>
+                      {serialValidationErrors.map((error, idx) => (
+                        <Text key={idx} style={styles.validationErrorText}>
+                          • {error}
+                        </Text>
+                      ))}
+                    </View>
+                  )}
+
+                  {serialEntries.map((entry, index) => (
+                    <View key={entry.id} style={styles.serialEntryCard}>
+                      <View style={styles.serialEntryHeader}>
+                        <Text
+                          style={[
+                            styles.serialLabel,
+                            { color: semanticColors.text.secondary },
+                          ]}
+                        >
+                          Unit #{index + 1}
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.removeSerialButton}
+                          onPress={() => handleRemoveSerial(index)}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={18}
+                            color={colors.error[500]}
+                          />
+                        </TouchableOpacity>
+                      </View>
+
+                      <View style={styles.serialInputContainer}>
                         <TextInput
                           style={[
-                            styles.serialDetailInput,
+                            styles.serialTextInput,
                             {
                               color: semanticColors.text.primary,
                               backgroundColor: semanticColors.background.paper,
+                              borderColor: entry.serial_number.trim()
+                                ? validateSerialNumber(entry.serial_number)
+                                  ? colors.error[500]
+                                  : colors.success[500]
+                                : colors.neutral[300],
                             },
                           ]}
-                          value={entry.mrp ? String(entry.mrp) : ""}
+                          value={entry.serial_number}
                           onChangeText={(text) =>
-                            handleSerialChange(
-                              index,
-                              "mrp",
-                              parseFloat(text) || 0,
-                            )
+                            handleSerialChange(index, "serial_number", text)
                           }
-                          placeholder="MRP"
+                          placeholder="Serial number"
                           placeholderTextColor={semanticColors.text.disabled}
-                          keyboardType="numeric"
+                          autoCapitalize="characters"
+                          autoCorrect={false}
                         />
                       </View>
+                      {entry.serial_number.trim() &&
+                        validateSerialNumber(entry.serial_number) && (
+                          <Text style={styles.serialErrorText}>
+                            {validateSerialNumber(entry.serial_number)}
+                          </Text>
+                        )}
                     </View>
-
-                    {/* Manufacturing Date with Format Selector */}
-                    <View style={styles.dateSection}>
-                      <View style={styles.dateLabelRow}>
-                        <Text style={styles.serialDetailLabel}>
-                          Manufacturing Date
-                        </Text>
-                        <View style={styles.dateFormatPicker}>
-                          {DATE_FORMAT_OPTIONS.map((opt) => (
-                            <TouchableOpacity
-                              key={opt.value}
-                              style={[
-                                styles.dateFormatOption,
-                                (entry.mfg_date_format || "full") ===
-                                  opt.value && styles.dateFormatOptionActive,
-                              ]}
-                              onPress={() =>
-                                handleSerialDateFormatChange(
-                                  index,
-                                  "mfg_date_format",
-                                  opt.value,
-                                )
-                              }
-                            >
-                              <Text
-                                style={[
-                                  styles.dateFormatOptionText,
-                                  (entry.mfg_date_format || "full") ===
-                                    opt.value &&
-                                    styles.dateFormatOptionTextActive,
-                                ]}
-                              >
-                                {opt.label}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </View>
-                      <TextInput
-                        style={[
-                          styles.serialDetailInput,
-                          {
-                            color: semanticColors.text.primary,
-                            backgroundColor: semanticColors.background.paper,
-                            borderColor:
-                              entry.manufacturing_date &&
-                              !validateDateInput(
-                                entry.manufacturing_date,
-                                entry.mfg_date_format || "full",
-                              )
-                                ? colors.error[500]
-                                : colors.neutral[300],
-                          },
-                        ]}
-                        value={entry.manufacturing_date || ""}
-                        onChangeText={(text) =>
-                          handleSerialDateChange(
-                            index,
-                            "manufacturing_date",
-                            text,
-                            entry.mfg_date_format || "full",
-                          )
-                        }
-                        placeholder={
-                          DATE_FORMAT_OPTIONS.find(
-                            (o) =>
-                              o.value === (entry.mfg_date_format || "full"),
-                          )?.placeholder || "DD/MM/YYYY"
-                        }
-                        placeholderTextColor={semanticColors.text.disabled}
-                        keyboardType="number-pad"
-                        maxLength={
-                          entry.mfg_date_format === "year_only"
-                            ? 4
-                            : entry.mfg_date_format === "month_year"
-                              ? 7
-                              : 10
-                        }
-                      />
-                    </View>
-
-                    {/* Expiry Date with Format Selector */}
-                    <View style={styles.dateSection}>
-                      <View style={styles.dateLabelRow}>
-                        <Text style={styles.serialDetailLabel}>
-                          Expiry Date
-                        </Text>
-                        <View style={styles.dateFormatPicker}>
-                          {DATE_FORMAT_OPTIONS.map((opt) => (
-                            <TouchableOpacity
-                              key={opt.value}
-                              style={[
-                                styles.dateFormatOption,
-                                (entry.expiry_date_format || "full") ===
-                                  opt.value && styles.dateFormatOptionActive,
-                              ]}
-                              onPress={() =>
-                                handleSerialDateFormatChange(
-                                  index,
-                                  "expiry_date_format",
-                                  opt.value,
-                                )
-                              }
-                            >
-                              <Text
-                                style={[
-                                  styles.dateFormatOptionText,
-                                  (entry.expiry_date_format || "full") ===
-                                    opt.value &&
-                                    styles.dateFormatOptionTextActive,
-                                ]}
-                              >
-                                {opt.label}
-                              </Text>
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </View>
-                      <TextInput
-                        style={[
-                          styles.serialDetailInput,
-                          {
-                            color: semanticColors.text.primary,
-                            backgroundColor: semanticColors.background.paper,
-                            borderColor:
-                              entry.expiry_date &&
-                              !validateDateInput(
-                                entry.expiry_date,
-                                entry.expiry_date_format || "full",
-                              )
-                                ? colors.error[500]
-                                : colors.neutral[300],
-                          },
-                        ]}
-                        value={entry.expiry_date || ""}
-                        onChangeText={(text) =>
-                          handleSerialDateChange(
-                            index,
-                            "expiry_date",
-                            text,
-                            entry.expiry_date_format || "full",
-                          )
-                        }
-                        placeholder={
-                          DATE_FORMAT_OPTIONS.find(
-                            (o) =>
-                              o.value === (entry.expiry_date_format || "full"),
-                          )?.placeholder || "DD/MM/YYYY"
-                        }
-                        placeholderTextColor={semanticColors.text.disabled}
-                        keyboardType="number-pad"
-                        maxLength={
-                          entry.expiry_date_format === "year_only"
-                            ? 4
-                            : entry.expiry_date_format === "month_year"
-                              ? 7
-                              : 10
-                        }
-                      />
-                    </View>
-                  </View>
-                ))}
-
-                {/* Add Manual Serial Button */}
-                <TouchableOpacity
-                  style={styles.addSerialButton}
-                  onPress={handleAddSerial}
-                >
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={20}
-                    color={colors.primary[600]}
-                  />
-                  <Text style={styles.addSerialButtonText}>
-                    Add Serial Manually
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-          )}
-
-          {/* MRP Selection / Override */}
-          <Animated.View
-            entering={FadeInDown.delay(200).duration(500)}
-            style={styles.section}
-          >
-            <View style={styles.sectionHeader}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: semanticColors.text.primary },
-                ]}
-              >
-                MRP
-              </Text>
-              {mrpVariants.length === 0 && (
-                <Switch
-                  value={mrpEditable}
-                  onValueChange={setMrpEditable}
-                  trackColor={{
-                    false: colors.neutral[200],
-                    true: colors.primary[600],
-                  }}
-                />
-              )}
-            </View>
-
-            {mrpVariants.length > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.chipsScroll}
-              >
-                {mrpVariants.map((variant: any, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.chip,
-                      {
-                        backgroundColor: semanticColors.background.paper,
-                        borderColor: semanticColors.border.default,
-                      },
-                      selectedMrpVariant?.value === variant.value && {
-                        backgroundColor: colors.primary[50],
-                        borderColor: colors.primary[600],
-                      },
-                    ]}
-                    onPress={() => {
-                      setSelectedMrpVariant(variant);
-                      setMrp(String(variant.value));
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        { color: semanticColors.text.secondary },
-                        selectedMrpVariant?.value === variant.value && {
-                          color: colors.primary[700],
-                          fontWeight: fontWeight.medium,
-                        },
-                      ]}
-                    >
-                      ₹{variant.value}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            ) : mrpEditable ? (
-              <ModernInput
-                value={mrp}
-                onChangeText={setMrp}
-                keyboardType="numeric"
-                placeholder="Enter new MRP"
-                icon="pricetag"
-              />
-            ) : (
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontWeight: "bold",
-                  color: semanticColors.text.primary,
-                }}
-              >
-                ₹{mrp || item.mrp || 0}
-              </Text>
-            )}
-          </Animated.View>
-
-          {/* Condition */}
-          <Animated.View
-            entering={FadeInDown.delay(300).duration(500)}
-            style={styles.section}
-          >
-            <Text
-              style={[
-                styles.sectionTitle,
-                { color: semanticColors.text.primary },
-              ]}
-            >
-              Condition
-            </Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.chipsScroll}
-            >
-              {CONDITION_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: semanticColors.background.paper,
-                      borderColor: semanticColors.border.default,
-                    },
-                    condition === opt && {
-                      backgroundColor: colors.primary[50],
-                      borderColor: colors.primary[600],
-                    },
-                  ]}
-                  onPress={() => setCondition(opt)}
-                >
-                  <Text
-                    style={[
-                      styles.chipText,
-                      { color: semanticColors.text.secondary },
-                      condition === opt && {
-                        color: colors.primary[700],
-                        fontWeight: fontWeight.medium,
-                      },
-                    ]}
-                  >
-                    {opt}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </Animated.View>
-
-          {/* Damage Toggle */}
-          <Animated.View
-            entering={FadeInDown.delay(400).duration(500)}
-            style={styles.section}
-          >
-            <View style={styles.sectionHeader}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { color: semanticColors.status.error },
-                ]}
-              >
-                Report Damage
-              </Text>
-              <Switch
-                value={isDamageEnabled}
-                onValueChange={setIsDamageEnabled}
-                trackColor={{
-                  false: colors.neutral[200],
-                  true: semanticColors.status.error,
-                }}
-              />
-            </View>
-
-            {isDamageEnabled && (
-              <View
-                style={[
-                  styles.damageContainer,
-                  {
-                    backgroundColor: colors.error[50],
-                    borderColor: colors.error[500],
-                  },
-                ]}
-              >
-                <ModernInput
-                  value={damageQty}
-                  onChangeText={setDamageQty}
-                  keyboardType="numeric"
-                  placeholder="Damaged Quantity"
-                  label="Quantity"
-                />
-
-                <View style={styles.damageTypeContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.damageTypeButton,
-                      { borderColor: colors.error[500] },
-                      damageType === "returnable" && {
-                        backgroundColor: colors.error[600],
-                        borderColor: colors.error[600],
-                      },
-                    ]}
-                    onPress={() => setDamageType("returnable")}
-                  >
-                    <Text
-                      style={[
-                        styles.damageTypeText,
-                        { color: colors.error[600] },
-                        damageType === "returnable" && {
-                          color: colors.white,
-                          fontWeight: fontWeight.medium,
-                        },
-                      ]}
-                    >
-                      Returnable
-                    </Text>
-                  </TouchableOpacity>
+                  ))}
 
                   <TouchableOpacity
-                    style={[
-                      styles.damageTypeButton,
-                      { borderColor: colors.error[500] },
-                      damageType === "nonreturnable" && {
-                        backgroundColor: colors.error[600],
-                        borderColor: colors.error[600],
-                      },
-                    ]}
-                    onPress={() => setDamageType("nonreturnable")}
+                    style={styles.addSerialButton}
+                    onPress={handleAddSerial}
                   >
-                    <Text
-                      style={[
-                        styles.damageTypeText,
-                        { color: colors.error[600] },
-                        damageType === "nonreturnable" && {
-                          color: colors.white,
-                          fontWeight: fontWeight.medium,
-                        },
-                      ]}
-                    >
-                      Non-Returnable
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={20}
+                      color={colors.primary[600]}
+                    />
+                    <Text style={styles.addSerialButtonText}>
+                      Add Serial Manually
                     </Text>
                   </TouchableOpacity>
                 </View>
+              )}
+
+              {/* MRP Selection / Override */}
+              {settings.columnVisibility.mrp && (
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text
+                      style={[
+                        styles.sectionTitle,
+                        { color: semanticColors.text.primary },
+                      ]}
+                    >
+                      MRP
+                    </Text>
+                    {mrpVariants.length === 0 && (
+                      <Switch
+                        value={mrpEditable}
+                        onValueChange={setMrpEditable}
+                        trackColor={{
+                          false: colors.neutral[200],
+                          true: colors.primary[600],
+                        }}
+                      />
+                    )}
+                  </View>
+
+                  {mrpVariants.length > 0 ? (
+                    <FlatList
+                      horizontal
+                      data={mrpVariants}
+                      keyExtractor={(_, index) => index.toString()}
+                      renderItem={({ item: variant }) => (
+                        <TouchableOpacity
+                          style={[
+                            styles.chip,
+                            {
+                              backgroundColor: semanticColors.background.paper,
+                              borderColor: semanticColors.border.default,
+                            },
+                            selectedMrpVariant?.value === variant.value && {
+                              backgroundColor: colors.primary[50],
+                              borderColor: colors.primary[600],
+                            },
+                          ]}
+                          onPress={() => {
+                            setSelectedMrpVariant(variant);
+                            setMrp(String(variant.value));
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.chipText,
+                              { color: semanticColors.text.secondary },
+                              selectedMrpVariant?.value === variant.value && {
+                                color: colors.primary[700],
+                                fontWeight: fontWeight.medium,
+                              },
+                            ]}
+                          >
+                            ₹{variant.value}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.chipsScroll}
+                      nestedScrollEnabled={true}
+                    />
+                  ) : mrpEditable ? (
+                    <ModernInput
+                      value={mrp}
+                      onChangeText={setMrp}
+                      keyboardType="numeric"
+                      placeholder="Enter new MRP"
+                      icon="pricetag"
+                    />
+                  ) : (
+                    <Text
+                      style={{
+                        fontSize: 18,
+                        fontWeight: "bold",
+                        color: semanticColors.text.primary,
+                      }}
+                    >
+                      ₹{mrp || item.mrp || 0}
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* Is Damaged Section */}
+              <View style={styles.section}>
+                <View style={styles.toggleRow}>
+                  <View style={styles.toggleLabelContainer}>
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={20}
+                      color={colors.error[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.toggleLabel,
+                        { color: semanticColors.text.primary },
+                      ]}
+                    >
+                      Is Damaged Item
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isDamageEnabled}
+                    onValueChange={setIsDamageEnabled}
+                    trackColor={{
+                      false: colors.neutral[200],
+                      true: colors.error[500],
+                    }}
+                    thumbColor={isDamageEnabled ? colors.white : colors.neutral[50]}
+                  />
+                </View>
+
+                {isDamageEnabled && (
+                  <View style={styles.damageContainer}>
+                    <Text
+                      style={[
+                        styles.detailLabel,
+                        { color: colors.error[700], fontWeight: fontWeight.bold },
+                      ]}
+                    >
+                      Select Damage Type
+                    </Text>
+                    <View style={styles.damageTypeContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.damageTypeButton,
+                          damageType === "returnable" && styles.damageTypeSelected,
+                        ]}
+                        onPress={() => setDamageType("returnable")}
+                      >
+                        <Text
+                          style={[
+                            styles.damageTypeText,
+                            damageType === "returnable" && styles.damageTypeTextSelected,
+                          ]}
+                        >
+                          Returnable
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.damageTypeButton,
+                          damageType === "nonreturnable" && styles.damageTypeSelected,
+                        ]}
+                        onPress={() => setDamageType("nonreturnable")}
+                      >
+                        <Text
+                          style={[
+                            styles.damageTypeText,
+                            damageType === "nonreturnable" &&
+                              styles.damageTypeTextSelected,
+                          ]}
+                        >
+                          Non-Returnable
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    <View style={{ marginTop: spacing.md }}>
+                      <Text style={[styles.detailLabel, { color: colors.error[700] }]}>
+                        Damage Quantity
+                      </Text>
+                      <TextInput
+                        style={[
+                          styles.qtyText,
+                          {
+                            fontSize: 24,
+                            height: 50,
+                            borderWidth: 1,
+                            borderColor: colors.error[200],
+                            borderRadius: 8,
+                            marginTop: 4,
+                          },
+                        ]}
+                        value={damageQty}
+                        onChangeText={setDamageQty}
+                        keyboardType="numeric"
+                        placeholder="0"
+                      />
+                    </View>
+
+                    <View style={styles.photoContainer}>
+                      <TouchableOpacity
+                        style={[
+                          styles.photoButton,
+                          damagePhoto && styles.photoButtonSuccess,
+                        ]}
+                        onPress={handleTakePhoto}
+                      >
+                        <Ionicons
+                          name={damagePhoto ? "checkmark-circle" : "camera"}
+                          size={24}
+                          color={damagePhoto ? colors.white : colors.error[600]}
+                        />
+                        <Text
+                          style={[
+                            styles.photoButtonText,
+                            damagePhoto && { color: colors.white },
+                          ]}
+                        >
+                          {damagePhoto ? "Update Photo" : "Capture Photo"}
+                        </Text>
+                      </TouchableOpacity>
+
+                      {damagePhoto && (
+                        <View style={styles.photoPreviewWrapper}>
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={16}
+                            color={colors.success[600]}
+                          />
+                          <Text style={styles.photoPreviewText}>
+                            Photo captured
+                          </Text>
+                          <TouchableOpacity onPress={() => setDamagePhoto(null)}>
+                            <Text style={styles.photoRemoveText}>Remove</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                )}
               </View>
-            )}
-          </Animated.View>
 
-          {/* Variance Remark */}
-          <Animated.View
-            entering={FadeInDown.delay(450).duration(500)}
-            style={styles.section}
-          >
-            <ModernInput
-              value={varianceRemark}
-              onChangeText={setVarianceRemark}
-              placeholder="Variance reason (if any)"
-              label="Variance Remark"
-            />
-          </Animated.View>
+              {/* Optional Item Photos Section */}
+              <View style={styles.section}>
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    { color: semanticColors.text.primary },
+                  ]}
+                >
+                  Item Photos (Optional)
+                </Text>
 
-          {/* Remarks */}
-          <Animated.View
-            entering={FadeInDown.delay(500).duration(500)}
-            style={styles.section}
-          >
-            <ModernInput
-              value={remark}
-              onChangeText={setRemark}
-              placeholder="Add remarks (optional)"
-              label="Remarks"
-              multiline
-              numberOfLines={3}
-            />
-          </Animated.View>
+                <View style={styles.itemPhotosRow}>
+                  {itemPhotos.map((uri, idx) => (
+                    <View key={idx} style={styles.itemPhotoWrapper}>
+                      <ModernCard style={styles.itemPhotoCard}>
+                        <Ionicons
+                          name="image"
+                          size={32}
+                          color={colors.primary[200]}
+                        />
+                        <TouchableOpacity
+                          style={styles.removePhotoBadge}
+                          onPress={() =>
+                            setItemPhotos((prev) =>
+                              prev.filter((_, i) => i !== idx),
+                            )
+                          }
+                        >
+                          <Ionicons
+                            name="close-circle"
+                            size={20}
+                            color={colors.error[600]}
+                          />
+                        </TouchableOpacity>
+                      </ModernCard>
+                    </View>
+                  ))}
+
+                  {itemPhotos.length < 3 && (
+                    <TouchableOpacity
+                      style={styles.addPhotoCard}
+                      onPress={handleCaptureItemPhoto}
+                    >
+                      <Ionicons
+                        name="add-circle-outline"
+                        size={32}
+                        color={colors.primary[600]}
+                      />
+                      <Text style={styles.addPhotoSubtext}>Add Photo</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+
+              {/* Variance Remark */}
+              <View style={styles.section}>
+                <ModernInput
+                  value={varianceRemark}
+                  onChangeText={setVarianceRemark}
+                  placeholder="Variance reason (if any)"
+                  label="Variance Remark"
+                />
+              </View>
+
+              <View style={styles.section}>
+                <ModernInput
+                  value={remark}
+                  onChangeText={setRemark}
+                  placeholder="Add remarks (optional)"
+                  label="Remarks"
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+            </>
+          )}
 
           <View style={styles.footerSpacer} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
 
-      {/* Bottom Action */}
-      <View
-        style={[
-          styles.bottomContainer,
-          {
-            backgroundColor: semanticColors.background.paper,
-            borderTopColor: semanticColors.border.default,
-          },
-        ]}
-      >
-        <ModernButton
-          title={submitCountdown !== null ? `Undo (${submitCountdown}s)` : "Save & Verify"}
-          onPress={submitCountdown !== null ? cancelSubmit : handleSubmitPress}
-          loading={submitting}
-          variant={submitCountdown !== null ? "destructive" : "primary"}
-          icon={submitCountdown !== null ? "close-circle" : "checkmark-circle"}
-          fullWidth
-        />
+        <View
+          style={[
+            styles.bottomContainer,
+            {
+              backgroundColor: semanticColors.background.paper,
+              borderTopColor: semanticColors.border.default,
+            },
+          ]}
+        >
+          <ModernButton
+            title={
+              submitCountdown !== null ? `Undo (${submitCountdown}s)` : "Save & Verify"
+            }
+            onPress={
+              submitCountdown !== null ? cancelSubmit : handleSubmitPress
+            }
+            loading={submitting}
+            variant={submitCountdown !== null ? "danger" : "primary"}
+            icon={
+              submitCountdown !== null ? "close-circle" : "checkmark-circle"
+            }
+            fullWidth
+          />
+        </View>
       </View>
 
-      {/* Serial Scanner Modal */}
+      {/* Global Modals & Selection */}
+      <Modal visible={selectVisible} transparent animationType="slide">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{selectTitle}</Text>
+            <FlatList
+              data={selectOptions}
+              keyExtractor={(i) => i}
+              renderItem={({ item: opt }) => (
+                <Pressable onPress={() => onSelectOption(opt)} style={styles.modalOption}>
+                  <Text style={styles.modalOptionText}>{opt}</Text>
+                </Pressable>
+              )}
+            />
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setSelectVisible(false)}
+            >
+              <Text style={styles.modalCloseText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <SerialScannerModal
         visible={showSerialScanner}
-        existingSerials={serialNumbers}
+        existingSerials={serialEntries.map((e) => e.serial_number)}
         itemName={item?.item_name || item?.name}
         defaultMrp={parseFloat(mrp) || item?.mrp}
         onSerialScanned={handleSerialScanned}
         onClose={() => setShowSerialScanner(false)}
       />
     </ThemedScreen>
+
   );
 }
 
@@ -2418,8 +2328,28 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: spacing.lg,
+  },
+  errorTitle: {
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    color: colors.neutral[900],
+    textAlign: "center",
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  errorText: {
+    fontSize: fontSize.sm,
+    color: colors.neutral[600],
+    textAlign: "center",
+  },
   scrollContent: {
     padding: spacing.md,
+    flexGrow: 1,
   },
   itemCard: {
     marginBottom: spacing.lg,
@@ -2454,13 +2384,17 @@ const styles = StyleSheet.create({
   },
   detailsGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     borderTopWidth: 1,
     borderTopColor: colors.neutral[100],
     paddingTop: spacing.md,
+    justifyContent: "space-between",
   },
   detailItem: {
-    flex: 1,
+    minWidth: "30%",
+    paddingHorizontal: spacing.xs,
     alignItems: "center",
+    marginBottom: spacing.sm,
   },
   detailLabel: {
     fontSize: fontSize.xs,
@@ -2501,6 +2435,60 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...shadows.sm,
+    ...(Platform.OS === "web" && { cursor: "pointer" } as any),
+  },
+  staleWarning: {
+    flexDirection: "row",
+    backgroundColor: colors.warning[50],
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.warning[200],
+    marginBottom: spacing.lg,
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  staleWarningContent: {
+    flex: 1,
+  },
+  staleWarningTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.warning[800],
+    marginBottom: 2,
+  },
+  staleWarningText: {
+    fontSize: fontSize.xs,
+    color: colors.warning[700],
+    lineHeight: 16,
+  },
+  bundleSection: {
+    backgroundColor: colors.primary[50],
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary[100],
+    marginBottom: spacing.lg,
+  },
+  bundleTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    marginBottom: spacing.sm,
+    textTransform: "uppercase",
+  },
+  bundleItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: spacing.xs,
+    gap: spacing.sm,
+  },
+  bundleItemName: {
+    flex: 1,
+    fontSize: fontSize.sm,
+  },
+  bundleItemQty: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
   },
   qtyDisplay: {
     minWidth: 100,
@@ -2534,6 +2522,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.neutral[300],
     marginRight: spacing.sm,
+    ...(Platform.OS === "web" && { cursor: "pointer" } as any),
   },
   chipSelected: {
     backgroundColor: colors.primary[50],
@@ -2579,14 +2568,103 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontWeight: fontWeight.medium,
   },
+  photoContainer: {
+    marginTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.error[200],
+    paddingTop: spacing.md,
+  },
+  photoLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.error[700],
+    marginBottom: spacing.sm,
+    textTransform: "uppercase",
+  },
+  photoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.error[500],
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    gap: spacing.sm,
+  },
+  photoButtonSuccess: {
+    backgroundColor: colors.success[600],
+    borderColor: colors.success[600],
+  },
+  photoButtonText: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.error[600],
+  },
+  photoPreviewWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+  },
+  photoPreviewText: {
+    fontSize: fontSize.sm,
+    color: colors.success[700],
+    fontWeight: fontWeight.medium,
+    flex: 1,
+  },
+  photoRemoveText: {
+    fontSize: fontSize.sm,
+    color: colors.error[600],
+    textDecorationLine: "underline",
+  },
+  itemPhotosRow: {
+    flexDirection: "row",
+    gap: spacing.md,
+    flexWrap: "wrap",
+    marginTop: spacing.sm,
+  },
+  itemPhotoWrapper: {
+    position: "relative",
+  },
+  itemPhotoCard: {
+    width: 80,
+    height: 80,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary[50],
+    padding: 0,
+    overflow: "hidden",
+  },
+  removePhotoBadge: {
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: colors.white,
+    borderRadius: 10,
+    zIndex: 1,
+  },
+  addPhotoCard: {
+    width: 80,
+    height: 80,
+    borderRadius: borderRadius.md,
+    borderWidth: 2,
+    borderColor: colors.primary[200],
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.white,
+  },
+  addPhotoSubtext: {
+    fontSize: 10,
+    color: colors.primary[600],
+    fontWeight: "bold",
+    marginTop: 2,
+  },
   footerSpacer: {
     height: 80,
   },
   bottomContainer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     padding: spacing.lg,
     backgroundColor: colors.white,
     borderTopWidth: 1,

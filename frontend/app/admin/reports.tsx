@@ -52,13 +52,34 @@ export default function ReportsScreen() {
   const handleGenerateReport = async (reportId: string) => {
     try {
       setGenerating(reportId);
-      const response = await generateReport(reportId, "json");
-      if (response.success) {
-        Alert.alert(
-          "Success",
-          `Report '${reportId}' generation started. Check back in a few moments.`,
-        );
+      const format = Platform.OS === "web" ? "excel" : "json";
+      const result = await generateReport(reportId, { format });
+      if (result.kind === "json") {
+        Alert.alert("Success", `Report '${reportId}' generated successfully.`);
+        return;
       }
+
+      if (Platform.OS === "web" && "blob" in result) {
+        if (result.blob.size === 0) {
+          Alert.alert("No Data", "No records found for the selected report.");
+          return;
+        }
+        const url = window.URL.createObjectURL(result.blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", result.fileName);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+        Alert.alert("Success", `Report '${reportId}' downloaded.`);
+        return;
+      }
+
+      Alert.alert(
+        "Download Not Supported",
+        "Report download is currently supported in the web dashboard.",
+      );
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to generate report");
     } finally {

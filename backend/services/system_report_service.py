@@ -106,13 +106,14 @@ class SystemReportService:
 
     def _to_csv(self, data):
         if not data:
-            return ""
+            df = pd.DataFrame([{"message": "No data"}])
+            return df.to_csv(index=False)
         df = pd.DataFrame(data)
         return df.to_csv(index=False)
 
     def _to_excel(self, data):
         if not data:
-            return b""
+            data = [{"message": "No data"}]
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
             df = pd.DataFrame(data)

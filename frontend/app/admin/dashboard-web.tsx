@@ -126,8 +126,14 @@ export default function DashboardWeb() {
   // Report Modal State
   const [showReportModal, setShowReportModal] = useState(false);
   const [selectedReport, setSelectedReport] = useState<string | null>(null);
-  const [reportFilters] = useState<any>({});
   const [generating, setGenerating] = useState(false);
+  const [reportFormat, setReportFormat] = useState<"excel" | "csv" | "json">(
+    "excel",
+  );
+  const [reportDateRange, setReportDateRange] = useState({
+    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    end: new Date(),
+  });
 
   // Analytics State
   const [analyticsDateRange, setAnalyticsDateRange] = useState({
@@ -196,50 +202,55 @@ export default function DashboardWeb() {
     return () => clearInterval(interval);
   }, [loadDashboardData]);
 
+  const toYMD = (d: Date) => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const handleGenerateReport = async (reportType: string) => {
     setGenerating(true);
     try {
-      const response = await generateReport(reportType, reportFilters);
+      const result = await generateReport(reportType, {
+        format: reportFormat,
+        startDate: toYMD(reportDateRange.start),
+        endDate: toYMD(reportDateRange.end),
+      });
 
-      if (isWeb) {
-        // Web download handling
-        const blob = new Blob([response], {
-          type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
-        const url = window.URL.createObjectURL(blob);
+      if (result.kind === "json") {
+        Alert.alert(
+          "Report Ready",
+          `Report "${reportType}" generated successfully.`,
+        );
+        setShowReportModal(false);
+        return;
+      }
+
+      if (isWeb && "blob" in result) {
+        if (result.blob.size === 0) {
+          Alert.alert(
+            "No Data",
+            "No records found for the selected date range.",
+          );
+          return;
+        }
+        const url = window.URL.createObjectURL(result.blob);
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute(
-          "download",
-          `${reportType}_report_${new Date().toISOString()}.xlsx`,
-        );
+        link.setAttribute("download", result.fileName);
         document.body.appendChild(link);
         link.click();
         link.remove();
-      } else {
-        // Native file system handling
-        const documentDir = (
-          FileSystem as { documentDirectory?: string | null }
-        ).documentDirectory;
-        const encodingType = (
-          FileSystem as { EncodingType?: { Base64?: string } }
-        ).EncodingType;
-        if (documentDir && encodingType?.Base64) {
-          const fileUri = `${documentDir}${reportType}_report.xlsx`;
-          await (
-            FileSystem as {
-              writeAsStringAsync?: (
-                uri: string,
-                contents: string,
-                options: { encoding: string },
-              ) => Promise<void>;
-            }
-          ).writeAsStringAsync?.(fileUri, response, {
-            encoding: encodingType.Base64,
-          });
-          await Sharing.shareAsync(fileUri);
-        }
+        window.URL.revokeObjectURL(url);
+        setShowReportModal(false);
+        return;
       }
+
+      Alert.alert(
+        "Download Not Supported",
+        "Report download is currently supported in the web dashboard.",
+      );
       setShowReportModal(false);
     } catch (error) {
       console.error("Report generation failed:", error);
@@ -806,33 +817,98 @@ export default function DashboardWeb() {
               </View>
               <View style={styles.modalBody}>
                 <Text style={styles.modalLabel}>Date Range</Text>
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  <Text style={{ color: auroraTheme.colors.text.secondary }}>
-                    Last 30 Days (Default)
-                  </Text>
-                </View>
+                <DateRangePicker
+                  startDate={reportDateRange.start}
+                  endDate={reportDateRange.end}
+                  onStartDateChange={(d) =>
+                    setReportDateRange((prev) => ({ ...prev, start: d }))
+                  }
+                  onEndDateChange={(d) =>
+                    setReportDateRange((prev) => ({ ...prev, end: d }))
+                  }
+                />
 
                 <Text style={styles.modalLabel}>Format</Text>
                 <View style={styles.formatOptions}>
                   <TouchableOpacity
-                    style={[styles.formatOption, styles.formatOptionActive]}
+                    style={[
+                      styles.formatOption,
+                      reportFormat === "excel" && styles.formatOptionActive,
+                    ]}
+                    onPress={() => setReportFormat("excel")}
                   >
-                    <Ionicons name="grid-outline" size={20} color="#FFF" />
-                    <Text style={styles.formatText}>Excel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.formatOption}>
                     <Ionicons
-                      name="document-text-outline"
+                      name="grid-outline"
                       size={20}
-                      color={auroraTheme.colors.text.secondary}
+                      color={
+                        reportFormat === "excel"
+                          ? "#FFF"
+                          : auroraTheme.colors.text.secondary
+                      }
                     />
                     <Text
                       style={[
                         styles.formatText,
-                        { color: auroraTheme.colors.text.secondary },
+                        reportFormat !== "excel" && {
+                          color: auroraTheme.colors.text.secondary,
+                        },
+                      ]}
+                    >
+                      Excel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.formatOption,
+                      reportFormat === "csv" && styles.formatOptionActive,
+                    ]}
+                    onPress={() => setReportFormat("csv")}
+                  >
+                    <Ionicons
+                      name="document-text-outline"
+                      size={20}
+                      color={
+                        reportFormat === "csv"
+                          ? "#FFF"
+                          : auroraTheme.colors.text.secondary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.formatText,
+                        reportFormat !== "csv" && {
+                          color: auroraTheme.colors.text.secondary,
+                        },
                       ]}
                     >
                       CSV
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.formatOption,
+                      reportFormat === "json" && styles.formatOptionActive,
+                    ]}
+                    onPress={() => setReportFormat("json")}
+                  >
+                    <Ionicons
+                      name="code-outline"
+                      size={20}
+                      color={
+                        reportFormat === "json"
+                          ? "#FFF"
+                          : auroraTheme.colors.text.secondary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.formatText,
+                        reportFormat !== "json" && {
+                          color: auroraTheme.colors.text.secondary,
+                        },
+                      ]}
+                    >
+                      JSON
                     </Text>
                   </TouchableOpacity>
                 </View>

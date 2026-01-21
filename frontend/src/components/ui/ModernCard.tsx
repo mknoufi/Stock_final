@@ -21,6 +21,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
+import { GlassView } from "expo-glass-effect";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -364,6 +365,13 @@ export const ModernCard: React.FC<ModernCardProps> = ({
             >
               {renderContent()}
             </View>
+          ) : Platform.OS === "ios" ? (
+            <GlassView
+              style={styles.blur}
+              glassEffectStyle="regular"
+            >
+              {renderContent()}
+            </GlassView>
           ) : (
             <BlurView intensity={intensity} tint="dark" style={styles.blur}>
               {renderContent()}

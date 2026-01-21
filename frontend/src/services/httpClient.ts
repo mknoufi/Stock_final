@@ -103,6 +103,48 @@ const shouldLogNetworkDebug =
     ? __DEV__
     : process.env.NODE_ENV === "development");
 
+let refreshInFlight: Promise<string | null> | null = null;
+
+const refreshAccessToken = async (): Promise<string | null> => {
+  const refreshToken = await secureStorage.getItem("refresh_token");
+  if (!refreshToken) return null;
+
+  const baseURL = apiClient.defaults.baseURL || API_BASE_URL;
+  const refreshUrl = toFullUrl(baseURL, "/api/auth/refresh");
+
+  try {
+    const response = await axios.post(
+      refreshUrl,
+      { refresh_token: refreshToken },
+      {
+        timeout: 20000,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+
+    const payload =
+      (response.data && typeof response.data === "object" && "data" in response.data)
+        ? (response.data as { data?: any }).data
+        : response.data;
+
+    const accessToken = payload?.access_token;
+    const nextRefreshToken = payload?.refresh_token;
+
+    if (!accessToken || typeof accessToken !== "string") return null;
+
+    await secureStorage.setItem("auth_token", accessToken);
+    apiClient.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
+
+    if (nextRefreshToken && typeof nextRefreshToken === "string") {
+      await secureStorage.setItem("refresh_token", nextRefreshToken);
+    }
+
+    return accessToken;
+  } catch (_err) {
+    return null;
+  }
+};
+
 // Add request interceptor for debugging (never log raw payloads or auth headers)
 apiClient.interceptors.request.use(
   async (config) => {
@@ -115,14 +157,62 @@ apiClient.interceptors.request.use(
       log.warn("Failed to attach device ID header", { error: String(err) });
     }
 
+    // Ensure Auth token is attached if available (fixes 401 loop if defaults are lost)
+    if (!config.headers["Authorization"] && !config.headers.common?.["Authorization"]) {
+      try {
+        const token = await secureStorage.getItem("auth_token");
+        if (token) {
+          config.headers["Authorization"] = `Bearer ${token}`;
+          if (shouldLogNetworkDebug) {
+             // Avoid logging the full token
+             log.debug("Injected missing Auth token from storage");
+          }
+        }
+      } catch (_err) {
+         // Ignore storage errors, proceed without token
+      }
+    }
+
+    const fullUrl = toFullUrl(config.baseURL, config.url);
+    const authHeader = config.headers["Authorization"] || config.headers.common?.["Authorization"] || apiClient.defaults.headers.common["Authorization"];
+    const hasAuth = !!authHeader;
+
     if (shouldLogNetworkDebug) {
-      const fullUrl = toFullUrl(config.baseURL, config.url);
+      if (!hasAuth && !fullUrl.includes("/auth/login") && !fullUrl.includes("/health")) {
+        log.debug("API request (No Auth Header)", { url: fullUrl });
+      } else if (hasAuth && !fullUrl.includes("/auth/login")) {
+        const tokenString = String(authHeader);
+        log.debug("API request (With Auth)", {
+          url: fullUrl,
+          headerType: typeof authHeader,
+          tokenPrefix: tokenString.substring(0, 15),
+          tokenLength: tokenString.length
+        });
+      }
+
       log.debug("API request", {
         method: config.method?.toUpperCase(),
         url: fullUrl,
         payload: summarizePayload(config.data),
       });
     }
+
+    // Guard: Prevent authenticated calls if no token is available (except for login/health)
+    const isPublic =
+      fullUrl.includes("/auth/login") ||
+      fullUrl.includes("/auth/login-pin") ||
+      fullUrl.includes("/auth/refresh") ||
+      fullUrl.includes("/auth/logout") ||
+      fullUrl.includes("/health");
+    if (!isPublic && !hasAuth) {
+      log.warn("Blocking authenticated call: No token available", { url: fullUrl });
+      return Promise.reject({
+        message: "Unauthenticated request blocked",
+        config: config,
+        isBlocked: true
+      });
+    }
+
     return config;
   },
   (error) => {
@@ -175,19 +265,74 @@ apiClient.interceptors.response.use(
 
     // Handle session expiration (401 Unauthorized) - General case
     if (status === 401) {
-      log.warn("API unauthorized; clearing credentials", { url: fullUrl });
+      // Prevent infinite loops: If the logout call itself fails with 401,
+      // we are already logged out on the server, so just ignore it.
+      const isLogout = fullUrl.includes("/api/auth/logout");
+      if (isLogout) {
+        log.debug("Logout API call returned 401 (ignoring)", { url: fullUrl });
+        return Promise.reject(error);
+      }
+
+      const isRefresh = fullUrl.includes("/api/auth/refresh");
+      if (isRefresh) {
+        log.warn("Token refresh request returned 401", { url: fullUrl });
+        secureStorage.removeItem("auth_token").catch(() => {});
+        secureStorage.removeItem("refresh_token").catch(() => {});
+        handleUnauthorized();
+        return Promise.reject(error);
+      }
+
+      // Retry strategy: If this is the first 401 for this request AND we have a token in storage,
+      // try to re-attach and retry ONCE.
+      const originalRequest = error.config;
+      if (!originalRequest._retry) {
+        originalRequest._retry = true;
+        log.debug("401 encountered; attempting single retry with fresh token", { url: fullUrl });
+
+        return secureStorage.getItem("auth_token").then(token => {
+          if (token) {
+            originalRequest.headers["Authorization"] = `Bearer ${token}`;
+            apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          }
+          return Promise.reject(error);
+        }).catch(() => {
+          // If storage lookup fails, proceed to logout
+          return Promise.reject(error);
+        });
+      }
+
+      // If we already retried with the stored access token, attempt a refresh-token flow once.
+      if (!originalRequest._retryRefresh) {
+        originalRequest._retryRefresh = true;
+        log.debug("401 after retry; attempting refresh token flow", { url: fullUrl });
+
+        try {
+          if (!refreshInFlight) {
+            refreshInFlight = refreshAccessToken().finally(() => {
+              refreshInFlight = null;
+            });
+          }
+
+          return refreshInFlight.then((newToken) => {
+            if (newToken) {
+              originalRequest.headers = originalRequest.headers || {};
+              originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
+              return apiClient(originalRequest);
+            }
+
+            return Promise.reject(error);
+          });
+        } catch (_e) {
+          return Promise.reject(error);
+        }
+      }
+
+      log.warn("API unauthorized after retry; clearing credentials", { url: fullUrl });
 
       // Clear storage immediately to prevent stale token persistence
-      secureStorage.removeItem("auth_token").catch((err) => {
-        log.warn("Failed to clear auth token", {
-          error: (err as { message?: string } | null)?.message || String(err),
-        });
-      });
-      secureStorage.removeItem("refresh_token").catch((err) => {
-        log.warn("Failed to clear refresh token", {
-          error: (err as { message?: string } | null)?.message || String(err),
-        });
-      });
+      secureStorage.removeItem("auth_token").catch(() => {});
+      secureStorage.removeItem("refresh_token").catch(() => {});
 
       handleUnauthorized();
       return Promise.reject(error);
