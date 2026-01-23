@@ -245,22 +245,44 @@ class SelfDiagnosingErrorHandler:
                     return True  # Suppress exception
 
     async def execute(
-        self, coro, context: dict[str, Optional[Any]] = None
+        self, 
+        func_or_coro: Any, 
+        context: dict[str, Optional[Any]] = None
     ) -> Result[Any, Exception]:
-        """Execute coroutine with auto-diagnosis"""
+        """
+        Execute coroutine or coroutine factory with auto-diagnosis.
+        If a coroutine object is passed, retry is NOT possible.
+        If a factory (function returning coroutine) is passed, retry IS possible.
+        """
+        import asyncio
+
+        is_factory = False
+        if asyncio.iscoroutine(func_or_coro):
+            coro = func_or_coro
+        elif callable(func_or_coro):
+             is_factory = True
+             coro = func_or_coro()
+        else:
+             coro = func_or_coro
+
         try:
             result = await coro
             return Result.success(result)
         except Exception as e:
             diagnosis = await self.diagnosis_service.diagnose_error(e, context)
+            self.errors.append({"error": e, "diagnosis": diagnosis.to_dict()})
 
             # Attempt auto-fix if enabled
             if self.auto_fix and diagnosis.auto_fixable:
+                if not is_factory:
+                    logger.warning("Cannot retry auto-fixed operation: input was a coroutine object, not a factory.")
+                    return Result.error(e, diagnosis.root_cause)
+
                 fix_result = await self.diagnosis_service.auto_fix_error(diagnosis, context)
                 if fix_result.is_success:
                     # Retry execution
                     try:
-                        result = await coro
+                        result = await func_or_coro()
                         return Result.success(result)
                     except Exception as retry_error:
                         return Result.error(retry_error, "Auto-fix retry failed")

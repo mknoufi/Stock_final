@@ -10,7 +10,7 @@ from collections.abc import Callable, Coroutine
 from contextlib import asynccontextmanager
 from datetime import datetime
 from functools import wraps
-from typing import Any, Optional, TypeVar
+from typing import Any, Optional, TypeVar, Union
 
 from backend.utils.result_types import Result
 
@@ -42,10 +42,15 @@ class AsyncExecutor:
         self._circuit_breaker_timeout = 60  # seconds
 
     async def execute_with_retry(
-        self, coro: Coroutine[Any, Any, T], operation_name: str = "operation"
+        self, func: Callable[[], Coroutine[Any, Any, T]], operation_name: str = "operation"
     ) -> Result[T, Exception]:
         """
-        Execute coroutine with automatic retry and zero-error handling
+        Execute coroutine function with automatic retry and zero-error handling
+
+        Args:
+            func: A callable that returns a coroutine (factory).
+                  Must be re-executable for retries.
+            operation_name: Name for logging and circuit breaker
         """
         last_error = None
 
@@ -59,6 +64,10 @@ class AsyncExecutor:
                     )
 
                 # Execute with timeout
+                # Call the factory to get a fresh coroutine
+                coro = func()
+
+                # If func() raises immediately (not async error), catch it below
                 result = await asyncio.wait_for(coro, timeout=self.timeout)
 
                 # Reset circuit breaker on success
@@ -89,7 +98,7 @@ class AsyncExecutor:
 
     async def execute_batch(
         self,
-        coros: list[Coroutine[Any, Any, T]],
+        funcs: list[Callable[[], Coroutine[Any, Any, T]]],
         operation_name: str = "batch_operation",
     ) -> list[Result[T, Exception]]:
         """
@@ -97,12 +106,12 @@ class AsyncExecutor:
         """
 
         async def execute_with_semaphore(
-            coro: Coroutine[Any, Any, T],
+            func: Callable[[], Coroutine[Any, Any, T]],
         ) -> Result[T, Exception]:
             async with self.semaphore:
-                return await self.execute_with_retry(coro, operation_name)
+                return await self.execute_with_retry(func, operation_name)
 
-        tasks = [execute_with_semaphore(coro) for coro in coros]
+        tasks = [execute_with_semaphore(func) for func in funcs]
         return await asyncio.gather(*tasks, return_exceptions=False)
 
     def _is_circuit_open(self, operation_name: str) -> bool:
@@ -166,7 +175,8 @@ def with_async_executor(operation_name: Optional[str] = None, timeout: Optional[
         async def wrapper(*args, **kwargs) -> Result[T, Exception]:
             op_name = operation_name or f"{func.__module__}.{func.__name__}"
             executor = AsyncExecutor(timeout=timeout or 30.0)
-            return await executor.execute_with_retry(func(*args, **kwargs), op_name)
+            # Pass a lambda that calls the original function to create a new coroutine each retry
+            return await executor.execute_with_retry(lambda: func(*args, **kwargs), op_name)
 
         return wrapper
 
@@ -174,19 +184,30 @@ def with_async_executor(operation_name: Optional[str] = None, timeout: Optional[
 
 
 async def safe_async_execute(
-    coro: Coroutine[Any, Any, T],
+    func: Union[Callable[[], Coroutine[Any, Any, T]], Coroutine[Any, Any, T]],
     operation_name: str = "operation",
     timeout: Optional[float] = None,
 ) -> Result[T, Exception]:
     """
-    Safely execute async operation with automatic error handling
+    Safely execute async operation with automatic error handling.
+    Accepts either a coroutine factory (for retries) or a coroutine object (no retries).
     """
     executor = AsyncExecutor(timeout=timeout or 30.0)
-    return await executor.execute_with_retry(coro, operation_name)
+
+    if asyncio.iscoroutine(func):
+        # Wrap coroutine object in a lambda, but it can only be awaited once
+        # So we disable retries or warn?
+        # For safety, we just execute it. Retry won't work if it fails.
+        # But AsyncExecutor defaults to 3 retries.
+        # We should create a one-shot executor or wrap it.
+        executor.retry_attempts = 1
+        return await executor.execute_with_retry(lambda: func, operation_name)
+    else:
+        return await executor.execute_with_retry(func, operation_name)
 
 
 async def safe_batch_execute(
-    coros: list[Coroutine[Any, Any, T]],
+    funcs: list[Callable[[], Coroutine[Any, Any, T]]],
     operation_name: str = "batch_operation",
     max_concurrent: int = 50,
 ) -> list[Result[T, Exception]]:
@@ -194,7 +215,7 @@ async def safe_batch_execute(
     Safely execute batch operations with concurrency control
     """
     executor = AsyncExecutor(max_concurrent=max_concurrent)
-    return await executor.execute_batch(coros, operation_name)
+    return await executor.execute_batch(funcs, operation_name)
 
 
 @asynccontextmanager
@@ -294,7 +315,7 @@ class AsyncCache:
 _async_cache = AsyncCache(max_size=5000, default_ttl=1800)
 
 
-async def cached_async(key_func: Callable[..., Optional[str]] = None, ttl: int = 1800):
+def cached_async(key_func: Callable[..., Optional[str]] = None, ttl: int = 1800):
     """
     Decorator for automatic caching of async function results
     """

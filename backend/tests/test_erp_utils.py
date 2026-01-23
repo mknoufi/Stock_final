@@ -44,14 +44,14 @@ def test_safe_date_str():
     assert _safe_date_str(dt) == dt.isoformat()
     assert _safe_date_str(d) == datetime(2023, 1, 1, 0, 0, 0).isoformat()
     assert _safe_date_str(None) is None
-    assert _safe_date_str("invalid") == "invalid" # Should return string as is if not date/datetime
+    assert _safe_date_str("invalid") == "invalid"  # Should return string as is if not date/datetime
 
 
 def test_get_barcode_variations():
     assert _get_barcode_variations("123") == ["123", "000123"]
     assert _get_barcode_variations("123456") == ["123456"]
-    assert _get_barcode_variations("000123") == ["000123"] # Duplicates removed
-    
+    assert _get_barcode_variations("000123") == ["000123"]  # Duplicates removed
+
     # "000123":
     # 1. variations = ["000123"]
     # 2. len is 6, so skip padded (len < 6 check)
@@ -65,7 +65,7 @@ def test_get_barcode_variations():
     # 3. len != 6 -> trim "00123" -> "123". len("123") <= 6 -> append "000123". But "000123" already in list.
     # Result: ["00123", "000123"]
     assert _get_barcode_variations("00123") == ["00123", "000123"]
-    
+
     # "1234567": len 7.
     # 1. ["1234567"]
     # 2. len >= 6
