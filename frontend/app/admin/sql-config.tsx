@@ -4,20 +4,25 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
   TextInput,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
-import { ScreenContainer } from "../../src/components/ui";
+import { ScreenContainer } from "../../src/components/ui/ScreenContainer";
+import { GlassCard } from "../../src/components/ui/GlassCard";
+import { AnimatedPressable } from "../../src/components/ui/AnimatedPressable";
+import { auroraTheme } from "../../src/theme/auroraTheme";
 import {
   getSqlServerConfig,
   updateSqlServerConfig,
   testSqlServerConnection,
 } from "../../src/services/api";
+
+const isWeb = Platform.OS === "web";
 
 export default function SqlConfigScreen() {
   const router = useRouter();
@@ -106,15 +111,15 @@ export default function SqlConfigScreen() {
   if (loading) {
     return (
       <ScreenContainer
-        gradient
+        backgroundType="aurora"
         header={{
-          title: "SQL Server Configuration",
-          subtitle: "Connectivity & Credentials",
+          title: "SQL Server",
+          subtitle: "Configuration",
           showBackButton: true,
         }}
       >
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#007AFF" />
+          <ActivityIndicator size="large" color={auroraTheme.colors.primary[500]} />
           <Text style={styles.loadingText}>Loading configuration...</Text>
         </View>
       </ScreenContainer>
@@ -123,26 +128,33 @@ export default function SqlConfigScreen() {
 
   return (
     <ScreenContainer
-      gradient
+      backgroundType="aurora"
+      auroraVariant="primary"
       header={{
-        title: "SQL Server Configuration",
-        subtitle: "Connectivity & Credentials",
+        title: "SQL Server",
+        subtitle: "ERP Connectivity & Credentials",
         showBackButton: true,
       }}
     >
       <ScrollView
         style={styles.content}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[
+          styles.contentContainer,
+          isWeb && styles.contentContainerWeb,
+        ]}
       >
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Connection Settings</Text>
+        <GlassCard variant="medium" style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="server-outline" size={24} color={auroraTheme.colors.primary[400]} />
+            <Text style={styles.sectionTitle}>Connection Settings</Text>
+          </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Host *</Text>
+            <Text style={styles.label}>Host Address *</Text>
             <TextInput
               style={styles.input}
-              placeholder="localhost or IP address"
-              placeholderTextColor="#666"
+              placeholder="e.g., 192.168.1.10 or sql.example.com"
+              placeholderTextColor={auroraTheme.colors.text.muted}
               value={config.host}
               onChangeText={(text) => setConfig({ ...config, host: text })}
               autoCapitalize="none"
@@ -153,8 +165,8 @@ export default function SqlConfigScreen() {
             <Text style={styles.label}>Port *</Text>
             <TextInput
               style={styles.input}
-              placeholder="1433"
-              placeholderTextColor="#666"
+              placeholder="Default: 1433"
+              placeholderTextColor={auroraTheme.colors.text.muted}
               value={config.port.toString()}
               onChangeText={(text) =>
                 setConfig({ ...config, port: parseInt(text) || 1433 })
@@ -164,11 +176,11 @@ export default function SqlConfigScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Database *</Text>
+            <Text style={styles.label}>Database Name *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Database name"
-              placeholderTextColor="#666"
+              placeholder="e.g., LAVANYA_ERP"
+              placeholderTextColor={auroraTheme.colors.text.muted}
               value={config.database}
               onChangeText={(text) => setConfig({ ...config, database: text })}
               autoCapitalize="none"
@@ -179,8 +191,8 @@ export default function SqlConfigScreen() {
             <Text style={styles.label}>Username</Text>
             <TextInput
               style={styles.input}
-              placeholder="SQL Server username"
-              placeholderTextColor="#666"
+              placeholder="e.g., sa"
+              placeholderTextColor={auroraTheme.colors.text.muted}
               value={config.username}
               onChangeText={(text) => setConfig({ ...config, username: text })}
               autoCapitalize="none"
@@ -192,44 +204,51 @@ export default function SqlConfigScreen() {
             <TextInput
               style={styles.input}
               placeholder="Leave empty to keep current"
-              placeholderTextColor="#666"
+              placeholderTextColor={auroraTheme.colors.text.muted}
               value={config.password}
               onChangeText={(text) => setConfig({ ...config, password: text })}
               secureTextEntry
               autoCapitalize="none"
             />
           </View>
-        </View>
+        </GlassCard>
 
         {testResult && (
-          <View
+          <GlassCard
+            variant="strong"
             style={[
               styles.testResult,
               {
+                borderColor: testResult.connected
+                  ? auroraTheme.colors.success[500]
+                  : auroraTheme.colors.error[500],
                 backgroundColor: testResult.connected
-                  ? "#4CAF5020"
-                  : "#f4433620",
+                  ? auroraTheme.colors.success[500] + "10"
+                  : auroraTheme.colors.error[500] + "10",
               },
             ]}
           >
             <Ionicons
               name={testResult.connected ? "checkmark-circle" : "close-circle"}
-              size={24}
-              color={testResult.connected ? "#4CAF50" : "#f44336"}
+              size={28}
+              color={testResult.connected ? auroraTheme.colors.success[500] : auroraTheme.colors.error[500]}
             />
-            <Text
-              style={[
-                styles.testResultText,
-                { color: testResult.connected ? "#4CAF50" : "#f44336" },
-              ]}
-            >
-              {testResult.message}
-            </Text>
-          </View>
+            <View style={styles.testResultContent}>
+              <Text
+                style={[
+                  styles.testResultTitle,
+                  { color: testResult.connected ? auroraTheme.colors.success[500] : auroraTheme.colors.error[500] },
+                ]}
+              >
+                {testResult.connected ? "Connection Successful" : "Connection Failed"}
+              </Text>
+              <Text style={styles.testResultText}>{testResult.message}</Text>
+            </View>
+          </GlassCard>
         )}
 
         <View style={styles.actions}>
-          <TouchableOpacity
+          <AnimatedPressable
             style={[styles.button, styles.testButton]}
             onPress={handleTest}
             disabled={testing || !config.host || !config.database}
@@ -238,13 +257,13 @@ export default function SqlConfigScreen() {
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <Ionicons name="checkmark-circle" size={20} color="#fff" />
+                <Ionicons name="pulse" size={20} color="#fff" />
                 <Text style={styles.buttonText}>Test Connection</Text>
               </>
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
 
-          <TouchableOpacity
+          <AnimatedPressable
             style={[styles.button, styles.saveButton]}
             onPress={handleSave}
             disabled={saving || !config.host || !config.database}
@@ -257,17 +276,17 @@ export default function SqlConfigScreen() {
                 <Text style={styles.buttonText}>Save Configuration</Text>
               </>
             )}
-          </TouchableOpacity>
+          </AnimatedPressable>
         </View>
 
-        <View style={styles.infoBox}>
-          <Ionicons name="information-circle" size={20} color="#007AFF" />
+        <GlassCard variant="light" style={styles.infoBox}>
+          <Ionicons name="information-circle" size={24} color={auroraTheme.colors.primary[400]} />
           <Text style={styles.infoText}>
-            SQL Server is optional. The app will work without it, but ERP sync
-            features will be disabled. Restart the backend server after saving
-            configuration changes.
+            SQL Server integration is used for real-time ERP synchronization. 
+            The system can operate independently with local data if connectivity is not available.
+            Changes require a backend service restart to take full effect.
           </Text>
-        </View>
+        </GlassCard>
       </ScrollView>
     </ScreenContainer>
   );
@@ -278,94 +297,116 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "transparent",
   },
   loadingText: {
-    marginTop: 10,
-    color: "#fff",
-    fontSize: 16,
+    marginTop: 16,
+    color: auroraTheme.colors.text.secondary,
+    fontSize: auroraTheme.typography.fontSize.md,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
-    paddingBottom: 32,
+    padding: auroraTheme.spacing.md,
+    paddingBottom: 40,
+  },
+  contentContainerWeb: {
+    maxWidth: 800,
+    alignSelf: "center",
+    width: "100%",
   },
   section: {
-    marginBottom: 24,
+    padding: auroraTheme.spacing.lg,
+    marginBottom: auroraTheme.spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: auroraTheme.spacing.lg,
+    gap: 12,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#fff",
-    marginBottom: 16,
+    fontSize: auroraTheme.typography.fontSize.xl,
+    fontWeight: "700" as const,
+    color: auroraTheme.colors.text.primary,
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: auroraTheme.spacing.md,
   },
   label: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#aaa",
+    fontSize: auroraTheme.typography.fontSize.sm,
+    fontWeight: "600" as const,
+    color: auroraTheme.colors.text.secondary,
     marginBottom: 8,
+    marginLeft: 4,
   },
   input: {
-    backgroundColor: "#1a1a1a",
+    backgroundColor: auroraTheme.colors.background.glass,
     borderWidth: 1,
-    borderColor: "#333",
-    borderRadius: 8,
-    padding: 12,
-    color: "#fff",
-    fontSize: 16,
+    borderColor: auroraTheme.colors.border.light,
+    borderRadius: auroraTheme.borderRadius.md,
+    padding: auroraTheme.spacing.md,
+    color: auroraTheme.colors.text.primary,
+    fontSize: auroraTheme.typography.fontSize.md,
   },
   testResult: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 16,
-    gap: 12,
+    padding: auroraTheme.spacing.lg,
+    marginBottom: auroraTheme.spacing.lg,
+    borderWidth: 1.5,
+    gap: 16,
+  },
+  testResultContent: {
+    flex: 1,
+  },
+  testResultTitle: {
+    fontSize: auroraTheme.typography.fontSize.md,
+    fontWeight: "700" as const,
+    marginBottom: 4,
   },
   testResultText: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: auroraTheme.typography.fontSize.sm,
+    color: auroraTheme.colors.text.secondary,
   },
   actions: {
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 32,
   },
   button: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    padding: 14,
-    borderRadius: 8,
-    gap: 8,
+    padding: 16,
+    borderRadius: auroraTheme.borderRadius.md,
+    gap: 12,
+    elevation: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
   },
   testButton: {
-    backgroundColor: "#4CAF50",
+    backgroundColor: auroraTheme.colors.success[600],
   },
   saveButton: {
-    backgroundColor: "#007AFF",
+    backgroundColor: auroraTheme.colors.primary[500],
   },
   buttonText: {
     color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: auroraTheme.typography.fontSize.md,
+    fontWeight: "700" as const,
   },
   infoBox: {
     flexDirection: "row",
-    backgroundColor: "#007AFF20",
-    padding: 16,
-    borderRadius: 8,
-    gap: 12,
+    padding: auroraTheme.spacing.lg,
+    gap: 16,
+    alignItems: "center",
   },
   infoText: {
     flex: 1,
-    fontSize: 13,
-    color: "#007AFF",
+    fontSize: auroraTheme.typography.fontSize.sm,
+    color: auroraTheme.colors.text.secondary,
     lineHeight: 20,
   },
 });

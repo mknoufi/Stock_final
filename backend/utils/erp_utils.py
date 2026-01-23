@@ -141,8 +141,9 @@ def _get_barcode_variations(barcode: str) -> list[str]:
         # Pad to 6 digits if less than 6
         if len(normalized_barcode) < 6:
             padded = normalized_barcode.zfill(6)
-            variations.append(padded)
-            logger.info(f"Trying padded 6-digit barcode: {padded} (from {normalized_barcode})")
+            if padded not in variations:
+                variations.append(padded)
+                logger.info(f"Trying padded 6-digit barcode: {padded} (from {normalized_barcode})")
 
         # Try exact 6-digit format
         if len(normalized_barcode) != 6:
@@ -150,10 +151,11 @@ def _get_barcode_variations(barcode: str) -> list[str]:
             trimmed = normalized_barcode.lstrip("0")
             if trimmed and len(trimmed) <= 6:
                 padded_trimmed = trimmed.zfill(6)
-                variations.append(padded_trimmed)
-                logger.info(
-                    f"Trying trimmed 6-digit barcode: {padded_trimmed} (from {normalized_barcode})"
-                )
+                if padded_trimmed not in variations:
+                    variations.append(padded_trimmed)
+                    logger.info(
+                        f"Trying trimmed 6-digit barcode: {padded_trimmed} (from {normalized_barcode})"
+                    )
 
     return variations
 

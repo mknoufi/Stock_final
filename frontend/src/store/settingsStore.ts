@@ -55,6 +55,14 @@ export interface Settings {
   imageCache: boolean;
   lazyLoading: boolean;
   debounceDelay: number;
+
+  // UI column visibility (staff item detail)
+  columnVisibility: {
+    mfgDate: boolean;
+    expiryDate: boolean;
+    serialNumber: boolean;
+    mrp: boolean;
+  };
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -89,6 +97,12 @@ const DEFAULT_SETTINGS: Settings = {
   imageCache: true,
   lazyLoading: true,
   debounceDelay: 300,
+  columnVisibility: {
+    mfgDate: true,
+    expiryDate: true,
+    serialNumber: true,
+    mrp: true,
+  },
 };
 
 interface SettingsState {

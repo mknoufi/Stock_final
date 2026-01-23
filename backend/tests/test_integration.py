@@ -43,7 +43,9 @@ class TestAuthenticationWorkflow:
         # Verify token in response
         response_data = login_response.json()
         token_payload = (
-            response_data.get("data") if isinstance(response_data.get("data"), dict) else response_data
+            response_data.get("data")
+            if isinstance(response_data.get("data"), dict)
+            else response_data
         )
         assert "access_token" in token_payload
         assert "refresh_token" in token_payload
@@ -71,7 +73,9 @@ class TestSessionWorkflow:
         )
 
         login_payload = login_response.json()
-        token = login_payload.get("access_token") or login_payload.get("data", {}).get("access_token")
+        token = login_payload.get("access_token") or login_payload.get("data", {}).get(
+            "access_token"
+        )
         assert token
         return {"Authorization": f"Bearer {token}"}
 
@@ -118,7 +122,9 @@ class TestCountLineWorkflow:
         )
 
         login_payload = login_response.json()
-        token = login_payload.get("access_token") or login_payload.get("data", {}).get("access_token")
+        token = login_payload.get("access_token") or login_payload.get("data", {}).get(
+            "access_token"
+        )
         assert token
         return {"Authorization": f"Bearer {token}"}
 
@@ -168,7 +174,9 @@ class TestERPItemsWorkflow:
         )
 
         login_payload = login_response.json()
-        token = login_payload.get("access_token") or login_payload.get("data", {}).get("access_token")
+        token = login_payload.get("access_token") or login_payload.get("data", {}).get(
+            "access_token"
+        )
         assert token
         return {"Authorization": f"Bearer {token}"}
 

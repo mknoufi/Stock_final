@@ -6,14 +6,16 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
 import {
   LoadingSpinner,
-  AnimatedPressable,
   ScreenContainer,
 } from "../../src/components/ui";
+import { GlassCard } from "../../src/components/ui/GlassCard";
+import { AnimatedPressable } from "../../src/components/ui/AnimatedPressable";
 import {
   getAvailablePermissions,
   getUserPermissions,
@@ -21,6 +23,9 @@ import {
   removeUserPermissions,
 } from "../../src/services/api";
 import { auroraTheme } from "../../src/theme/auroraTheme";
+import { Ionicons } from "@expo/vector-icons";
+
+const isWeb = Platform.OS === "web";
 
 export default function PermissionsScreen() {
   const router = useRouter();
@@ -60,6 +65,10 @@ export default function PermissionsScreen() {
   };
 
   const loadUserPermissions = async (username: string) => {
+    if (!username.trim()) {
+      Alert.alert("Input Required", "Please enter a username to load permissions.");
+      return;
+    }
     try {
       setLoading(true);
       const response = await getUserPermissions(username);
@@ -81,8 +90,7 @@ export default function PermissionsScreen() {
 
     try {
       await addUserPermissions(selectedUsername, [permission]);
-      Alert.alert("Success", "Permission added successfully");
-      loadUserPermissions(selectedUsername);
+      setUserPermissions([...userPermissions, permission]);
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to add permission");
     }
@@ -93,8 +101,7 @@ export default function PermissionsScreen() {
 
     try {
       await removeUserPermissions(selectedUsername, [permission]);
-      Alert.alert("Success", "Permission removed successfully");
-      loadUserPermissions(selectedUsername);
+      setUserPermissions(userPermissions.filter(p => p !== permission));
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to remove permission");
     }
@@ -127,53 +134,78 @@ export default function PermissionsScreen() {
       if (filteredPermissions.length === 0) return null;
 
       return (
-        <View key={category} style={styles.categoryContainer}>
-          <Text style={styles.categoryTitle}>
-            {category.toUpperCase().replace("_", " ")}
-          </Text>
-          {filteredPermissions.map((permission: string) => {
-            const hasPermission = userPermissions.includes(permission);
-            return (
-              <View key={permission} style={styles.permissionRow}>
-                <Text style={styles.permissionText}>{permission}</Text>
-                {selectedUsername && (
-                  <AnimatedPressable
-                    style={[
-                      styles.permissionButton,
-                      hasPermission ? styles.removeButton : styles.addButton,
-                    ]}
-                    onPress={() =>
-                      hasPermission
-                        ? handleRemoveUserPermission(permission)
-                        : handleAddUserPermission(permission)
-                    }
-                  >
-                    <Text style={styles.buttonText}>
-                      {hasPermission ? "Remove" : "Add"}
-                    </Text>
-                  </AnimatedPressable>
-                )}
-              </View>
-            );
-          })}
-        </View>
+        <GlassCard key={category} variant="medium" style={styles.categoryContainer}>
+          <View style={styles.categoryHeader}>
+             <Ionicons 
+                name={getCategoryIcon(category)} 
+                size={20} 
+                color={auroraTheme.colors.primary[400]} 
+             />
+             <Text style={styles.categoryTitle}>
+               {category.toUpperCase().replace("_", " ")}
+             </Text>
+          </View>
+          
+          <View style={styles.permissionsGrid}>
+            {filteredPermissions.map((permission: string) => {
+              const hasPermission = userPermissions.includes(permission);
+              return (
+                <View key={permission} style={styles.permissionRow}>
+                  <Text style={styles.permissionText}>{permission}</Text>
+                  {selectedUsername && (
+                    <AnimatedPressable
+                      style={[
+                        styles.permissionButton,
+                        hasPermission ? styles.removeButton : styles.addButton,
+                      ]}
+                      onPress={() =>
+                        hasPermission
+                          ? handleRemoveUserPermission(permission)
+                          : handleAddUserPermission(permission)
+                      }
+                    >
+                      <Ionicons 
+                        name={hasPermission ? "close" : "add"} 
+                        size={16} 
+                        color="#fff" 
+                      />
+                      <Text style={styles.buttonText}>
+                        {hasPermission ? "Remove" : "Add"}
+                      </Text>
+                    </AnimatedPressable>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        </GlassCard>
       );
     });
+  };
+
+  const getCategoryIcon = (category: string): any => {
+    const cat = category.toLowerCase();
+    if (cat.includes("user")) return "people-outline";
+    if (cat.includes("session")) return "list-outline";
+    if (cat.includes("inventory")) return "cube-outline";
+    if (cat.includes("report")) return "document-text-outline";
+    if (cat.includes("admin")) return "shield-checkmark-outline";
+    if (cat.includes("security")) return "lock-closed-outline";
+    return "key-outline";
   };
 
   if (loading && !availablePermissions) {
     return (
       <ScreenContainer
-        gradient
+        backgroundType="aurora"
         header={{
-          title: "Permission Management",
-          subtitle: "User Access Control",
+          title: "Permissions",
+          subtitle: "Loading system permissions...",
           showBackButton: true,
         }}
       >
         <View style={styles.centered}>
           <LoadingSpinner size={36} color={auroraTheme.colors.primary[500]} />
-          <Text style={styles.loadingText}>Loading permissions...</Text>
         </View>
       </ScreenContainer>
     );
@@ -181,52 +213,72 @@ export default function PermissionsScreen() {
 
   return (
     <ScreenContainer
-      gradient
+      backgroundType="aurora"
+      auroraVariant="secondary"
       header={{
-        title: "Permission Management",
-        subtitle: "User Access Control",
+        title: "Permissions",
+        subtitle: "Manage User Access Control",
         showBackButton: true,
       }}
     >
-      <View style={styles.controlPanel}>
-        <Text style={styles.sectionTitle}>User Permissions</Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Enter username"
-            placeholderTextColor={auroraTheme.colors.text.muted}
-            value={selectedUsername}
-            onChangeText={setSelectedUsername}
-            autoCapitalize="none"
-          />
-          <AnimatedPressable
-            style={styles.loadButton}
-            onPress={() => loadUserPermissions(selectedUsername)}
-          >
-            <Text style={styles.loadButtonText}>Load</Text>
-          </AnimatedPressable>
-        </View>
+      <View style={styles.topPanel}>
+        <GlassCard variant="strong" style={styles.controlPanel}>
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionLabel}>User Target</Text>
+            <View style={styles.inputRow}>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="person-outline" size={20} color={auroraTheme.colors.text.muted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter username (e.g., staff1)"
+                  placeholderTextColor={auroraTheme.colors.text.muted}
+                  value={selectedUsername}
+                  onChangeText={setSelectedUsername}
+                  autoCapitalize="none"
+                />
+              </View>
+              <AnimatedPressable
+                style={styles.loadButton}
+                onPress={() => loadUserPermissions(selectedUsername)}
+              >
+                <Text style={styles.loadButtonText}>Load</Text>
+              </AnimatedPressable>
+            </View>
+          </View>
 
-        <Text style={styles.sectionTitle}>Search Permissions</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Search by category or permission name"
-          placeholderTextColor={auroraTheme.colors.text.muted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
+          <View style={styles.searchSection}>
+            <Text style={styles.sectionLabel}>Filter Permissions</Text>
+            <View style={styles.inputWrapper}>
+              <Ionicons name="search-outline" size={20} color={auroraTheme.colors.text.muted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Search across all categories..."
+                placeholderTextColor={auroraTheme.colors.text.muted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+          </View>
+        </GlassCard>
       </View>
 
-      <ScrollView style={styles.content}>
-        <View style={styles.stats}>
-          <Text style={styles.statsText}>
-            Total Permissions: {availablePermissions?.permissions?.length || 0}
-          </Text>
+      <ScrollView 
+        style={styles.content}
+        contentContainerStyle={[
+          styles.contentContainer,
+          isWeb && styles.contentContainerWeb
+        ]}
+      >
+        <View style={styles.statsRow}>
+          <GlassCard variant="light" style={styles.statBox}>
+            <Text style={styles.statValue}>{availablePermissions?.permissions?.length || 0}</Text>
+            <Text style={styles.statLabel}>Total Perms</Text>
+          </GlassCard>
           {selectedUsername && (
-            <Text style={styles.statsText}>
-              User &quot;{selectedUsername}&quot;: {userPermissions.length}{" "}
-              permissions
-            </Text>
+            <GlassCard variant="light" style={styles.statBox}>
+              <Text style={[styles.statValue, { color: auroraTheme.colors.primary[400] }]}>{userPermissions.length}</Text>
+              <Text style={styles.statLabel}>User Active</Text>
+            </GlassCard>
           )}
         </View>
 
@@ -242,103 +294,157 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingText: {
-    marginTop: 10,
-    color: auroraTheme.colors.text.primary,
-    fontSize: 16,
+  topPanel: {
+    padding: auroraTheme.spacing.md,
+    zIndex: 10,
   },
   controlPanel: {
     padding: auroraTheme.spacing.lg,
-    backgroundColor: auroraTheme.colors.surface.base,
-    borderBottomWidth: 1,
-    borderBottomColor: auroraTheme.colors.border.subtle,
+    gap: 16,
   },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: auroraTheme.colors.text.primary,
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: auroraTheme.colors.text.secondary,
     marginBottom: 8,
-    marginTop: 12,
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  inputSection: {
+    marginBottom: 4,
+  },
+  searchSection: {
+    marginTop: 4,
   },
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
+  },
+  inputWrapper: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    borderRadius: auroraTheme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: auroraTheme.colors.border.light,
+    paddingHorizontal: 12,
+  },
+  inputIcon: {
+    marginRight: 8,
   },
   input: {
     flex: 1,
-    backgroundColor: auroraTheme.colors.surface.elevated,
     color: auroraTheme.colors.text.primary,
     padding: auroraTheme.spacing.md,
-    borderRadius: auroraTheme.borderRadius.md,
     fontSize: 16,
-    borderWidth: 1,
-    borderColor: auroraTheme.colors.border.subtle,
   },
   loadButton: {
     backgroundColor: auroraTheme.colors.primary[500],
-    padding: auroraTheme.spacing.md,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
     borderRadius: auroraTheme.borderRadius.md,
-    marginLeft: 8,
+    shadowColor: auroraTheme.colors.primary[500],
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   loadButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   content: {
     flex: 1,
   },
-  stats: {
-    padding: auroraTheme.spacing.lg,
-    backgroundColor: auroraTheme.colors.surface.base,
-    borderBottomWidth: 1,
-    borderBottomColor: auroraTheme.colors.border.subtle,
+  contentContainer: {
+    padding: auroraTheme.spacing.md,
+    paddingBottom: 40,
   },
-  statsText: {
-    color: auroraTheme.colors.text.secondary,
-    fontSize: 14,
-    marginBottom: 4,
+  contentContainerWeb: {
+    maxWidth: 1000,
+    alignSelf: "center",
+    width: "100%",
+  },
+  statsRow: {
+    flexDirection: "row",
+    gap: 12,
+    marginBottom: auroraTheme.spacing.lg,
+  },
+  statBox: {
+    flex: 1,
+    padding: auroraTheme.spacing.md,
+    alignItems: "center",
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: "800",
+    color: auroraTheme.colors.text.primary,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: auroraTheme.colors.text.muted,
+    marginTop: 2,
   },
   categoryContainer: {
+    marginBottom: auroraTheme.spacing.lg,
     padding: auroraTheme.spacing.lg,
+    overflow: "hidden",
+  },
+  categoryHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+    gap: 10,
     borderBottomWidth: 1,
-    borderBottomColor: auroraTheme.colors.border.subtle,
+    borderBottomColor: auroraTheme.colors.border.light,
+    paddingBottom: 12,
   },
   categoryTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: auroraTheme.colors.success[500],
-    marginBottom: 12,
+    fontWeight: "700",
+    color: auroraTheme.colors.text.primary,
+    letterSpacing: 0.5,
+  },
+  permissionsGrid: {
+    gap: 8,
   },
   permissionRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: auroraTheme.spacing.md,
-    backgroundColor: auroraTheme.colors.surface.elevated,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
     borderRadius: auroraTheme.borderRadius.md,
-    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.05)",
   },
   permissionText: {
     flex: 1,
-    color: auroraTheme.colors.text.primary,
-    fontSize: 14,
+    color: auroraTheme.colors.text.secondary,
+    fontSize: 15,
+    fontWeight: "500",
   },
   permissionButton: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: auroraTheme.borderRadius.sm,
+    gap: 6,
   },
   addButton: {
-    backgroundColor: auroraTheme.colors.success[500],
+    backgroundColor: auroraTheme.colors.success[600],
   },
   removeButton: {
-    backgroundColor: auroraTheme.colors.error[500],
+    backgroundColor: auroraTheme.colors.error[600],
   },
   buttonText: {
     color: "#fff",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });

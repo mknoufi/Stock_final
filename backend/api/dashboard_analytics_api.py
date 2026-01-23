@@ -335,9 +335,11 @@ async def _breakdown_by_location(
                     total_stock_value=round(total_expected_value, 2),
                     total_counted_value=round(total_counted_value, 2),
                     completion_percentage=round(
-                        (total_counted_value / total_expected_value * 100)
-                        if total_expected_value > 0
-                        else 0,
+                        (
+                            (total_counted_value / total_expected_value * 100)
+                            if total_expected_value > 0
+                            else 0
+                        ),
                         2,
                     ),
                     variance_value=round(total_counted_value - total_expected_value, 2),
@@ -414,9 +416,11 @@ async def _breakdown_by_category(
                     total_stock_value=round(total_expected_value, 2),
                     total_counted_value=round(total_counted_value, 2),
                     completion_percentage=round(
-                        (total_counted_value / total_expected_value * 100)
-                        if total_expected_value > 0
-                        else 0,
+                        (
+                            (total_counted_value / total_expected_value * 100)
+                            if total_expected_value > 0
+                            else 0
+                        ),
                         2,
                     ),
                     variance_value=round(total_counted_value - total_expected_value, 2),
@@ -485,9 +489,11 @@ async def _breakdown_by_session(
                     total_stock_value=round(total_expected_value, 2),
                     total_counted_value=round(total_counted_value, 2),
                     completion_percentage=round(
-                        (total_counted_value / total_expected_value * 100)
-                        if total_expected_value > 0
-                        else 0,
+                        (
+                            (total_counted_value / total_expected_value * 100)
+                            if total_expected_value > 0
+                            else 0
+                        ),
                         2,
                     ),
                     variance_value=round(total_counted_value - total_expected_value, 2),
@@ -556,9 +562,11 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
                     total_stock_value=round(total_expected_value, 2),
                     total_counted_value=round(total_counted_value, 2),
                     completion_percentage=round(
-                        (total_counted_value / total_expected_value * 100)
-                        if total_expected_value > 0
-                        else 0,
+                        (
+                            (total_counted_value / total_expected_value * 100)
+                            if total_expected_value > 0
+                            else 0
+                        ),
                         2,
                     ),
                     variance_value=round(total_counted_value - total_expected_value, 2),

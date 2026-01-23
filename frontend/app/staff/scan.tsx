@@ -192,7 +192,7 @@ export default function ScanScreen() {
   const performSearch = async (query: string) => {
     try {
       const results = await searchItems(query);
-      setSearchResults(results);
+      setSearchResults(results.items);
     } catch (error) {
       console.error("Search failed", error);
     }

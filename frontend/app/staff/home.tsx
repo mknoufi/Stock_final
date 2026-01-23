@@ -63,6 +63,28 @@ export default function StaffHome() {
   const queryClient = useQueryClient();
   const { user, logout } = useAuthStore();
 
+  // Check for PIN setup
+  useEffect(() => {
+    if (user && !user.has_pin) {
+      // Delay slightly to let the UI load
+      const timer = setTimeout(() => {
+        Alert.alert(
+          "Set PIN Code",
+          "You haven't set a PIN code yet. Setting a PIN allows faster login.",
+          [
+            { text: "Later", style: "cancel" },
+            {
+              text: "Set PIN",
+              onPress: () => router.push("/staff/settings"),
+            },
+          ],
+        );
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, [user, router]);
+
   // Handle Back Button for Exit Confirmation
   useEffect(() => {
     const backAction = () => {

@@ -10,13 +10,10 @@ import jwt
 import uvicorn
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
-# from motor.motor_asyncio import AsyncIOMotorClient
-# from passlib.context import CryptContext
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 
-from backend.api import auth, supervisor_pin
+from backend.api import supervisor_pin
 from backend.api.admin_control_api import admin_control_router
 from backend.api.admin_dashboard_api import admin_dashboard_router
 from backend.api.auth import router as auth_router
@@ -86,7 +83,6 @@ from backend.utils.result import Fail, Ok, Result
 from backend.utils.tracing import instrument_fastapi_app
 
 # Phase 1-3: New Services
-# from backend.services.runtime import get_cache_service, get_refresh_token_service
 
 
 # Initialize a fallback logger early so optional import blocks can log safely
@@ -212,7 +208,6 @@ api_router = APIRouter()
 
 # Register all routers with the app
 app.include_router(health_router)  # Health check endpoints at /health/*
-app.include_router(health_router, prefix="/api")  # Alias for frontend compatibility
 app.include_router(info_router)  # Version check and info endpoints at /api/*
 app.include_router(permissions_router, prefix="/api")  # Permissions management
 app.include_router(user_management_router, prefix="/api")  # User management CRUD
@@ -300,7 +295,6 @@ except Exception as e:
     logger.warning(f"API v2 router not available: {e}")
 
 # Register routers with clear prefixes
-app.include_router(auth.router, prefix="/api", tags=["Authentication"])
 app.include_router(supervisor_pin.router, prefix="/api", tags=["Supervisor"])
 try:
     from backend.api.pin_auth_api import router as pin_auth_router

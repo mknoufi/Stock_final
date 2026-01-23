@@ -264,9 +264,8 @@ export default function ItemDetailScreen() {
         counted_qty: parseFloat(quantity) || 0,
         mrp_counted: parseFloat(mrp) || item.mrp,
         remark,
-        status: "DRAFT",
-        floor_no: currentFloor || "",
-        rack_no: currentRack || "",
+        floor_no: currentFloor || null,
+        rack_no: currentRack || null,
         // Add other necessary fields for the payload...
       };
 
@@ -897,7 +896,6 @@ export default function ItemDetailScreen() {
         mfg_date_format: hasMfgDate ? itemMfgDateFormat : undefined,
         expiry_date: expDate,
         expiry_date_format: hasExpiryDate ? itemExpiryDateFormat : undefined,
-        damage_photo: damagePhoto || undefined,
         photo_proofs: [
           ...(damagePhoto
             ? [
@@ -1012,7 +1010,7 @@ export default function ItemDetailScreen() {
   }
 
   return (
-    <ThemedScreen dismissKeyboardOnTap={false}>
+    <ThemedScreen>
       <ModernHeader
         title="Verify Item"
         showBackButton

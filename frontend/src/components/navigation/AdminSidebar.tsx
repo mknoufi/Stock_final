@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
   ViewStyle,
 } from "react-native";
+import { BlurView } from "expo-blur";
 import { useRouter, useSegments } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
@@ -46,7 +47,7 @@ const ADMIN_GROUPS: SidebarGroup[] = [
         key: "dashboard",
         label: "Dashboard",
         icon: "grid",
-        route: "/supervisor/dashboard",
+        route: "/admin/dashboard-web",
       },
       {
         key: "sessions",
@@ -63,7 +64,7 @@ const ADMIN_GROUPS: SidebarGroup[] = [
         key: "control-panel",
         label: "Control Panel",
         icon: "settings",
-        route: "/admin/control-panel",
+        route: "/admin/control-panel-v2",
       },
       {
         key: "permissions",
@@ -86,7 +87,7 @@ const ADMIN_GROUPS: SidebarGroup[] = [
         key: "live-view",
         label: "Live View",
         icon: "pulse",
-        route: "/admin/live-view",
+        route: "/admin/realtime-dashboard",
       },
       {
         key: "activity-logs",
@@ -228,18 +229,23 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   }
 
   return (
-    <View
-      style={[
-        styles.container,
-        {
-          width: sidebarWidth,
-          backgroundColor: theme.colors.surface,
-          borderRightColor: theme.colors.border,
-        },
-        style,
-      ]}
-      testID={testID}
-    >
+    <View style={styles.outerContainer}>
+      <BlurView
+        intensity={collapsed ? 0 : 40}
+        tint="dark"
+        style={[
+          styles.container,
+          {
+            width: sidebarWidth,
+            backgroundColor: collapsed
+              ? theme.colors.surface
+              : "rgba(10, 10, 10, 0.4)",
+            borderRightColor: "rgba(255, 255, 255, 0.1)",
+          },
+          style,
+        ]}
+        testID={testID}
+      >
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -389,14 +395,20 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </Text>
         </TouchableOpacity>
       )}
+      </BlurView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  outerContainer: {
+    height: "100%",
+    zIndex: 100,
+  },
   container: {
     height: "100%",
     borderRightWidth: 1,
+    overflow: "hidden",
     ...(Platform.OS === "web"
       ? {
           position: "fixed" as const,

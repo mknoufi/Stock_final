@@ -6,7 +6,6 @@ Tests performance of actual workflows: auth, sessions, search
 import asyncio
 import logging
 import random
-import statistics
 import time
 from dataclasses import dataclass
 from typing import Optional
@@ -89,7 +88,9 @@ class TestAPIPerformance:
             f"Login failed: {login_response.text}"
         )
         login_payload = login_response.json()
-        token = login_payload.get("access_token") or login_payload.get("data", {}).get("access_token")
+        token = login_payload.get("access_token") or login_payload.get("data", {}).get(
+            "access_token"
+        )
         assert token
         return {"Authorization": f"Bearer {token}"}
 
@@ -168,5 +169,5 @@ class TestAPIPerformance:
         concurrency = 50
         start_total = time.time()
         tasks = [make_request() for _ in range(concurrency)]
-        results = await asyncio.gather(*tasks)
-        total_time = time.time() - start_total
+        _results = await asyncio.gather(*tasks)
+        _total_time = time.time() - start_total

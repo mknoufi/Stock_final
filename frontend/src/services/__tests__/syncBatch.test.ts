@@ -5,6 +5,14 @@ import * as offlineStorage from "../offline/offlineStorage";
 // Mock dependencies
 jest.mock("../api/api");
 jest.mock("../offline/offlineStorage");
+jest.mock("../../store/authStore", () => ({
+  useAuthStore: {
+    getState: () => ({
+      isAuthenticated: true,
+      user: { username: "e2e", role: "staff" },
+    }),
+  },
+}));
 jest.mock(
   "@react-native-async-storage/async-storage",
   () =>

@@ -305,13 +305,15 @@ async def check_photo_requirements(
                     "reason": (
                         "Large variance"
                         if variance > 100
-                        else "High variance %"
-                        if variance_percent > 50
-                        else "High value item"
-                        if mrp > 10000
-                        else "Damage reported"
-                        if has_damage
-                        else None
+                        else (
+                            "High variance %"
+                            if variance_percent > 50
+                            else (
+                                "High value item"
+                                if mrp > 10000
+                                else "Damage reported" if has_damage else None
+                            )
+                        )
                     ),
                 }
             )

@@ -130,9 +130,9 @@ class ItemUpdateRequest(BaseModel):
     uom: Optional[str] = None
 
 
-@verification_router.patch("/{item_code}/update-master")
+@verification_router.patch("/{barcode}/update-master")
 async def update_item_master(
-    item_code: str,
+    barcode: str,
     request: ItemUpdateRequest,
     current_user: dict = Depends(get_current_user),
 ):
@@ -140,10 +140,19 @@ async def update_item_master(
     Update item master details (MRP, Price, Category, etc.)
     """
     try:
-        # Get current item
-        item = await db.erp_items.find_one({"item_code": item_code})
+        # Get current item by barcode
+        item = await db.erp_items.find_one({"barcode": barcode})
         if not item:
-            raise HTTPException(status_code=404, detail=f"Item {item_code} not found")
+            # Fallback to item_code for legacy support
+            item = await db.erp_items.find_one({"item_code": barcode})
+            if not item:
+                raise HTTPException(
+                    status_code=404, detail=f"Item with barcode/code {barcode} not found"
+                )
+
+        # Use the actual item_code and barcode for updates and logging
+        actual_barcode = item.get("barcode", barcode)
+        actual_item_code = item.get("item_code")
 
         update_doc = {
             "$set": {
@@ -163,22 +172,20 @@ async def update_item_master(
         if request.uom is not None:
             update_doc["$set"]["uom"] = request.uom
 
-        await db.erp_items.update_one({"item_code": item_code}, update_doc)
+        await db.erp_items.update_one({"barcode": actual_barcode}, update_doc)
 
         # Invalidate cache for this item
         if cache_service:
-            # Try to invalidate by barcode if available, otherwise by item_code
-            barcode = item.get("barcode")
-            if barcode:
-                await cache_service.delete_async("items", f"enhanced_{barcode}")
-            # Also invalidate by item_code just in case
-            await cache_service.delete_async("items", f"enhanced_{item_code}")
+            await cache_service.delete_async("items", f"enhanced_{actual_barcode}")
+            if actual_item_code:
+                await cache_service.delete_async("items", f"enhanced_{actual_item_code}")
 
         # Log the change
         await db.audit_logs.insert_one(
             {
                 "action": "MASTER_UPDATE",
-                "item_code": item_code,
+                "item_code": actual_item_code,
+                "barcode": actual_barcode,
                 "changes": request.model_dump(exclude_none=True),
                 "user": current_user["username"],
                 "timestamp": datetime.utcnow(),
@@ -190,7 +197,7 @@ async def update_item_master(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating item master {item_code}: {str(e)}")
+        logger.error(f"Error updating item master {barcode}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -283,9 +290,9 @@ def _build_verification_log_doc(
     }
 
 
-@verification_router.patch("/{item_code}/verify")
+@verification_router.patch("/{barcode}/verify")
 async def verify_item(
-    item_code: str,
+    barcode: str,
     request: VerificationRequest,
     current_user: dict = Depends(get_current_user),
 ):
@@ -293,23 +300,29 @@ async def verify_item(
     Mark an item as verified/unverified with user tracking and timestamp
     """
     try:
-        item = await db.erp_items.find_one({"item_code": item_code})
+        # Get current item by barcode
+        item = await db.erp_items.find_one({"barcode": barcode})
         if not item:
-            raise HTTPException(status_code=404, detail=f"Item {item_code} not found")
+            # Fallback to item_code
+            item = await db.erp_items.find_one({"item_code": barcode})
+            if not item:
+                raise HTTPException(
+                    status_code=404, detail=f"Item with barcode/code {barcode} not found"
+                )
+
+        actual_barcode = item.get("barcode", barcode)
+        actual_item_code = item.get("item_code")
 
         variance = _calculate_variance(request, item.get("stock_qty", 0.0))
         update_doc = _build_item_update_doc(request, current_user, item)
 
-        await db.erp_items.update_one({"item_code": item_code}, update_doc)
+        await db.erp_items.update_one({"barcode": actual_barcode}, update_doc)
 
         # Invalidate cache for this item
         if cache_service:
-            # Try to invalidate by barcode if available, otherwise by item_code
-            barcode = item.get("barcode")
-            if barcode:
-                await cache_service.delete_async("items", f"enhanced_{barcode}")
-            # Also invalidate by item_code just in case
-            await cache_service.delete_async("items", f"enhanced_{item_code}")
+            await cache_service.delete_async("items", f"enhanced_{actual_barcode}")
+            if actual_item_code:
+                await cache_service.delete_async("items", f"enhanced_{actual_item_code}")
 
         # Get the actual is_serialized value that was set in the update_doc
         is_serialized_from_update = update_doc["$set"].get("is_serialized")
@@ -323,7 +336,7 @@ async def verify_item(
         if variance is not None and variance != 0:
             await db.item_variances.insert_one(verification_log)
 
-        updated_item = await db.erp_items.find_one({"item_code": item_code})
+        updated_item = await db.erp_items.find_one({"barcode": actual_barcode})
         updated_item["_id"] = str(updated_item["_id"])
 
         return {
@@ -331,14 +344,14 @@ async def verify_item(
             "item": updated_item,
             "variance": variance,
             "message": (
-                f"Item {item_code} marked as {'verified' if request.verified else 'unverified'}"
+                f"Item {actual_barcode} marked as {'verified' if request.verified else 'unverified'}"
             ),
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error verifying item {item_code}: {str(e)}")
+        logger.error(f"Error verifying item {barcode}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Verification failed: {str(e)}")
 
 

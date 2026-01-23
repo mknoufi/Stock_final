@@ -109,7 +109,7 @@ export interface DashboardSummary {
 }
 
 // FR-M-26: Extended Dashboard with Quantity/Value metrics
-export interface ValuationBasis = "last_cost" | "sale_price";
+export type ValuationBasis = "last_cost" | "sale_price";
 
 export interface QuantityMetrics {
   total_counted_qty: number;
@@ -571,7 +571,6 @@ export const analyticsApi = {
     try {
       // Fetch analytics data
       const analytics = await this.getSessionAnalytics();
-      const varianceData = await this.getVarianceSummary().catch(() => null);
 
       // Calculate quantity metrics
       const totalCountedQty = analytics.data.overall.total_items || 0;

@@ -13,7 +13,7 @@
  *   }
  */
 
-import { useAuthStore } from '@/stores/authStore';
+import { useAuthStore, type AuthState } from "@/store/authStore";
 
 // Permission definitions (must match backend)
 export const Permissions = {
@@ -121,7 +121,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
 };
 
 export function usePermissions() {
-  const user = useAuthStore((state) => state.user);
+  const user = useAuthStore((state: AuthState) => state.user);
   
   /**
    * Check if user has a specific permission

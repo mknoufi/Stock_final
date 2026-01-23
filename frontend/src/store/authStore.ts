@@ -14,6 +14,7 @@ interface User {
   email?: string;
   is_active: boolean;
   permissions: string[];
+  has_pin?: boolean;
 }
 
 export interface AuthState {
@@ -22,6 +23,8 @@ export interface AuthState {
   isLoading: boolean;
   isInitialized: boolean;
   hasValidToken: () => boolean;
+  startHeartbeat: () => void;
+  stopHeartbeat: () => void;
   login: (
     username: string,
     password: string,
@@ -34,18 +37,26 @@ export interface AuthState {
     success: boolean;
     message?: string;
   }>;
+  savePinForBiometrics: (pin: string) => Promise<void>;
+  getPinForBiometrics: () => Promise<string | null>;
   setUser: (user: User) => void;
   logout: () => Promise<void>;
   setLoading: (loading: boolean) => void;
   loadStoredAuth: () => Promise<void>;
-  startHeartbeat: () => void;
-  stopHeartbeat: () => void;
+  lastLoggedUser: {
+    username: string;
+    full_name: string;
+    has_pin?: boolean;
+  } | null;
+  setLastLoggedUser: (user: { username: string; full_name: string } | null) => void;
+  clearLastLoggedUser: () => Promise<void>;
 }
 
 const AUTH_STORAGE_KEY = "auth_user";
 const TOKEN_STORAGE_KEY = "auth_token";
 const REFRESH_TOKEN_STORAGE_KEY = "refresh_token";
 const BIOMETRIC_PIN_KEY = "biometric_pin";
+const LAST_USER_STORAGE_KEY = "last_logged_user";
 
 const log = createLogger("authStore");
 let heartbeatInterval: any = null;
@@ -55,8 +66,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   isLoading: false,
   isInitialized: false,
+  lastLoggedUser: null,
   hasValidToken: (): boolean => {
     return !!get().user;
+  },
+
+  setLastLoggedUser: async (user) => {
+    set({ lastLoggedUser: user });
+    if (user) {
+      await secureStorage.setItem(LAST_USER_STORAGE_KEY, JSON.stringify(user));
+    } else {
+      await secureStorage.removeItem(LAST_USER_STORAGE_KEY);
+    }
+  },
+
+  clearLastLoggedUser: async () => {
+    await secureStorage.removeItem(LAST_USER_STORAGE_KEY);
+    set({ lastLoggedUser: null });
   },
 
   login: async (
@@ -91,11 +117,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
         await secureStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
 
+        // Save last logged user for "Hi User" flow
+        const lastUser = {
+          username: user.username,
+          full_name: user.full_name,
+          has_pin: user.has_pin,
+        };
+        await secureStorage.setItem(
+          LAST_USER_STORAGE_KEY,
+          JSON.stringify(lastUser),
+        );
+
         set({
           user,
           isAuthenticated: true,
           isLoading: false,
           isInitialized: true,
+          lastLoggedUser: lastUser,
         });
 
         // Start heartbeat check for session validity
@@ -176,19 +214,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         log.debug("PIN Login successful, setting token", {
           tokenPrefix: access_token.substring(0, 10),
-          tokenLength: access_token.length
         });
 
         // Store token for subsequent requests
         apiClient.defaults.headers.common["Authorization"] =
           `Bearer ${access_token}`;
 
-        // Use SecureStore
+        // Use SecureStore for sensitive data
         await secureStorage.setItem(TOKEN_STORAGE_KEY, access_token);
         if (refresh_token) {
           await secureStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refresh_token);
         }
         await secureStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+        
+        // Save PIN for biometrics
+        await secureStorage.setItem(BIOMETRIC_PIN_KEY, pin);
+
+        // Save last logged user
+        const lastUser = { username: user.username, full_name: user.full_name };
+        await secureStorage.setItem(LAST_USER_STORAGE_KEY, JSON.stringify(lastUser));
 
         // Store PIN for biometrics if enabled
         const settings = useSettingsStore.getState().settings;
@@ -281,6 +325,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: true,
       isLoading: false,
     });
+  },
+
+  savePinForBiometrics: async (pin: string) => {
+    await secureStorage.setItem(BIOMETRIC_PIN_KEY, pin);
+  },
+
+  getPinForBiometrics: async () => {
+    return await secureStorage.getItem(BIOMETRIC_PIN_KEY);
   },
 
   logout: async () => {
@@ -383,7 +435,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const stateNow = get();
         if (stateNow.isAuthenticated && stateNow.user) {
           log.debug("loadStoredAuth no-credentials branch skipped: session became active");
-          set({ isLoading: false, isInitialized: true });
+          set({
+            isLoading: false,
+            isInitialized: true,
+            lastLoggedUser: currentState.lastLoggedUser,
+          });
           return;
         }
 
@@ -393,6 +449,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isAuthenticated: false,
           isLoading: false,
           isInitialized: true,
+          lastLoggedUser: currentState.lastLoggedUser,
         });
       }
     } catch (error) {

@@ -14,11 +14,11 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useNotificationStore } from "../../src/store/notificationStore";
-import type { Notification } from "../../src/services/api/api";
-import ModernHeader from "../../src/components/ui/ModernHeader";
-import ModernCard from "../../src/components/ui/ModernCard";
-import { colors, spacing, typography } from "../../src/theme/modernDesign";
+import { useNotificationStore } from "../src/store/notificationStore";
+import type { Notification } from "../src/services/api/api";
+import ModernHeader from "../src/components/ui/ModernHeader";
+import ModernCard from "../src/components/ui/ModernCard";
+import { colors, spacing, typography, borderRadius } from "../src/theme/modernDesign";
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -135,13 +135,11 @@ export default function NotificationsScreen() {
         title="Notifications"
         showBackButton
         onBackPress={() => router.back()}
-        actions={unreadCount > 0 ? [
-          {
-            icon: "checkmark-done",
-            label: "Mark all read",
-            onPress: markAllAsRead,
-          }
-        ] : []}
+        rightAction={
+          unreadCount > 0
+            ? { icon: "checkmark-done", onPress: () => void markAllAsRead() }
+            : undefined
+        }
       />
 
       {/* Filter Tabs */}
@@ -205,14 +203,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
     marginRight: spacing.md,
-    borderRadius: spacing.full,
+    borderRadius: borderRadius.full,
     backgroundColor: colors.gray[100],
   },
   activeTab: {
     backgroundColor: colors.primary[600],
   },
   filterText: {
-    ...typography.fontSize.sm,
+    fontSize: typography.fontSize.sm,
     fontWeight: "600",
     color: colors.gray[600],
   },
@@ -247,18 +245,18 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   notificationTitle: {
-    ...typography.fontSize.base,
+    fontSize: typography.fontSize.base,
     fontWeight: "700",
     color: colors.gray[900],
     marginBottom: 4,
   },
   notificationMessage: {
-    ...typography.fontSize.sm,
+    fontSize: typography.fontSize.sm,
     color: colors.gray[600],
     marginBottom: 8,
   },
   timeText: {
-    ...typography.fontSize.xs,
+    fontSize: typography.fontSize.xs,
     color: colors.gray[400],
   },
   unreadDot: {
@@ -276,14 +274,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing["2xl"],
   },
   emptyTitle: {
-    ...typography.fontSize.lg,
+    fontSize: typography.fontSize.lg,
     fontWeight: "700",
     color: colors.gray[900],
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },
   emptySubtitle: {
-    ...typography.fontSize.sm,
+    fontSize: typography.fontSize.sm,
     color: colors.gray[500],
     textAlign: "center",
   },

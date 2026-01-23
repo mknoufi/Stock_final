@@ -580,6 +580,7 @@ def _build_login_response(tokens: dict[str, Any], user: dict[str, Any]) -> dict[
             "email": user.get("email"),
             "is_active": user.get("is_active", True),
             "permissions": user.get("permissions", []),
+            "has_pin": bool(user.get("pin_hash")),
         },
     }
 
@@ -593,6 +594,7 @@ async def get_me(
         "full_name": current_user["full_name"],
         "role": current_user["role"],
         "permissions": current_user.get("permissions", []),
+        "has_pin": bool(current_user.get("pin_hash")),
     }
 
 

@@ -19,6 +19,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
+import * as LocalAuthentication from "expo-local-authentication";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 import { useAuthStore } from "../src/store/authStore";
@@ -53,8 +54,8 @@ const SafeAnimatedView = ({ children, style, entering, ...props }: any) => {
 type LoginMode = "pin" | "credentials";
 
 export default function LoginScreen() {
-  const { login, loginWithPin, isLoading } = useAuthStore();
-  const [loginMode, setLoginMode] = useState<LoginMode>("pin");
+  const { login, loginWithPin, isLoading, lastLoggedUser, getPinForBiometrics } = useAuthStore();
+  const [loginMode, setLoginMode] = useState<LoginMode>("credentials");
   const [pin, setPin] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -79,6 +80,13 @@ export default function LoginScreen() {
     };
     warmUp();
   }, []);
+
+  // Set initial mode based on last logged user
+  React.useEffect(() => {
+    if (lastLoggedUser) {
+      setLoginMode("pin");
+    }
+  }, [lastLoggedUser]);
 
   const handlePinChange = useCallback(
     async (newPin: string) => {
@@ -118,10 +126,50 @@ export default function LoginScreen() {
   const handleBiometricAuth = useCallback(async () => {
     if (isLoading) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // Placeholder for biometric auth
-    // In a real app, use expo-local-authentication here
-    Alert.alert("Biometric Auth", "Biometric authentication would run here.");
-  }, [isLoading]);
+
+    try {
+      // Check hardware availability
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+      if (!hasHardware || !isEnrolled) {
+        Alert.alert(
+          "Biometrics Unavailable",
+          "Please enable biometrics in your device settings."
+        );
+        return;
+      }
+
+      // Check if we have a stored PIN
+      const storedPin = await getPinForBiometrics();
+      if (!storedPin) {
+        Alert.alert(
+          "Setup Required",
+          "Please login with PIN once to enable biometrics."
+        );
+        return;
+      }
+
+      // Authenticate
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: "Login to Lavanya Mart",
+        fallbackLabel: "Use PIN",
+      });
+
+      if (result.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const loginResult = await loginWithPin(storedPin);
+        if (!loginResult.success) {
+          Alert.alert(
+            "Login Failed",
+            loginResult.message || "Invalid stored credentials"
+          );
+        }
+      }
+    } catch (error) {
+      Alert.alert("Error", "Biometric authentication failed");
+    }
+  }, [isLoading, getPinForBiometrics, loginWithPin]);
 
   const handleForgotPin = useCallback(() => {
     Alert.alert(
@@ -175,6 +223,13 @@ export default function LoginScreen() {
   }, [loginMode, pin, username, password, login, loginWithPin]);
 
   const toggleLoginMode = useCallback(() => {
+    if (loginMode === "credentials" && !lastLoggedUser) {
+      Alert.alert(
+        "First Login Required",
+        "Please login with username and password first to enable PIN login for this device.",
+      );
+      return;
+    }
     const newMode: LoginMode = loginMode === "pin" ? "credentials" : "pin";
     setLoginMode(newMode);
     setPin("");
@@ -184,7 +239,7 @@ export default function LoginScreen() {
       {};
     setErrors(newErrors);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  }, [loginMode]);
+  }, [loginMode, lastLoggedUser]);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -212,9 +267,15 @@ export default function LoginScreen() {
               entering={FadeInUp.duration(800).springify()}
               style={styles.welcomeSection}
             >
-              <Text style={styles.welcomeTitle}>Welcome Back</Text>
+              <Text style={styles.welcomeTitle}>
+                {lastLoggedUser && loginMode === "pin"
+                  ? `Hi, ${lastLoggedUser.full_name?.split(" ")[0] || lastLoggedUser.username}`
+                  : "Welcome Back"}
+              </Text>
               <Text style={styles.welcomeSubtitle}>
-                Sign in to access your inventory management system
+                {lastLoggedUser && loginMode === "pin"
+                  ? "Enter your PIN to continue"
+                  : "Sign in to access your inventory management system"}
               </Text>
             </SafeAnimatedView>
 
