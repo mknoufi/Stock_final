@@ -30,7 +30,7 @@ _ALPHANUMERIC_PATTERN = re.compile(r"^[A-Z0-9_\-]+$")
 
 
 def _normalize_barcode_input(
-    barcode: str, *, allow_alphanumeric: bool = True, strict_numeric: bool = False
+    barcode: str, *, allow_alphanumeric: bool = True, strict_numeric: bool = True
 ) -> str:
     """Normalize and validate barcode or item code input.
 

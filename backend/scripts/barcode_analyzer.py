@@ -225,6 +225,9 @@ class BarcodeAnalyzer:
                     summary["categories"][category] = 0
                 summary["categories"][category] += 1
 
+            # Accumulate the total recommended discount from all analyzed items
+            summary["total_recommended_discount"] += analysis.get("recommended_discount", 0)
+
         return {"results": results, "summary": summary}
 
 

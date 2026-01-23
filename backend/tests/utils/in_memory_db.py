@@ -235,6 +235,20 @@ class InMemoryCollection:
 
         return UpdateResult(matched_count=0, modified_count=0)
 
+    async def update_many(
+        self,
+        filter_query: dict[str, Optional[Any]],
+        update: dict[str, Any],
+    ) -> UpdateResult:
+        matched = 0
+        modified = 0
+        for doc in self._documents:
+            if _match_filter(doc, filter_query):
+                matched += 1
+                if _apply_update(doc, update):
+                    modified += 1
+        return UpdateResult(matched_count=matched, modified_count=modified)
+
     async def delete_one(self, filter_query: dict[str, Optional[Any]]) -> DeleteResult:
         for i, doc in enumerate(self._documents):
             if _match_filter(doc, filter_query):
@@ -559,14 +573,9 @@ def _seed_default_users(fake_db, server_module) -> None:
     _seed_user("supervisor", "super123", "Supervisor", "supervisor")
     _seed_user("admin", "admin123", "Administrator", "admin")
 
-    # Manually add PIN hash for staff1 using same argon2+bcrypt context as main app
-    from passlib.context import CryptContext
     from backend.utils.crypto_utils import get_pin_lookup_hash
 
-    # We must match the schemes from backend.utils.auth_utils to avoid verification errors
-    pwd_context = CryptContext(schemes=["argon2", "bcrypt"], deprecated="auto")
-
-    hashed_pin = pwd_context.hash("1234")
+    hashed_pin = server_module.get_password_hash("1234")
     lookup_hash = get_pin_lookup_hash("1234")
 
     # Update the user document for auth.py's implementation

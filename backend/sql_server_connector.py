@@ -823,60 +823,56 @@ class SQLServerConnector:
             logger.error(f"Error fetching items by codes: {str(e)}")
             raise DatabaseQueryError(f"Failed to fetch items by codes: {str(e)}")
 
-    def get_item_quantities_only(self, item_codes: list[str]) -> dict[str, float]:
+    def get_item_quantities_only(self, barcodes: list[str]) -> dict[str, float]:
         """
-        Fetch ONLY quantities for multiple items - minimal SQL load.
-        Returns a dict mapping item_code -> stock_qty.
+        Fetch ONLY quantities for specific batches by barcode - minimal SQL load.
+        Returns a dict mapping barcode -> stock_qty.
 
         Args:
-            item_codes: List of item codes to fetch quantities for
+            barcodes: List of barcodes (AutoBarcode) to fetch quantities for
 
         Returns:
-            Dict mapping item_code to stock_qty
+            Dict mapping barcode to stock_qty
         """
         if not self.connection:
             raise DatabaseConnectionError(DB_NOT_CONNECTED_MSG)
 
-        if not item_codes:
+        if not barcodes:
             return {}
 
         # Limit batch size
-        item_codes = item_codes[:1000]
+        barcodes = barcodes[:1000]
 
         try:
             cursor = self.connection.cursor()
-            mapping = self.mapping
-            schema = mapping["query_options"].get("schema_name", "dbo")
-            table_name = mapping["tables"]["items"]
-            code_column = mapping["items_columns"]["item_code"]
-            qty_column = mapping["items_columns"]["stock_qty"]
 
-            # Build minimal query - only fetch code and qty
-            placeholders = ", ".join("?" for _ in item_codes)
+            # Build minimal query - only fetch barcode and qty from ProductBatches
+            placeholders = ", ".join("?" for _ in barcodes)
 
             query = f"""
-                SELECT {code_column} as item_code, {qty_column} as stock_qty
-                FROM [{schema}].[{table_name}]
-                WHERE {code_column} IN ({placeholders})
+                SELECT CAST(AutoBarcode AS VARCHAR(50)) as barcode, Stock as stock_qty
+                FROM dbo.ProductBatches
+                WHERE CAST(AutoBarcode AS VARCHAR(50)) IN ({placeholders})
             """
 
-            cursor.execute(query, item_codes)
+            cursor.execute(query, barcodes)
             rows = cursor.fetchall()
 
             # Build result dict
             results = {}
             for row in rows:
-                item_code = row[0]
+                barcode = str(row[0]) if row[0] is not None else ""
                 stock_qty = float(row[1]) if row[1] is not None else 0.0
-                results[item_code] = stock_qty
+                if barcode:
+                    results[barcode] = stock_qty
 
             cursor.close()
-            logger.debug(f"Retrieved quantities for {len(results)} items")
+            logger.debug(f"Retrieved quantities for {len(results)} barcodes")
             return results
 
         except Exception as e:
-            logger.error(f"Error fetching item quantities: {str(e)}")
-            raise DatabaseQueryError(f"Failed to fetch item quantities: {str(e)}")
+            logger.error(f"Error fetching item quantities by barcode: {str(e)}")
+            raise DatabaseQueryError(f"Failed to fetch item quantities by barcode: {str(e)}")
 
 
 # Global connector instance

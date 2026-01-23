@@ -49,8 +49,16 @@ async def submit_count_line(
     if count_line.get("status") in ["submitted", "approved"]:
         raise HTTPException(status_code=400, detail="Count line already submitted")
 
-    # Get item details for variance calculation
-    item = await db.erp_items.find_one({"item_code": count_line["item_code"]})
+    # Get item details for variance calculation - prefer barcode for exact batch identification
+    barcode = count_line.get("barcode")
+    item = None
+    if barcode:
+        item = await db.erp_items.find_one({"barcode": barcode})
+
+    if not item:
+        # Fallback to item_code
+        item = await db.erp_items.find_one({"item_code": count_line["item_code"]})
+
     if not item:
         raise HTTPException(status_code=404, detail="Item not found in ERP")
 

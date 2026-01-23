@@ -42,8 +42,11 @@ class TestAuthenticationWorkflow:
 
         # Verify token in response
         response_data = login_response.json()
-        assert "access_token" in response_data
-        assert "refresh_token" in response_data
+        token_payload = (
+            response_data.get("data") if isinstance(response_data.get("data"), dict) else response_data
+        )
+        assert "access_token" in token_payload
+        assert "refresh_token" in token_payload
 
         logger.info("✓ User registration and login successful")
 
@@ -67,7 +70,9 @@ class TestSessionWorkflow:
             json={"username": user_data["username"], "password": user_data["password"]},
         )
 
-        token = login_response.json()["access_token"]
+        login_payload = login_response.json()
+        token = login_payload.get("access_token") or login_payload.get("data", {}).get("access_token")
+        assert token
         return {"Authorization": f"Bearer {token}"}
 
     @pytest.mark.asyncio
@@ -112,7 +117,9 @@ class TestCountLineWorkflow:
             json={"username": user_data["username"], "password": user_data["password"]},
         )
 
-        token = login_response.json()["access_token"]
+        login_payload = login_response.json()
+        token = login_payload.get("access_token") or login_payload.get("data", {}).get("access_token")
+        assert token
         return {"Authorization": f"Bearer {token}"}
 
     @pytest.mark.asyncio
@@ -160,7 +167,9 @@ class TestERPItemsWorkflow:
             json={"username": user_data["username"], "password": user_data["password"]},
         )
 
-        token = login_response.json()["access_token"]
+        login_payload = login_response.json()
+        token = login_payload.get("access_token") or login_payload.get("data", {}).get("access_token")
+        assert token
         return {"Authorization": f"Bearer {token}"}
 
     @pytest.mark.asyncio

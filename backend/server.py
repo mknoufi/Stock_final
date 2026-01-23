@@ -302,6 +302,12 @@ except Exception as e:
 # Register routers with clear prefixes
 app.include_router(auth.router, prefix="/api", tags=["Authentication"])
 app.include_router(supervisor_pin.router, prefix="/api", tags=["Supervisor"])
+try:
+    from backend.api.pin_auth_api import router as pin_auth_router
+
+    app.include_router(pin_auth_router, prefix="/api", tags=["PIN Auth"])
+except Exception as _e:
+    logger.warning(f"PIN auth API router not available: {_e}")
 
 # Include routes defined on api_router
 app.include_router(api_router, prefix="/api")
@@ -745,7 +751,10 @@ async def logout(
     Request body should contain: {"refresh_token": "uuid-string"}
     """
     try:
-        body = await request.json()
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
         refresh_token_value = body.get("refresh_token")
 
         if refresh_token_value:
@@ -1002,6 +1011,12 @@ async def get_session_by_id(
             and session.get("staff_user") != current_user["username"]
         ):
             raise HTTPException(status_code=403, detail="Access denied")
+
+        # Preserve identity: use string version of '_id' if 'id' is missing
+        if "_id" in session:
+            if "id" not in session:
+                session["id"] = str(session["_id"])
+            del session["_id"]
 
         return Session(**session)
     except HTTPException:

@@ -363,17 +363,25 @@ class CountLineStateMachine:
 
         return EditPermission.can_view(state, user_role, is_owner)
 
-    async def get_allowed_actions(self, count_line_id: str, user_role: str) -> Dict[str, Any]:
+    async def get_allowed_actions(
+        self, count_line_id: str, user_role: str, user_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Get allowed actions for count line in current state"""
         count_line = await self.db.count_lines.find_one({"id": count_line_id})
         if not count_line:
             return {"can_edit": False, "can_view": False, "allowed_transitions": []}
 
         state = count_line.get("status", CountLineState.DRAFT.value)
+        if user_id:
+            is_owner = (
+                count_line.get("counted_by") == user_id or count_line.get("created_by") == user_id
+            )
+        else:
+            is_owner = user_role == "staff"
 
         return {
             "current_state": state,
-            "can_edit": EditPermission.can_edit(state, user_role),
-            "can_view": EditPermission.can_view(state, user_role),
+            "can_edit": EditPermission.can_edit(state, user_role, is_owner),
+            "can_view": EditPermission.can_view(state, user_role, is_owner),
             "allowed_transitions": StateTransition.get_allowed_transitions(state, user_role),
         }

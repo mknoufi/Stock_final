@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
@@ -12,27 +13,33 @@ logger = logging.getLogger(__name__)
 # Security - Modern password hashing with Argon2 (OWASP recommended)
 # Fallback to bcrypt-only if argon2 is not available
 try:
-    pwd_context = CryptContext(
-        schemes=[
-            "argon2",
-            "bcrypt",
-        ],  # Argon2 first (preferred), bcrypt for backward compatibility
-        deprecated="auto",  # Auto-upgrade old hashes on next login
-        argon2__memory_cost=65536,  # 64 MB memory (resistant to GPU attacks)
-        argon2__time_cost=3,  # 3 iterations
-        argon2__parallelism=4,  # 4 threads
-    )
-    # Test if bcrypt backend is available
-    try:
-        import bcrypt
+    if os.getenv("TESTING", "false").lower() == "true":
+        pwd_context = CryptContext(
+            schemes=["pbkdf2_sha256"],
+            deprecated="auto",
+            pbkdf2_sha256__rounds=2000,
+        )
+        logger.info("Password hashing: Using pbkdf2_sha256 (testing config)")
+    else:
+        pwd_context = CryptContext(
+            schemes=[
+                "argon2",
+                "bcrypt",
+            ],
+            deprecated="auto",
+            argon2__memory_cost=65536,
+            argon2__time_cost=3,
+            argon2__parallelism=4,
+        )
+        try:
+            import bcrypt
 
-        # Verify bcrypt is working
-        test_hash = bcrypt.hashpw(b"test", bcrypt.gensalt())
-        bcrypt.checkpw(b"test", test_hash)
-        logger.info("Password hashing: Using Argon2 with bcrypt fallback")
-    except Exception as e:
-        logger.warning(f"Bcrypt backend check failed, using bcrypt-only context: {str(e)}")
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+            test_hash = bcrypt.hashpw(b"test", bcrypt.gensalt())
+            bcrypt.checkpw(b"test", test_hash)
+            logger.info("Password hashing: Using Argon2 with bcrypt fallback")
+        except Exception as e:
+            logger.warning(f"Bcrypt backend check failed, using bcrypt-only context: {str(e)}")
+            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 except Exception as e:
     logger.warning(f"Argon2 not available, using bcrypt-only: {str(e)}")
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -99,6 +106,12 @@ def _verify_bcrypt_fallback(password_bytes: bytes, hashed_password: str) -> bool
 
 def get_password_hash(password: str) -> str:
     """Hash a password using the configured context"""
+    if not password:
+        return str(pwd_context.hash(""))
+
+    password_bytes = password.encode("utf-8")
+    if len(password_bytes) > 72:
+        password = password_bytes[:72].decode("utf-8", errors="ignore")
     return str(pwd_context.hash(password))
 
 

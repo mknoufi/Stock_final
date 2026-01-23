@@ -88,7 +88,9 @@ class TestAPIPerformance:
         assert login_response.status_code == status.HTTP_200_OK, (
             f"Login failed: {login_response.text}"
         )
-        token = login_response.json()["access_token"]
+        login_payload = login_response.json()
+        token = login_payload.get("access_token") or login_payload.get("data", {}).get("access_token")
+        assert token
         return {"Authorization": f"Bearer {token}"}
 
     @pytest.mark.skip(reason="Performance tests require full database setup - skipping for CI")

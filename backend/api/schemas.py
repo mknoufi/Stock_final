@@ -182,6 +182,7 @@ class SerialEntry(BaseModel):
 class CountLineCreate(BaseModel):
     session_id: str
     item_code: str
+    barcode: Optional[str] = None
     counted_qty: float
     damaged_qty: Optional[float] = 0
     non_returnable_damaged_qty: Optional[float] = 0

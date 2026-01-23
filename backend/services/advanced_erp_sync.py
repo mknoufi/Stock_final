@@ -281,7 +281,7 @@ class AdvancedERPSyncService:
                 bulk_operations.append(
                     {
                         "update_one": {
-                            "filter": {"item_code": item_doc["item_code"]},
+                            "filter": {"barcode": item_doc["barcode"]},
                             "update": {
                                 "$set": item_doc,
                                 "$setOnInsert": {"created_at": datetime.utcnow()},

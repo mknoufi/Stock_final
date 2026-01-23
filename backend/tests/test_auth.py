@@ -49,9 +49,10 @@ class TestLogin:
         assert response.status_code == 200
         payload = response.json()
         assert payload.get("success") is True
-        assert "access_token" in payload
-        assert "refresh_token" in payload
-        assert "user" in payload
+        token_payload = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+        assert "access_token" in token_payload
+        assert "refresh_token" in token_payload
+        assert "user" in token_payload
 
     def test_login_invalid_credentials(self, client):
         """Test login with invalid credentials"""

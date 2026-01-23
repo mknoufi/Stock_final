@@ -128,9 +128,17 @@ async def create_count_line(
     if session.get("reconciled_at"):
         raise HTTPException(status_code=400, detail="Session is in reconciliation mode")
 
-    # Get ERP item (support both async and sync mocks)
-    result_item = db.erp_items.find_one({"item_code": line_data.item_code})
-    erp_item = await result_item if inspect.isawaitable(result_item) else result_item
+    # Get ERP item - prefer barcode for exact batch identification if provided
+    erp_item = None
+    if line_data.barcode:
+        result_item = db.erp_items.find_one({"barcode": line_data.barcode})
+        erp_item = await result_item if inspect.isawaitable(result_item) else result_item
+
+    if not erp_item:
+        # Fallback to item_code
+        result_item = db.erp_items.find_one({"item_code": line_data.item_code})
+        erp_item = await result_item if inspect.isawaitable(result_item) else result_item
+
     if not erp_item:
         raise HTTPException(status_code=404, detail="Item not found in ERP")
 
@@ -161,14 +169,16 @@ async def create_count_line(
     # High-risk corrections require supervisor review
     approval_status = "NEEDS_REVIEW" if risk_flags else "PENDING"
 
-    # Check for duplicates
-    duplicate_result = db.count_lines.count_documents(
-        {
-            "session_id": line_data.session_id,
-            "item_code": line_data.item_code,
-            "counted_by": current_user["username"],
-        }
-    )
+    # Check for duplicates - now includes barcode to allow multiple batches of the same item
+    duplicate_filter = {
+        "session_id": line_data.session_id,
+        "item_code": line_data.item_code,
+        "counted_by": current_user["username"],
+    }
+    if line_data.barcode:
+        duplicate_filter["barcode"] = line_data.barcode
+
+    duplicate_result = db.count_lines.count_documents(duplicate_filter)
     duplicate_check = (
         await duplicate_result if inspect.isawaitable(duplicate_result) else duplicate_result
     )
@@ -181,8 +191,8 @@ async def create_count_line(
         "id": str(uuid.uuid4()),
         "session_id": line_data.session_id,
         "item_code": line_data.item_code,
+        "barcode": line_data.barcode or erp_item.get("barcode"),
         "item_name": erp_item["item_name"],
-        "barcode": erp_item["barcode"],
         "erp_qty": erp_item["stock_qty"],
         "counted_qty": line_data.counted_qty,
         "variance": variance,

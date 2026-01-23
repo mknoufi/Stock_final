@@ -80,6 +80,7 @@ class SessionIntegrityResponse(BaseModel):
 
 
 @router.get("/", response_model=PaginatedResponse[Session])
+@router.get("", response_model=PaginatedResponse[Session])
 async def get_sessions(
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(20, ge=1, le=100, description="Items per page"),
@@ -121,9 +122,10 @@ async def get_sessions(
     # Convert to response models
     result = []
     for session in sessions:
-        # Ensure all required fields are present
-        # Handle _id if present (pydantic might ignore it if not in model, or we should remove it)
+        # Preserve identity: use string version of '_id' if 'id' is missing
         if "_id" in session:
+            if "id" not in session:
+                session["id"] = str(session["_id"])
             del session["_id"]
         result.append(Session(**session))
 
@@ -136,6 +138,7 @@ async def get_sessions(
 
 
 @router.post("/", response_model=Session)
+@router.post("", response_model=Session)
 async def create_session(
     session_data: SessionCreate,
     db: AsyncIOMotorDatabase = Depends(get_db),

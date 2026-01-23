@@ -771,20 +771,25 @@ async def get_sessions(
     else:
         filter_query = {"staff_user": current_user["username"]}
         total = await db.sessions.count_documents(filter_query)
-        # Optimize query with projection and batch size
-        projection = {"_id": 0}
+        # Remove projection to allow id mapping
         sessions_cursor = (
-            db.sessions.find(filter_query, projection)
-            .sort("started_at", -1)
-            .skip(skip)
-            .limit(page_size)
+            db.sessions.find(filter_query).sort("started_at", -1).skip(skip).limit(page_size)
         )
         sessions_cursor.batch_size(min(page_size, 100))
 
     sessions = await sessions_cursor.to_list(page_size)
 
+    # Ensure ID stability
+    formatted_sessions = []
+    for s in sessions:
+        if "_id" in s:
+            if "id" not in s:
+                s["id"] = str(s["_id"])
+            del s["_id"]
+        formatted_sessions.append(Session(**s))
+
     return {
-        "items": [Session(**session) for session in sessions],
+        "items": formatted_sessions,
         "pagination": {
             "page": page,
             "page_size": page_size,
@@ -1062,7 +1067,11 @@ def detect_risk_flags(erp_item: dict, line_data: CountLineCreate, variance: floa
     counted_mrp = line_data.mrp_counted or erp_mrp
 
     # Calculate percentages safely
-    variance_percent = (abs(variance) / erp_qty * 100) if erp_qty > 0 else 100
+    if erp_qty > 0:
+        variance_percent = abs(variance) / erp_qty * 100
+    else:
+        variance_percent = 100 if abs(variance) > 0 else 0
+
     mrp_change_percent = ((counted_mrp - erp_mrp) / erp_mrp * 100) if erp_mrp > 0 else 0
 
     # Rule 1: Large variance
@@ -1130,8 +1139,16 @@ async def create_count_line(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # Get ERP item
-    erp_item = await db.erp_items.find_one({"item_code": line_data.item_code})
+    # Get ERP item - prefer barcode for exact batch identification if provided
+    erp_item = None
+    if line_data.barcode:
+        erp_item = await db.erp_items.find_one({"barcode": line_data.barcode})
+
+    if not erp_item:
+        # Fallback to item_code (Legacy behavior or if barcode is not provided)
+        # Search specifically for items by item_code
+        erp_item = await db.erp_items.find_one({"item_code": line_data.item_code})
+
     if not erp_item:
         raise HTTPException(status_code=404, detail="Item not found in ERP")
 
@@ -1158,14 +1175,16 @@ async def create_count_line(
     # High-risk corrections require supervisor review
     approval_status = "NEEDS_REVIEW" if risk_flags else "PENDING"
 
-    # Check for duplicates
-    duplicate_check = await db.count_lines.count_documents(
-        {
-            "session_id": line_data.session_id,
-            "item_code": line_data.item_code,
-            "counted_by": current_user["username"],
-        }
-    )
+    # Check for duplicates - now includes barcode to allow multiple batches of the same item
+    duplicate_filter = {
+        "session_id": line_data.session_id,
+        "item_code": line_data.item_code,
+        "counted_by": current_user["username"],
+    }
+    if line_data.barcode:
+        duplicate_filter["barcode"] = line_data.barcode
+
+    duplicate_check = await db.count_lines.count_documents(duplicate_filter)
     if duplicate_check > 0:
         risk_flags.append("DUPLICATE_CORRECTION")
         approval_status = "NEEDS_REVIEW"
