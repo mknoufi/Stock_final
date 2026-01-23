@@ -105,7 +105,20 @@ export default function ItemDetailScreen() {
   const [selectedMrpVariant, setSelectedMrpVariant] = useState<any>(null);
 
   // Variants with same name
-  const [sameNameVariants, setSameNameVariants] = useState<any[]>([]);
+  // Variants with same name (Batches)
+  const [rawVariants, setRawVariants] = useState<any[]>([]);
+  const [showZeroStock, setShowZeroStock] = useState(false);
+
+  const sameNameVariants = useMemo(() => {
+    if (!rawVariants.length) return [];
+    return rawVariants.filter((v: any) => {
+      // Exclude current item
+      if (v.item_code === item?.item_code && v.barcode === item?.barcode) return false;
+      // Filter by stock if not showing zero stock
+      if (!showZeroStock && (v.stock_qty || v.current_stock || 0) <= 0) return false;
+      return true;
+    });
+  }, [rawVariants, showZeroStock, item]);
 
   // Submit Delay State (FR-M-20)
   const [submitCountdown, setSubmitCountdown] = useState<number | null>(null);
@@ -227,14 +240,7 @@ export default function ItemDetailScreen() {
     const loadVariants = async () => {
       try {
         const results = await searchItems(item.item_name);
-        // Filter out current item and items with 0 stock
-        const filtered = results.items.filter(
-          (v: Item) =>
-            v.item_code !== item.item_code &&
-            v.barcode !== item.barcode &&
-            (v.stock_qty || v.current_stock || 0) > 0,
-        );
-        setSameNameVariants(filtered.slice(0, 5));
+        setRawVariants(results.items || []);
       } catch (error) {
         console.warn("Failed to load variants:", error);
       }
@@ -1037,14 +1043,42 @@ export default function ItemDetailScreen() {
                   <Ionicons name="cube" size={24} color={colors.primary[600]} />
                 </View>
                 <View style={styles.itemInfo}>
-                  <Text
-                    style={[
-                      styles.itemName,
-                      { color: semanticColors.text.primary },
-                    ]}
-                  >
-                    {item.item_name || item.name}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text
+                      style={[
+                        styles.itemName,
+                        { color: semanticColors.text.primary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {item.item_name || item.name}
+                    </Text>
+                    {item?._source && (
+                      <View
+                        style={[
+                          styles.sourceBadge,
+                          item._source === "sql"
+                            ? { backgroundColor: colors.success[100], borderColor: colors.success[400] }
+                            : item._source === "cache"
+                            ? { backgroundColor: colors.warning[100], borderColor: colors.warning[400] }
+                            : { backgroundColor: colors.primary[100], borderColor: colors.primary[400] },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.sourceBadgeText,
+                            item._source === "sql"
+                              ? { color: colors.success[700] }
+                              : item._source === "cache"
+                              ? { color: colors.warning[700] }
+                              : { color: colors.primary[700] },
+                          ]}
+                        >
+                      {item._source === "sql" ? "SQL" : item._source === "cache" ? "Cache" : "MongoDB"}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text
                     style={[
                       styles.itemCode,
@@ -1196,17 +1230,66 @@ export default function ItemDetailScreen() {
                   </View>
                 )}
 
-                {item?._source === "mongodb" && (
-                  <View style={styles.staleWarning}>
+                {item?._source && (
+                  <View
+                    style={[
+                      styles.staleWarning,
+                      item._source === "sql"
+                        ? { backgroundColor: colors.success[50], borderColor: colors.success[200] }
+                        : item._source === "cache"
+                        ? { backgroundColor: colors.warning[50], borderColor: colors.warning[200] }
+                        : { backgroundColor: colors.neutral[100], borderColor: colors.neutral[300] },
+                    ]}
+                  >
                     <Ionicons
-                      name="warning"
+                      name={
+                        item._source === "sql"
+                          ? "checkmark-circle"
+                          : item._source === "cache"
+                          ? "warning"
+                          : "cloud-outline"
+                      }
                       size={18}
-                      color={colors.warning[700]}
+                      color={
+                        item._source === "sql"
+                          ? colors.success[700]
+                          : item._source === "cache"
+                          ? colors.warning[700]
+                          : colors.neutral[700]
+                      }
                     />
                     <View style={styles.staleWarningContent}>
-                      <Text style={styles.staleWarningTitle}>ERP Offline</Text>
-                      <Text style={styles.staleWarningText}>
-                        Variance is based on a cached stock snapshot.
+                      <Text
+                        style={[
+                          styles.staleWarningTitle,
+                          item._source === "sql"
+                            ? { color: colors.success[800] }
+                            : item._source === "cache"
+                            ? { color: colors.warning[800] }
+                            : { color: colors.neutral[800] },
+                        ]}
+                      >
+                        {item._source === "sql"
+                          ? "Live SQL Data"
+                          : item._source === "cache"
+                          ? "ERP Offline"
+                          : "Primary DB"}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.staleWarningText,
+                          item._source === "sql"
+                            ? { color: colors.success[700] }
+                            : item._source === "cache"
+                            ? { color: colors.warning[700] }
+                            : { color: colors.neutral[700] },
+                        ]}
+                      >
+                        {item._source === "sql"
+                          ? "Real-time stock from SQL Server"
+                          : item._source === "cache"
+                          ? "Variance is based on a cached stock snapshot."
+                          : "Live data from MongoDB"}
                       </Text>
                     </View>
                   </View>
@@ -1311,21 +1394,53 @@ export default function ItemDetailScreen() {
                 )}
               </View>
 
-              {/* Batch History List */}
-              {sameNameVariants.length > 0 && (
+              {/* Batch/Variant Details List */}
+              {(sameNameVariants.length > 0 || rawVariants.length > 0) && (
                 <View style={styles.section}>
-                  <Text
-                    style={[
-                      styles.sectionTitle,
-                      { color: semanticColors.text.primary },
-                    ]}
-                  >
-                    Batch History
-                  </Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                    <Text
+                      style={[
+                        styles.sectionTitle,
+                        { color: semanticColors.text.primary, marginBottom: 0 },
+                      ]}
+                    >
+                      Batch Details
+                    </Text>
+                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontSize: fontSize.xs, color: semanticColors.text.secondary }}>
+                        Show 0 Qty
+                      </Text>
+                      <Switch
+                        value={showZeroStock}
+                        onValueChange={setShowZeroStock}
+                        trackColor={{ true: colors.primary[600], false: colors.neutral[200] }}
+                        thumbColor={colors.white}
+                        style={{ transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }] }}
+                      />
+                    </View>
+                  </View>
+
+                  {sameNameVariants.length === 0 && showZeroStock ? (
+                     <Text style={{ fontStyle: 'italic', color: semanticColors.text.secondary, textAlign: 'center', marginVertical: 8 }}>
+                        No other batches found.
+                     </Text>
+                  ) : null}
+
                   <View style={{ gap: spacing.sm }}>
                     {sameNameVariants.map((variant) => (
+                      <TouchableOpacity
+                        key={variant._id || variant.item_code}
+                        onPress={() => {
+                          // Switch to this item/batch
+                          setLoading(true);
+                           router.replace({
+                            pathname: "/staff/item-detail",
+                            params: { barcode: variant.barcode, sessionId }
+                          });
+                        }}
+                        activeOpacity={0.7}
+                      >
                       <ModernCard
-                        key={variant.item_code}
                         style={{ padding: spacing.sm }}
                       >
                         <View
@@ -1336,15 +1451,23 @@ export default function ItemDetailScreen() {
                             marginBottom: 4,
                           }}
                         >
-                          <Text
-                            style={{
-                              fontSize: fontSize.md,
-                              fontWeight: fontWeight.bold,
-                              color: semanticColors.text.primary,
-                            }}
-                          >
-                            {variant.batch_no || variant.item_code}
-                          </Text>
+                          <View style={{flex: 1}}>
+                            <Text
+                              style={{
+                                fontSize: fontSize.md,
+                                fontWeight: fontWeight.bold,
+                                color: semanticColors.text.primary,
+                              }}
+                            >
+                              Batch: {variant.batch_no || "N/A"}
+                            </Text>
+                            {variant.batch_no && (
+                                <Text style={{ fontSize: fontSize.xs, color: semanticColors.text.secondary }}>
+                                    {variant.item_code}
+                                </Text>
+                            )}
+                          </View>
+
                           <View
                             style={{
                               flexDirection: "row",
@@ -1430,6 +1553,7 @@ export default function ItemDetailScreen() {
                           </Text>
                         </View>
                       </ModernCard>
+                      </TouchableOpacity>
                     ))}
                   </View>
                 </View>
@@ -1957,16 +2081,15 @@ export default function ItemDetailScreen() {
                     >
                       MRP
                     </Text>
-                    {mrpVariants.length === 0 && (
-                      <Switch
-                        value={mrpEditable}
-                        onValueChange={setMrpEditable}
-                        trackColor={{
-                          false: colors.neutral[200],
-                          true: colors.primary[600],
-                        }}
-                      />
-                    )}
+                    {/* Always allow manual edit switch */}
+                    <Switch
+                      value={mrpEditable}
+                      onValueChange={setMrpEditable}
+                      trackColor={{
+                        false: colors.neutral[200],
+                        true: colors.primary[600],
+                      }}
+                    />
                   </View>
 
                   {mrpVariants.length > 0 ? (
@@ -2375,6 +2498,16 @@ const styles = StyleSheet.create({
     fontWeight: fontWeight.bold,
     color: colors.neutral[900],
     marginBottom: 2,
+  },
+  sourceBadge: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+  },
+  sourceBadgeText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
   },
   itemCode: {
     fontSize: fontSize.sm,
