@@ -1,0 +1,357 @@
+/**
+ * Dynamic Connection Manager
+ * Automatically detects and updates backend connection when ports/IPs change
+ */
+
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createLogger } from './logging';
+
+const log = createLogger('ConnectionManager');
+
+// Connection state
+interface ConnectionInfo {
+  backendUrl: string;
+  backendPort: number;
+  backendIp: string;
+  lastChecked: string;
+  isHealthy: boolean;
+}
+
+const STORAGE_KEY = 'connection_info';
+const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
+const CONNECTION_TIMEOUT = 5000; // 5 seconds
+
+class ConnectionManager {
+  private static instance: ConnectionManager;
+  private currentConnection: ConnectionInfo | null = null;
+  private healthCheckTimer: NodeJS.Timeout | null = null;
+  private listeners: ((connection: ConnectionInfo) => void)[] = [];
+
+  private constructor() {
+    this.initializeConnection();
+  }
+
+  static getInstance(): ConnectionManager {
+    if (!ConnectionManager.instance) {
+      ConnectionManager.instance = new ConnectionManager();
+    }
+    return ConnectionManager.instance;
+  }
+
+  /**
+   * Initialize connection with fallback detection
+   */
+  private async initializeConnection(): Promise<void> {
+    try {
+      // Try to load saved connection first
+      const saved = await AsyncStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        this.currentConnection = JSON.parse(saved);
+        log.info('Loaded saved connection', this.currentConnection);
+      }
+
+      // Always detect on startup to handle network changes
+      await this.detectAndSetConnection();
+      
+      // Start health monitoring
+      this.startHealthMonitoring();
+    } catch (error) {
+      log.error('Failed to initialize connection', error);
+      // Set fallback connection
+      this.setFallbackConnection();
+    }
+  }
+
+  /**
+   * Detect best available backend connection
+   */
+  private async detectAndSetConnection(): Promise<ConnectionInfo> {
+    log.info('Starting backend connection detection...');
+    
+    const candidates = this.buildConnectionCandidates();
+    const bestConnection = await this.findHealthyConnection(candidates);
+    
+    if (bestConnection) {
+      await this.setCurrentConnection(bestConnection);
+      log.info('Selected healthy connection', bestConnection);
+    } else {
+      log.warn('No healthy connections found, using fallback');
+      this.setFallbackConnection();
+    }
+
+    return this.currentConnection!;
+  }
+
+  /**
+   * Build list of potential backend connections
+   */
+  private buildConnectionCandidates(): Array<{url: string, priority: number}> {
+    const candidates: Array<{url: string, priority: number}> = [];
+    
+    // 1. Environment variable override (highest priority)
+    const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+    if (envUrl) {
+      candidates.push({ url: envUrl, priority: 10 });
+    }
+
+    // 2. Try to load from backend_port.json file
+    try {
+      const response = await fetch('http://localhost/backend_port.json');
+      if (response.ok) {
+        const portData = await response.json();
+        if (portData.url) {
+          candidates.push({ url: portData.url, priority: 8 });
+        }
+      }
+    } catch (error) {
+      log.debug('Could not load backend_port.json', error);
+    }
+
+    // 3. Platform-specific defaults
+    if (Platform.OS === 'android') {
+      // Android emulator default
+      candidates.push({ url: 'http://10.0.2.2:8001', priority: 5 });
+    }
+
+    // 4. Common development ports
+    const commonPorts = [8001, 8000, 8080, 8085, 3000, 3001];
+    const detectedIp = this.getDeviceIp();
+    
+    for (const port of commonPorts) {
+      candidates.push({ 
+        url: `http://${detectedIp}:${port}`, 
+        priority: port === 8001 ? 7 : 6 
+      });
+    }
+
+    // 5. Localhost fallback
+    candidates.push({ url: 'http://localhost:8001', priority: 3 });
+    candidates.push({ url: 'http://127.0.0.1:8001', priority: 2 });
+
+    // Remove duplicates and sort by priority
+    const unique = Array.from(
+      new Map(candidates.map(c => [c.url, c])).values()
+    ).sort((a, b) => b.priority - a.priority);
+
+    log.debug('Built connection candidates', unique);
+    return unique;
+  }
+
+  /**
+   * Get device IP for network detection
+   */
+  private getDeviceIp(): string {
+    // Try to get device's local IP
+    // This is a simplified approach - in production you might want
+    // more sophisticated network interface detection
+    return '192.168.1.2'; // Default LAN IP
+  }
+
+  /**
+   * Find first healthy connection from candidates
+   */
+  private async findHealthyConnection(
+    candidates: Array<{url: string, priority: number}>
+  ): Promise<ConnectionInfo | null> {
+    
+    for (const candidate of candidates) {
+      const isHealthy = await this.checkHealth(candidate.url);
+      if (isHealthy) {
+        const url = new URL(candidate.url);
+        return {
+          backendUrl: candidate.url,
+          backendPort: parseInt(url.port) || 8001,
+          backendIp: url.hostname,
+          lastChecked: new Date().toISOString(),
+          isHealthy: true
+        };
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Check if backend is healthy
+   */
+  private async checkHealth(url: string): Promise<boolean> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
+
+      const response = await fetch(`${url}/api/health`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'StockVerifyApp/1.0'
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeout);
+      return response.ok;
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        log.debug(`Health check failed for ${url}`, error);
+      }
+      return false;
+    }
+  }
+
+  /**
+   * Set fallback connection when no healthy backend is found
+   */
+  private setFallbackConnection(): void {
+    const fallback: ConnectionInfo = {
+      backendUrl: 'http://localhost:8001',
+      backendPort: 8001,
+      backendIp: 'localhost',
+      lastChecked: new Date().toISOString(),
+      isHealthy: false
+    };
+
+    this.currentConnection = fallback;
+    this.saveConnection(fallback);
+    this.notifyListeners(fallback);
+    
+    log.warn('Using fallback connection', fallback);
+  }
+
+  /**
+   * Set current connection and notify listeners
+   */
+  private async setCurrentConnection(connection: ConnectionInfo): Promise<void> {
+    this.currentConnection = connection;
+    await this.saveConnection(connection);
+    this.notifyListeners(connection);
+  }
+
+  /**
+   * Save connection to persistent storage
+   */
+  private async saveConnection(connection: ConnectionInfo): Promise<void> {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(connection));
+    } catch (error) {
+      log.error('Failed to save connection', error);
+    }
+  }
+
+  /**
+   * Notify all listeners of connection change
+   */
+  private notifyListeners(connection: ConnectionInfo): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(connection);
+      } catch (error) {
+        log.error('Error in connection listener', error);
+      }
+    });
+  }
+
+  /**
+   * Start periodic health monitoring
+   */
+  private startHealthMonitoring(): void {
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+    }
+
+    this.healthCheckTimer = setInterval(async () => {
+      if (this.currentConnection) {
+        const wasHealthy = this.currentConnection.isHealthy;
+        const isHealthy = await this.checkHealth(this.currentConnection.backendUrl);
+        
+        if (wasHealthy !== isHealthy) {
+          // Health status changed, update connection
+          const updatedConnection = {
+            ...this.currentConnection,
+            isHealthy,
+            lastChecked: new Date().toISOString()
+          };
+          
+          await this.setCurrentConnection(updatedConnection);
+        }
+
+        // If current connection is unhealthy, try to find new one
+        if (!isHealthy) {
+          log.info('Current connection unhealthy, re-detecting...');
+          await this.detectAndSetConnection();
+        }
+      }
+    }, HEALTH_CHECK_INTERVAL);
+  }
+
+  /**
+   * Stop health monitoring
+   */
+  public stopHealthMonitoring(): void {
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = null;
+    }
+  }
+
+  /**
+   * Get current connection info
+   */
+  public getConnection(): ConnectionInfo | null {
+    return this.currentConnection;
+  }
+
+  /**
+   * Add listener for connection changes
+   */
+  public addListener(listener: (connection: ConnectionInfo) => void): void {
+    this.listeners.push(listener);
+    
+    // Immediately notify with current connection
+    if (this.currentConnection) {
+      listener(this.currentConnection);
+    }
+  }
+
+  /**
+   * Remove listener
+   */
+  public removeListener(listener: (connection: ConnectionInfo) => void): void {
+    const index = this.listeners.indexOf(listener);
+    if (index > -1) {
+      this.listeners.splice(index, 1);
+    }
+  }
+
+  /**
+   * Manual reconnection attempt
+   */
+  public async reconnect(): Promise<ConnectionInfo> {
+    log.info('Manual reconnection requested');
+    return await this.detectAndSetConnection();
+  }
+
+  /**
+   * Force update backend URL
+   */
+  public async setBackendUrl(url: string): Promise<void> {
+    try {
+      const urlObj = new URL(url);
+      const connection: ConnectionInfo = {
+        backendUrl: url,
+        backendPort: parseInt(urlObj.port) || 8001,
+        backendIp: urlObj.hostname,
+        lastChecked: new Date().toISOString(),
+        isHealthy: await this.checkHealth(url)
+      };
+
+      await this.setCurrentConnection(connection);
+      log.info('Backend URL manually updated', connection);
+    } catch (error) {
+      log.error('Failed to set backend URL', error);
+    }
+  }
+}
+
+export default ConnectionManager;
+export type { ConnectionInfo };

@@ -3,6 +3,7 @@ API v2 Health Endpoints
 Enhanced health check endpoints with detailed service status
 """
 
+import asyncio
 from datetime import datetime
 from typing import Any
 
@@ -14,45 +15,48 @@ from backend.auth.dependencies import get_current_user_async as get_current_user
 router = APIRouter()
 
 
-def _safe_service_check(obj: Any, method: str) -> dict[str, Any]:
-    """Safely call a service check method."""
+async def _safe_service_check(obj: Any, method: str) -> dict[str, Any]:
+    """Safely call a service check method (handles both sync and async)."""
     if not obj:
         return {"status": "not_configured"}
     if not hasattr(obj, method):
         return {"status": "unknown"}
     try:
-        return getattr(obj, method)()
+        res = getattr(obj, method)()
+        if asyncio.iscoroutine(res):
+            return await res
+        return res
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 
 
-def _check_mongodb(database_health_service: Any) -> dict[str, Any]:
+async def _check_mongodb(database_health_service: Any) -> dict[str, Any]:
     """Check MongoDB health."""
-    result = _safe_service_check(database_health_service, "check_mongodb_health")
-    if "error" in result:
-        return result
+    result = await _safe_service_check(database_health_service, "check_mongo_health")
+    # Result from database_health_service.check_mongo_health already contains status and details
+    status = result.get("status", "unknown")
     return {
-        "status": "healthy" if result.get("is_running") else "unhealthy",
+        "status": status,
         "details": result,
     }
 
 
-def _check_sql_server(connection_pool: Any) -> dict[str, Any]:
+async def _check_sql_server(connection_pool: Any) -> dict[str, Any]:
     """Check SQL Server connection pool health."""
     if not connection_pool:
         return {
             "status": "not_configured",
             "message": "SQL Server connection pool not initialized",
         }
-    result = _safe_service_check(connection_pool, "check_health")
+    result = await _safe_service_check(connection_pool, "check_health")
     if "error" in result:
         return result
     return {"status": result.get("status", "unknown"), "details": result}
 
 
-def _check_cache(cache_service: Any) -> dict[str, Any]:
+async def _check_cache(cache_service: Any) -> dict[str, Any]:
     """Check cache service health."""
-    result = _safe_service_check(cache_service, "get_status")
+    result = await _safe_service_check(cache_service, "get_status")
     if "error" in result:
         return result
     return {"status": result.get("status", "unknown"), "details": result}
@@ -73,13 +77,33 @@ async def health_check_v2() -> ApiResponse[HealthCheckResponse]:
     Enhanced health check endpoint
     Returns detailed health status of all services
     """
+    return await _get_health_data()
+
+
+@router.get("/detailed", response_model=ApiResponse[HealthCheckResponse])
+async def health_check_detailed_v2(
+    current_user: Any = Depends(get_current_user),
+) -> ApiResponse[HealthCheckResponse]:
+    """
+    Detailed health check endpoint (requires authentication)
+    Returns even more internal details of services
+    """
+    return await _get_health_data()
+
+
+async def _get_health_data() -> ApiResponse[HealthCheckResponse]:
+    """Internal helper to get health data."""
     try:
-        from backend.core.lifespan import cache_service, connection_pool, database_health_service
+        from backend.core.lifespan import (
+            cache_service,
+            connection_pool,
+            database_health_service,
+        )
 
         services = {
-            "mongodb": _check_mongodb(database_health_service),
-            "sql_server": _check_sql_server(connection_pool),
-            "cache": _check_cache(cache_service),
+            "mongodb": await _check_mongodb(database_health_service),
+            "sql_server": await _check_sql_server(connection_pool),
+            "cache": await _check_cache(cache_service),
         }
 
         overall_status = _determine_overall_status(services)

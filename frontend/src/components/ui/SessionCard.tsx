@@ -42,6 +42,7 @@ interface SessionCardProps {
   id: string;
   name: string;
   location?: string;
+  barcode?: string;
   itemCount?: number;
   totalItems?: number;
   status?: SessionStatus;
@@ -71,6 +72,7 @@ export const SessionCard: React.FC<SessionCardProps> = ({
   id: _id,
   name,
   location,
+  barcode,
   itemCount = 0,
   totalItems,
   status = "active",
@@ -156,6 +158,16 @@ export const SessionCard: React.FC<SessionCardProps> = ({
                     color={modernColors.text.tertiary}
                   />
                   <Text style={styles.location}>{location}</Text>
+                </View>
+              )}
+              {barcode && (
+                <View style={styles.locationRow}>
+                  <Ionicons
+                    name="barcode-outline"
+                    size={12}
+                    color={modernColors.text.tertiary}
+                  />
+                  <Text style={styles.location}>{barcode}</Text>
                 </View>
               )}
             </View>

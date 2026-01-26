@@ -3,20 +3,17 @@
  * Clean, efficient scanning interface
  */
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
   ActivityIndicator,
-  Keyboard,
   Platform,
   Alert,
   Modal,
-  Dimensions,
   RefreshControl,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -25,7 +22,6 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import Animated, {
   FadeInDown,
-  FadeInUp,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -36,17 +32,19 @@ import Animated, {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDebounce } from "use-debounce";
 
-import { useAuthStore } from "../../src/store/authStore";
+import { useSafeAsync } from "../../src/hooks/useSafeAsync";
+import { usePerformanceMonitor } from "../../src/hooks/usePerformanceMonitor";
 import { useScanSessionStore } from "../../src/store/scanSessionStore";
+import { useWebSocket } from "../../src/hooks/useWebSocket";
 import {
   getItemByBarcode,
   searchItems,
   updateSessionStatus,
   checkItemScanStatus,
   getSessionStats,
+  SessionStatsResponse,
 } from "../../src/services/api/api";
 import { RecentItemsService } from "../../src/services/enhancedFeatures";
-import { scanDeduplicationService } from "../../src/domains/inventory/services/scanDeduplicationService";
 import { toastService } from "../../src/services/utils/toastService";
 import { localDb } from "../../src/db/localDb";
 import { validateBarcode } from "../../src/utils/validation";
@@ -55,6 +53,7 @@ import ModernHeader from "../../src/components/ui/ModernHeader";
 import ModernCard from "../../src/components/ui/ModernCard";
 import ModernButton from "../../src/components/ui/ModernButton";
 import ModernInput from "../../src/components/ui/ModernInput";
+import { SyncStatusPill } from "../../src/components/ui/SyncStatusPill";
 import {
   colors,
   spacing,
@@ -67,7 +66,7 @@ const SCAN_BUFFER_TIMEOUT = 2000; // 2 seconds
 const SCAN_BUFFER_MAX_SIZE = 10;
 const SCAN_CONFIDENCE_THRESHOLD = 2;
 
-export default function ScanScreen() {
+const ScanScreen = React.memo(function ScanScreen() {
   const router = useRouter();
   const { sessionId: rawSessionId } = useLocalSearchParams();
   const sessionId = Array.isArray(rawSessionId)
@@ -76,25 +75,40 @@ export default function ScanScreen() {
 
   const { currentFloor, currentRack } = useScanSessionStore();
   const [permission, requestPermission] = useCameraPermissions();
+  const { safeSetState, safeAsync } = useSafeAsync();
+  const {
+    metrics: performanceMetrics,
+    startMonitoring,
+    stopMonitoring,
+    performanceWarning,
+  } = usePerformanceMonitor({
+    sampleInterval: 2000,
+    performanceThreshold: 25,
+  });
+
+  // WebSocket Integration
+  const { lastMessage } = useWebSocket(String(sessionId));
 
   // State
-  const [isScanning, setIsScanning] = useState(false);
-  const [scanned, setScanned] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [isScanning, setIsScanning] = useState<boolean>(false);
+  const [scanned, setScanned] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [recentItems, setRecentItems] = useState<any[]>([]);
-  const [sessionStats, setSessionStats] = useState({
+  const [sessionStats, setSessionStats] = useState<SessionStatsResponse>({
+    id: String(sessionId ?? ""),
     scannedItems: 0,
     verifiedItems: 0,
     pendingItems: 0,
     totalItems: 0,
   });
-  const [showCloseSessionModal, setShowCloseSessionModal] = useState(false);
-  const [isFinishing, setIsFinishing] = useState(false);
+  const [showCloseSessionModal, setShowCloseSessionModal] =
+    useState<boolean>(false);
+  const [isFinishing, setIsFinishing] = useState<boolean>(false);
 
   // Animation values for scan frame
   const scanLinePosition = useSharedValue(0);
@@ -103,6 +117,78 @@ export default function ScanScreen() {
   const scanBufferRef = useRef<
     { code: string; count: number; timestamp: number }[]
   >([]);
+
+  const dedupeSearchResults = useCallback((items: any[]) => {
+    const seen = new Set<string>();
+    const unique: any[] = [];
+
+    for (const item of items) {
+      const keySource =
+        item?.item_code ?? item?.barcode ?? item?.item_name ?? item?.name;
+      if (!keySource) {
+        unique.push(item);
+        continue;
+      }
+
+      const key = String(keySource).trim().toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(item);
+    }
+
+    return unique;
+  }, []);
+
+  const loadRecentItems = useCallback(async () => {
+    try {
+      const items = await safeAsync(() => RecentItemsService.getRecentItems());
+      if (items) {
+        safeSetState(setRecentItems, items);
+      }
+    } catch (error) {
+      console.error("Failed to load recent items", error);
+    }
+  }, [safeAsync, safeSetState]);
+
+  const loadSessionStats = useCallback(async () => {
+    if (!sessionId) return;
+    try {
+      const stats = await safeAsync(() => getSessionStats(sessionId));
+      if (stats) {
+        safeSetState(setSessionStats, stats);
+      }
+    } catch (error) {
+      console.error("Failed to load stats", error);
+    }
+  }, [safeAsync, safeSetState, sessionId]);
+
+  const performSearch = useCallback(
+    async (query: string) => {
+      try {
+        const results = await safeAsync(() => searchItems(query));
+        if (results) {
+          const items = Array.isArray(results.items) ? results.items : [];
+          safeSetState(setSearchResults, dedupeSearchResults(items));
+        }
+      } catch (error) {
+        console.error("Search failed", error);
+      }
+    },
+    [dedupeSearchResults, safeAsync, safeSetState],
+  );
+
+  const loadInitialData = useCallback(async () => {
+    safeSetState(setInitialLoading, true);
+    await Promise.all([loadRecentItems(), loadSessionStats()]);
+    safeSetState(setInitialLoading, false);
+  }, [loadRecentItems, loadSessionStats, safeSetState]);
+
+  const onRefresh = useCallback(async () => {
+    safeSetState(setRefreshing, true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await Promise.all([loadRecentItems(), loadSessionStats()]);
+    safeSetState(setRefreshing, false);
+  }, [loadRecentItems, loadSessionStats, safeSetState]);
 
   // Animated scan line
   useEffect(() => {
@@ -121,7 +207,7 @@ export default function ScanScreen() {
         false,
       );
     }
-  }, [isScanning]);
+  }, [cornerOpacity, isScanning, scanLinePosition]);
 
   const animatedScanLine = useAnimatedStyle(() => ({
     transform: [{ translateY: scanLinePosition.value * 200 }],
@@ -131,23 +217,46 @@ export default function ScanScreen() {
     opacity: cornerOpacity.value,
   }));
 
+  // Handle WebSocket Messages
+  useEffect(() => {
+    if (lastMessage?.type === "session_update") {
+      const { status, reason } = lastMessage.payload;
+      
+      if (status === "PAUSED") {
+        safeSetState(setIsScanning, false);
+        Alert.alert(
+          "Session Paused",
+          reason || "A supervisor has paused this session.",
+          [{ text: "OK" }]
+        );
+      } else if (status === "CLOSED" && !isFinishing) {
+        Alert.alert(
+          "Session Closed",
+          reason || "This session has been closed.",
+          [
+            { 
+              text: "OK", 
+              onPress: () => router.replace("/staff/home") 
+            }
+          ]
+        );
+      }
+      
+      // Refresh stats on any update
+      loadSessionStats();
+    }
+  }, [isFinishing, lastMessage, loadSessionStats, router, safeSetState]);
+
   // Load initial data
   useEffect(() => {
     loadInitialData();
-  }, [sessionId]);
+  }, [loadInitialData]);
 
-  const loadInitialData = async () => {
-    setInitialLoading(true);
-    await Promise.all([loadRecentItems(), loadSessionStats()]);
-    setInitialLoading(false);
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await Promise.all([loadRecentItems(), loadSessionStats()]);
-    setRefreshing(false);
-  };
+  // Start performance monitoring when component mounts
+  useEffect(() => {
+    startMonitoring();
+    return () => stopMonitoring();
+  }, [startMonitoring, stopMonitoring]);
 
   // Load initial data (legacy - kept for compatibility)
   useEffect(() => {
@@ -157,46 +266,16 @@ export default function ScanScreen() {
     // Poll stats every 30s
     const interval = setInterval(loadSessionStats, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [loadRecentItems, loadSessionStats]);
 
-  // Search effect
+  // Search effect with proper cleanup
   useEffect(() => {
     if (debouncedSearchQuery.trim().length > 2) {
       performSearch(debouncedSearchQuery);
     } else {
-      setSearchResults([]);
+      safeSetState(setSearchResults, []);
     }
-  }, [debouncedSearchQuery]);
-
-  const loadRecentItems = async () => {
-    try {
-      const items = await RecentItemsService.getRecentItems();
-      setRecentItems(items);
-    } catch (error) {
-      console.error("Failed to load recent items", error);
-    }
-  };
-
-  const loadSessionStats = async () => {
-    if (!sessionId) return;
-    try {
-      const stats = await getSessionStats(sessionId);
-      if (stats) {
-        setSessionStats(stats);
-      }
-    } catch (error) {
-      console.error("Failed to load stats", error);
-    }
-  };
-
-  const performSearch = async (query: string) => {
-    try {
-      const results = await searchItems(query);
-      setSearchResults(results.items);
-    } catch (error) {
-      console.error("Search failed", error);
-    }
-  };
+  }, [debouncedSearchQuery, performSearch, safeSetState]);
 
   const handleBarcodeScan = async ({ data }: { data: string }) => {
     if (scanned) return;
@@ -224,6 +303,10 @@ export default function ScanScreen() {
       });
     }
 
+    if (scanBufferRef.current.length > SCAN_BUFFER_MAX_SIZE) {
+      scanBufferRef.current = scanBufferRef.current.slice(-SCAN_BUFFER_MAX_SIZE);
+    }
+
     const confident = scanBufferRef.current.find(
       (entry) => entry.count >= SCAN_CONFIDENCE_THRESHOLD,
     );
@@ -233,10 +316,10 @@ export default function ScanScreen() {
       return;
     }
 
-    setScanned(true);
+    safeSetState(setScanned, true);
     scanBufferRef.current = [];
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setIsScanning(false);
+    safeSetState(setIsScanning, false);
 
     await handleLookup(confident.code);
   };
@@ -246,35 +329,44 @@ export default function ScanScreen() {
     const validation = validateBarcode(barcode);
     if (!validation.valid) {
       Alert.alert("Invalid Barcode", validation.error || "Please try again");
-      setScanned(false);
+      safeSetState(setScanned, false);
       return;
     }
 
-    setLoading(true);
+    safeSetState(setLoading, true);
     try {
       let item: any;
+      
+      // OPTIMISTIC STRATEGY: Try Local DB first for instant response
       try {
-        item = await getItemByBarcode(validation.value!);
-      } catch (e) {
+        item = await safeAsync(() =>
+          localDb.getItemByBarcode(validation.value!),
+        );
+      } catch {
+        // Ignore local db error, fall through to API
+      }
+
+      // If not found locally, force API lookup
+      if (!item) {
         try {
-          item = await localDb.getItemByBarcode(validation.value!);
-        } catch {
-          throw e;
+          item = await safeAsync(() => getItemByBarcode(validation.value!));
+        } catch (e) {
+           throw e;
         }
       }
 
       if (item) {
-        await RecentItemsService.addRecent(item.item_code, item);
+        await safeAsync(() => RecentItemsService.addRecent(item.item_code, item));
         await loadRecentItems();
 
         // Check for duplicates
         try {
-          const scanStatus = await checkItemScanStatus(
-            sessionId!,
-            item.item_code,
+          const scanStatus = await safeAsync(() =>
+            checkItemScanStatus(sessionId!, item.item_code),
           );
-          if (scanStatus.scanned) {
-            const duplicateInLocation = scanStatus.locations.find(
+          if (scanStatus?.scanned) {
+            const locations = scanStatus.locations || [];
+            const duplicateInLocation = locations.find(
               (loc: any) =>
                 loc.floor_no === currentFloor && loc.rack_no === currentRack,
             );
@@ -283,8 +375,8 @@ export default function ScanScreen() {
               Haptics.notificationAsync(
                 Haptics.NotificationFeedbackType.Warning,
               );
-              setLoading(false);
-              setScanned(false);
+              safeSetState(setLoading, false);
+              safeSetState(setScanned, false);
               Alert.alert(
                 "Duplicate Scan",
                 `Item already counted here by ${duplicateInLocation.counted_by}.\nQty: ${duplicateInLocation.counted_qty}`,
@@ -303,14 +395,14 @@ export default function ScanScreen() {
               return;
             } else {
               toastService.show(
-                `Item found in ${scanStatus.locations.length} other location(s)`,
+                `Item found in ${locations.length} other location(s)`,
                 {
                   type: "info",
                 },
               );
             }
           }
-        } catch (e) {
+        } catch (_error) {
           // Ignore check status error
         }
 
@@ -321,13 +413,13 @@ export default function ScanScreen() {
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to lookup item");
     } finally {
-      setLoading(false);
-      setScanned(false);
+      safeSetState(setLoading, false);
+      safeSetState(setScanned, false);
     }
   };
 
   const navigateToDetail = (barcode: string) => {
-    setSearchQuery("");
+    safeSetState(setSearchQuery, "");
     router.push({
       pathname: "/staff/item-detail",
       params: { barcode, sessionId: sessionId! },
@@ -336,16 +428,16 @@ export default function ScanScreen() {
 
   const handleFinishRack = async () => {
     if (!sessionId) return;
-    setIsFinishing(true);
+    safeSetState(setIsFinishing, true);
     try {
-      await updateSessionStatus(sessionId, "closed");
+      await safeAsync(() => updateSessionStatus(sessionId, "closed"));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.replace("/staff/home");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to close session");
     } finally {
-      setIsFinishing(false);
-      setShowCloseSessionModal(false);
+      safeSetState(setIsFinishing, false);
+      safeSetState(setShowCloseSessionModal, false);
     }
   };
 
@@ -363,7 +455,7 @@ export default function ScanScreen() {
           </Text>
           <ModernButton onPress={requestPermission} title="Grant Permission" />
           <ModernButton
-            onPress={() => setIsScanning(false)}
+            onPress={() => safeSetState(setIsScanning, false)}
             title="Cancel"
             variant="outline"
             style={{ marginTop: spacing.md }}
@@ -392,7 +484,7 @@ export default function ScanScreen() {
           <SafeAreaView style={styles.cameraOverlay}>
             <View style={styles.cameraHeader}>
               <TouchableOpacity
-                onPress={() => setIsScanning(false)}
+                onPress={() => safeSetState(setIsScanning, false)}
                 style={styles.closeCameraButton}
               >
                 <Ionicons name="close" size={28} color={colors.white} />
@@ -475,6 +567,13 @@ export default function ScanScreen() {
     </View>
   );
 
+  const buildItemKey = (item: any, index: number) => {
+    const code = item?.item_code ?? "no-code";
+    const barcode = item?.barcode ?? "no-barcode";
+    const id = item?.id ?? item?._id ?? "no-id";
+    return `${code}-${barcode}-${id}-${index}`;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ModernHeader
@@ -482,6 +581,7 @@ export default function ScanScreen() {
         showBackButton
         onBackPress={() => router.back()}
         subtitle={`${currentFloor || ""} ${currentRack ? `• ${currentRack}` : ""}`}
+        rightComponent={<SyncStatusPill />}
       />
 
       <ScrollView
@@ -590,7 +690,7 @@ export default function ScanScreen() {
                 onChangeText={setSearchQuery}
                 icon="search"
                 rightIcon={searchQuery ? "close-circle" : undefined}
-                onRightIconPress={() => setSearchQuery("")}
+                onRightIconPress={() => safeSetState(setSearchQuery, "")}
                 onSubmitEditing={() => {
                   if (searchQuery.trim()) {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -607,12 +707,13 @@ export default function ScanScreen() {
                 styles.searchButton,
                 loading && styles.searchButtonDisabled,
               ]}
+              testID="scan-search-submit"
               onPress={() => {
                 if (searchQuery.trim()) {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                   handleLookup(searchQuery.trim());
                 } else {
-                  setIsScanning(true);
+                  safeSetState(setIsScanning, true);
                 }
               }}
               disabled={loading}
@@ -627,28 +728,17 @@ export default function ScanScreen() {
           </View>
 
           {searchResults.length > 0 && (
-            <View style={styles.searchResults}>
+            <View style={styles.searchResultsContainer}>
               {searchResults.map((item, index) => (
-                <TouchableOpacity
-                  key={index}
-                  style={styles.resultItem}
-                  onPress={() => handleLookup(item.barcode || item.item_code)}
-                >
-                  <Ionicons
-                    name="cube-outline"
-                    size={20}
-                    color={colors.primary[600]}
+                <React.Fragment key={buildItemKey(item, index)}>
+                  <SearchResultItem
+                    item={item}
+                    onPress={() => handleLookup(item.barcode || item.item_code)}
                   />
-                  <View style={styles.resultInfo}>
-                    <Text style={styles.resultName}>{item.item_name}</Text>
-                    <Text style={styles.resultCode}>{item.item_code}</Text>
-                  </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={colors.gray[400]}
-                  />
-                </TouchableOpacity>
+                  {index < searchResults.length - 1 && (
+                    <View style={styles.searchResultSeparator} />
+                  )}
+                </React.Fragment>
               ))}
             </View>
           )}
@@ -698,35 +788,15 @@ export default function ScanScreen() {
                 subtitle="Items you scan will appear here for quick access"
               />
             ) : (
-              // Recent Items List
-              recentItems.slice(0, 5).map((item, index) => (
-                <ModernCard
-                  key={index}
-                  style={styles.recentCard}
-                  onPress={() => handleLookup(item.barcode || item.item_code)}
-                >
-                  <View style={styles.recentRow}>
-                    <View style={styles.recentIcon}>
-                      <Ionicons
-                        name="cube-outline"
-                        size={22}
-                        color={colors.primary[600]}
-                      />
-                    </View>
-                    <View style={styles.recentInfo}>
-                      <Text style={styles.recentName} numberOfLines={1}>
-                        {item.item_name}
-                      </Text>
-                      <Text style={styles.recentCode}>{item.item_code}</Text>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color={colors.gray[400]}
-                    />
-                  </View>
-                </ModernCard>
-              ))
+              <View style={styles.recentListContainer}>
+                {recentItems.slice(0, 5).map((item, index) => (
+                  <RecentItemCard
+                    key={buildItemKey(item, index)}
+                    item={item}
+                    onPress={() => handleLookup(item.barcode || item.item_code)}
+                  />
+                ))}
+              </View>
             )}
           </Animated.View>
         )}
@@ -738,7 +808,7 @@ export default function ScanScreen() {
       <View style={styles.bottomContainer}>
         <ModernButton
           title="Finish Rack"
-          onPress={() => setShowCloseSessionModal(true)}
+          onPress={() => safeSetState(setShowCloseSessionModal, true)}
           variant="primary"
           icon="checkmark-circle"
           fullWidth
@@ -750,7 +820,7 @@ export default function ScanScreen() {
         visible={showCloseSessionModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowCloseSessionModal(false)}
+        onRequestClose={() => safeSetState(setShowCloseSessionModal, false)}
       >
         <View style={styles.modalOverlay}>
           <Animated.View
@@ -808,7 +878,7 @@ export default function ScanScreen() {
             <View style={styles.modalActions}>
               <ModernButton
                 title="Keep Scanning"
-                onPress={() => setShowCloseSessionModal(false)}
+                onPress={() => safeSetState(setShowCloseSessionModal, false)}
                 variant="outline"
                 style={{ flex: 1 }}
               />
@@ -830,9 +900,76 @@ export default function ScanScreen() {
           <ActivityIndicator size="large" color={colors.primary[600]} />
         </View>
       )}
+
+      {/* Performance Monitor Overlay */}
+      {__DEV__ && (
+        <View style={[
+          styles.performanceOverlay,
+          performanceWarning ? styles.performancePoor : styles.performanceGood
+        ]}>
+          <Text style={styles.performanceText}>
+            FPS: {performanceMetrics.fps ?? "--"}
+          </Text>
+        </View>
+      )}
     </SafeAreaView>
   );
-}
+});
+
+// Optimized Recent Item Card Component
+type RecentItemCardProps = { item: any; onPress: () => void };
+const RecentItemCard = React.memo(function RecentItemCard(
+  props: RecentItemCardProps,
+) {
+  const { item, onPress } = props;
+  return (
+    <ModernCard style={styles.recentCard} onPress={onPress}>
+      <View style={styles.recentRow}>
+        <View style={styles.recentIcon}>
+          <Ionicons name="cube-outline" size={22} color={colors.primary[600]} />
+        </View>
+        <View style={styles.recentInfo}>
+          <Text style={styles.recentName} numberOfLines={1}>
+            {item.item_name}
+          </Text>
+          <Text style={styles.recentCode}>{item.item_code}</Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={20}
+          color={colors.gray[400]}
+        />
+      </View>
+    </ModernCard>
+  );
+});
+
+// Optimized Search Result Item Component
+type SearchResultItemProps = { item: any; onPress: () => void };
+const SearchResultItem = React.memo(function SearchResultItem(
+  props: SearchResultItemProps,
+) {
+  const { item, onPress } = props;
+  return (
+    <TouchableOpacity style={styles.resultItem} onPress={onPress} activeOpacity={0.7}>
+      <Ionicons name="cube-outline" size={20} color={colors.primary[600]} />
+      <View style={styles.resultInfo}>
+        <Text style={styles.resultName}>{item.item_name}</Text>
+        <Text style={styles.resultCode}>{item.item_code}</Text>
+      </View>
+      <Ionicons
+        name="chevron-forward"
+        size={20}
+        color={colors.gray[400]}
+      />
+    </TouchableOpacity>
+  );
+});
+
+RecentItemCard.displayName = "RecentItemCard";
+SearchResultItem.displayName = "SearchResultItem";
+
+export default ScanScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -914,6 +1051,13 @@ const styles = StyleSheet.create({
     zIndex: 200,
     elevation: 10,
   },
+  searchResultsContainer: {
+    paddingVertical: spacing.xs,
+  },
+  searchResultSeparator: {
+    height: 1,
+    backgroundColor: colors.gray[100],
+  },
   resultItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -942,6 +1086,9 @@ const styles = StyleSheet.create({
   },
   recentSection: {
     marginBottom: spacing.lg,
+  },
+  recentListContainer: {
+    paddingBottom: spacing.md,
   },
   sectionTitle: {
     fontSize: typography.fontSize.sm,
@@ -1232,5 +1379,27 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,
+  },
+  performanceOverlay: {
+    position: "absolute",
+    top: 60,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: borderRadius.md,
+    zIndex: 1001,
+  },
+  performanceText: {
+    color: colors.white,
+    fontSize: typography.fontSize.xs,
+    fontWeight: "600",
+    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+  },
+  performanceGood: {
+    backgroundColor: "rgba(34,197,94,0.8)",
+  },
+  performancePoor: {
+    backgroundColor: "rgba(239,68,68,0.8)",
   },
 });

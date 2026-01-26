@@ -44,7 +44,7 @@ interface SwipeCardProps {
   onSwipeComplete?: (direction: "left" | "right") => void;
 }
 
-export const SwipeCard: React.FC<SwipeCardProps> = ({
+const SwipeCard: React.FC<SwipeCardProps> = ({
   children,
   leftActions = [],
   rightActions = [],
@@ -256,4 +256,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default SwipeCard;
+export { SwipeCard, SwipeAction, SwipeCardProps };

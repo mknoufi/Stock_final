@@ -28,7 +28,11 @@ import {
   startOfflineQueue,
   stopOfflineQueue,
 } from "../src/services/offlineQueue";
-import apiClient from "../src/services/httpClient";
+import {
+  startSyncService,
+  stopSyncService
+} from "../src/services/offline/syncService";
+import apiClient, { updateBaseURL } from "../src/services/httpClient";
 import { initSentry } from "../src/services/sentry";
 import { mmkvStorage } from "../src/services/mmkvStorage";
 import { AuthGuard } from "../src/components/auth/AuthGuard";
@@ -182,7 +186,9 @@ export default function RootLayout() {
 
         // Initialize backend URL discovery first with timeout
         try {
-          const backendUrlPromise = initializeBackendURL();
+          const backendUrlPromise = initializeBackendURL().then((url) => {
+            if (url) updateBaseURL(url);
+          });
           const timeoutPromise = new Promise((_, reject) =>
             setTimeout(
               () => reject(new Error("Backend URL initialization timeout")),
@@ -274,6 +280,7 @@ export default function RootLayout() {
           // Start offline queue (if enabled) after listeners are ready
           try {
             startOfflineQueue(apiClient);
+            startSyncService();
           } catch (e) {
             if (__DEV__) {
               console.warn("Offline queue start failed:", e);
@@ -284,9 +291,10 @@ export default function RootLayout() {
           cleanupRef.current.push(() => {
             networkUnsubscribe();
             syncService.cleanup();
+            stopSyncService();
             try {
               stopOfflineQueue();
-            } catch {}
+            } catch { }
           });
         }
 

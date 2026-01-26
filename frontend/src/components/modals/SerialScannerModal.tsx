@@ -4,7 +4,7 @@
  * Auto-increments quantity when new serials are scanned
  */
 import React, { useRef, useCallback, useState } from "react";
-import { View, Text, TouchableOpacity, Modal, StyleSheet, TextInput, Keyboard, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TouchableOpacity, Modal, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from "react-native";
 import { CameraView } from "expo-camera";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";

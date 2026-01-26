@@ -16,7 +16,7 @@ def register_and_login():
 
     try:
         # Register
-        requests.post(f"{BASE_URL}/api/auth/register", json=register_data)
+        requests.post(f"{BASE_URL}/api/auth/register", json=register_data, timeout=30)
         # We don't check status here strictly because it might already exist (if re-run)
 
         # Login
@@ -24,6 +24,7 @@ def register_and_login():
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
             json={"username": "staff1", "password": "password123"},
+            timeout=30,
         )
         response.raise_for_status()
         data = response.json()
@@ -59,7 +60,7 @@ def test_get_warehouses():
 
     # Test 1: No zone
     try:
-        response = requests.get(f"{BASE_URL}/api/locations/warehouses", headers=headers)
+        response = requests.get(f"{BASE_URL}/api/locations/warehouses", headers=headers, timeout=30)
         response.raise_for_status()
         print("✅ [PASS] Fetch all warehouses success")
     except Exception as e:
@@ -79,6 +80,7 @@ def test_get_warehouses():
             f"{BASE_URL}/api/locations/warehouses",
             params={"zone": zone},
             headers=headers,
+            timeout=30,
         )
 
         response.raise_for_status()

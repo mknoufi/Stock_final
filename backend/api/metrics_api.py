@@ -57,13 +57,13 @@ async def get_metrics_json():
 @metrics_router.get("/health")
 async def get_health_metrics():
     """Get health status metrics with database status"""
-    db = get_db()
+    from backend.core.globals import database_health_service
 
     health_data = {
         "status": "healthy",
         "uptime": 0,
         "mongodb": {"status": "unknown"},
-        "dependencies": {"sql_server": {"status": "disabled"}},
+        "dependencies": {"sql_server": {"status": "unknown"}},
     }
 
     # Get monitoring service health if available
@@ -71,13 +71,25 @@ async def get_health_metrics():
         monitoring_health = _monitoring_service.get_health()
         health_data.update(monitoring_health)
 
-    # Check MongoDB
-    try:
-        await db.command("ping")
-        health_data["mongodb"] = {"status": "connected"}
-    except Exception as e:
-        health_data["mongodb"] = {"status": "disconnected", "error": str(e)}
-        health_data["status"] = "degraded"
+    # Get database health if available
+    if database_health_service:
+        db_status = database_health_service.get_status()
+
+        # Update MongoDB status
+        mongo_info = db_status.get("mongo", {})
+        health_data["mongodb"] = {
+            "status": "connected" if mongo_info.get("status") == "healthy" else "disconnected",
+            "response_time": mongo_info.get("response_time"),
+            "error": mongo_info.get("error")
+        }
+
+        # Update SQL Server status in dependencies
+        sql_info = db_status.get("sql_server", {})
+        health_data["dependencies"]["sql_server"] = sql_info
+
+        # Update overall status if DB is unhealthy
+        if db_status.get("overall") != "healthy":
+            health_data["status"] = db_status.get("overall")
 
     return {"success": True, "data": health_data}
 

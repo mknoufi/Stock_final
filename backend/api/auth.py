@@ -1,7 +1,7 @@
 import logging
 import os
 from datetime import datetime, timedelta
-from typing import Any, Optional, cast
+from typing import Any, Dict, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 
@@ -211,7 +211,7 @@ async def register(user: UserRegister):
 
         # Create user
         hashed_password = get_password_hash(user.password)
-        user_dict = {
+        user_dict: Dict[str, Any] = {
             "username": user.username,
             "hashed_password": hashed_password,
             "full_name": user.full_name,

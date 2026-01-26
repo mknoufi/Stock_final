@@ -211,6 +211,11 @@ class CountLineCreate(BaseModel):
     subcategory_correction: Optional[str] = None
 
 
+class BulkCountLineUpdate(BaseModel):
+    count_line_ids: list[str]
+    notes: Optional[str] = None
+
+
 class Session(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     warehouse: str
@@ -224,6 +229,7 @@ class Session(BaseModel):
     total_items: int = 0
     total_variance: float = 0
     notes: Optional[str] = None
+    barcode: Optional[str] = None
 
     @field_validator("status", mode="before")
     @classmethod

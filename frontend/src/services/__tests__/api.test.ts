@@ -5,6 +5,7 @@
 
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
 import { isOnline } from "../api/api";
+import apiClient from "../httpClient";
 import { useNetworkStore } from "../../store/networkStore";
 
 // Mock dependencies
@@ -19,6 +20,7 @@ jest.mock("../../store/networkStore", () => ({
 }));
 
 jest.mock("../httpClient", () => ({
+  __esModule: true,
   default: {
     get: jest.fn(),
     post: jest.fn(),
@@ -95,7 +97,7 @@ describe("API Service - Network Detection", () => {
 });
 
 describe("API Service - getSessionStats", () => {
-  const mockHttpClient = require("../httpClient").default;
+  const mockHttpClient = apiClient as jest.Mocked<typeof apiClient>;
 
   beforeEach(() => {
     jest.clearAllMocks();

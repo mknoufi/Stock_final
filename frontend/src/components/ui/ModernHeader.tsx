@@ -9,14 +9,15 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   ViewStyle,
   Image,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "../../store/authStore";
+import { useRouter } from "expo-router";
 
 import {
   colors,
@@ -36,6 +37,7 @@ interface ModernHeaderProps {
     icon: keyof typeof Ionicons.glyphMap;
     onPress: () => void;
   };
+  showSettingsButton?: boolean;
   subtitle?: string;
   style?: ViewStyle;
 }
@@ -80,10 +82,24 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
   onBackPress,
   rightComponent,
   rightAction,
+  showSettingsButton = true,
   subtitle,
   style,
 }) => {
   const { user } = useAuthStore();
+  const router = useRouter();
+
+  const shouldShowSettings =
+    !!user && showSettingsButton && rightAction?.icon !== "settings-outline";
+
+  const onPressSettings = () => {
+    const role = user?.role;
+    const target =
+      role === "admin" || role === "supervisor" || role === "staff"
+        ? `/${role}/settings`
+        : "/staff/settings";
+    router.push(target as any);
+  };
 
   return (
     <SafeAreaView style={[styles.safeArea, style]}>
@@ -140,6 +156,15 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
         {/* Right Section */}
         <View style={styles.rightSection}>
           {rightComponent}
+          {shouldShowSettings && (
+            <TouchableOpacity
+              onPress={onPressSettings}
+              style={styles.backButton}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="settings-outline" size={24} color={colors.gray[700]} />
+            </TouchableOpacity>
+          )}
           {rightAction && (
             <TouchableOpacity
               onPress={rightAction.onPress}
@@ -188,6 +213,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "flex-end",
     justifyContent: "center",
+    flexDirection: "row",
   },
   backButton: {
     padding: spacing.xs,

@@ -36,21 +36,15 @@ function Get-CurrentBranch {
     $specsDir = Join-Path $repoRoot "specs"
 
     if (Test-Path $specsDir) {
-        $latestFeature = ""
-        $highest = 0
+        $latest = Get-ChildItem -Path $specsDir -Directory |
+            Where-Object { $_.Name -match '^(\d{3})-' } |
+            Sort-Object {
+                if ($_.Name -match '^(\d{3})-') { [int]$matches[1] } else { 0 }
+            } -Descending |
+            Select-Object -First 1
 
-        Get-ChildItem -Path $specsDir -Directory | ForEach-Object {
-            if ($_.Name -match '^(\d{3})-') {
-                $num = [int]$matches[1]
-                if ($num -gt $highest) {
-                    $highest = $num
-                    $latestFeature = $_.Name
-                }
-            }
-        }
-
-        if ($latestFeature) {
-            return $latestFeature
+        if ($latest) {
+            return $latest.Name
         }
     }
 

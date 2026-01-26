@@ -77,6 +77,7 @@ def _setup_cors(app: FastAPI) -> None:
             "Content-Language",
             "Content-Type",
             "Authorization",
+            "X-Device-ID",
             "X-Requested-With",
             "X-Request-ID",
         ],
@@ -93,7 +94,7 @@ def _setup_security_headers(app: FastAPI) -> None:
         force_https = os.getenv("FORCE_HTTPS", "false").lower() == "true"
 
         app.add_middleware(
-            SecurityHeadersMiddleware,
+            SecurityHeadersMiddleware,  # type: ignore[arg-type]
             STRICT_CSP=strict_csp,
             force_https=force_https,
         )

@@ -87,9 +87,10 @@ async def websocket_endpoint(
         await websocket.close(code=1008)
         return
 
-    # T076: Restrict WebSocket updates to Supervisors only
+    # T076: Restrict WebSocket updates to Supervisors and Staff (User)
     role = payload.get("role", "").lower()
-    if role != "supervisor":
+    # "user" is the default role for staff in our system (SessionCreate uses "staff", but auth might use "user" or "staff" depending on registration)
+    if role not in ["supervisor", "staff", "user", "admin"]:
         logger.warning(
             f"WebSocket connection rejected for user {user_id}: Role '{role}' is not 'supervisor'"
         )

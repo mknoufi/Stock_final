@@ -26,6 +26,26 @@ export const LogoutButton: React.FC<LogoutButtonProps> = ({
   const router = useRouter();
 
   const handleLogout = () => {
+    if (typeof window !== "undefined" && window.confirm) {
+      const confirmed = window.confirm(
+        `${user?.full_name || "User"}, are you sure you want to logout?`,
+      );
+      if (!confirmed) return;
+      setIsLoggingOut(true);
+      logout()
+        .then(() => {
+          router.replace("/welcome" as any);
+        })
+        .catch((error) => {
+          console.error("Logout error:", error);
+          Alert.alert("Error", "Failed to logout. Please try again.");
+        })
+        .finally(() => {
+          setIsLoggingOut(false);
+        });
+      return;
+    }
+
     Alert.alert(
       "Confirm Logout",
       `${user?.full_name || "User"}, are you sure you want to logout?`,
@@ -41,7 +61,7 @@ export const LogoutButton: React.FC<LogoutButtonProps> = ({
             try {
               setIsLoggingOut(true);
               await logout();
-              router.replace("/");
+              router.replace("/welcome" as any);
             } catch (error) {
               console.error("Logout error:", error);
               Alert.alert("Error", "Failed to logout. Please try again.");

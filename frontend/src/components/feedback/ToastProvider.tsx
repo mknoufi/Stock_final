@@ -44,7 +44,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   return (
     <>
       {children}
-      <View style={[styles.container, { pointerEvents: "box-none" as const }]}>
+      <View style={styles.container} pointerEvents="box-none">
         {toasts.slice(-3).map((toast) => (
           <View key={toast.id} style={styles.toastWrapper}>
             <Toast

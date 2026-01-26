@@ -36,7 +36,7 @@ export const StaffCrashScreen: React.FC<StaffCrashScreenProps> = ({
 
   const handleLogout = () => {
     resetError();
-    router.replace("/login");
+    router.replace("/welcome" as any);
   };
 
   return (

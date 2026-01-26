@@ -10,7 +10,7 @@
 
 | Category | Status | Progress |
 |----------|--------|----------|
-| Code Quality & Testing | ✅ Ready | 95% |
+| Code Quality & Testing | Partial | 70% |
 | Security | ⚠️ Needs Config | 80% |
 | Infrastructure | ⚠️ Needs Setup | 60% |
 | Documentation | ✅ Ready | 100% |
@@ -28,28 +28,27 @@
 ## 1️⃣ Code Quality & Testing
 
 ### Backend Testing
-- [x] All 142 tests passing
-- [x] Test coverage >85%
-- [x] Integration tests included
-- [x] Error handling tested
+- [x] Pytest suite configured (`backend/pytest.ini`)
+- [ ] Full pytest run completed (`python -m pytest`)
+- [ ] Coverage >=80% verified (gate is enforced in pytest config)
+- [ ] Integration tests completed (requires MongoDB/Redis/SQL Server)
 - [ ] Load testing completed (recommended)
 - [ ] Security penetration testing (recommended)
 
 ### Frontend Testing
-- [x] Build completes successfully
-- [x] TypeScript compilation passes
-- [x] ESLint passes
-- [ ] E2E tests created (optional)
+- [x] `npm run ci` passes (lint, typecheck, jest)
+- [ ] E2E tests created (Maestro flows not yet defined)
 - [ ] Visual regression tests (optional)
 
 ### Code Quality
-- [x] Black formatting applied
-- [x] Ruff linting passes
-- [x] MyPy type checking (warnings only)
-- [x] Prettier formatting applied
-- [x] No critical security vulnerabilities (Trivy scan)
+- [ ] Black formatting verified
+- [ ] Ruff linting verified
+- [ ] MyPy type checking verified
+- [ ] Prettier formatting verified
+- [ ] Security vulnerability scan verified (Trivy or equivalent)
 
 **Action Items:**
+- [ ] Run test suites per `docs/TESTING_GUIDE.md`
 - [ ] Run load testing: `locust -f tests/load_test.py`
 - [ ] Schedule penetration test with security team
 
@@ -124,6 +123,7 @@ sudo ufw enable
 - [ ] **CRITICAL**: MongoDB installed and configured
 - [ ] **CRITICAL**: Database authentication enabled
 - [ ] **CRITICAL**: Database backups configured
+- [ ] SQL Server connectivity verified (required for ERP batch listing)
 - [ ] Replica set configured (HA)
 - [ ] Indexes created (automatic via migrations)
 - [ ] Database firewall rules configured

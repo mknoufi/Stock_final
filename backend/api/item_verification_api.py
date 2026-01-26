@@ -151,8 +151,16 @@ async def update_item_master(
                 )
 
         # Use the actual item_code and barcode for updates and logging
-        actual_barcode = item.get("barcode", barcode)
-        actual_item_code = item.get("item_code")
+        actual_barcode = item.get("barcode")
+        actual_item_code = item.get("item_code") or barcode
+
+        update_filter: dict[str, Any]
+        if actual_item_code:
+            update_filter = {"item_code": actual_item_code}
+        elif actual_barcode:
+            update_filter = {"barcode": actual_barcode}
+        else:
+            update_filter = {"barcode": barcode}
 
         update_doc = {
             "$set": {
@@ -172,11 +180,12 @@ async def update_item_master(
         if request.uom is not None:
             update_doc["$set"]["uom"] = request.uom
 
-        await db.erp_items.update_one({"barcode": actual_barcode}, update_doc)
+        await db.erp_items.update_one(update_filter, update_doc)
 
         # Invalidate cache for this item
         if cache_service:
-            await cache_service.delete_async("items", f"enhanced_{actual_barcode}")
+            if actual_barcode:
+                await cache_service.delete_async("items", f"enhanced_{actual_barcode}")
             if actual_item_code:
                 await cache_service.delete_async("items", f"enhanced_{actual_item_code}")
 
@@ -185,7 +194,7 @@ async def update_item_master(
             {
                 "action": "MASTER_UPDATE",
                 "item_code": actual_item_code,
-                "barcode": actual_barcode,
+                "barcode": actual_barcode or barcode,
                 "changes": request.model_dump(exclude_none=True),
                 "user": current_user["username"],
                 "timestamp": datetime.utcnow(),
@@ -310,17 +319,26 @@ async def verify_item(
                     status_code=404, detail=f"Item with barcode/code {barcode} not found"
                 )
 
-        actual_barcode = item.get("barcode", barcode)
-        actual_item_code = item.get("item_code")
+        actual_barcode = item.get("barcode")
+        actual_item_code = item.get("item_code") or barcode
+
+        update_filter: dict[str, Any]
+        if actual_item_code:
+            update_filter = {"item_code": actual_item_code}
+        elif actual_barcode:
+            update_filter = {"barcode": actual_barcode}
+        else:
+            update_filter = {"barcode": barcode}
 
         variance = _calculate_variance(request, item.get("stock_qty", 0.0))
         update_doc = _build_item_update_doc(request, current_user, item)
 
-        await db.erp_items.update_one({"barcode": actual_barcode}, update_doc)
+        await db.erp_items.update_one(update_filter, update_doc)
 
         # Invalidate cache for this item
         if cache_service:
-            await cache_service.delete_async("items", f"enhanced_{actual_barcode}")
+            if actual_barcode:
+                await cache_service.delete_async("items", f"enhanced_{actual_barcode}")
             if actual_item_code:
                 await cache_service.delete_async("items", f"enhanced_{actual_item_code}")
 
@@ -336,7 +354,12 @@ async def verify_item(
         if variance is not None and variance != 0:
             await db.item_variances.insert_one(verification_log)
 
-        updated_item = await db.erp_items.find_one({"barcode": actual_barcode})
+        updated_item = await db.erp_items.find_one(update_filter)
+        if not updated_item and actual_barcode:
+            updated_item = await db.erp_items.find_one({"barcode": actual_barcode})
+        if not updated_item:
+            raise HTTPException(status_code=500, detail="Verification updated item not found")
+
         updated_item["_id"] = str(updated_item["_id"])
 
         return {
@@ -344,7 +367,7 @@ async def verify_item(
             "item": updated_item,
             "variance": variance,
             "message": (
-                f"Item {actual_barcode} marked as {'verified' if request.verified else 'unverified'}"
+                f"Item {actual_item_code} marked as {'verified' if request.verified else 'unverified'}"
             ),
         }
 

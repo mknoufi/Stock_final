@@ -223,6 +223,18 @@ export const localDb = {
     );
   },
 
+  async getPendingCountLines(): Promise<PendingCountLine[]> {
+    const db = await getDb();
+    return await db.getAllAsync<PendingCountLine>(
+      "SELECT * FROM pending_count_lines",
+    );
+  },
+
+  async deletePendingCountLine(id: number): Promise<void> {
+    const db = await getDb();
+    await db.runAsync("DELETE FROM pending_count_lines WHERE id = ?", [id]);
+  },
+
   /**
    * Get session statistics from local database.
    * Returns counts of scanned, verified, and pending items for a session.

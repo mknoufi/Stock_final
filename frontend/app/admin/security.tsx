@@ -23,8 +23,6 @@ import {
   getFailedLogins,
   getSuspiciousActivity,
   getSecuritySessions,
-  getSecurityAuditLog,
-  getIpTracking,
 } from "../../src/services/api";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 
@@ -41,8 +39,6 @@ export default function SecurityScreen() {
   const [failedLogins, setFailedLogins] = useState<any[]>([]);
   const [suspiciousActivity, setSuspiciousActivity] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
-  const [auditLog, setAuditLog] = useState<any[]>([]);
-  const [ipTracking, setIpTracking] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<
     "summary" | "failed" | "suspicious" | "sessions" | "audit" | "ips"
   >("summary");
@@ -77,23 +73,17 @@ export default function SecurityScreen() {
         failedRes,
         suspiciousRes,
         sessionsRes,
-        auditRes,
-        ipRes,
       ] = await Promise.allSettled([
         getSecuritySummary(),
         getFailedLogins(50, 24).catch(() => ({ success: false, data: { failed_logins: [] } })),
         getSuspiciousActivity(24).catch(() => ({ success: false, data: null })),
         getSecuritySessions(50, false).catch(() => ({ success: false, data: { sessions: [] } })),
-        getSecurityAuditLog(50, 24).catch(() => ({ success: false, data: { audit_logs: [] } })),
-        getIpTracking(24).catch(() => ({ success: false, data: { ip_tracking: [] } })),
       ]);
 
       if (summaryRes.status === "fulfilled" && summaryRes.value.success) setSummary(summaryRes.value.data);
       if (failedRes.status === "fulfilled" && failedRes.value.success) setFailedLogins(failedRes.value.data?.failed_logins || []);
       if (suspiciousRes.status === "fulfilled" && suspiciousRes.value.success) setSuspiciousActivity(suspiciousRes.value.data);
       if (sessionsRes.status === "fulfilled" && sessionsRes.value.success) setSessions(sessionsRes.value.data?.sessions || []);
-      if (auditRes.status === "fulfilled" && auditRes.value.success) setAuditLog(auditRes.value.data?.audit_logs || []);
-      if (ipRes.status === "fulfilled" && ipRes.value.success) setIpTracking(ipRes.value.data?.ip_tracking || []);
 
       setLastUpdate(new Date());
     } catch (error: any) {
@@ -263,6 +253,7 @@ export default function SecurityScreen() {
     <ScreenContainer
       backgroundType="aurora"
       auroraVariant="dark"
+      loading={loading}
       header={{
         title: "Security Monitoring",
         subtitle: `Vault Status: SECURE • Last Audit: ${lastUpdate.toLocaleTimeString()}`,

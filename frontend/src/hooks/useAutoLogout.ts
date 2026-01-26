@@ -49,9 +49,9 @@ export const useAutoLogout = (enabled: boolean = true) => {
         [
           {
             text: "OK",
-            onPress: () => {
-              logout();
-              router.replace("/");
+            onPress: async () => {
+              await logout();
+              router.replace("/welcome" as any);
             },
           },
         ],
@@ -72,8 +72,9 @@ export const useAutoLogout = (enabled: boolean = true) => {
         // Check if timeout exceeded while app was in background
         const elapsed = Date.now() - lastActivityRef.current;
         if (elapsed > INACTIVITY_TIMEOUT) {
-          logout();
-          router.replace("/");
+          logout().finally(() => {
+            router.replace("/welcome" as any);
+          });
         } else {
           resetTimer();
         }

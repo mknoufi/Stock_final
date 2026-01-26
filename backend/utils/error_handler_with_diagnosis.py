@@ -245,9 +245,7 @@ class SelfDiagnosingErrorHandler:
                     return True  # Suppress exception
 
     async def execute(
-        self, 
-        func_or_coro: Any, 
-        context: dict[str, Optional[Any]] = None
+        self, func_or_coro: Any, context: dict[str, Optional[Any]] = None
     ) -> Result[Any, Exception]:
         """
         Execute coroutine or coroutine factory with auto-diagnosis.
@@ -260,10 +258,10 @@ class SelfDiagnosingErrorHandler:
         if asyncio.iscoroutine(func_or_coro):
             coro = func_or_coro
         elif callable(func_or_coro):
-             is_factory = True
-             coro = func_or_coro()
+            is_factory = True
+            coro = func_or_coro()
         else:
-             coro = func_or_coro
+            coro = func_or_coro
 
         try:
             result = await coro
@@ -275,7 +273,9 @@ class SelfDiagnosingErrorHandler:
             # Attempt auto-fix if enabled
             if self.auto_fix and diagnosis.auto_fixable:
                 if not is_factory:
-                    logger.warning("Cannot retry auto-fixed operation: input was a coroutine object, not a factory.")
+                    logger.warning(
+                        "Cannot retry auto-fixed operation: input was a coroutine object, not a factory."
+                    )
                     return Result.error(e, diagnosis.root_cause)
 
                 fix_result = await self.diagnosis_service.auto_fix_error(diagnosis, context)

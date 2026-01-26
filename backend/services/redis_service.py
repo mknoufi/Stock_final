@@ -67,7 +67,7 @@ class RedisService:
             )
 
         except Exception as e:
-            logger.error(f"Failed to connect to Redis: {str(e)}")
+            logger.warning(f"Failed to connect to Redis: {str(e)}")
             self._is_connected = False
             raise
 

@@ -4,6 +4,7 @@ caching, validation, and performance monitoring
 """
 
 import logging
+import asyncio
 import re
 import time
 from datetime import datetime
@@ -122,8 +123,9 @@ async def get_item_by_barcode_enhanced(
                     # OR await it if we want guaranteed freshness.
                     # Given the requirement "on one item selecting the qty
                     # is updated with sql server", await for guaranteed freshness.
-                    synced_item = await sql_sync_service.sync_single_item_by_barcode(
-                        normalized_barcode
+                    synced_item = await asyncio.wait_for(
+                        sql_sync_service.sync_single_item_by_barcode(normalized_barcode),
+                        timeout=3,
                     )
                     if synced_item:
                         # If sync found and updated the item, use it directly
@@ -133,6 +135,11 @@ async def get_item_by_barcode_enhanced(
                     else:
                         # Fallback if sync didn't find item (SQL down or not in SQL)
                         item_data, source = await _fetch_with_fallback_strategy(normalized_barcode)
+                except asyncio.TimeoutError:
+                    logger.warning(
+                        f"Real-time SQL sync timed out for {normalized_barcode}; using fallback"
+                    )
+                    item_data, source = await _fetch_with_fallback_strategy(normalized_barcode)
                 except Exception as e:
                     logger.warning(f"Real-time SQL sync failed for {normalized_barcode}: {e}")
                     item_data, source = await _fetch_with_fallback_strategy(normalized_barcode)

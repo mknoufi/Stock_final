@@ -46,6 +46,12 @@ def test_safe_date_str():
     assert _safe_date_str(None) is None
     assert _safe_date_str("invalid") == "invalid"  # Should return string as is if not date/datetime
 
+    class Unprintable:
+        def __str__(self):
+            raise ValueError("fail")
+
+    assert _safe_date_str(Unprintable()) is None
+
 
 def test_get_barcode_variations():
     assert _get_barcode_variations("123") == ["123", "000123"]
@@ -71,6 +77,15 @@ def test_get_barcode_variations():
     # 2. len >= 6
     # 3. len != 6 -> trim -> "1234567". len > 6 -> skip
     # Result: ["1234567"]
+    assert _get_barcode_variations("1234567") == ["1234567"]
+
+    # "0012345": len 7.
+    # 1. ["0012345"]
+    # 2. len >= 6
+    # 3. Trim -> "12345". len 5 <= 6.
+    # 4. Padded trimmed -> "012345".
+    # 5. "012345" != "0012345". Append.
+    assert _get_barcode_variations("0012345") == ["0012345", "012345"]
 
 
 def test_map_erp_item_to_schema():

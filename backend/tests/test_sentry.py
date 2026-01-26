@@ -26,11 +26,11 @@ class TestSentryConfiguration:
         assert settings.SENTRY_DSN == dsn
 
     def test_sentry_environment_default(self):
-        """SENTRY_ENVIRONMENT defaults to None"""
+        """SENTRY_ENVIRONMENT defaults to 'development'"""
         from backend.config import Settings
 
         settings = Settings(JWT_SECRET="test-secret")
-        assert settings.SENTRY_ENVIRONMENT is None
+        assert settings.SENTRY_ENVIRONMENT == "development"
 
     def test_sentry_traces_sample_rate_default(self):
         """SENTRY_TRACES_SAMPLE_RATE defaults to 0.1"""

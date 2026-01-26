@@ -129,8 +129,8 @@ python3 -c "import secrets; print('JWT_SECRET=' + secrets.token_urlsafe(64))"
 python3 -c "import secrets; print('JWT_REFRESH_SECRET=' + secrets.token_urlsafe(64))"
 
 # Store in environment file (NEVER commit to git)
-echo "JWT_SECRET=<generated_secret>" >> .env.production
-echo "JWT_REFRESH_SECRET=<generated_secret>" >> .env.production
+echo "JWT_SECRET=<generated_secret>" >> .env.prod
+echo "JWT_REFRESH_SECRET=<generated_secret>" >> .env.prod
 ```
 
 ### 3. Database Security
@@ -192,7 +192,7 @@ Already configured in `nginx/nginx.conf`:
 
 ### 6. Rate Limiting
 
-Configure in `.env.production`:
+Configure in `.env.prod`:
 ```bash
 RATE_LIMIT_ENABLED=true
 RATE_LIMIT_PER_MINUTE=60
@@ -206,7 +206,7 @@ MAX_CONCURRENT=100
 
 ### Production Environment File
 
-Create `.env.production` in the backend directory:
+Create `.env.prod` at the repository root (used by `docker-compose.prod.yml`):
 
 ```bash
 # ========================================
@@ -283,11 +283,11 @@ BACKUP_RETENTION_DAYS=30
 
 ### Frontend Environment
 
-Create `.env.production` in the frontend directory:
+Set Expo web build variables in `.env.prod`:
 
 ```bash
-EXPO_PUBLIC_API_URL=https://api.yourdomain.com
-EXPO_PUBLIC_ENVIRONMENT=production
+EXPO_PUBLIC_BACKEND_URL=https://api.yourdomain.com
+EXPO_PUBLIC_API_TIMEOUT=10000
 EXPO_PUBLIC_SENTRY_DSN=<sentry_dsn>
 ```
 
@@ -359,6 +359,8 @@ sudo systemctl enable redis-server
 
 ### Option 1: Docker Compose (Recommended for Single Server)
 
+Use `docker-compose.prod.yml` with the root `.env.prod` file for production.
+
 #### 1. Prepare the Server
 ```bash
 # Install Docker
@@ -375,38 +377,26 @@ cd STOCK_VERIFY_ui
 
 #### 2. Configure Environment
 ```bash
-# Create production env files
-cp .env.production.example backend/.env.production
-nano backend/.env.production  # Edit with your values
-
-cp frontend/.env.example frontend/.env.production
-nano frontend/.env.production  # Edit with your values
+# Create production env file
+cp .env.production.example .env.prod
+nano .env.prod  # Edit with your values
 ```
 
-#### 3. Deploy
+#### 3. Provision TLS Certificates (Recommended)
+```bash
+./scripts/init_letsencrypt.sh
+```
+
+#### 4. Deploy
 ```bash
 # Build and start services
-docker-compose -f docker-compose.yml up -d
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 
 # View logs
-docker-compose logs -f
+docker compose --env-file .env.prod -f docker-compose.prod.yml logs -f
 
 # Check status
-docker-compose ps
-```
-
-#### 4. Setup Nginx Reverse Proxy
-```bash
-# Copy nginx config
-sudo cp nginx/nginx.conf /etc/nginx/sites-available/stock-verify
-sudo ln -s /etc/nginx/sites-available/stock-verify /etc/nginx/sites-enabled/
-
-# Update domain in config
-sudo nano /etc/nginx/sites-enabled/stock-verify
-
-# Test and reload
-sudo nginx -t
-sudo systemctl reload nginx
+docker compose --env-file .env.prod -f docker-compose.prod.yml ps
 ```
 
 ### Option 2: Kubernetes (Recommended for Multi-Server/HA)
@@ -768,7 +758,7 @@ docker-compose logs backend | grep "duration"
 
 ```bash
 # Increase connection pool
-# In .env.production:
+# In .env.prod:
 POOL_SIZE=30
 MAX_OVERFLOW=20
 
@@ -780,12 +770,12 @@ mongosh --eval 'db.serverStatus().connections'
 
 ```bash
 # Verify CORS configuration
-# In backend .env.production:
+# In .env.prod:
 CORS_ORIGINS=https://yourdomain.com
 
 # Check API URL in frontend
-# In frontend .env.production:
-EXPO_PUBLIC_API_URL=https://api.yourdomain.com
+# In .env.prod:
+EXPO_PUBLIC_BACKEND_URL=https://api.yourdomain.com
 
 # Test from browser console
 fetch('https://api.yourdomain.com/health')
@@ -805,7 +795,7 @@ echo | openssl s_client -servername yourdomain.com -connect yourdomain.com:443 2
 
 #### Enable Redis Caching
 ```bash
-# In .env.production
+# In .env.prod
 REDIS_URL=redis://redis-server:6379/0
 
 # Restart backend

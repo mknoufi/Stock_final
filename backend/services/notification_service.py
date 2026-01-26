@@ -150,7 +150,7 @@ class NotificationService:
         self, user_id: str, unread_only: bool = False, limit: int = 50
     ) -> List[Dict[str, Any]]:
         """Get notifications for a user"""
-        query = {"user_id": user_id}
+        query: Dict[str, Any] = {"user_id": user_id}
         if unread_only:
             query["read"] = False
 

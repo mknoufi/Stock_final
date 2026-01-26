@@ -26,6 +26,7 @@ export interface Session {
   counted_items?: number;
   pending_items?: number;
   notes?: string;
+  barcode?: string;
 }
 
 export interface SessionCreate {

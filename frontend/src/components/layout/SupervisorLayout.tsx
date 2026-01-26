@@ -48,6 +48,15 @@ export const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({
       icon: "log-out-outline" as const,
       label: "Logout",
       onPress: () => {
+        if (typeof window !== "undefined" && window.confirm) {
+          const confirmed = window.confirm("Are you sure you want to logout?");
+          if (confirmed) {
+            logout().finally(() => {
+              router.replace("/welcome" as any);
+            });
+          }
+          return;
+        }
         Alert.alert("Confirm Logout", "Are you sure you want to logout?", [
           { text: "Cancel", style: "cancel" },
           {
@@ -55,7 +64,7 @@ export const SupervisorLayout: React.FC<SupervisorLayoutProps> = ({
             style: "destructive",
             onPress: async () => {
               await logout();
-              router.replace("/login");
+              router.replace("/welcome" as any);
             },
           },
         ]);

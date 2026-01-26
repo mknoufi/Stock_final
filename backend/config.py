@@ -67,6 +67,30 @@ class Settings(PydanticBaseSettings):
         description="Environment: development, staging, production",
     )
 
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def coerce_debug(cls, v):
+        if isinstance(v, bool):
+            return v
+        if v is None:
+            return False
+        if isinstance(v, (int, float)):
+            return bool(v)
+        if isinstance(v, str):
+            normalized = v.strip().lower()
+            if normalized in ("1", "true", "yes", "y", "on"):
+                return True
+            if normalized in ("0", "false", "no", "n", "off", ""):
+                return False
+            if normalized in ("debug", "info", "warn", "warning", "error", "critical"):
+                logger.warning(
+                    "DEBUG env var has log level value '%s'; treating DEBUG as false. "
+                    "Use LOG_LEVEL instead.",
+                    v,
+                )
+                return False
+        raise ValueError("DEBUG must be a boolean")
+
     @field_validator("MIN_CLIENT_VERSION")
     @classmethod
     def validate_min_client_version(cls, v: str) -> str:
@@ -297,10 +321,15 @@ class Settings(PydanticBaseSettings):
     @field_validator("LOG_LEVEL")
     @classmethod
     def validate_log_level(cls, v: str) -> str:
+        normalized = v.upper()
+        if normalized == "WARN":
+            normalized = "WARNING"
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        if v.upper() not in valid_levels:
-            raise ValueError(f"LOG_LEVEL must be one of: {', '.join(valid_levels)}")
-        return v.upper()
+        if normalized not in valid_levels:
+            raise ValueError(
+                f"LOG_LEVEL must be one of: {', '.join(valid_levels)} (WARN accepted)"
+            )
+        return normalized
 
     # Server
     CORS_ALLOW_ORIGINS: Optional[str] = None

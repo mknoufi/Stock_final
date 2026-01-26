@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 import time
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Generic, Optional, TypeVar, cast
@@ -49,7 +50,7 @@ from backend.services.cache_service import CacheService
 from backend.services.database_health import DatabaseHealthService
 from backend.services.database_optimizer import DatabaseOptimizer
 from backend.services.error_log import ErrorLogService
-from backend.services.errors import DatabaseError
+from backend.exceptions import StockVerifyException as DatabaseError
 from backend.services.lock_manager import get_lock_manager
 from backend.services.mdns_service import start_mdns, stop_mdns
 from backend.services.monitoring_service import MonitoringService
@@ -60,6 +61,8 @@ from backend.services.refresh_token import RefreshTokenService
 from backend.services.runtime import set_cache_service, set_refresh_token_service
 from backend.services.scheduled_export_service import ScheduledExportService
 from backend.services.sync_conflicts_service import SyncConflictsService
+from backend.services.sql_sync_service import SQLSyncService
+from backend.services.change_detection_sync import ChangeDetectionSyncService
 from backend.sql_server_connector import SQLServerConnector
 from backend.utils.port_detector import PortDetector, save_backend_info
 
@@ -229,35 +232,6 @@ security = HTTPBearer(auto_error=False)
 # Initialize production services
 # Enhanced Connection pool (if using SQL Server)
 connection_pool: Any = None
-if (
-    not RUNNING_UNDER_PYTEST
-    and getattr(settings, "USE_CONNECTION_POOL", True)
-    and settings.SQL_SERVER_HOST
-    and settings.SQL_SERVER_DATABASE
-):
-    try:
-        # Try to use enhanced connection pool first
-        from backend.services.enhanced_connection_pool import EnhancedSQLServerConnectionPool
-
-        connection_pool = EnhancedSQLServerConnectionPool(
-            host=settings.SQL_SERVER_HOST,
-            port=settings.SQL_SERVER_PORT,
-            database=settings.SQL_SERVER_DATABASE,
-            user=getattr(settings, "SQL_SERVER_USER", None),
-            password=getattr(settings, "SQL_SERVER_PASSWORD", None),
-            pool_size=getattr(settings, "POOL_SIZE", 10),
-            max_overflow=getattr(settings, "MAX_OVERFLOW", 5),
-            retry_attempts=getattr(settings, "CONNECTION_RETRY_ATTEMPTS", 3),
-            retry_delay=getattr(settings, "CONNECTION_RETRY_DELAY", 1.0),
-            health_check_interval=getattr(settings, "CONNECTION_HEALTH_CHECK_INTERVAL", 60),
-        )
-        logging.info("✓ Enhanced connection pool initialized")
-    except ImportError as e:
-        logging.error(f"Failed to import enhanced connection pool: {str(e)}")
-        # Raise error since we don't have a fallback anymore
-        raise e
-    except Exception as e:
-        logging.warning(f"Connection pool initialization failed: {str(e)}")
 
 
 # Cache service
@@ -298,29 +272,49 @@ database_health_service = DatabaseHealthService(
     mongo_client_options=mongo_client_options,
 )
 
-# ERP sync service (full sync) - DISABLED to avoid conflicts with change detection
-# Using ChangeDetectionSyncService instead for better performance
+# ERP sync service (full sync)
 erp_sync_service = None
-# if getattr(settings, 'ERP_SYNC_ENABLED', True):
-#     try:
-#         erp_sync_service = ERPSyncService(
-#             sql_connector=sql_connector,
-#             mongo_db=db,
-#             sync_interval=getattr(settings, 'ERP_SYNC_INTERVAL', 3600),
-#             enabled=True,
-#         )
-#         logging.info("✓ ERP sync service initialized")
-#     except Exception as e:
-#         logging.warning(f"ERP sync service initialization failed: {str(e)}")
+if getattr(settings, "ERP_SYNC_ENABLED", True):
+    try:
+        erp_sync_service = SQLSyncService(
+            sql_connector=sql_connector,
+            mongo_db=db,
+            sync_interval=getattr(settings, "ERP_SYNC_INTERVAL", 3600),
+            enabled=True,
+        )
+        logging.info("✓ ERP sync service initialized")
+    except Exception as e:
+        logging.warning(f"ERP sync service initialization failed: {str(e)}")
 
 # Change detection sync service (syncs item_name, manual_barcode, MRP changes)
-# FULLY DISABLED FOR TESTING
 change_detection_sync = None
-set_change_detection_service(change_detection_sync)
+if getattr(settings, "CHANGE_DETECTION_ENABLED", True):
+    try:
+        change_detection_sync = ChangeDetectionSyncService(
+            sql_connector=sql_connector,
+            mongo_db=db,
+            sync_interval=getattr(settings, "CHANGE_DETECTION_INTERVAL", 300),
+            enabled=True,
+        )
+        set_change_detection_service(change_detection_sync)
+        logging.info("✓ Change detection sync service initialized")
+    except Exception as e:
+        logging.warning(f"Change detection sync service initialization failed: {str(e)}")
 
 # Auto-sync manager - automatically syncs when SQL Server becomes available
-
 auto_sync_manager = None
+if getattr(settings, "AUTO_SYNC_ENABLED", True):
+    try:
+        auto_sync_manager = AutoSyncManager(
+            sql_connector=sql_connector,
+            mongo_db=db,
+            sync_interval=getattr(settings, "AUTO_SYNC_INTERVAL", 3600),
+            enabled=True,
+        )
+        set_auto_sync_manager(auto_sync_manager)
+        logging.info("✓ Auto-sync manager initialized")
+    except Exception as e:
+        logging.warning(f"Auto-sync manager initialization failed: {str(e)}")
 
 # Migration manager
 migration_manager = MigrationManager(db)
@@ -387,27 +381,65 @@ async def lifespan(app: FastAPI):  # noqa: C901
         logger.warning(f"⚠️ Index creation warning: {str(e)}")
 
     # Initialize SQL Server connection if credentials are available
+    sql_connected = False
+    sql_credentials_ready = False
     try:
         sql_host = getattr(settings, "SQL_SERVER_HOST", None)
         sql_port = getattr(settings, "SQL_SERVER_PORT", 1433)
         sql_database = getattr(settings, "SQL_SERVER_DATABASE", None)
         sql_user = getattr(settings, "SQL_SERVER_USER", None)
         sql_password = getattr(settings, "SQL_SERVER_PASSWORD", None)
+        sql_password_placeholder = (
+            isinstance(sql_password, str)
+            and sql_password.strip().lower()
+            in {"", "your-sql-password", "change-me", "password", "changeme"}
+        )
+        sql_credentials_ready = (not sql_user) or (
+            sql_password and not sql_password_placeholder
+        )
 
-        if sql_host and sql_database:
+        # Always attach SQL connector to count_lines_router so it can handle its own fallbacks
+        try:
+            from backend.api.count_lines_api import router as count_lines_router
+            setattr(count_lines_router, "sql_connector", sql_connector)
+            logger.info("✓ SQL connector attached to count_lines_router")
+        except Exception as e:
+            logger.warning(f"Failed to attach SQL connector to count_lines_router: {str(e)}")
+
+        if sql_host and sql_database and sql_credentials_ready:
             logger.info(
                 f"Attempting to connect to SQL Server at {sql_host}:{sql_port}/{sql_database}..."
             )
             try:
-                sql_connector.connect(sql_host, sql_port, sql_database, sql_user, sql_password)
+                startup_sql_timeout = getattr(settings, "SQL_STARTUP_CONNECT_TIMEOUT", 5)
+                await asyncio.wait_for(
+                    asyncio.to_thread(
+                        sql_connector.connect,
+                        sql_host,
+                        sql_port,
+                        sql_database,
+                        sql_user,
+                        sql_password,
+                    ),
+                    timeout=startup_sql_timeout,
+                )
+                sql_connected = True
                 logger.info("OK: SQL Server connection established")
             except (ConnectionError, TimeoutError, OSError) as e:
                 logger.warning(f"SQL Server connection failed (network/system error): {str(e)}")
                 logger.warning("ERP sync will be disabled until SQL Server is configured")
+            except asyncio.TimeoutError:
+                logger.warning("SQL Server connection timed out during startup")
+                logger.warning("ERP sync will be disabled until SQL Server is available")
             except Exception as e:
                 # Catch-all for other SQL Server connection errors (authentication, database not found, etc.)
                 logger.warning(f"SQL Server connection failed: {str(e)}")
                 logger.warning("ERP sync will be disabled until SQL Server is configured")
+        elif sql_host and sql_database:
+            logger.warning(
+                "SQL Server credentials not configured. "
+                "Set SQL_SERVER_USER and SQL_SERVER_PASSWORD (or use Windows auth)."
+            )
         else:
             logger.warning(
                 "SQL Server credentials not configured. Set SQL_SERVER_HOST and SQL_SERVER_DATABASE in .env"
@@ -418,6 +450,41 @@ async def lifespan(app: FastAPI):  # noqa: C901
     except Exception as e:
         # Other unexpected errors during initialization
         logger.warning(f"Unexpected error initializing SQL Server connection: {str(e)}")
+
+    # Initialize enhanced connection pool in background (never block API startup)
+    if (
+        not RUNNING_UNDER_PYTEST
+        and getattr(settings, "USE_CONNECTION_POOL", True)
+        and getattr(settings, "SQL_SERVER_HOST", None)
+        and getattr(settings, "SQL_SERVER_DATABASE", None)
+        and sql_credentials_ready
+    ):
+
+        async def _init_connection_pool():
+            global connection_pool
+            try:
+                from backend.services.enhanced_connection_pool import (
+                    EnhancedSQLServerConnectionPool,
+                )
+
+                connection_pool = await asyncio.to_thread(
+                    EnhancedSQLServerConnectionPool,
+                    host=settings.SQL_SERVER_HOST,
+                    port=settings.SQL_SERVER_PORT,
+                    database=settings.SQL_SERVER_DATABASE,
+                    user=getattr(settings, "SQL_SERVER_USER", None),
+                    password=getattr(settings, "SQL_SERVER_PASSWORD", None),
+                    pool_size=getattr(settings, "POOL_SIZE", 10),
+                    max_overflow=getattr(settings, "MAX_OVERFLOW", 5),
+                    retry_attempts=getattr(settings, "CONNECTION_RETRY_ATTEMPTS", 3),
+                    retry_delay=getattr(settings, "CONNECTION_RETRY_DELAY", 1.0),
+                    health_check_interval=getattr(settings, "CONNECTION_HEALTH_CHECK_INTERVAL", 60),
+                )
+                logger.info("✓ Enhanced connection pool initialized")
+            except Exception as e:
+                logger.warning(f"Connection pool initialization failed: {str(e)}")
+
+        asyncio.create_task(_init_connection_pool())
 
     # CRITICAL: Verify MongoDB is available (required)
     try:
@@ -470,7 +537,7 @@ async def lifespan(app: FastAPI):  # noqa: C901
     # Initialize auto-sync manager (monitors SQL Server and auto-syncs when available)
     global auto_sync_manager
     try:
-        sql_configured = bool(getattr(sql_connector, "config", None))
+        sql_configured = sql_connected
         auto_sync_manager = AutoSyncManager(
             sql_connector=sql_connector,
             mongo_db=db,
@@ -499,8 +566,8 @@ async def lifespan(app: FastAPI):  # noqa: C901
                 on_sync_complete=on_sync_complete,
             )
 
-            await auto_sync_manager.start()
-            logger.info("✅ Auto-sync manager started")
+            asyncio.create_task(auto_sync_manager.start())
+            logger.info("✅ Auto-sync manager starting (background)")
         else:
             logger.info("Auto-sync manager disabled: SQL Server not configured")
 
@@ -510,15 +577,23 @@ async def lifespan(app: FastAPI):  # noqa: C901
         logger.warning(f"Auto-sync manager initialization failed: {str(e)}")
         auto_sync_manager = None
 
-    # Start ERP sync service (full sync) - legacy, kept for backward compatibility
-    # if erp_sync_service:
-    #     try:
-    #         erp_sync_service.start()
-    #         logger.info("✓ ERP sync service started")
-    #     except Exception as e:
-    #         logger.error(f"Failed to start ERP sync service: {str(e)}")
+    # Start ERP sync service (full sync)
+    if erp_sync_service:
+        try:
+            # SQLSyncService.start() is now async
+            await erp_sync_service.start()
+            logger.info("✓ ERP sync service started")
+        except Exception as e:
+            logger.error(f"Failed to start ERP sync service: {str(e)}")
 
-    # Change detection sync service is fully disabled for testing
+    # Start change detection sync service
+    if change_detection_sync:
+        try:
+            # ChangeDetectionSyncService.start() is already async
+            await change_detection_sync.start()
+            logger.info("✓ Change detection sync service started")
+        except Exception as e:
+            logger.error(f"Failed to start change detection sync service: {str(e)}")
 
     # Start database health monitoring
     try:
@@ -659,11 +734,19 @@ async def lifespan(app: FastAPI):  # noqa: C901
 
     # Verify SQL Server (optional)
     try:
-        if sql_connector and sql_connector.test_connection():
+        sql_ok = False
+        if sql_connector:
+            sql_ok = await asyncio.wait_for(
+                asyncio.to_thread(sql_connector.test_connection),
+                timeout=3,
+            )
+        if sql_ok:
             startup_checklist["sql_server"] = True
             logger.info("✓ Startup Check: SQL Server connected")
         else:
             logger.info("ℹ️  Startup Check: SQL Server not configured (optional)")
+    except asyncio.TimeoutError:
+        logger.info("ℹ️  Startup Check: SQL Server not available - timeout")
     except Exception as e:
         logger.info(f"ℹ️  Startup Check: SQL Server not available - {str(e)}")
 
@@ -876,8 +959,6 @@ async def lifespan(app: FastAPI):  # noqa: C901
 
     # Execute shutdown tasks with timeout
     try:
-        import asyncio
-
         await asyncio.wait_for(
             asyncio.gather(*shutdown_tasks, return_exceptions=True),
             timeout=shutdown_timeout,
@@ -897,8 +978,9 @@ async def lifespan(app: FastAPI):  # noqa: C901
 
     # Close MongoDB connection
     try:
-        client.close()
-        logger.info("✓ MongoDB connection closed")
+        if 'client' in globals() and client:
+            client.close()
+            logger.info("✓ MongoDB connection closed")
     except Exception as e:
         logger.error(f"Error closing MongoDB connection: {str(e)}")
 

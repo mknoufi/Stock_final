@@ -352,12 +352,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await secureStorage.removeItem(TOKEN_STORAGE_KEY);
     await secureStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
     await secureStorage.removeItem(BIOMETRIC_PIN_KEY);
+    await secureStorage.removeItem(LAST_USER_STORAGE_KEY);
     delete apiClient.defaults.headers.common["Authorization"];
 
     set({
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      lastLoggedUser: null,
     });
 
     // Clear offline queue on logout to prevent orphaned data

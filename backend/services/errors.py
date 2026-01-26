@@ -3,24 +3,6 @@
 from typing import Any, Optional
 
 
-class AuthenticationError(Exception):
-    pass
-
-
-class AuthorizationError(Exception):
-    pass
-
-
-class NotFoundError(Exception):
-    pass
-
-
-class RateLimitExceededError(Exception):
-    def __init__(self, message, retry_after=None):
-        super().__init__(message)
-        self.retry_after = retry_after
-
-
 class SyncError(Exception):
     """Base error class for sync operations."""
 
@@ -42,12 +24,6 @@ class DatabaseError(SyncError):
 
 class ConnectionError(SyncError):
     """Error related to connection issues."""
-
-    pass
-
-
-class ValidationError(SyncError):
-    """Error related to data validation."""
 
     pass
 

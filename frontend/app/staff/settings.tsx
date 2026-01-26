@@ -164,6 +164,20 @@ export default function StaffSettingsScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     }
 
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const confirmed = window.confirm("Are you sure you want to sign out?");
+      if (confirmed) {
+        logout()
+          .then(() => {
+            router.replace("/welcome" as any);
+          })
+          .catch(() => {
+            Alert.alert("Error", "Failed to sign out. Please try again.");
+          });
+      }
+      return;
+    }
+
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
       { text: "Cancel", style: "cancel" },
       {
@@ -172,7 +186,7 @@ export default function StaffSettingsScreen() {
         onPress: async () => {
           try {
             await logout();
-            router.replace("/login");
+            router.replace("/welcome" as any);
           } catch {
             Alert.alert("Error", "Failed to sign out. Please try again.");
           }
@@ -182,7 +196,8 @@ export default function StaffSettingsScreen() {
   }, [logout, router]);
 
   const handleChangePin = useCallback(async () => {
-    if (!currentPassword || !newPin || !confirmPin) {
+    const trimmedCurrent = currentPassword.trim();
+    if (!trimmedCurrent || !newPin || !confirmPin) {
       Alert.alert("Error", "Please fill in all fields.");
       return;
     }
@@ -199,10 +214,19 @@ export default function StaffSettingsScreen() {
 
     setIsChangingPin(true);
     try {
-      await apiClient.post("/auth/change-pin", {
-        currentPassword,
-        newPin,
-      });
+      const payload: {
+        current_password?: string;
+        current_pin?: string;
+        new_pin: string;
+      } = { new_pin: newPin };
+
+      if (/^\d{4}$/.test(trimmedCurrent)) {
+        payload.current_pin = trimmedCurrent;
+      } else {
+        payload.current_password = trimmedCurrent;
+      }
+
+      await apiClient.post("/auth/change-pin", payload);
 
       Alert.alert("Success", "PIN updated successfully.");
       setIsPinModalVisible(false);
@@ -210,9 +234,14 @@ export default function StaffSettingsScreen() {
       setNewPin("");
       setConfirmPin("");
     } catch (error: any) {
+      const detail = error.response?.data?.detail;
+      const message =
+        typeof detail === "string"
+          ? detail
+          : detail?.message || "Failed to update PIN.";
       Alert.alert(
         "Error",
-        error.response?.data?.detail || "Failed to update PIN.",
+        message,
       );
     } finally {
       setIsChangingPin(false);
@@ -415,10 +444,10 @@ export default function StaffSettingsScreen() {
 
             <View style={styles.modalBody}>
               <ModernInput
-                label="Current Password"
+                label="Current PIN or Password"
                 value={currentPassword}
                 onChangeText={setCurrentPassword}
-                placeholder="Enter current password"
+                placeholder="Enter current PIN or password"
                 secureTextEntry
                 autoCapitalize="none"
               />

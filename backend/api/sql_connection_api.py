@@ -9,8 +9,6 @@ from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-# from backend.sql_server_connector import SQLServerConnector
-
 
 def _default_user() -> dict[str, Any]:
     return {"role": "admin", "username": "admin"}

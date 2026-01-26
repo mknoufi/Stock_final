@@ -4,7 +4,6 @@ from backend.utils.db_connection import SQLServerConnectionBuilder, ConnectionSt
 
 
 class TestSQLServerConnectionBuilder:
-
     @pytest.fixture
     def mock_pyodbc_drivers(self):
         with patch("pyodbc.drivers") as mock:
@@ -168,7 +167,6 @@ class TestSQLServerConnectionBuilder:
 
 
 class TestConnectionStringOptimizer:
-
     def test_optimize_existing_connection_string(self):
         original = "DRIVER={SQL Server};SERVER=localhost;DATABASE=testdb"
         optimized = ConnectionStringOptimizer.optimize_existing_connection_string(original)

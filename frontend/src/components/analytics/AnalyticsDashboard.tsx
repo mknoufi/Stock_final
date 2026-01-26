@@ -26,10 +26,10 @@ interface AnalyticsDashboardProps {
   onRefresh?: () => void;
 }
 
-export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
+export const AnalyticsDashboard = React.memo(function AnalyticsDashboard({
   timeRange = "7d",
   onRefresh,
-}) => {
+}: AnalyticsDashboardProps) {
   const [data, setData] = useState<AnalyticsDashboardData | null>(null);
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
   const [errorLogs, setErrorLogs] = useState<any[]>([]);
@@ -85,6 +85,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
       }
+      removeClippedSubviews={true}
     >
       {/* Overview Metrics */}
       <View style={styles.section}>
@@ -207,7 +208,7 @@ export const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({
       )}
     </ScrollView>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {

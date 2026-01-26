@@ -165,7 +165,6 @@ export const useAutoPause = (
   const [isPaused, setIsPaused] = useState(false);
   const [lastActivityTime, setLastActivityTime] = useState(Date.now());
   const [timeUntilPause, setTimeUntilPause] = useState(idleTimeoutMs);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   // Track user activity

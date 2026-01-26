@@ -1,11 +1,27 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-// Default port from backend/server.py
-const DEFAULT_PORT = 8001;
 const HEALTH_PATH = "/api/health";
 
-const timeoutFetch = async (url: string, timeoutMs = 900): Promise<boolean> => {
+const parsePort = (value?: string | null): number | null => {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const port = Number(trimmed);
+  if (port < 1 || port > 65535) return null;
+  return port;
+};
+
+const getCandidatePorts = (): number[] => {
+  const envPort = parsePort(process.env.EXPO_PUBLIC_BACKEND_PORT);
+  if (envPort) {
+    const fallbackPorts = [8000, 8001, 8085];
+    return Array.from(new Set([envPort, ...fallbackPorts]));
+  }
+  return [8000, 8001, 8085, 8002, 8003, 8004, 8005, 8006, 8007, 8008, 8009, 8010];
+};
+
+const timeoutFetch = async (url: string, timeoutMs = 1500): Promise<boolean> => {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -17,69 +33,80 @@ const timeoutFetch = async (url: string, timeoutMs = 900): Promise<boolean> => {
     clearTimeout(timeout);
     return res.status >= 200 && res.status < 500;
   } catch (error) {
-    // Log error for debugging (especially SSL errors)
-    console.log(`[BackendURL] Probe failed for ${url}:`, error);
+    // Only log significant errors, not common probe failures
+    if (error instanceof Error && error.name !== "AbortError") {
+      // Use debug level logging for probes to avoid console clutter
+      // console.log(`[BackendURL] Probe failed for ${url}:`, error.message);
+    }
     return false;
   }
 };
 
-const stripTrailingSlash = (url: string) =>
-  url.endsWith("/") ? url.slice(0, -1) : url;
+const stripTrailingSlash = (url: string) => (url.endsWith("/") ? url.slice(0, -1) : url);
 
 const buildCandidates = (): string[] => {
   const candidates: string[] = [];
+  const ports = getCandidatePorts();
 
-  // 1) Explicit env override
+  const addCandidate = (host: string) => {
+    ports.forEach((port) => {
+      candidates.push(`http://${host}:${port}`);
+      // Only try https if it's a standard port or we are on a secure origin
+      if (port === 443 || port === 8443) {
+        candidates.push(`https://${host}:${port}`);
+      }
+    });
+  };
+
+  // 1) Platform-specific fallbacks (High Priority for Emulators)
+  if (Platform.OS === "android") {
+    addCandidate("10.0.2.2");
+  }
+
+  // 2) Explicit env override
   if (process.env.EXPO_PUBLIC_BACKEND_URL) {
     candidates.push(process.env.EXPO_PUBLIC_BACKEND_URL);
   }
 
-  // 2) Runtime config from app.config.js extra
-  const configUrl = Constants.expoConfig?.extra?.backendUrl as
-    | string
-    | undefined;
+  // 3) Try to load from backend_port.json if on web
+  if (Platform.OS === "web") {
+    candidates.push("/backend_port.json");
+  }
+
+  // 4) Runtime config from app.config.js extra
+  const configUrl = Constants.expoConfig?.extra?.backendUrl as string | undefined;
   if (configUrl) {
     candidates.push(configUrl);
   }
 
-  // 3) Expo host URI (dev server IP)
+  // 4) Expo host URI (dev server IP) - best for LAN access
   const hostUri = Constants.expoConfig?.hostUri;
   if (hostUri) {
     const host = hostUri.split(":")[0];
-    candidates.push(`http://${host}:${DEFAULT_PORT}`);
-    candidates.push(`https://${host}:${DEFAULT_PORT}`);
+    if (host) {
+      addCandidate(host);
+    }
   }
 
-  // 4) mDNS Hostname (stock-verify.local) - Prioritize HTTP for dev
-  // Note: This requires the device to be able to resolve .local domains
-  candidates.push(`http://stock-verify.local:${DEFAULT_PORT}`);
-  candidates.push(`https://stock-verify.local:${DEFAULT_PORT}`);
-
-  // 5) Platform-specific fallbacks
-  if (Platform.OS === "android") {
-    candidates.push(`http://10.0.2.2:${DEFAULT_PORT}`);
-    candidates.push(`https://10.0.2.2:${DEFAULT_PORT}`);
-  }
+  // 5) mDNS Hostname (stock-verify.local)
+  addCandidate("stock-verify.local");
 
   // 6) Web fallback to current hostname
   if (Platform.OS === "web" && typeof window !== "undefined") {
-    candidates.push(`http://${window.location.hostname}:${DEFAULT_PORT}`);
-    candidates.push(`https://${window.location.hostname}:${DEFAULT_PORT}`);
+    addCandidate(window.location.hostname || "localhost");
   }
 
-  // 7) Localhost as final fallback
-  candidates.push(`http://localhost:${DEFAULT_PORT}`);
-  candidates.push(`https://localhost:${DEFAULT_PORT}`);
+  // 7) Localhost as final fallback for web only
+  if (Platform.OS === "web") {
+    addCandidate("localhost");
+  }
 
-  // De-dupe while preserving order
-  return Array.from(
-    new Set(candidates.filter(Boolean).map(stripTrailingSlash)),
-  );
+  // De-dupe while preserving priority order
+  return Array.from(new Set(candidates.filter(Boolean).map(stripTrailingSlash)));
 };
 
 // Best-effort initial URL (sync) used until async probing finishes.
-export const BACKEND_URL =
-  buildCandidates()[0] ?? `http://localhost:${DEFAULT_PORT}`;
+export const BACKEND_URL = "http://localhost:8001";
 
 let resolvedBackendUrl: string | null = null;
 
@@ -87,29 +114,46 @@ export const resolveBackendUrl = async (): Promise<string> => {
   if (resolvedBackendUrl) return resolvedBackendUrl;
 
   const candidates = buildCandidates();
-  console.log("[BackendURL] Probing candidates:", candidates);
+  console.log("[BackendURL] Probing candidates in parallel:", candidates);
 
-  for (const candidate of candidates) {
-    const ok = await timeoutFetch(`${candidate}${HEALTH_PATH}`);
-    if (ok) {
-      resolvedBackendUrl = candidate;
-      console.log("[BackendURL] Selected reachable backend:", candidate);
-      return candidate;
+  try {
+    // Create a promise for each candidate that resolves with the URL if healthy,
+    // or resolves with null if it fails/times out.
+    const probePromises = candidates.map(async (url) => {
+      const isHealthy = await timeoutFetch(`${url}${HEALTH_PATH}`, 3000);
+      if (isHealthy) {
+        console.log(`[BackendURL] Candidate passed: ${url}`);
+        return url;
+      }
+      return null;
+    });
+
+    // Wait for all probes but process them as they finish if possible
+    // For simplicity and reliably picking the best one, we wait for all or a timeout
+    const results = await Promise.all(probePromises);
+
+    // Pick the first successful one (preserving candidate priority)
+    const bestUrl = results.find((url) => url !== null);
+
+    if (bestUrl) {
+      console.log(`[BackendURL] Resolved healthy backend at: ${bestUrl}`);
+      resolvedBackendUrl = bestUrl;
+      return bestUrl;
     }
+  } catch (err) {
+    console.error("[BackendURL] Discovery process failed:", err);
   }
 
-  // If none reachable, stick to the best-effort initial URL
+  // Fallback if nothing responds
+  console.warn("[BackendURL] No healthy backend found! Fallback to:", BACKEND_URL);
   resolvedBackendUrl = BACKEND_URL;
-  console.warn(
-    "[BackendURL] No backend reachable; falling back to",
-    resolvedBackendUrl,
-  );
-  return resolvedBackendUrl;
+  return BACKEND_URL;
 };
 
-export const initializeBackendURL = async () => {
+export const initializeBackendURL = async (): Promise<string> => {
   const url = await resolveBackendUrl();
   console.log("[BackendURL] Initialized with:", url);
+  return url;
 };
 
 export const getBackendURL = () => resolvedBackendUrl ?? BACKEND_URL;

@@ -153,6 +153,11 @@ export const SupervisorSidebar: React.FC<SupervisorSidebarProps> = ({
     router.push(item.route as any);
   };
 
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/welcome" as any);
+  };
+
   const toggleGroup = (title: string) => {
     const newExpanded = new Set(expandedGroups);
     if (newExpanded.has(title)) {
@@ -319,7 +324,7 @@ export const SupervisorSidebar: React.FC<SupervisorSidebarProps> = ({
       {!collapsed && (
         <TouchableOpacity
           style={[styles.logoutButton, { borderTopColor: theme.colors.border }]}
-          onPress={logout}
+          onPress={handleLogout}
           activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel="Logout"

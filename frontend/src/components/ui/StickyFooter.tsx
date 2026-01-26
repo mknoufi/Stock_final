@@ -11,7 +11,7 @@ interface Props {
   testID?: string;
 }
 
-export function StickyFooter({
+function StickyFooter({
   title,
   disabled,
   loading,
@@ -60,4 +60,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default StickyFooter;
+export { StickyFooter, Props as StickyFooterProps };

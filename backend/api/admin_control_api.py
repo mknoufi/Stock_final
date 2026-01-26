@@ -14,7 +14,9 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 import io  # noqa: E402
+import json  # noqa: E402
 import logging  # noqa: E402
+import os  # noqa: E402
 from collections.abc import Callable, Iterable
 from datetime import datetime, timedelta  # noqa: E402
 from typing import Any, Optional, TypedDict  # noqa: E402, Optional
@@ -40,8 +42,91 @@ logger = logging.getLogger(__name__)
 
 admin_control_router = APIRouter(prefix="/api/admin/control", tags=["Admin Control"])
 
-BACKEND_PORTS = [8000, 8001, 8002, 8003, 8004, 8005]
-FRONTEND_PORTS = [8081, 19000, 19001]
+_ROOT_DIR = Path(__file__).parent.parent.parent
+_BACKEND_PORT_FILE = _ROOT_DIR / "backend_port.json"
+
+
+def _parse_ports_csv(value: str) -> list[int]:
+    ports: list[int] = []
+    for part in (value or "").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            ports.append(int(part))
+        except ValueError:
+            continue
+    return ports
+
+
+def _read_backend_port_file() -> Optional[int]:
+    try:
+        if not _BACKEND_PORT_FILE.exists():
+            return None
+        with open(_BACKEND_PORT_FILE, encoding="utf-8") as f:
+            payload = json.load(f)
+        return _safe_int(payload.get("port"))
+    except Exception:
+        return None
+
+
+def _get_backend_ports() -> list[int]:
+    ports: list[int] = []
+
+    # Dynamic list based on settings.PORT
+    base_port = _safe_int(getattr(settings, "PORT", None)) or _safe_int(os.getenv("PORT")) or 8001
+    if base_port:
+        ports.extend([base_port] + [base_port + i for i in range(1, 6)])
+
+    env_ports = os.getenv("ADMIN_BACKEND_PORTS") or os.getenv("BACKEND_PORTS")
+    if env_ports:
+        ports.extend(_parse_ports_csv(env_ports))
+
+    port_file = _read_backend_port_file()
+    if port_file:
+        ports.append(port_file)
+
+    configured = _safe_int(getattr(settings, "PORT", None)) or _safe_int(os.getenv("PORT")) or 8001
+    ports.append(configured)
+
+    seen: set[int] = set()
+    unique: list[int] = []
+    for p in ports:
+        if p in seen:
+            continue
+        seen.add(p)
+        unique.append(p)
+    return unique
+
+
+def _get_frontend_ports() -> list[int]:
+    ports: list[int] = []
+
+    env_ports = os.getenv("ADMIN_FRONTEND_PORTS") or os.getenv("FRONTEND_PORTS")
+    if env_ports:
+        ports.extend(_parse_ports_csv(env_ports))
+    else:
+        single = (
+            os.getenv("EXPO_PUBLIC_WEB_PORT")
+            or os.getenv("EXPO_WEB_PORT")
+            or os.getenv("EXPO_PORT")
+            or os.getenv("WEB_PORT")
+        )
+        if single:
+            parsed = _safe_int(single)
+            if parsed:
+                ports.append(parsed)
+
+    ports.extend([8081, 19000, 19001])
+
+    seen: set[int] = set()
+    unique: list[int] = []
+    for p in ports:
+        if p in seen:
+            continue
+        seen.add(p)
+        unique.append(p)
+    return unique
 
 
 class ServiceStatus(TypedDict, total=False):
@@ -111,13 +196,13 @@ def _get_backend_status() -> ServiceStatus:
     def is_backend_process(cmd: str) -> bool:
         return BACKEND_PROCESS_NEEDLE in cmd
 
-    result = _match_process_on_ports(BACKEND_PORTS, is_backend_process)
+    result = _match_process_on_ports(_get_backend_ports(), is_backend_process)
     if result:
         port, pid, process = result
         status["running"] = True
         status["port"] = port
         status["pid"] = pid
-        status["url"] = f"http://localhost:{port}"
+        status["url"] = f"http://127.0.0.1:{port}"
         status["uptime"] = _calculate_uptime(process)
     return status
 
@@ -133,13 +218,13 @@ def _get_frontend_status() -> ServiceStatus:
     def is_frontend_process(cmd: str) -> bool:
         return "expo" in cmd.lower() or "metro" in cmd.lower()
 
-    result = _match_process_on_ports(FRONTEND_PORTS, is_frontend_process)
+    result = _match_process_on_ports(_get_frontend_ports(), is_frontend_process)
     if result:
         port, pid, _ = result
         status["running"] = True
         status["port"] = port
         status["pid"] = pid
-        status["url"] = f"http://localhost:{port}"
+        status["url"] = f"http://127.0.0.1:{port}"
     return status
 
 
@@ -148,10 +233,11 @@ async def _get_mongodb_status() -> ServiceStatus:
     try:
         if auth_deps._initialized:
             await auth_deps.db.command("ping")
+            mongo_status = PortDetector.get_mongo_status()
             return {
                 "running": True,
-                "port": 27017,
-                "url": "mongodb://localhost:27017",
+                "port": _safe_int(mongo_status.get("port")),
+                "url": mongo_status.get("url"),
                 "status": "connected",
             }
     except Exception as e:
@@ -191,7 +277,7 @@ def _get_sql_server_status() -> ServiceStatus:
 def _terminate_backend_processes() -> int:
     """Terminate backend processes and return how many were killed."""
     killed = 0
-    for port in BACKEND_PORTS:
+    for port in _get_backend_ports():
         if not ServiceManager.is_port_in_use(port):
             continue
         pid = ServiceManager.get_process_using_port(port)
@@ -243,7 +329,7 @@ def _collect_system_issues() -> list[dict[str, Any]]:
     mongo_status = PortDetector.get_mongo_status()
     if not mongo_status["is_running"]:
         issues.append(_format_issue("mongodb", "MongoDB is not running"))
-    if not _is_any_port_in_use(BACKEND_PORTS):
+    if not _is_any_port_in_use(_get_backend_ports()):
         issues.append(_format_issue("backend", "Backend server is not running"))
 
     # Add SQL Server check
@@ -330,7 +416,7 @@ async def get_services_status(current_user: dict = Depends(require_admin)):
 
 
 def _find_running_backend_process() -> Optional[dict[str, Any]]:
-    for port in BACKEND_PORTS:
+    for port in _get_backend_ports():
         if not ServiceManager.is_port_in_use(port):
             continue
 
@@ -408,7 +494,7 @@ async def start_frontend(current_user: dict = Depends(require_admin)):
     """Start frontend server"""
     try:
         # Check if already running
-        for port in FRONTEND_PORTS:
+        for port in _get_frontend_ports():
             if ServiceManager.is_port_in_use(port):
                 pid = ServiceManager.get_process_using_port(port)
                 if pid:
@@ -445,7 +531,7 @@ async def stop_frontend(current_user: dict = Depends(require_admin)):
         killed = ServiceManager.kill_processes_by_name(["expo", "metro", "node.*expo"])
 
         # Also kill by ports
-        for port in FRONTEND_PORTS:
+        for port in _get_frontend_ports():
             if ServiceManager.is_port_in_use(port):
                 pid = ServiceManager.get_process_using_port(port)
                 if pid:
@@ -726,11 +812,17 @@ async def get_service_logs(
             logs = _read_log_file(log_path, lines, level, service)
 
         if not logs and service == "frontend":
+            frontend_status = _get_frontend_status()
+            port = frontend_status.get("port") or (
+                _get_frontend_ports()[0] if _get_frontend_ports() else None
+            )
             logs = [
                 {
                     "timestamp": datetime.now().isoformat(),
                     "level": "INFO",
-                    "message": "Expo server running on port 8081",
+                    "message": (
+                        f"Expo server running on port {port}" if port else "Expo server running"
+                    ),
                 },
             ]
         elif not logs and service == "mongodb":

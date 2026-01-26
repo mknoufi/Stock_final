@@ -64,13 +64,19 @@ class CacheService:
     ):
         self.default_ttl = default_ttl
         self.max_memory_size = max_memory_size
+        self.socket_timeout = socket_timeout
         self._memory_cache: dict[str, tuple] = {}
         self._lock = threading.Lock()
 
         # Try Redis connection
         if REDIS_AVAILABLE and redis_url:
             try:
-                self.redis_client = redis.from_url(redis_url, decode_responses=True)
+                self.redis_client = redis.from_url(
+                    redis_url,
+                    decode_responses=True,
+                    socket_timeout=socket_timeout,
+                    socket_connect_timeout=socket_timeout,
+                )
                 self.use_redis = True
                 logger.info("Redis client created (pending connection verification)")
             except Exception as e:
@@ -84,8 +90,11 @@ class CacheService:
         """Initialize Redis connection"""
         if self.use_redis and self.redis_client:
             try:
-                await self.redis_client.ping()
+                await asyncio.wait_for(self.redis_client.ping(), timeout=self.socket_timeout)
                 logger.info("Redis connection verified")
+            except asyncio.TimeoutError:
+                logger.warning("Redis connection timed out, using in-memory cache")
+                self.use_redis = False
             except RedisError as e:
                 logger.warning(f"Redis connection failed: {str(e)}")
                 self.use_redis = False
@@ -189,12 +198,45 @@ class CacheService:
             except RedisError as e:
                 logger.error(f"Redis clear error: {str(e)}")
         else:
-            keys_to_remove = [k for k in self._memory_cache.keys() if k.startswith(f"{prefix}:")]
-            for k in keys_to_remove:
+            # In-memory clear
+            keys_to_delete = [k for k in self._memory_cache.keys() if k.startswith(f"{prefix}:")]
+            for k in keys_to_delete:
                 del self._memory_cache[k]
-            return len(keys_to_remove)
-
+            return len(keys_to_delete)
         return 0
+
+    async def get_status(self) -> dict[str, Any]:
+        """Get cache status for health check"""
+        status = {
+            "type": "redis" if self.use_redis else "memory",
+            "status": "healthy",
+            "details": {}
+        }
+
+        if self.use_redis:
+            try:
+                # Basic ping check
+                start_time = time.time()
+                await asyncio.wait_for(self.redis_client.ping(), timeout=2.0)
+                latency = (time.time() - start_time) * 1000
+                
+                info = await self.redis_client.info()
+                status["details"] = {
+                    "latency_ms": round(latency, 2),
+                    "used_memory": info.get("used_memory_human"),
+                    "connected_clients": info.get("connected_clients"),
+                    "uptime_days": info.get("uptime_in_days")
+                }
+            except Exception as e:
+                status["status"] = "unhealthy"
+                status["details"]["error"] = str(e)
+        else:
+            status["details"] = {
+                "items_count": len(self._memory_cache),
+                "max_size": self.max_memory_size
+            }
+            
+        return status
 
     async def clear_pattern(self, pattern: str) -> int:
         """Clear keys matching a glob pattern (Redis SCAN match or in-memory fnmatch)."""
@@ -247,29 +289,13 @@ class CacheService:
             raise
 
     async def get_stats(self) -> dict[str, Any]:
-        """Get cache statistics"""
-        if self.use_redis:
-            try:
-                info = await self.redis_client.info()
-                return {
-                    "backend": "redis",
-                    "connected_clients": info.get("connected_clients", 0),
-                    "used_memory": info.get("used_memory_human", "0"),
-                    "keyspace": info.get("db0", {}),
-                }
-            except RedisError as e:
-                return {"backend": "redis", "error": str(e)}
-        else:
-            return {
-                "backend": "memory",
-                "items": len(self._memory_cache),
-                "max_size": self.max_memory_size,
-                "utilization": (
-                    (len(self._memory_cache) / self.max_memory_size) * 100
-                    if self.max_memory_size > 0
-                    else 0
-                ),
-            }
+        """Get cache status for health check (alias for backward compatibility)"""
+        status = await self.get_status()
+        return {
+            "backend": status["type"],
+            "status": status["status"],
+            "details": status["details"]
+        }
 
     # Aliases for compatibility if needed, but better to update callers
     get_async = get

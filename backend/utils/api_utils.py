@@ -104,21 +104,31 @@ def handle_result(result: Result[T, E], success_status: int = 200) -> dict[str, 
                 detail=error.to_dict(),
             )
 
-        # Fallback for legacy handling or other exceptions
-        if isinstance(error, (AuthenticationError, AuthorizationError)):
-            status_code = 401 if isinstance(error, AuthenticationError) else 403
+        # Fallback for when exceptions are bubbling up from inside the Result wrapper
+        # or when class identity is lost due to module reloading
+        error_name = error.__class__.__name__
+
+        if isinstance(error, (AuthenticationError, AuthorizationError)) or error_name in (
+            "AuthenticationError",
+            "AuthorizationError",
+        ):
+            status_code = (
+                401
+                if (isinstance(error, AuthenticationError) or error_name == "AuthenticationError")
+                else 403
+            )
             raise HTTPException(
                 status_code=status_code,
                 detail={
                     "success": False,
                     "error": {
                         "message": str(error),
-                        "code": error.__class__.__name__,
+                        "code": error_name,
                         "details": getattr(error, "details", {}),
                     },
                 },
             )
-        elif isinstance(error, ValidationError):
+        elif isinstance(error, ValidationError) or error_name == "ValidationError":
             raise HTTPException(
                 status_code=422,
                 detail={
@@ -130,7 +140,7 @@ def handle_result(result: Result[T, E], success_status: int = 200) -> dict[str, 
                     },
                 },
             )
-        elif isinstance(error, NotFoundError):
+        elif isinstance(error, NotFoundError) or error_name == "NotFoundError":
             raise HTTPException(
                 status_code=404,
                 detail={

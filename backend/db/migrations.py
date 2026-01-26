@@ -5,7 +5,7 @@ Handles database schema updates and indexing
 
 import logging
 from datetime import datetime
-from typing import Any, Union
+from typing import Any, Dict, List, Union
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -38,7 +38,7 @@ class MigrationManager:
     async def _ensure_users_indexes(self) -> None:
         """Create indexes for users collection."""
         # Check for duplicate usernames first
-        pipeline = [
+        pipeline: List[Dict[str, Any]] = [
             {"$group": {"_id": "$username", "count": {"$sum": 1}}},
             {"$match": {"count": {"$gt": 1}}},
         ]

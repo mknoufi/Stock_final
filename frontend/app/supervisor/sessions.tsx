@@ -138,6 +138,16 @@ export default function SessionsList() {
                     {item.staff_name || "Unknown Staff"}
                   </Text>
                 </View>
+                {item.barcode && (
+                  <View style={styles.barcodeContainer}>
+                    <Ionicons
+                      name="barcode-outline"
+                      size={14}
+                      color={theme.colors.text.secondary}
+                    />
+                    <Text style={styles.barcodeText}>{item.barcode}</Text>
+                  </View>
+                )}
               </View>
               <View
                 style={[
@@ -372,6 +382,17 @@ const styles = StyleSheet.create({
   staffName: {
     fontSize: 14,
     color: theme.colors.text.secondary,
+  },
+  barcodeContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2,
+  },
+  barcodeText: {
+    fontSize: 12,
+    color: theme.colors.text.secondary,
+    fontFamily: "monospace",
   },
   statusBadge: {
     paddingHorizontal: 8,

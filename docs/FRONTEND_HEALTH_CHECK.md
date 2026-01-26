@@ -108,6 +108,15 @@ location ~* \.html$ {
 
 ---
 
+## Operational Notes
+
+### ERP Offline and Batch Listing
+- Verify Item batch listing depends on SQL Server via `/api/item-batches/{item_code}`.
+- When SQL is unavailable, the UI shows "ERP Offline" and batches may be empty.
+- Cached item data still loads, but batch listings require SQL connectivity.
+
+---
+
 ## 🎯 Recommendations for Next Sprint
 
 ### High Priority

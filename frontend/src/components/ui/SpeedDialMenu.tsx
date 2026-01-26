@@ -39,7 +39,7 @@ export interface SpeedDialAction {
   badge?: number;
 }
 
-interface SpeedDialMenuProps {
+export interface SpeedDialMenuProps {
   actions: SpeedDialAction[];
   mainIcon?: keyof typeof Ionicons.glyphMap;
   mainColor?: readonly [string, string, ...string[]];
@@ -136,7 +136,7 @@ const SpeedDialActionItem: React.FC<SpeedDialActionItemProps> = ({
   );
 };
 
-export const SpeedDialMenu: React.FC<SpeedDialMenuProps> = ({
+const SpeedDialMenu: React.FC<SpeedDialMenuProps> = ({
   actions,
   mainIcon = "menu",
   mainColor = auroraTheme.colors.aurora.primary,
@@ -342,3 +342,5 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 });
+
+export { SpeedDialMenu };

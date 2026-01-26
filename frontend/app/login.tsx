@@ -19,7 +19,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
-import * as LocalAuthentication from "expo-local-authentication";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 
 import { useAuthStore } from "../src/store/authStore";
@@ -54,7 +53,7 @@ const SafeAnimatedView = ({ children, style, entering, ...props }: any) => {
 type LoginMode = "pin" | "credentials";
 
 export default function LoginScreen() {
-  const { login, loginWithPin, isLoading, lastLoggedUser, getPinForBiometrics } = useAuthStore();
+  const { login, loginWithPin, isLoading, lastLoggedUser } = useAuthStore();
   const [loginMode, setLoginMode] = useState<LoginMode>("credentials");
   const [pin, setPin] = useState("");
   const [username, setUsername] = useState("");
@@ -83,6 +82,14 @@ export default function LoginScreen() {
 
   // Set initial mode based on last logged user
   React.useEffect(() => {
+    const isE2E =
+      process.env.EXPO_PUBLIC_E2E === "true" ||
+      (Platform.OS === "web" &&
+        typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("e2e") === "1");
+    if (isE2E) {
+      return;
+    }
     if (lastLoggedUser) {
       setLoginMode("pin");
     }
@@ -127,49 +134,8 @@ export default function LoginScreen() {
     if (isLoading) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    try {
-      // Check hardware availability
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-
-      if (!hasHardware || !isEnrolled) {
-        Alert.alert(
-          "Biometrics Unavailable",
-          "Please enable biometrics in your device settings."
-        );
-        return;
-      }
-
-      // Check if we have a stored PIN
-      const storedPin = await getPinForBiometrics();
-      if (!storedPin) {
-        Alert.alert(
-          "Setup Required",
-          "Please login with PIN once to enable biometrics."
-        );
-        return;
-      }
-
-      // Authenticate
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Login to Lavanya Mart",
-        fallbackLabel: "Use PIN",
-      });
-
-      if (result.success) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        const loginResult = await loginWithPin(storedPin);
-        if (!loginResult.success) {
-          Alert.alert(
-            "Login Failed",
-            loginResult.message || "Invalid stored credentials"
-          );
-        }
-      }
-    } catch (error) {
-      Alert.alert("Error", "Biometric authentication failed");
-    }
-  }, [isLoading, getPinForBiometrics, loginWithPin]);
+    Alert.alert("Biometric Auth", "Biometric authentication is not enabled.");
+  }, [isLoading]);
 
   const handleForgotPin = useCallback(() => {
     Alert.alert(
@@ -212,6 +178,7 @@ export default function LoginScreen() {
         const result = await login(username, password);
         if (!result.success) {
           Alert.alert("Login Failed", result.message || "Invalid credentials");
+          setPassword("");
         }
       }
     } catch (_error) {
@@ -219,6 +186,7 @@ export default function LoginScreen() {
         "Login Failed",
         "Please check your credentials and try again.",
       );
+      setPassword("");
     }
   }, [loginMode, pin, username, password, login, loginWithPin]);
 

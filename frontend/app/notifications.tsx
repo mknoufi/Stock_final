@@ -35,7 +35,7 @@ export default function NotificationsScreen() {
 
   useEffect(() => {
     fetchNotifications(showUnreadOnly);
-  }, [showUnreadOnly]);
+  }, [fetchNotifications, showUnreadOnly]);
 
   const handleNotificationPress = async (notification: Notification) => {
     if (!notification.read) {

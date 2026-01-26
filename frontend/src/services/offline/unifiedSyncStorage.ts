@@ -128,11 +128,11 @@ export class UnifiedSyncStorage {
    */
   async migrateFromLegacy(): Promise<void> {
     try {
-      const { 
-        getPendingVerifications, 
+      const {
+        getPendingVerifications,
         deletePendingVerification,
-        localDb 
-      } = require("../../db/localDb");
+        localDb,
+      } = await import("../../db/localDb");
 
       // 1. Migrate verifications
       const verifications = await getPendingVerifications();
@@ -147,7 +147,9 @@ export class UnifiedSyncStorage {
             variance: v.variance,
           },
         });
-        await deletePendingVerification(v.id);
+        if (v.id !== undefined) {
+          await deletePendingVerification(v.id);
+        }
       }
 
       // 2. Migrate count lines
@@ -158,7 +160,9 @@ export class UnifiedSyncStorage {
           type: 'count_line',
           payload: JSON.parse(cl.payload_json),
         });
-        await localDb.deletePendingCountLine(cl.id);
+        if (cl.id !== undefined) {
+          await localDb.deletePendingCountLine(cl.id);
+        }
       }
 
       if (verifications.length > 0 || countLines.length > 0) {

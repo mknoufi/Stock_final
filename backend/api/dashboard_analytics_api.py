@@ -10,7 +10,7 @@ Provides comprehensive dashboard KPIs for admin/supervisor monitoring:
 
 import logging
 from datetime import datetime, timedelta
-from typing import Optional, List
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, Query, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
@@ -278,7 +278,7 @@ async def _breakdown_by_location(
 ) -> List[BreakdownItem]:
     """Breakdown by floor/rack location"""
     # Group count lines by floor_no
-    pipeline = [
+    pipeline: List[Dict[str, Any]] = [
         {"$match": {"floor_no": {"$exists": True, "$ne": None}}},
         {"$group": {"_id": "$floor_no", "count_lines": {"$push": "$$ROOT"}}},
     ]
@@ -361,7 +361,7 @@ async def _breakdown_by_category(
     items = await items_cursor.to_list(None)
 
     # Group by category
-    category_items = {}
+    category_items: Dict[str, List[Dict[str, Any]]] = {}
     for item in items:
         cat = item.get("category", "Uncategorized")
         if cat not in category_items:

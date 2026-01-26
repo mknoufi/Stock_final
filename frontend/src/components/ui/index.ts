@@ -40,7 +40,6 @@ export { AnimatedCounter } from "./AnimatedCounter";
 export { Shimmer, ShimmerPlaceholder } from "./Shimmer";
 export { ParticleField } from "./ParticleField";
 export { RippleButton } from "./RippleButton";
-export { SwipeCard } from "./SwipeCard";
 export { ScanFeedback } from "./ScanFeedback";
 export * from "./SyncStatusPill";
 export type { ScanFeedbackType } from "./ScanFeedback";
@@ -48,8 +47,6 @@ export { EnhancedBottomSheet } from "./EnhancedBottomSheet";
 
 // Phase 4: Supervisor Dashboard Components
 export { StatsCard } from "./StatsCard";
-export { SpeedDialMenu } from "./SpeedDialMenu";
-export type { SpeedDialAction } from "./SpeedDialMenu";
 export { LiveIndicator } from "./LiveIndicator";
 
 // ==========================================
@@ -76,7 +73,6 @@ export { ProgressRing } from "./ProgressRing";
 export { Badge } from "./Badge";
 export { Chip } from "./Chip";
 export { Avatar } from "./Avatar";
-export { Toast } from "./Toast";
 export { ProgressBar } from "./ProgressBar";
 export { Switch } from "./Switch";
 export { Tabs } from "./Tabs";
@@ -110,6 +106,23 @@ export type {
   ButtonSize,
   IconPosition,
 } from "./EnhancedButton";
+
+// Missing UI Components (Complete implementations found)
+export { AdminResponsiveGrid } from "./AdminResponsiveGrid";
+export { InlineAlert } from "./InlineAlert";
+export type { InlineAlertType } from "./InlineAlert";
+export { MultiSelectList } from "./MultiSelectList";
+export type { SelectableItem, MultiSelectListProps } from "./MultiSelectList";
+export { SwipeCard } from "./SwipeCard";
+export type { SwipeAction, SwipeCardProps } from "./SwipeCard";
+export { SpeedDialMenu } from "./SpeedDialMenu";
+export type { SpeedDialAction, SpeedDialMenuProps } from "./SpeedDialMenu";
+export { Toast } from "./Toast";
+export type { ToastType, ToastProps } from "./Toast";
+export { ConfirmModal } from "./ConfirmModal";
+export type { ConfirmModalVariant, ConfirmModalProps } from "./ConfirmModal";
+export { QuantityStepper } from "./QuantityStepper";
+export { StickyFooter } from "./StickyFooter";
 export { Separator, SeparatorPresets } from "./Separator";
 export type { SeparatorProps, SeparatorOrientation } from "./Separator";
 export { AnimatedListItem, ListAnimationPresets } from "./AnimatedListItem";

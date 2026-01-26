@@ -1,45 +1,61 @@
 import axios from "axios";
-import Constants from "expo-constants";
-import { BACKEND_URL, resolveBackendUrl } from "./backendUrl";
+import { BACKEND_URL } from "./backendUrl";
 import { createLogger } from "./logging";
 import { secureStorage } from "./storage/secureStorage";
 import { handleUnauthorized } from "./authUnauthorizedHandler";
 import { getDeviceId } from "./deviceId";
 import { useNetworkStore } from "../store/networkStore";
+import ConnectionManager, { ConnectionInfo } from "./connectionManager";
 
 const log = createLogger("httpClient");
 
-// Initial best-guess base URL; will be auto-updated after reachability probe
-const getInitialBackendUrl = (): string => {
-  const configUrl = Constants.expoConfig?.extra?.backendUrl;
-  if (configUrl) return configUrl as string;
-  if (process.env.EXPO_PUBLIC_BACKEND_URL)
-    return process.env.EXPO_PUBLIC_BACKEND_URL;
-  return BACKEND_URL;
-};
-
-export const API_BASE_URL: string = getInitialBackendUrl();
+// Dynamic base URL that gets updated by ConnectionManager
+export let API_BASE_URL: string = BACKEND_URL;
 
 const IS_TEST_ENV =
-  process.env.NODE_ENV === "test" ||
-  typeof process.env.JEST_WORKER_ID !== "undefined";
+  process.env.NODE_ENV === "test" || typeof process.env.JEST_WORKER_ID !== "undefined";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 20000, // Increased timeout to 20s
+  timeout: 30000, // Increased timeout to 30s for slower emulator networks
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-const summarizePayload = (
-  payload: unknown,
-): Record<string, unknown> | undefined => {
+/**
+ * Initialize connection manager and set up dynamic URL updates
+ */
+const connectionManager = ConnectionManager.getInstance();
+
+connectionManager.addListener((connection: ConnectionInfo) => {
+  updateBaseURL(connection.backendUrl);
+  log.info('API base URL updated via ConnectionManager', { 
+    old: apiClient.defaults.baseURL,
+    new: connection.backendUrl,
+    isHealthy: connection.isHealthy 
+  });
+});
+
+/**
+ * Update the base URL of the API client.
+ * Called after backend reachability probe succeeds.
+ */
+export const updateBaseURL = (newBaseUrl: string) => {
+  if (apiClient.defaults.baseURL === newBaseUrl && API_BASE_URL === newBaseUrl) return;
+
+  log.info("Updating API base URL", {
+    old: apiClient.defaults.baseURL,
+    new: newBaseUrl,
+  });
+  apiClient.defaults.baseURL = newBaseUrl;
+  API_BASE_URL = newBaseUrl; // Ensure exported constant is actually dynamic
+};
+
+const summarizePayload = (payload: unknown): Record<string, unknown> | undefined => {
   if (payload == null) return undefined;
-  if (typeof payload === "string")
-    return { type: "string", length: payload.length };
-  if (typeof payload === "number" || typeof payload === "boolean")
-    return { type: typeof payload };
+  if (typeof payload === "string") return { type: "string", length: payload.length };
+  if (typeof payload === "number" || typeof payload === "boolean") return { type: typeof payload };
   if (Array.isArray(payload)) return { type: "array", length: payload.length };
   if (typeof payload === "object") {
     const keys = Object.keys(payload as Record<string, unknown>);
@@ -55,16 +71,7 @@ if (!IS_TEST_ENV) {
 
 // Auto-detect backend reachability (handles LAN IP changes) and update baseURL
 if (!IS_TEST_ENV) {
-  resolveBackendUrl()
-    .then((url) => {
-      apiClient.defaults.baseURL = url;
-      log.info("API base URL updated after detection", { baseUrl: url });
-    })
-    .catch((err) => {
-      log.warn("Failed to auto-detect backend URL; continuing with default", {
-        error: (err as { message?: string } | null)?.message || String(err),
-      });
-    });
+  log.info("API client initialized", { baseUrl: API_BASE_URL });
 }
 
 // Helper to build a full URL for logging
@@ -76,9 +83,7 @@ const toFullUrl = (baseURL: string | undefined, url: string | undefined) => {
   return base ? `${base}/${path}` : url;
 };
 
-const summarizeResponseData = (
-  data: unknown,
-): Record<string, unknown> | undefined => {
+const summarizeResponseData = (data: unknown): Record<string, unknown> | undefined => {
   if (data == null) return undefined;
   if (typeof data === "string") return { type: "string", length: data.length };
   if (Array.isArray(data)) return { type: "array", length: data.length };
@@ -99,9 +104,7 @@ const summarizeResponseData = (
 
 const shouldLogNetworkDebug =
   !IS_TEST_ENV &&
-  (typeof __DEV__ !== "undefined"
-    ? __DEV__
-    : process.env.NODE_ENV === "development");
+  (typeof __DEV__ !== "undefined" ? __DEV__ : process.env.NODE_ENV === "development");
 
 let refreshInFlight: Promise<string | null> | null = null;
 
@@ -119,11 +122,11 @@ const refreshAccessToken = async (): Promise<string | null> => {
       {
         timeout: 20000,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
 
     const payload =
-      (response.data && typeof response.data === "object" && "data" in response.data)
+      response.data && typeof response.data === "object" && "data" in response.data
         ? (response.data as { data?: any }).data
         : response.data;
 
@@ -164,17 +167,20 @@ apiClient.interceptors.request.use(
         if (token) {
           config.headers["Authorization"] = `Bearer ${token}`;
           if (shouldLogNetworkDebug) {
-             // Avoid logging the full token
-             log.debug("Injected missing Auth token from storage");
+            // Avoid logging the full token
+            log.debug("Injected missing Auth token from storage");
           }
         }
       } catch (_err) {
-         // Ignore storage errors, proceed without token
+        // Ignore storage errors, proceed without token
       }
     }
 
     const fullUrl = toFullUrl(config.baseURL, config.url);
-    const authHeader = config.headers["Authorization"] || config.headers.common?.["Authorization"] || apiClient.defaults.headers.common["Authorization"];
+    const authHeader =
+      config.headers["Authorization"] ||
+      config.headers.common?.["Authorization"] ||
+      apiClient.defaults.headers.common["Authorization"];
     const hasAuth = !!authHeader;
 
     if (shouldLogNetworkDebug) {
@@ -186,7 +192,7 @@ apiClient.interceptors.request.use(
           url: fullUrl,
           headerType: typeof authHeader,
           tokenPrefix: tokenString.substring(0, 15),
-          tokenLength: tokenString.length
+          tokenLength: tokenString.length,
         });
       }
 
@@ -209,7 +215,7 @@ apiClient.interceptors.request.use(
       return Promise.reject({
         message: "Unauthenticated request blocked",
         config: config,
-        isBlocked: true
+        isBlocked: true,
       });
     }
 
@@ -220,7 +226,7 @@ apiClient.interceptors.request.use(
       error: (error as { message?: string } | null)?.message || String(error),
     });
     return Promise.reject(error);
-  },
+  }
 );
 
 // Add response interceptor for debugging and session handling
@@ -235,9 +241,7 @@ apiClient.interceptors.response.use(
   (error) => {
     const fullUrl = toFullUrl(error.config?.baseURL, error.config?.url);
     const status = error.response?.status;
-    const data = error.response?.data as
-      | { code?: string; message?: string }
-      | undefined;
+    const data = error.response?.data as { code?: string; message?: string } | undefined;
     const errorCode = data?.code;
 
     // Handle Network Restrictions (403 NETWORK_NOT_ALLOWED)
@@ -289,17 +293,20 @@ apiClient.interceptors.response.use(
         originalRequest._retry = true;
         log.debug("401 encountered; attempting single retry with fresh token", { url: fullUrl });
 
-        return secureStorage.getItem("auth_token").then(token => {
-          if (token) {
-            originalRequest.headers["Authorization"] = `Bearer ${token}`;
-            apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-            return apiClient(originalRequest);
-          }
-          return Promise.reject(error);
-        }).catch(() => {
-          // If storage lookup fails, proceed to logout
-          return Promise.reject(error);
-        });
+        return secureStorage
+          .getItem("auth_token")
+          .then((token) => {
+            if (token) {
+              originalRequest.headers["Authorization"] = `Bearer ${token}`;
+              apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+              return apiClient(originalRequest);
+            }
+            return Promise.reject(error);
+          })
+          .catch(() => {
+            // If storage lookup fails, proceed to logout
+            return Promise.reject(error);
+          });
       }
 
       // If we already retried with the stored access token, attempt a refresh-token flow once.
@@ -362,7 +369,8 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
 export default apiClient;
+export { connectionManager };

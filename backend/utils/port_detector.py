@@ -7,7 +7,7 @@ import json
 import logging
 import os
 import socket
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -21,13 +21,17 @@ def save_backend_info(port: int, local_ip: str, protocol: str = "http") -> None:
             "ip": local_ip,
             "url": f"{protocol}://{local_ip}:{port}",
             "pid": os.getpid(),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            # Frontend specific fields
+            "EXPO_PUBLIC_BACKEND_URL": f"{protocol}://{local_ip}:{port}",
+            "EXPO_PUBLIC_API_TIMEOUT": "30000",
+            "EXPO_PUBLIC_FRONTEND_PORT": "8081",
         }
 
         # Save to backend_port.json in project root
         # Assuming this file is in backend/utils/port_detector.py
         # root is ../../
-        root_dir = Path(__file__).parent.parent.parent
+        root_dir = Path(__file__).parent.parent
         with open(root_dir / "backend_port.json", "w") as f:
             json.dump(port_data, f)
 
@@ -38,9 +42,14 @@ def save_backend_info(port: int, local_ip: str, protocol: str = "http") -> None:
                 json.dump(port_data, f)
             logger.info(f"Saved backend port info to {frontend_public / 'backend_port.json'}")
 
-        logger.info(
-            f"Saved backend info (IP: {local_ip}, Port: {port}) to {root_dir / 'backend_port.json'}"
-        )
+        # Save to frontend/src/backend_port.json for React Native
+        frontend_src = root_dir / "frontend" / "src"
+        frontend_src.mkdir(exist_ok=True)
+        with open(frontend_src / "backend_port.json", "w") as f:
+            json.dump(port_data, f)
+        logger.info(f"Saved backend port info to {frontend_src / 'backend_port.json'}")
+
+        logger.info(f"Saved backend info (IP: {local_ip}, Port: {port}) to multiple locations")
     except Exception as e:
         logger.warning(f"Failed to save backend port info: {e}")
 
@@ -69,7 +78,7 @@ class PortDetector:
 
         # Try range around preferred port
         if port_range is None:
-            port_range = range(preferred_port, preferred_port + 50)
+            port_range = range(preferred_port, min(preferred_port + 50, 65535))
 
         for port in port_range:
             if PortDetector.is_port_available(port):

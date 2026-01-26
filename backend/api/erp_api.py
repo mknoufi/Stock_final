@@ -1,5 +1,6 @@
 import logging
 import re
+from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -211,6 +212,77 @@ async def refresh_item_stock(
         "item": ERPItem(**item),
         "message": "Stock from MongoDB (ERP connection is disabled)",
     }
+
+
+@router.get("/erp/config")
+async def get_erp_config(current_user: dict = Depends(get_current_user)):
+    """
+    Get ERP configuration and connection status for the frontend.
+    """
+    if _db is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    config = await _db.erp_config.find_one({}, {"_id": 0})
+
+    # Get health status from global service
+    from backend.core.globals import database_health_service
+
+    sql_health = "unknown"
+    error_msg = None
+
+    if database_health_service:
+        # Use existing health check if available, or trigger a fresh one
+        health = await database_health_service.check_sql_server_health()
+        if health.get("status") == "healthy":
+            sql_health = "connected"
+        else:
+            sql_health = "error"
+            error_msg = health.get("error")
+    else:
+        sql_health = "not_configured"
+
+    if not config:
+        return {
+            "configured": False,
+            "use_sql_server": False,
+            "connection_status": "not_configured",
+            "error": "ERP configuration not found in database",
+        }
+
+    return {
+        "configured": True,
+        "use_sql_server": config.get("use_sql_server", False),
+        "connection_status": sql_health,
+        "host": config.get("host"),
+        "database": config.get("database"),
+        "port": config.get("port"),
+        "last_check": datetime.utcnow().isoformat(),
+        "error": error_msg,
+    }
+
+
+@router.post("/erp/test")
+async def test_erp_connection(current_user: dict = Depends(get_current_user)):
+    """
+    Manually test the ERP connection.
+    """
+    from backend.core.globals import database_health_service
+
+    if not database_health_service:
+        raise HTTPException(status_code=503, detail="Health service not initialized")
+
+    health = await database_health_service.check_sql_server_health()
+
+    if health.get("status") == "healthy":
+        return {
+            "status": "connected",
+            "message": health.get("note", "Successfully connected to ERP SQL Server"),
+        }
+    else:
+        return {
+            "status": "error",
+            "message": health.get("error", "Failed to connect to ERP SQL Server"),
+        }
 
 
 @router.get("/erp/items")

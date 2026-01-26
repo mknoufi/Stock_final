@@ -19,7 +19,7 @@ import { useTheme } from "../../hooks/useTheme";
 
 export type ToastType = "success" | "error" | "warning" | "info";
 
-interface ToastProps {
+export interface ToastProps {
   message: string;
   type?: ToastType;
   duration?: number;

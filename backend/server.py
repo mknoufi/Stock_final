@@ -6,6 +6,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional, TypeVar, cast
 
+# Add the parent directory to Python path for proper imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 import jwt
 import uvicorn
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
@@ -58,6 +61,7 @@ from backend.api.user_management_api import user_management_router
 from backend.api.user_settings_api import router as user_settings_router
 from backend.api.variance_api import router as variance_router
 from backend.api.websocket_api import router as websocket_router
+from backend.auth.dependencies import get_current_user as auth_get_current_user
 from backend.config import settings
 from backend.core.lifespan import (  # client,
     activity_log_service,
@@ -66,12 +70,11 @@ from backend.core.lifespan import (  # client,
     lifespan,
     refresh_token_service,
 )
-from backend.error_messages import get_error_message
-from backend.services.errors import (
+from backend.exceptions import (
     AuthenticationError,
-    DatabaseError,
+    StockVerifyException as DatabaseError,
     NotFoundError,
-    RateLimitExceededError,
+    RateLimitError as RateLimitExceededError,
     ValidationError,
 )
 
@@ -181,6 +184,7 @@ app.add_middleware(
         "Content-Language",
         "Content-Type",
         "Authorization",
+        "X-Device-ID",
         "X-Requested-With",
         "X-Request-ID",
     ],
@@ -195,7 +199,7 @@ try:
     force_https = os.getenv("FORCE_HTTPS", "false").lower() == "true"
 
     app.add_middleware(
-        SecurityHeadersMiddleware,
+        SecurityHeadersMiddleware,  # type: ignore[arg-type]
         STRICT_CSP=strict_csp,
         force_https=force_https,
     )
@@ -208,6 +212,7 @@ api_router = APIRouter()
 
 # Register all routers with the app
 app.include_router(health_router)  # Health check endpoints at /health/*
+app.include_router(health_router, prefix="/api", include_in_schema=False)
 app.include_router(info_router)  # Version check and info endpoints at /api/*
 app.include_router(permissions_router, prefix="/api")  # Permissions management
 app.include_router(user_management_router, prefix="/api")  # User management CRUD
@@ -319,76 +324,10 @@ def create_access_token(data: dict[str, Any]) -> str:
 
 
 async def get_current_user(
+    request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> dict[str, Any]:
-    logger.debug("get_current_user called")
-    try:
-        if credentials is None:
-            logger.debug("get_current_user: No credentials")
-            error = get_error_message("AUTH_TOKEN_INVALID")
-            raise HTTPException(
-                status_code=401,
-                detail={
-                    "message": error["message"],
-                    "detail": "Authentication credentials were not provided",
-                    "code": error["code"],
-                },
-            )
-
-        token = credentials.credentials
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-
-        # No type validation needed - we only issue access tokens through this endpoint
-        # (Refresh tokens are UUIDs, not JWTs, so they won't decode successfully)
-
-        username = payload.get("sub")
-
-        if username is None:
-            error = get_error_message("AUTH_TOKEN_INVALID")
-            raise HTTPException(
-                status_code=error["status_code"],
-                detail={
-                    "message": error["message"],
-                    "detail": error["detail"],
-                    "code": error["code"],
-                    "category": error["category"],
-                },
-            )
-        user = await db.users.find_one({"username": username})
-        if user is None:
-            error = get_error_message("AUTH_USER_NOT_FOUND", {"username": username})
-            raise HTTPException(
-                status_code=error["status_code"],
-                detail={
-                    "message": error["message"],
-                    "detail": error["detail"],
-                    "code": error["code"],
-                    "category": error["category"],
-                },
-            )
-        return dict(user)
-    except jwt.ExpiredSignatureError:
-        error = get_error_message("AUTH_TOKEN_EXPIRED")
-        raise HTTPException(
-            status_code=error["status_code"],
-            detail={
-                "message": error["message"],
-                "detail": error["detail"],
-                "code": error["code"],
-                "category": error["category"],
-            },
-        ) from None
-    except jwt.InvalidTokenError:
-        error = get_error_message("AUTH_TOKEN_INVALID")
-        raise HTTPException(
-            status_code=error["status_code"],
-            detail={
-                "message": error["message"],
-                "detail": error["detail"],
-                "code": error["code"],
-                "category": error["category"],
-            },
-        ) from None
+    return await auth_get_current_user(request, credentials)
 
 
 # Initialize default users
@@ -1423,7 +1362,7 @@ if __name__ == "__main__":
         logger.info(f"🔒 SSL certificates found. Starting server with HTTPS on port {port}...")
         uvicorn.run(
             "backend.server:app",
-            host=os.getenv("HOST", "0.0.0.0"),  # Listen on all interfaces for LAN access
+            host=os.getenv("HOST", "127.0.0.1"),  # Listen on localhost only for security
             port=port,
             reload=False,
             log_level="info",

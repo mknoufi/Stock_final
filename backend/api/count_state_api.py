@@ -27,6 +27,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/count-lines", tags=["Count Line State Management"])
 
 
+def _get_user_id(current_user: dict) -> str:
+    return (
+        current_user.get("username")
+        or current_user.get("user_id")
+        or current_user.get("id")
+        or str(current_user.get("_id", "unknown"))
+    )
+
+
 # Request/Response Models
 
 
@@ -88,7 +97,7 @@ async def submit_count_line(
         # Check if user can edit
         can_edit = await state_machine.can_edit(
             count_line_id,
-            current_user.get("user_id") or current_user.get("username"),
+            _get_user_id(current_user),
             current_user.get("role", "staff"),
         )
 
@@ -101,7 +110,7 @@ async def submit_count_line(
         result = await state_machine.transition(
             count_line_id=count_line_id,
             next_state=CountLineState.SUBMITTED.value,
-            user_id=current_user.get("user_id") or current_user.get("username"),
+            user_id=_get_user_id(current_user),
             user_role=current_user.get("role", "staff"),
             reason=request_data.reason,
             metadata=request_data.metadata,
@@ -143,7 +152,7 @@ async def approve_count_line(
         result = await state_machine.transition(
             count_line_id=count_line_id,
             next_state=CountLineState.APPROVED.value,
-            user_id=current_user.get("user_id") or current_user.get("username"),
+            user_id=_get_user_id(current_user),
             user_role=current_user.get("role", "supervisor"),
             reason=request_data.reason,
             metadata=request_data.metadata,
@@ -188,7 +197,7 @@ async def reject_count_line(
         result = await state_machine.transition(
             count_line_id=count_line_id,
             next_state=CountLineState.REJECTED.value,
-            user_id=current_user.get("user_id") or current_user.get("username"),
+            user_id=_get_user_id(current_user),
             user_role=current_user.get("role", "supervisor"),
             reason=request_data.reason,
             metadata=request_data.metadata,
@@ -235,7 +244,7 @@ async def reopen_count_line(
         result = await state_machine.transition(
             count_line_id=count_line_id,
             next_state=CountLineState.DRAFT.value,
-            user_id=current_user.get("user_id") or current_user.get("username"),
+            user_id=_get_user_id(current_user),
             user_role=current_user.get("role", "supervisor"),
             reason=reopen_data.reason,
             metadata=metadata,
@@ -283,7 +292,7 @@ async def lock_count_line(
         result = await state_machine.transition(
             count_line_id=count_line_id,
             next_state=CountLineState.LOCKED.value,
-            user_id=current_user.get("user_id") or current_user.get("username"),
+            user_id=_get_user_id(current_user),
             user_role=current_user.get("role", "admin"),
             reason=request_data.reason,
             metadata=request_data.metadata,

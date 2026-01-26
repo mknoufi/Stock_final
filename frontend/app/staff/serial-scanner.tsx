@@ -3,7 +3,6 @@ import React, { useCallback, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { CameraView, type BarcodeScanningResult } from "expo-camera";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
 
 // Fix 1: Use correct alias imports
 import { useScanGate } from "@/scanner/useScanGate";

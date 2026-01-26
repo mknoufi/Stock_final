@@ -3,7 +3,7 @@
  * Search autocomplete for finding items by name or barcode
  * Enhanced with pagination and infinite scroll
  */
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SearchResult } from "../../services/enhancedSearchService";
 import { Skeleton } from "../ui/Skeleton";
+import { BatchDetailsModal } from "./BatchDetailsModal";
 
 interface ItemSearchProps {
   manualBarcode: string;
@@ -67,13 +68,45 @@ export const ItemSearch: React.FC<ItemSearchProps> = ({
   isLoadingMore = false,
   onLoadMore,
 }) => {
+  const [selectedItem, setSelectedItem] = useState<SearchResult | null>(null);
+  const [showBatchModal, setShowBatchModal] = useState(false);
+  // Handle item selection - show batch details modal
+  const handleItemSelect = useCallback((item: SearchResult) => {
+    setSelectedItem(item);
+    setShowBatchModal(true);
+  }, []);
+
+  // Handle batch selection from modal
+  const handleBatchSelect = (batch: any, countedStock: number) => {
+    // If no batch is selected (user closed modal without selecting), just close modal
+    if (!batch) {
+      setShowBatchModal(false);
+      setSelectedItem(null);
+      return;
+    }
+
+    // Create a combined item object with batch information
+    const itemWithBatch = {
+      ...selectedItem,
+      selectedBatch: batch,
+      countedStock: countedStock,
+    };
+
+    // Call the original handler with batch information
+    onSearchResultSelect(itemWithBatch as SearchResult);
+
+    // Close modal
+    setShowBatchModal(false);
+    setSelectedItem(null);
+  };
+
   // Render individual search result item
   const renderSearchResultItem = useCallback(
     ({ item, index }: { item: SearchResult; index: number }) => (
       <TouchableOpacity
         key={`search-result-${index}-${item.item_code || "no-code"}-${item.barcode || "no-barcode"}`}
         style={styles.searchResultItem}
-        onPress={() => onSearchResultSelect(item)}
+        onPress={() => handleItemSelect(item)}
       >
         <View style={styles.searchResultContent}>
           <View style={styles.resultHeader}>
@@ -98,7 +131,7 @@ export const ItemSearch: React.FC<ItemSearchProps> = ({
         <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
       </TouchableOpacity>
     ),
-    [onSearchResultSelect],
+    [handleItemSelect],
   );
 
   // Footer component for infinite scroll
@@ -287,6 +320,17 @@ export const ItemSearch: React.FC<ItemSearchProps> = ({
           <Skeleton width="100%" height={60} />
         </View>
       )}
+
+      {/* Batch Details Modal */}
+      <BatchDetailsModal
+        visible={showBatchModal}
+        item={selectedItem}
+        onClose={() => {
+          setShowBatchModal(false);
+          setSelectedItem(null);
+        }}
+        onBatchSelect={handleBatchSelect}
+      />
     </View>
   );
 };

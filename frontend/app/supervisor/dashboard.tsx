@@ -311,8 +311,21 @@ export default function SupervisorDashboard() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    // Navigate to filtered view or show details
-    __DEV__ && console.log("Stat pressed:", statType);
+
+    switch (statType) {
+      case "total":
+      case "open":
+        router.push("/supervisor/sessions" as any);
+        break;
+      case "items":
+        router.push("/supervisor/items" as any);
+        break;
+      case "risk":
+        router.push("/supervisor/variances" as any);
+        break;
+      default:
+        __DEV__ && console.log("Stat pressed:", statType);
+    }
   };
 
   const speedDialActions: SpeedDialAction[] = [
@@ -349,15 +362,15 @@ export default function SupervisorDashboard() {
     {
       icon: "layers-outline",
       label: "Bulk Ops",
-      onPress: () => Alert.alert("Bulk Operations", "Perform bulk operations"),
+      onPress: () => router.push("/supervisor/bulk-ops" as any),
     },
   ];
 
   const completionPercentage =
     stats.totalSessions > 0
       ? ((stats.closedSessions + stats.reconciledSessions) /
-          stats.totalSessions) *
-        100
+        stats.totalSessions) *
+      100
       : 0;
 
   return (
@@ -555,7 +568,7 @@ export default function SupervisorDashboard() {
                 Recent Activity
               </Text>
               <AnimatedPressable
-                onPress={() => router.push("/supervisor/activity" as any)}
+                onPress={() => router.push("/supervisor/activity-logs" as any)}
                 hapticFeedback="light"
               >
                 <Text
@@ -697,6 +710,20 @@ export default function SupervisorDashboard() {
                         >
                           {session.staff_name || "Unknown"}
                         </Text>
+                        {session.barcode && (
+                          <Text
+                            style={[
+                              styles.sessionBarcode,
+                              {
+                                fontSize: 12,
+                                color: theme.colors.text.tertiary,
+                                marginTop: 2,
+                              },
+                            ]}
+                          >
+                            {session.barcode}
+                          </Text>
+                        )}
                       </View>
                       <View
                         style={[
@@ -814,7 +841,7 @@ export default function SupervisorDashboard() {
                     style={[
                       styles.optionButton,
                       locationType === zone.zone_name &&
-                        styles.optionButtonSelected,
+                      styles.optionButtonSelected,
                     ]}
                     onPress={() => handleLocationTypeChange(zone.zone_name)}
                   >
@@ -822,7 +849,7 @@ export default function SupervisorDashboard() {
                       style={[
                         styles.optionText,
                         locationType === zone.zone_name &&
-                          styles.optionTextSelected,
+                        styles.optionTextSelected,
                       ]}
                     >
                       {zone.zone_name}
@@ -846,7 +873,7 @@ export default function SupervisorDashboard() {
                         style={[
                           styles.optionButton,
                           selectedFloor === wh.warehouse_name &&
-                            styles.optionButtonSelected,
+                          styles.optionButtonSelected,
                         ]}
                         onPress={() => {
                           if (Platform.OS !== "web") Haptics.selectionAsync();
@@ -857,7 +884,7 @@ export default function SupervisorDashboard() {
                           style={[
                             styles.optionText,
                             selectedFloor === wh.warehouse_name &&
-                              styles.optionTextSelected,
+                            styles.optionTextSelected,
                           ]}
                         >
                           {wh.warehouse_name}
@@ -890,7 +917,7 @@ export default function SupervisorDashboard() {
                   !selectedFloor ||
                   !rackName.trim() ||
                   isCreatingSession) &&
-                  styles.createButtonDisabled,
+                styles.createButtonDisabled,
               ]}
               onPress={handleCreateSession}
               disabled={
@@ -1014,6 +1041,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   sessionStaff: {},
+  sessionBarcode: {
+    fontWeight: "500",
+  },
   statusBadge: {
     paddingHorizontal: theme.spacing.sm,
     paddingVertical: theme.spacing.xs,

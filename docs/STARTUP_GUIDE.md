@@ -36,6 +36,11 @@ uvicorn backend.server:app --host 0.0.0.0 --port 8001 --reload
 - API Docs: http://localhost:8001/api/docs
 - Health: http://localhost:8001/api/health
 
+### ERP/SQL Connectivity (Batch Listing)
+- Batch listing requires SQL Server to be reachable.
+- If SQL is down, the UI shows "ERP Offline" and batch lists may be empty.
+- Validate with `GET /api/item-batches/{item_code}` and check backend logs for SQL errors.
+
 ### Start Frontend (Terminal 2)
 ```bash
 cd frontend

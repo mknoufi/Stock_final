@@ -57,6 +57,8 @@ export interface ScreenHeaderProps {
   showLogoutButton?: boolean;
   /** Show username (defaults to true) */
   showUsername?: boolean;
+  /** Show settings button (defaults to true when logged in) */
+  showSettingsButton?: boolean;
   /** Custom right action button */
   rightAction?: {
     icon: keyof typeof Ionicons.glyphMap;
@@ -135,6 +137,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
   onBackPress,
   showLogoutButton = true,
   showUsername = true,
+  showSettingsButton = true,
   rightAction,
   customRightContent,
   style,
@@ -177,15 +180,24 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
     }
   }, [onBackPress, router]);
 
-  const handleLogout = useCallback(() => {
+  const handleLogout = useCallback(async () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
 
     if (logoutConfirmMessage === null) {
       // Skip confirmation
-      logout();
-      router.replace("/login");
+      await logout();
+      router.replace("/welcome" as any);
+      return;
+    }
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const confirmed = window.confirm(logoutConfirmMessage);
+      if (confirmed) {
+        await logout();
+        router.replace("/welcome" as any);
+      }
       return;
     }
 
@@ -196,7 +208,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
         style: "destructive",
         onPress: async () => {
           await logout();
-          router.replace("/login");
+          router.replace("/welcome" as any);
         },
       },
     ]);
@@ -208,6 +220,18 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
     }
     rightAction?.onPress();
   }, [rightAction]);
+
+  const handleSettingsPress = useCallback(() => {
+    if (Platform.OS !== "web") {
+      Haptics.selectionAsync();
+    }
+    const role = user?.role;
+    const target =
+      role === "admin" || role === "supervisor" || role === "staff"
+        ? `/${role}/settings`
+        : "/staff/settings";
+    router.push(target as any);
+  }, [router, user?.role]);
 
   const handleLeftLayout = useCallback((event: LayoutChangeEvent) => {
     const nextWidth = Math.ceil(event.nativeEvent.layout.width);
@@ -318,6 +342,17 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
         onLayout={handleRightLayout}
       >
         {customRightContent}
+        {showSettingsButton &&
+          user &&
+          rightAction?.icon !== "settings-outline" && (
+            <AnimatedButton
+              onPress={handleSettingsPress}
+              icon="settings-outline"
+              iconColor={colors.accent}
+              backgroundColor={colors.buttonBg}
+              testID="settings-button"
+            />
+          )}
         {rightAction && (
           <AnimatedButton
             onPress={handleRightAction}

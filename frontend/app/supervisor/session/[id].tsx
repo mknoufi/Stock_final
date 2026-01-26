@@ -368,6 +368,9 @@ export default function SessionDetail() {
         </View>
 
         <Text style={styles.lineCode}>Code: {item.item_code}</Text>
+        {item.barcode && (
+          <Text style={styles.lineCode}>Barcode: {item.barcode}</Text>
+        )}
 
         <View style={styles.qtyRow}>
           <View style={styles.qtyItem}>

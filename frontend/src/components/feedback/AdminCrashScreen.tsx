@@ -35,7 +35,7 @@ export const AdminCrashScreen: React.FC<AdminCrashScreenProps> = ({
 
   const handleLogout = () => {
     resetError();
-    router.replace("/login");
+    router.replace("/welcome" as any);
   };
 
   return (

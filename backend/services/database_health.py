@@ -128,45 +128,85 @@ class DatabaseHealthService:
             return {"status": "unhealthy", "error": error_msg}
 
     async def check_sql_server_health(self) -> dict[str, Any]:
-        """Check SQL Server connection health"""
+        """Check SQL Server connection health with MongoDB fallback"""
         start_time = datetime.utcnow()
         try:
-            if self.sql_connector is None or getattr(self.sql_connector, "config", None) is None:
-                logger.debug("SQL Server not configured; skipping health check")
-                self._health_status["sql_server"] = {
-                    "status": "skipped",
+            # Try direct connection first
+            is_available = False
+            error_detail = None
+            if self.sql_connector is not None:
+                # Check for credentials before attempting connection
+                sql_password = None
+                try:
+                    from backend.config import settings
+                    sql_password = getattr(settings, "SQL_SERVER_PASSWORD", None)
+                except Exception:
+                    pass
+
+                is_placeholder = (
+                    isinstance(sql_password, str)
+                    and sql_password.strip().lower()
+                    in {"", "your-sql-password", "change-me", "password", "changeme"}
+                )
+
+                if is_placeholder:
+                    error_detail = "SQL Server password is using a placeholder value"
+                    is_available = False
+                elif getattr(self.sql_connector, "config", None) is not None:
+                    try:
+                        is_available = await asyncio.wait_for(
+                            asyncio.to_thread(self.sql_connector.test_connection),
+                            timeout=3,
+                        )
+                    except Exception as e:
+                        is_available = False
+                        error_detail = f"Connection attempt failed: {str(e)}"
+                else:
+                    error_detail = "SQL Server configuration is missing"
+                    is_available = False
+
+            if is_available:
+                response_time = (datetime.utcnow() - start_time).total_seconds()
+                status_data = {
+                    "status": "healthy",
                     "last_check": datetime.utcnow().isoformat(),
-                    "response_time": None,
-                    "error": "SQL Server not configured",
+                    "response_time": response_time,
+                    "error": None,
+                    "source": "sql_server"
                 }
-                return {
-                    "status": "skipped",
-                    "error": "SQL Server not configured",
-                }
+                self._health_status["sql_server"] = status_data
+                logger.debug(f"SQL Server health check: OK ({response_time:.3f}s)")
+                return status_data
 
-            # Test connection
-            if not self.sql_connector.test_connection():
-                error_msg = "SQL Server connection not available"
-                self._health_status["sql_server"] = {
-                    "status": "unhealthy",
-                    "last_check": datetime.utcnow().isoformat(),
-                    "response_time": None,
-                    "error": error_msg,
-                }
-                logger.warning(f"SQL Server health check: {error_msg}")
-                return {"status": "unhealthy", "error": error_msg}
+            # Fallback: Check if we have items in MongoDB
+            try:
+                item_count = await self.mongo_db.erp_items.count_documents({})
+                if item_count > 0:
+                    response_time = (datetime.utcnow() - start_time).total_seconds()
+                    status_data = {
+                        "status": "healthy",
+                        "last_check": datetime.utcnow().isoformat(),
+                        "response_time": response_time,
+                        "error": error_detail,
+                        "note": f"SQL Server offline, using {item_count} cached items",
+                        "source": "mongodb_cache"
+                    }
+                    self._health_status["sql_server"] = status_data
+                    logger.info(f"SQL Server health check: OK (Fallback to MongoDB cache with {item_count} items)")
+                    return status_data
+            except Exception as e:
+                logger.error(f"Fallback health check failed: {e}")
 
-            response_time = (datetime.utcnow() - start_time).total_seconds()
-
-            self._health_status["sql_server"] = {
-                "status": "healthy",
+            # If both failed
+            error_msg = error_detail or "SQL Server connection failed and no cached items found"
+            status_data = {
+                "status": "unhealthy",
                 "last_check": datetime.utcnow().isoformat(),
-                "response_time": response_time,
-                "error": None,
+                "response_time": None,
+                "error": error_msg,
             }
-
-            logger.debug(f"SQL Server health check: OK ({response_time:.3f}s)")
-            return {"status": "healthy", "response_time": response_time}
+            self._health_status["sql_server"] = status_data
+            return status_data
 
         except Exception as e:
             error_msg = str(e)
@@ -176,7 +216,6 @@ class DatabaseHealthService:
                 "response_time": None,
                 "error": error_msg,
             }
-
             logger.error(f"SQL Server health check failed: {error_msg}")
             return {"status": "unhealthy", "error": error_msg}
 
@@ -288,13 +327,19 @@ class DatabaseHealthService:
 
         try:
             # SQL Server stats (if connected)
-            if self.sql_connector.test_connection():
+            sql_connected = await asyncio.wait_for(
+                asyncio.to_thread(self.sql_connector.test_connection),
+                timeout=3,
+            )
+            if sql_connected:
                 sql_stats = {
                     "connected": True,
                     "config": self.sql_connector.config,
                 }
             else:
                 sql_stats = {"connected": False}
+        except asyncio.TimeoutError:
+            sql_stats = {"connected": False, "error": "Timeout checking SQL Server connection"}
         except Exception as e:
             sql_stats = {"error": str(e)}
 

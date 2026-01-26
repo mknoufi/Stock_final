@@ -13,7 +13,10 @@ def _build_item_risk_pipeline(item_codes: list[str]) -> list[dict[str, Any]]:
             "$group": {
                 "_id": "$item_code",
                 "total_counts": {"$sum": 1},
-                "variance_count": {"$sum": {"$cond": [{"$ne": ["$variance_reason", None]}, 1, 0]}},
+                # Assuming variance_reason is set when there is a variance
+                "variance_count": {
+                    "$sum": {"$cond": [{"$ifNull": ["$variance_reason", False]}, 1, 0]}
+                },
             }
         },
     ]
@@ -27,7 +30,10 @@ def _build_category_risk_pipeline(categories: list[str]) -> list[dict[str, Any]]
             "$group": {
                 "_id": "$category",
                 "total_counts": {"$sum": 1},
-                "variance_count": {"$sum": {"$cond": [{"$ne": ["$variance_reason", None]}, 1, 0]}},
+                # Assuming variance_reason is set when there is a variance
+                "variance_count": {
+                    "$sum": {"$cond": [{"$ifNull": ["$variance_reason", False]}, 1, 0]}
+                },
             }
         },
     ]
@@ -122,13 +128,13 @@ class AIVarianceService:
                         "_id": None,
                         "total_counts": {"$sum": 1},
                         "variance_count": {
-                            "$sum": {"$cond": [{"$ne": ["$variance_reason", None]}, 1, 0]}
+                            "$sum": {"$cond": [{"$ifNull": ["$variance_reason", False]}, 1, 0]}
                         },
                     }
                 },
             ]
 
-            results = await db.variances.aggregate(pipeline).to_list(length=1)
+            results = await db.count_lines.aggregate(pipeline).to_list(length=1)
 
             if not results:
                 return 0.0
@@ -159,13 +165,13 @@ class AIVarianceService:
                         "_id": None,
                         "total_counts": {"$sum": 1},
                         "variance_count": {
-                            "$sum": {"$cond": [{"$ne": ["$variance_reason", None]}, 1, 0]}
+                            "$sum": {"$cond": [{"$ifNull": ["$variance_reason", False]}, 1, 0]}
                         },
                     }
                 },
             ]
 
-            results = await db.variances.aggregate(pipeline).to_list(length=1)
+            results = await db.count_lines.aggregate(pipeline).to_list(length=1)
 
             if not results:
                 return heuristic
@@ -230,7 +236,7 @@ class AIVarianceService:
             return {}
 
         pipeline = _build_item_risk_pipeline(item_codes)
-        results = await db.variances.aggregate(pipeline).to_list(length=len(item_codes))
+        results = await db.count_lines.aggregate(pipeline).to_list(length=len(item_codes))
 
         risk_map = {}
         for res in results:
@@ -244,7 +250,7 @@ class AIVarianceService:
             return {}
 
         pipeline = _build_category_risk_pipeline(categories)
-        results = await db.variances.aggregate(pipeline).to_list(length=len(categories))
+        results = await db.count_lines.aggregate(pipeline).to_list(length=len(categories))
 
         risk_map = {}
         for res in results:

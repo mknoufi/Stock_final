@@ -3,7 +3,7 @@
  * Dashboard for managing stock verification sessions
  */
 
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -34,7 +34,6 @@ import {
 } from "../../src/services/api/api";
 import { SESSION_PAGE_SIZE } from "../../src/constants/config";
 import { toastService } from "../../src/services/utils/toastService";
-import { SessionType } from "../../src/types";
 
 import ModernHeader from "../../src/components/ui/ModernHeader";
 import ModernCard from "../../src/components/ui/ModernCard";
@@ -45,7 +44,6 @@ import {
   spacing,
   typography,
   borderRadius,
-  shadows,
 } from "../../src/theme/modernDesign";
 
 interface Zone {
@@ -58,7 +56,90 @@ interface Warehouse {
   warehouse_name: string;
 }
 
-export default function StaffHome() {
+const toDate = (value: unknown): Date | null => {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (typeof value === "number") {
+    const ms = value < 1e12 ? value * 1000 : value;
+    const date = new Date(ms);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+    const asNumber = Number(trimmed);
+    if (!Number.isNaN(asNumber)) {
+      const ms = asNumber < 1e12 ? asNumber * 1000 : asNumber;
+      const date = new Date(ms);
+      return Number.isNaN(date.getTime()) ? null : date;
+    }
+  }
+
+  return null;
+};
+
+const getSessionDate = (session: any): Date | null => {
+  const candidates = [
+    session.updated_at,
+    session.closed_at,
+    session.reconciled_at,
+    session.completed_at,
+    session.started_at,
+    session.created_at,
+    session.startedAt,
+    session.createdAt,
+    session.last_activity,
+    session.lastActivity,
+  ];
+
+  let best: Date | null = null;
+  for (const value of candidates) {
+    const date = toDate(value);
+    if (!date) continue;
+    if (!best || date.getTime() > best.getTime()) {
+      best = date;
+    }
+  }
+
+  return best;
+};
+
+const formatSessionDateTime = (session: any): string => {
+  const date = getSessionDate(session);
+  if (!date) return "Unknown date";
+
+  const dateText = date.toLocaleDateString();
+  const timeText = date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `${dateText} \u2022 ${timeText}`;
+};
+
+const getScannedCount = (session: any): number => {
+  const raw =
+    session.item_count ??
+    session.scanned_count ??
+    session.verified_count ??
+    session.total_items ??
+    session.items_scanned ??
+    0;
+  const value = typeof raw === "string" ? Number(raw) : raw;
+  return Number.isFinite(value) ? Number(value) : 0;
+};
+
+const normalizeWarehouse = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+};
+
+const StaffHome = React.memo(function StaffHome() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, logout } = useAuthStore();
@@ -119,14 +200,12 @@ export default function StaffHome() {
   const [isCreating, setIsCreating] = useState(false);
   const [zones, setZones] = useState<Zone[]>([]);
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [isLoadingZones, setIsLoadingZones] = useState(false);
 
   const { setActiveSession, setFloor, setRack } = useScanSessionStore();
 
   // Queries
   const {
     data: sessionsData,
-    isLoading: isLoadingSessions,
     refetch,
   } = useSessionsQuery({
     page: 1,
@@ -140,6 +219,7 @@ export default function StaffHome() {
 
   const activeSessions = useMemo(() => {
     return sessions
+      .filter((s: any) => s && typeof s === "object")
       .filter((s: any) => {
         const status = String(s.status || "OPEN")
           .trim()
@@ -147,11 +227,34 @@ export default function StaffHome() {
         return status === "OPEN" || status === "ACTIVE";
       })
       .sort((a: any, b: any) => {
-        const aDate = new Date(a.updated_at || a.created_at || 0).getTime();
-        const bDate = new Date(b.updated_at || b.created_at || 0).getTime();
+        const aDate = getSessionDate(a)?.getTime() ?? 0;
+        const bDate = getSessionDate(b)?.getTime() ?? 0;
         return bDate - aDate;
       });
   }, [sessions]);
+
+  const uniqueActiveSessions = useMemo(() => {
+    const seen = new Set<string>();
+    const unique: any[] = [];
+
+    for (const session of activeSessions) {
+      if (!session || typeof session !== "object") {
+        continue;
+      }
+      const idKey = session?.id || session?._id || session?.session_id;
+      const warehouseKey = normalizeWarehouse(session?.warehouse);
+      const key = warehouseKey || (idKey ? String(idKey) : "");
+      if (key && seen.has(key)) {
+        continue;
+      }
+      if (key) {
+        seen.add(key);
+      }
+      unique.push(session);
+    }
+
+    return unique;
+  }, [activeSessions]);
 
   const finishedSessions = useMemo(() => {
     return sessions.filter((s: any) => {
@@ -174,15 +277,12 @@ export default function StaffHome() {
       setZones(fallbackZones);
 
       try {
-        setIsLoadingZones(true);
         const data = await getZones();
         if (Array.isArray(data) && data.length > 0) {
           setZones(data);
         }
-      } catch (error) {
+      } catch (_error) {
         // Silent fail, use fallback
-      } finally {
-        setIsLoadingZones(false);
       }
     };
     fetchZones();
@@ -215,7 +315,7 @@ export default function StaffHome() {
         if (Array.isArray(data) && data.length > 0) {
           setWarehouses(data);
         }
-      } catch (error) {
+      } catch (_error) {
         // Silent fail, use fallback
       }
     };
@@ -245,6 +345,25 @@ export default function StaffHome() {
     }
 
     const warehouseName = `${locationType} - ${selectedFloor} - ${trimmedRack.toUpperCase()}`;
+    const normalizedWarehouse = normalizeWarehouse(warehouseName);
+    const existingSession = activeSessions.find(
+      (session: any) =>
+        normalizeWarehouse(session.warehouse) === normalizedWarehouse,
+    );
+    if (existingSession) {
+      Alert.alert(
+        "Session Already Active",
+        "A session for this location is already open. Do you want to resume it?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Resume",
+            onPress: () => handleResumeSession(existingSession),
+          },
+        ],
+      );
+      return;
+    }
 
     try {
       setIsCreating(true);
@@ -252,14 +371,22 @@ export default function StaffHome() {
         warehouse: warehouseName,
         type: "STANDARD",
       });
+      const sessionId = session?.id || session?._id || session?.session_id;
+      if (!sessionId) {
+        throw new Error("Session created without an ID");
+      }
 
       // Optimistic update
       queryClient.setQueryData(
         ["sessions", 1, SESSION_PAGE_SIZE],
-        (old: any) => ({
-          ...old,
-          items: [session, ...(old?.items || [])],
-        }),
+        (old: any) => {
+          const existing = Array.isArray(old?.items) ? old.items : [];
+          const filtered = existing.filter(
+            (item: any) =>
+              (item?.id || item?._id || item?.session_id) !== sessionId,
+          );
+          return { ...old, items: [session, ...filtered] };
+        },
       );
 
       // Reset and navigate
@@ -270,11 +397,11 @@ export default function StaffHome() {
 
       setFloor(`${locationType} - ${selectedFloor}`);
       setRack(trimmedRack.toUpperCase());
-      setActiveSession(session.id, "STANDARD");
+      setActiveSession(sessionId, "STANDARD");
 
       router.push({
         pathname: "/staff/scan",
-        params: { sessionId: session.id },
+        params: { sessionId },
       } as any);
     } catch (error) {
       const errorMessage =
@@ -287,6 +414,12 @@ export default function StaffHome() {
 
   const handleResumeSession = (session: any) => {
     Haptics.selectionAsync();
+
+    const sessionId = session?.id || session?._id || session?.session_id;
+    if (!sessionId) {
+      toastService.showError("Unable to resume session (missing ID).");
+      return;
+    }
 
     if (session.warehouse) {
       const parts = session.warehouse.split(" - ");
@@ -301,10 +434,10 @@ export default function StaffHome() {
       }
     }
 
-    setActiveSession(session.id || session._id, "STANDARD");
+    setActiveSession(sessionId, "STANDARD");
     router.push({
       pathname: "/staff/scan",
-      params: { sessionId: session.id || session._id },
+      params: { sessionId },
     } as any);
   };
 
@@ -322,11 +455,7 @@ export default function StaffHome() {
         <View style={styles.sessionInfo}>
           <Text style={styles.warehouseText}>{session.warehouse}</Text>
           <Text style={styles.dateText}>
-            {new Date(session.created_at).toLocaleDateString()} •{" "}
-            {new Date(session.created_at).toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
+            Last used: {formatSessionDateTime(session)}
           </Text>
         </View>
         <View style={styles.chevron}>
@@ -336,8 +465,8 @@ export default function StaffHome() {
 
       <View style={styles.sessionStats}>
         <View style={styles.statItem}>
-          <Text style={styles.statValue}>{session.item_count || 0}</Text>
-          <Text style={styles.statLabel}>Items</Text>
+          <Text style={styles.statValue}>{getScannedCount(session)}</Text>
+          <Text style={styles.statLabel}>Scanned</Text>
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
@@ -376,7 +505,7 @@ export default function StaffHome() {
             style={styles.createButton}
           />
 
-          {activeSessions.length === 0 ? (
+          {uniqueActiveSessions.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons
                 name="clipboard-outline"
@@ -389,7 +518,7 @@ export default function StaffHome() {
               </Text>
             </View>
           ) : (
-            activeSessions.map(renderSessionCard)
+            uniqueActiveSessions.map(renderSessionCard)
           )}
         </Animated.View>
       );
@@ -425,9 +554,25 @@ export default function StaffHome() {
         rightAction={{
           icon: "log-out-outline",
           onPress: () => {
+            if (Platform.OS === "web" && typeof window !== "undefined") {
+              const confirmed = window.confirm("Are you sure you want to logout?");
+              if (confirmed) {
+                logout().finally(() => {
+                  router.replace("/welcome" as any);
+                });
+              }
+              return;
+            }
             Alert.alert("Logout", "Are you sure?", [
               { text: "Cancel", style: "cancel" },
-              { text: "Logout", style: "destructive", onPress: logout },
+              {
+                text: "Logout",
+                style: "destructive",
+                onPress: async () => {
+                  await logout();
+                  router.replace("/welcome" as any);
+                },
+              },
             ]);
           },
         }}
@@ -444,7 +589,7 @@ export default function StaffHome() {
               activeTab === "active" && styles.activeTabText,
             ]}
           >
-            Active ({activeSessions.length})
+            Active ({uniqueActiveSessions.length})
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -572,7 +717,7 @@ export default function StaffHome() {
       </Modal>
     </SafeAreaView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -742,3 +887,5 @@ const styles = StyleSheet.create({
     paddingBottom: Platform.OS === "ios" ? spacing["2xl"] : spacing.lg,
   },
 });
+
+export default StaffHome;

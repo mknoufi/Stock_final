@@ -1,8 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Core User Flow", () => {
-  test("Login -> Create Session -> Scan -> Verify", async ({ page }) => {
-    test.skip(true, "Core flow is environment-dependent; enable when seed data is stable.");
+  test("Login -> Create Session -> Scan -> Verify -> Logout", async ({ page }) => {
     test.setTimeout(300000); // 5 minutes
 
     // Debug Network & Errors
@@ -15,104 +14,76 @@ test.describe("Core User Flow", () => {
       console.log(`Page Error: ${exception}`),
     );
     page.on("console", (msg) => console.log(`Browser console: ${msg.text()}`));
-
-    // 1. Navigation
-    console.log("Navigating to / ...");
-    await page.goto("/");
-
-    // Check for Welcome, Login, or Home
-    // App initialization logs confirmed it loads.
-    // Proceed directly to element detection.
-
-    // Check for Welcome, Login, or Home
-    const welcomeTitle = page.getByText("Lavanya E-Mart", { exact: true });
-    const signInButton = page.getByRole("button", { name: "Sign In" });
-    const newCountArea = page.getByText("New Count Area", { exact: true });
-
-    // Wait for any to appear
-    // Verify app rendered something
-    await expect(page.locator("#root")).not.toBeEmpty({ timeout: 10000 });
-
-    const rootHtml = await page.locator("#root").innerHTML();
-    console.log("Root HTML:", rootHtml.substring(0, 1000));
-
-    try {
-      await Promise.race([
-        welcomeTitle.waitFor({ state: "visible", timeout: 10000 }),
-        signInButton.waitFor({ state: "visible", timeout: 10000 }),
-        newCountArea.waitFor({ state: "visible", timeout: 10000 }),
-      ]);
-    } catch (e) {
-      console.log("Timeout waiting for specific elements");
-      console.log("Timeout waiting for initial meaningful paint");
-      console.log(
-        "Subtitle:",
-        await page
-          .locator("title")
-          .innerText()
-          .catch(() => "No title tag"),
-      );
-      const body = await page.evaluate(() => document.body.innerHTML);
-      console.log("Body HTML:", body.substring(0, 1000));
-      const scripts = await page.evaluate(() =>
-        Array.from(document.querySelectorAll("script")).map((s) => s.src),
-      );
-      console.log("Scripts:", scripts);
-    }
-
-    if (await newCountArea.isVisible()) {
-      console.log("Already logged in");
-    } else {
-      if (await welcomeTitle.isVisible()) {
-        console.log("On Welcome Screen");
-        await page.getByText("Get Started").click();
-        // Wait for Login screen
-        await expect(signInButton).toBeVisible();
-      } else {
-        console.log("Logging in from Login Screen...");
-        // Ensure inputs are visible
-        await expect(signInButton).toBeVisible();
-      }
-
-      await page.getByPlaceholder("Username").fill("staff_test");
-      await page.getByPlaceholder("Enter your password").fill("password");
-      await signInButton.click();
-
-      await expect(newCountArea).toBeVisible({ timeout: 10000 });
-    }
-
-    // 2. Create Session
-    console.log("Creating Session...");
-    await page.getByPlaceholder("e.g. 1, G").fill("F1");
-    await page.getByPlaceholder("e.g. A1, B2").fill("R1");
-    await page.getByText("Start Counting").click();
-
-    // 3. Scan Screen
-    console.log("Scanning...");
-    await expect(page.getByText("Scan Items")).toBeVisible();
-
-    await page.getByPlaceholder("Enter barcode or item name...").fill("513456");
-    await page.keyboard.press("Enter");
-
-    // 4. Item Details
-    console.log("Verifying Details...");
-    await expect(page.getByText("Item Details")).toBeVisible();
-    await expect(page.getByText("513456")).toBeVisible();
-
-    // 5. Submit Count
-    console.log("Submitting Count...");
-    const qtyInput = page.locator('input[value="1"]').first();
-    await qtyInput.fill("10");
-
     page.on("dialog", async (dialog) => {
-      console.log(`Dialog message: ${dialog.message()}`);
       await dialog.accept();
     });
 
-    await page.getByText("Submit Count").click();
+    // Mock Permissions API to prevent Safari errors with Expo Camera
+    await page.addInitScript(() => {
+      if (navigator.permissions) {
+        // @ts-ignore
+        navigator.permissions.query = async () => ({
+          state: 'granted',
+          onchange: null,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        });
+      }
+    });
 
-    // Wait for navigation back to Scan Screen
-    await expect(page.getByText("Scan Items")).toBeVisible();
+    // 1. Login
+    await page.goto("/login?e2e=1");
+    await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+
+    await page.getByPlaceholder("Enter your username").fill("staff1");
+    await page.getByPlaceholder("Enter your password").fill("staff123");
+    await page.getByRole("button", { name: "Sign In" }).click();
+
+    await page.waitForURL("**/staff/home**", { timeout: 30000 });
+    await expect(page.getByText("Start New Session", { exact: true })).toBeVisible();
+
+    // 2. Create Session
+    await page.getByText("Start New Session", { exact: true }).click();
+    await expect(page.getByText("New Session", { exact: true })).toBeVisible();
+
+    await page.getByText("Showroom", { exact: true }).click();
+    await page.getByText("Ground Floor", { exact: true }).click();
+    await page.getByPlaceholder("e.g. A-123").fill("A-123");
+    await page.getByText("Start Session", { exact: true }).click();
+
+    await page.waitForURL("**/staff/scan?sessionId=**", { timeout: 30000 });
+    await expect(page.getByText("Scan Items", { exact: true })).toBeVisible();
+
+    // 3. Search/Lookup item
+    await page.getByPlaceholder("Enter barcode or item code...").fill("513456");
+    await page.getByTestId("scan-search-submit").click();
+
+    await page.waitForURL("**/staff/item-detail?**", { timeout: 30000 });
+    await expect(page.getByText("Verify Item", { exact: true })).toBeVisible();
+    await expect(page.getByText("Counted Quantity")).toBeVisible();
+
+    // 4. Enter quantity
+    const qtyInput = page.locator(
+      'xpath=//*[contains(normalize-space(.),"Counted Quantity")]/following::input[@placeholder="0"][1]',
+    );
+    await expect(qtyInput).toBeVisible();
+    await qtyInput.fill("10");
+    await page.getByPlaceholder("Variance reason (if any)").fill("E2E variance");
+
+    // 5. Save & Verify (wait for countdown submit to finish and navigate back)
+    await page.getByRole("button", { name: "Save & Verify" }).click();
+    await expect(page.getByText(/Undo \(\d+s\)/)).toBeVisible({ timeout: 5000 });
+    await page.waitForURL("**/staff/scan?sessionId=**", { timeout: 60000 });
+    await expect(page.getByText("Scan Items", { exact: true })).toBeVisible();
+
+    // 6. Logout via Settings page
+    await page.goto("/staff/settings");
+    await expect(page.getByText("Sign Out", { exact: true })).toBeVisible();
+    await page.getByText("Sign Out", { exact: true }).click();
+    await page.waitForURL("**/welcome", { timeout: 30000 });
+    await expect(page.getByText("Lavanya E-Mart")).toBeVisible();
+
     console.log("Flow Completed Successfully");
   });
 });

@@ -1,183 +1,107 @@
-<<<<<<< HEAD
 # Stock Verify Application (v2.1)
 
-> **✨ This repository is available as a GitHub template!**
-> Click "Use this template" to create your own Stock Verify instance. See [docs/STARTUP_GUIDE.md](docs/STARTUP_GUIDE.md) for setup instructions.
+This repository is available as a GitHub template. Use the template to create a new instance.
+See `docs/STARTUP_GUIDE.md` for setup instructions.
 
----
+## Start Here
 
-## 🎵 **NEW VIBE CODER? [START HERE!](docs/START_HERE.md)** 👈
+Guides:
+- `docs/START_HERE.md` (recommended first read)
+- `docs/QUICK_START.md`
+- `docs/VIBE_CODING_WORKFLOW.md`
+- `docs/FEATURE_ROADMAP.md`
+- `docs/STUDY_GUIDE_AGENTS_AND_VSCODE.md`
 
-**Complete Vibe Coding Guides:**
+## Documentation
 
-* **[📍 START HERE](docs/START_HERE.md)** ← Your personalized roadmap and next steps!
-* **[⚡ Quick Start: Vibe Coding Today](docs/QUICK_START.md)** - Get coding in 2 hours
-* **[🎯 Vibe Coding Next Steps Guide](docs/VIBE_CODING_WORKFLOW.md)** - 30-day learning path
-* **[🗺️ Visual Roadmap](docs/FEATURE_ROADMAP.md)** - See the big picture
-* **[🛠️ Vibe Coding Setup](docs/STUDY_GUIDE_AGENTS_AND_VSCODE.md)** - AI tools configuration
+Core:
+- `docs/codebase_memory_v2.1.md`
+- `docs/STOCK_VERIFY_2.1_cursor_rules.md`
+- `docs/verified_coding_policy.md`
+- `docs/CHANGELOG.md`
 
----
+Production:
+- `docs/PRODUCTION_DEPLOYMENT_GUIDE.md`
+- `docs/PRODUCTION_READINESS_CHECKLIST.md`
+- `docs/FEATURE_ROADMAP.md`
 
-## 📚 Documentation (v2.1)
+## Quick Start
 
-### Core Documentation
+New deployments:
+1) Read `docs/STARTUP_GUIDE.md`
+2) Run `./init-new-instance.sh`
 
-* **[Codebase Memory](docs/codebase_memory_v2.1.md)**: Architecture, Tech Stack, and Data Models.
-* **[Cursor Rules](docs/STOCK_VERIFY_2.1_cursor_rules.md)**: AI behavior and coding standards.
-* **[Verified Coding Policy](docs/verified_coding_policy.md)**: Testing and verification requirements.
-* **[Changelog](docs/CHANGELOG.md)**: Version history.
+Development:
 
-### Production & Deployment
-
-* **[Production Deployment Guide](docs/PRODUCTION_DEPLOYMENT_GUIDE.md)**: Complete deployment instructions for production.
-* **[Production Readiness Checklist](docs/PRODUCTION_READINESS_CHECKLIST.md)**: Step-by-step verification before going live.
-* **[Feature Roadmap](docs/FEATURE_ROADMAP.md)**: Planned features and upgrade recommendations.
-
----
-
-## 🚀 Quick Start
-
-### For New Deployments (Using Template)
-
-1. See **[docs/STARTUP_GUIDE.md](docs/STARTUP_GUIDE.md)** for complete setup guide
-2. Run `./init-new-instance.sh` to initialize your instance
-
-### For Development
-
-#### One-Click Startup (Recommended)
-
+One-click startup:
 ```bash
 make start
 ```
 
-This starts Backend, Frontend, and Database services, automatically configuring the network.
+Individual services:
+- Backend: `make backend` (port 8001)
+- Frontend: `make frontend` (port 8081, LAN mode)
+- Fix Expo: `make fix-expo` (tunnel mode)
+- Stop all: `make stop`
 
-#### Individual Services
+Network configuration (dynamic IP):
+1) Backend writes `backend_port.json` with its LAN IP on startup.
+2) Frontend reads this file to configure the API client.
+3) Docker/CI: set `EXPO_PUBLIC_BACKEND_URL` to override.
 
-* **Backend**: `make backend` (Port 8001)
-* **Frontend**: `make frontend` (Port 8081 - LAN Mode)
-* **Fix Expo**: `make fix-expo` (Tunnel Mode for connection issues)
-* **Stop All**: `make stop`
+## Local LAN Deployment
 
-### Network Configuration (Dynamic IP)
+1) Backend env:
+   - Copy `backend/.env.example` to `backend/.env`.
+   - Set `JWT_SECRET` and `JWT_REFRESH_SECRET` (32+ chars).
+   - Set `MONGO_URL` and SQL Server settings as needed.
+2) Frontend env:
+   - Copy `frontend/.env.example` to `frontend/.env`.
+   - Optionally set `EXPO_PUBLIC_BACKEND_URL` to your LAN IP.
+3) Start services:
+   - `make start` or `.\scripts\start_all.ps1` on Windows.
+4) Verify:
+   - `http://<LAN_IP>:8001/api/health`
+   - Expo runs on `http://<LAN_IP>:8081`
 
-The system now automatically detects your IP address to allow mobile devices to connect:
+## Testing
 
-1. **Backend** detects its LAN IP on startup and writes to `backend_port.json`.
-2. **Frontend** reads this file to configure the API client.
-3. **Docker/CI**: Set `EXPO_PUBLIC_BACKEND_URL` to override this behavior.
+- Frontend: `cd frontend && npm run ci`
+- Backend: `cd backend && python -m pytest`
+- E2E: see `frontend/e2e/README.md` (Maestro)
 
-## ⚙️ Configuration
+Details: `docs/TESTING_GUIDE.md`
 
-* **Backend Port**: 8001 (Default)
-* **SQL Server**: configured in `backend/config.py` (Default: `192.168.1.109`)
-* **Frontend**: Expo SDK 54 (Stable)
+## Production Deployment (Docker Compose)
 
-## 🧹 Maintenance
+1) Create production env:
+   - `copy .env.production.example .env.prod` (Windows) or `cp .env.production.example .env.prod` (Linux/macOS).
+2) Update secrets and domain values in `.env.prod`.
+3) Provision TLS certificates:
+   - `./scripts/init_letsencrypt.sh`
+4) Start production stack:
+   - `docker compose --env-file .env.prod -f docker-compose.prod.yml up -d`
 
-To archive old documentation:
+Monitoring:
+- Grafana: `https://<domain>/grafana`
+- Prometheus: internal on `http://prometheus:9090`
 
+Kubernetes manifests live in `k8s/` (see `k8s/secrets.example.yaml`).
+
+## Configuration
+
+- Backend port: 8001 (default)
+- SQL Server: configured in `backend/config.py` (default `192.168.1.109`)
+- Frontend: Expo SDK 54
+
+## Maintenance
+
+Archive old documentation:
 ```bash
 python scripts/cleanup_old_docs.py
 ```
 
-## Kill frontend
-
+Kill frontend (macOS/Linux):
 ```bash
 lsof -ti :8081,19000,19001,19002,19006 | xargs kill -9
 ```
-=======
-# Stock-verify-new
-
-
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://gitlab.com/mknoufi/stock-verify-new.git
-git branch -M main
-git push -uf origin main
-```
-
-## Integrate with your tools
-
-* [Set up project integrations](https://gitlab.com/mknoufi/stock-verify-new/-/settings/integrations)
-
-## Collaborate with your team
-
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
->>>>>>> d73cbfccdd1953e4e1cf2069a271c7b16a9376a3

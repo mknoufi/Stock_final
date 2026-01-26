@@ -6,7 +6,8 @@ spec:
   selector:
     app: stock-verify-backend
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 8001
       targetPort: 8001
   type: ClusterIP
@@ -19,7 +20,8 @@ spec:
   selector:
     app: stock-verify-frontend
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 80
       targetPort: 80
-  type: LoadBalancer
+  type: ClusterIP

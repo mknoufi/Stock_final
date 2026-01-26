@@ -5,6 +5,7 @@ import {
   getCacheStats,
   OfflineQueueItem,
   removeFromOfflineQueue,
+  removeSessionFromCache,
 } from "./offline/offlineStorage";
 import { syncBatch, isOnline } from "./api/api";
 import { useNetworkStore } from "../store/networkStore";
@@ -154,6 +155,26 @@ export const syncOfflineQueue = async (
         if (successIds.length > 0) {
           await removeManyFromOfflineQueue(successIds);
           log.debug(`Removed ${successIds.length} synced items from queue`);
+
+          const successSet = new Set(successIds);
+          for (const item of batch) {
+            if (!successSet.has(item.id) || item.type !== "session") {
+              continue;
+            }
+
+            const data = item.data as Record<string, unknown> | undefined;
+            if (!data || "operation" in data) {
+              continue;
+            }
+
+            const offlineId = data.id || data.session_id;
+            if (typeof offlineId === "string") {
+              await removeSessionFromCache(offlineId);
+              log.debug("Removed synced offline session from cache", {
+                sessionId: offlineId,
+              });
+            }
+          }
         }
       } catch (batchError: unknown) {
         const errorMessage = batchError instanceof Error ? batchError.message : "Unknown batch error";

@@ -112,7 +112,7 @@ const VARIANT_CONFIG: Record<
   },
 };
 
-export function ConfirmModal({
+function ConfirmModal({
   visible,
   onClose,
   title,
@@ -326,4 +326,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ConfirmModal;
+export { ConfirmModal };

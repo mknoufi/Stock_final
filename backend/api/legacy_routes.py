@@ -4,6 +4,7 @@
 import asyncio
 import logging
 import os
+import re
 import sys
 import uuid
 from datetime import datetime, timedelta
@@ -43,11 +44,11 @@ from backend.error_messages import get_error_message  # noqa: E402
 # Production services
 # from backend.services.connection_pool import SQLServerConnectionPool  # Legacy pool removed
 from backend.services.database_optimizer import DatabaseOptimizer  # noqa: E402
-from backend.services.errors import (  # noqa: E402
+from backend.exceptions import (  # noqa: E402
     AuthenticationError,
-    DatabaseError,
+    StockVerifyException as DatabaseError,  # Using base class as generic database error for now
     NotFoundError,
-    RateLimitExceededError,
+    RateLimitError as RateLimitExceededError,
     ValidationError,
 )
 
@@ -700,6 +701,36 @@ async def create_session(
 ) -> Session:
     logger.debug(f"create_session called. User: {current_user.get('username')}")
 
+    # Input validation and sanitization
+    warehouse = session_data.warehouse.strip()
+    if not warehouse:
+        raise HTTPException(status_code=400, detail="Warehouse name cannot be empty")
+    if len(warehouse) < 2:
+        raise HTTPException(status_code=400, detail="Warehouse name must be at least 2 characters")
+    if len(warehouse) > 100:
+        raise HTTPException(
+            status_code=400, detail="Warehouse name must be less than 100 characters"
+        )
+    # Sanitize warehouse name (remove potentially dangerous characters)
+    warehouse = warehouse.replace("<", "").replace(">", "").replace('"', "").replace("'", "")
+
+    existing_session = await db.sessions.find_one(
+        {
+            "staff_user": current_user["username"],
+            "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]},
+            "warehouse": {"$regex": f"^{re.escape(warehouse)}$", "$options": "i"},
+        }
+    )
+    if existing_session:
+        if "_id" in existing_session and "id" not in existing_session:
+            existing_session["id"] = str(existing_session["_id"])
+            del existing_session["_id"]
+        logger.info(
+            "Existing open session found for warehouse; returning existing session",
+            extra={"warehouse": warehouse, "session_id": existing_session.get("id")},
+        )
+        return Session(**existing_session)
+
     # Check session limit - users can have maximum 5 open sessions
     MAX_OPEN_SESSIONS = 5
     open_sessions_count = await db.sessions.count_documents(
@@ -715,19 +746,6 @@ async def create_session(
                 f"(maximum {MAX_OPEN_SESSIONS})."
             ),
         )
-
-    # Input validation and sanitization
-    warehouse = session_data.warehouse.strip()
-    if not warehouse:
-        raise HTTPException(status_code=400, detail="Warehouse name cannot be empty")
-    if len(warehouse) < 2:
-        raise HTTPException(status_code=400, detail="Warehouse name must be at least 2 characters")
-    if len(warehouse) > 100:
-        raise HTTPException(
-            status_code=400, detail="Warehouse name must be less than 100 characters"
-        )
-    # Sanitize warehouse name (remove potentially dangerous characters)
-    warehouse = warehouse.replace("<", "").replace(">", "").replace('"', "").replace("'", "")
 
     session = Session(
         warehouse=warehouse,

@@ -5,6 +5,7 @@ and preserves backward compatibility with legacy offline payloads.
 """
 
 import logging
+import re
 import time
 import uuid
 from copy import deepcopy
@@ -293,7 +294,12 @@ async def sync_batch(
     start_time = time.time()
 
     # Rate limiting check
-    user_id = current_user.get("username", str(current_user.get("_id", "unknown")))
+    user_id = (
+        current_user.get("username")
+        or current_user.get("user_id")
+        or current_user.get("id")
+        or str(current_user.get("_id", "unknown"))
+    )
     is_allowed, rate_info = batch_rate_limiter.is_allowed(user_id)
     if not is_allowed:
         raise HTTPException(
@@ -357,14 +363,12 @@ async def sync_batch(
     try:
         # Validate all records first
         for record in request.records:
-            conflict = await validate_record(
-                record, db, lock_manager, sync_service, current_user["username"]
-            )
+            conflict = await validate_record(record, db, lock_manager, sync_service, user_id)
             if conflict:
                 conflicts.append(conflict)
             else:
                 # Sync valid record
-                success, error_msg = await sync_single_record(record, db, current_user["username"])
+                success, error_msg = await sync_single_record(record, db, user_id)
 
                 if success:
                     ok_records.append(record.client_record_id)
@@ -467,6 +471,31 @@ async def _process_session_op(
     staff_user = current_user.get("username", "unknown_user")
     staff_name = current_user.get("full_name") or staff_user
 
+    offline_id = session_data.get("session_id") or session_data.get("id")
+    if offline_id:
+        existing_by_offline = await db.sessions.find_one({"offline_id": str(offline_id)})
+        if existing_by_offline:
+            session_id = existing_by_offline.get("id") or str(existing_by_offline.get("_id"))
+            id_mapping[str(offline_id)] = session_id
+            return "Session already synced"
+
+    existing_session = await db.sessions.find_one(
+        {
+            "staff_user": staff_user,
+            "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]},
+            "warehouse": {"$regex": f"^{re.escape(warehouse)}$", "$options": "i"},
+        }
+    )
+    if existing_session:
+        session_id = existing_session.get("id") or str(existing_session.get("_id"))
+        if offline_id:
+            id_mapping[str(offline_id)] = session_id
+            await db.sessions.update_one(
+                {"id": session_id},
+                {"$set": {"offline_id": str(offline_id), "created_offline": True}},
+            )
+        return "Session already exists"
+
     raw_type = session_data.get("type")
     normalized_type = raw_type.strip().upper() if isinstance(raw_type, str) else "STANDARD"
     if normalized_type not in {"STANDARD", "BLIND", "STRICT"}:
@@ -481,7 +510,6 @@ async def _process_session_op(
     )
 
     session_doc = session.model_dump()
-    offline_id = session_data.get("session_id") or session_data.get("id")
     if offline_id:
         session_doc["offline_id"] = offline_id
         id_mapping[str(offline_id)] = session.id

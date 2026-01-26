@@ -439,4 +439,46 @@ export class ItemVerificationAPI {
       throw error;
     }
   }
+
+  /**
+   * Bulk approve variances
+   */
+  static async bulkApproveVariances(
+    countLineIds: string[],
+    notes?: string,
+  ): Promise<{ success: boolean; modified_count: number }> {
+    try {
+      const response = await api.post(`/api/count-lines/bulk/approve`, {
+        count_line_ids: countLineIds,
+        notes,
+      });
+      return response.data;
+    } catch (error: unknown) {
+      __DEV__ && console.error("Bulk approve failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Bulk approve failed";
+      throw new Error(errorMessage);
+    }
+  }
+
+  /**
+   * Bulk reject variances
+   */
+  static async bulkRejectVariances(
+    countLineIds: string[],
+    notes?: string,
+  ): Promise<{ success: boolean; modified_count: number }> {
+    try {
+      const response = await api.post(`/api/count-lines/bulk/reject`, {
+        count_line_ids: countLineIds,
+        notes,
+      });
+      return response.data;
+    } catch (error: unknown) {
+      __DEV__ && console.error("Bulk reject failed:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Bulk reject failed";
+      throw new Error(errorMessage);
+    }
+  }
 }

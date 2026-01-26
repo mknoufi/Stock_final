@@ -3,7 +3,7 @@ Enhanced Supervisor Workflow API - Batch operations and photo enforcement
 """
 
 import logging
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Body
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
@@ -15,6 +15,15 @@ from backend.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/supervisor", tags=["Supervisor Workflow"])
+
+
+def _get_user_id(current_user: dict) -> str:
+    return (
+        current_user.get("username")
+        or current_user.get("user_id")
+        or current_user.get("id")
+        or str(current_user.get("_id", "unknown"))
+    )
 
 
 # Request/Response Models
@@ -75,8 +84,10 @@ async def batch_approve_count_lines(
     try:
         state_machine = CountLineStateMachine(db)
         notification_service = NotificationService(db)
+        actor_id = _get_user_id(current_user)
+        actor_name = current_user.get("username") or actor_id
 
-        results = []
+        results: List[Dict[str, Any]] = []
         succeeded = 0
         failed = 0
 
@@ -116,7 +127,7 @@ async def batch_approve_count_lines(
                 result = await state_machine.transition(
                     count_line_id=count_line_id,
                     next_state=CountLineState.APPROVED.value,
-                    user_id=current_user.get("user_id") or current_user.get("username"),
+                    user_id=actor_id,
                     user_role=current_user.get("role", "supervisor"),
                     reason=request.approval_notes,
                 )
@@ -128,7 +139,7 @@ async def batch_approve_count_lines(
                         user_id=owner_id,
                         count_line_id=count_line_id,
                         item_name=count_line.get("item_name", "Unknown"),
-                        approved_by=current_user.get("username"),
+                        approved_by=actor_name,
                     )
 
                 results.append(
@@ -175,6 +186,8 @@ async def batch_reject_count_lines(
     try:
         state_machine = CountLineStateMachine(db)
         notification_service = NotificationService(db)
+        actor_id = _get_user_id(current_user)
+        actor_name = current_user.get("username") or actor_id
 
         results = []
         succeeded = 0
@@ -199,7 +212,7 @@ async def batch_reject_count_lines(
                 result = await state_machine.transition(
                     count_line_id=count_line_id,
                     next_state=CountLineState.REJECTED.value,
-                    user_id=current_user.get("user_id") or current_user.get("username"),
+                    user_id=actor_id,
                     user_role=current_user.get("role", "supervisor"),
                     reason=request.rejection_reason,
                     metadata={"assigned_to": request.assign_to} if request.assign_to else None,
@@ -219,7 +232,7 @@ async def batch_reject_count_lines(
                         count_line_id=count_line_id,
                         item_name=count_line.get("item_name", "Unknown"),
                         reason=request.rejection_reason,
-                        assigned_by=current_user.get("username"),
+                        assigned_by=actor_name,
                     )
 
                 results.append(
@@ -264,7 +277,7 @@ async def check_photo_requirements(
     Returns which count lines have photos and which require them.
     """
     try:
-        results = []
+        results: List[Dict[str, Any]] = []
 
         for count_line_id in count_line_ids:
             count_line = await db.count_lines.find_one({"id": count_line_id})
@@ -311,7 +324,9 @@ async def check_photo_requirements(
                             else (
                                 "High value item"
                                 if mrp > 10000
-                                else "Damage reported" if has_damage else None
+                                else "Damage reported"
+                                if has_damage
+                                else None
                             )
                         )
                     ),

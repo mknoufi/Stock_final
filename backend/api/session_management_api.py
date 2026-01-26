@@ -4,6 +4,7 @@ Extends existing session API with rack-based workflow support
 """
 
 import logging
+import re
 import time
 from datetime import datetime
 from typing import Any, Optional
@@ -18,6 +19,7 @@ from backend.auth.dependencies import get_current_user_async as get_current_user
 from backend.db.runtime import get_db
 from backend.services.lock_manager import get_lock_manager
 from backend.services.redis_service import get_redis
+from backend.core.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +150,28 @@ async def create_session(
     import uuid
     from datetime import datetime
 
+    # Input validation
+    warehouse = session_data.warehouse.strip()
+    if not warehouse:
+        raise HTTPException(status_code=400, detail="Warehouse name cannot be empty")
+
+    existing_session = await db.sessions.find_one(
+        {
+            "staff_user": current_user["username"],
+            "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]},
+            "warehouse": {"$regex": f"^{re.escape(warehouse)}$", "$options": "i"},
+        }
+    )
+    if existing_session:
+        if "_id" in existing_session and "id" not in existing_session:
+            existing_session["id"] = str(existing_session["_id"])
+            del existing_session["_id"]
+        logger.info(
+            "Existing open session found for warehouse; returning existing session",
+            extra={"warehouse": warehouse, "session_id": existing_session.get("id")},
+        )
+        return Session(**existing_session)
+
     # Check session limit - users can have maximum 5 open sessions
     MAX_OPEN_SESSIONS = 5
     open_sessions_count = await db.sessions.count_documents(
@@ -164,11 +188,6 @@ async def create_session(
             ),
         )
 
-    # Input validation
-    warehouse = session_data.warehouse.strip()
-    if not warehouse:
-        raise HTTPException(status_code=400, detail="Warehouse name cannot be empty")
-
     # Create Session object
     session = Session(
         id=str(uuid.uuid4()),
@@ -181,7 +200,9 @@ async def create_session(
     )
 
     # Insert into db.sessions
-    await db.sessions.insert_one(session.model_dump())
+    session_doc = session.model_dump()
+    session_doc["session_id"] = session.id
+    await db.sessions.insert_one(session_doc)
 
     # Also create entry in verification_sessions for compatibility with new features
     verification_session = {
@@ -302,6 +323,17 @@ async def get_session_stats(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> SessionStats:
     """Get session statistics"""
+    if session_id.startswith("offline_"):
+        return SessionStats(
+            id=session_id,
+            total_items=0,
+            verified_items=0,
+            damage_items=0,
+            pending_items=0,
+            duration_seconds=0,
+            items_per_minute=0,
+        )
+
     session = await db.verification_sessions.find_one({"session_id": session_id})
 
     if not session:
@@ -441,6 +473,35 @@ async def update_session_status(
         {"session_id": session_id}, {"$set": {"status": status}}
     )
 
+    # Broadcast update
+    await manager.broadcast_to_session(
+        message={
+            "type": "session_update",
+            "payload": {
+                "session_id": session_id,
+                "status": status,
+                "updated_by": user_id,
+                "updated_at": time.time(),
+            },
+        },
+        session_id=session_id,
+    )
+
+    # Also notify the user personally in case they are not subscribed to the session channel yet
+    # or to ensure they get the message on their user channel
+    if session["user_id"] != user_id:  # If supervisor updated it
+        await manager.send_personal_message(
+            message={
+                "type": "session_update",
+                "payload": {
+                    "session_id": session_id,
+                    "status": status,
+                    "reason": "Supervisor update",
+                },
+            },
+            user_id=session["user_id"],
+        )
+
     return {"success": True, "id": session_id, "status": status}
 
 
@@ -497,6 +558,19 @@ async def complete_session(
     await lock_manager.delete_session(session_id)
 
     logger.info(f"Session {session_id} completed by {user_id}")
+
+    # Broadcast completion
+    await manager.broadcast_to_session(
+        message={
+            "type": "session_completed",
+            "payload": {
+                "session_id": session_id,
+                "completed_by": user_id,
+                "completed_at": time.time(),
+            },
+        },
+        session_id=session_id,
+    )
 
     return {
         "success": True,

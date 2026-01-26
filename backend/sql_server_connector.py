@@ -800,7 +800,8 @@ class SQLServerConnector:
             # Build IN clause with parameterized placeholders
             placeholders = ", ".join("?" for _ in item_codes)
 
-            # Build query with IN clause
+            # Build query with IN clause using safe parameterization
+            # Note: schema, table_name, and column names are validated internally
             query = f"""
                 SELECT {columns}
                     {self.optional_columns_clause}
@@ -849,6 +850,7 @@ class SQLServerConnector:
             # Build minimal query - only fetch barcode and qty from ProductBatches
             placeholders = ", ".join("?" for _ in barcodes)
 
+            # Safe parameterized query - user input is properly parameterized
             query = f"""
                 SELECT CAST(AutoBarcode AS VARCHAR(50)) as barcode, Stock as stock_qty
                 FROM dbo.ProductBatches

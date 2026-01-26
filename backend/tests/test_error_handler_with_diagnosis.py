@@ -235,40 +235,44 @@ async def test_self_diagnosing_error_handler_execute_fail(mock_diagnosis_service
 @pytest.mark.asyncio
 async def test_self_diagnosing_error_handler_execute_retry_coro_fail(mock_diagnosis_service):
     """Test that retrying a coroutine object fails gracefully"""
-    mock_diagnosis_service.diagnose_error.return_value = MockDiagnosis(auto_fixable=True, root_cause="fail")
+    mock_diagnosis_service.diagnose_error.return_value = MockDiagnosis(
+        auto_fixable=True, root_cause="fail"
+    )
     mock_diagnosis_service.auto_fix_error.return_value = Result.success(True)
-    
+
     handler = SelfDiagnosingErrorHandler(auto_fix=True)
-    
+
     async def fail_once():
         raise ValueError("fail")
-        
+
     # Pass coroutine object
     result = await handler.execute(fail_once())
-    
+
     # Should return error because we can't retry a coroutine object
     assert result.is_error
     assert result._error_message == "fail"
+
 
 @pytest.mark.asyncio
 async def test_self_diagnosing_error_handler_execute_retry_factory_success(mock_diagnosis_service):
     """Test that retrying a factory function succeeds"""
     mock_diagnosis_service.diagnose_error.return_value = MockDiagnosis(auto_fixable=True)
     mock_diagnosis_service.auto_fix_error.return_value = Result.success(True)
-    
+
     handler = SelfDiagnosingErrorHandler(auto_fix=True)
-    
+
     call_count = 0
+
     async def fail_then_succeed():
         nonlocal call_count
         call_count += 1
         if call_count == 1:
             raise ValueError("fail first")
         return "recovered"
-        
+
     # Pass factory function
     result = await handler.execute(fail_then_succeed)
-    
+
     assert result.is_success
     assert result.unwrap() == "recovered"
     assert call_count == 2

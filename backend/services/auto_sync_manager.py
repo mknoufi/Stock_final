@@ -133,8 +133,13 @@ class AutoSyncManager:
         self._stats["connection_checks"] += 1
 
         try:
-            is_available = self.sql_connector.test_connection()
+            is_available = await asyncio.wait_for(
+                asyncio.to_thread(self.sql_connector.test_connection),
+                timeout=3,
+            )
             await self._handle_connection_state_change(is_available)
+        except asyncio.TimeoutError:
+            await self._handle_connection_state_change(False)
         except Exception as e:
             logger.error(f"Error checking SQL Server connection: {e}")
             if self._sql_available:

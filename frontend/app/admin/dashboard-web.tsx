@@ -25,8 +25,6 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { Ionicons } from "@expo/vector-icons";
-import * as FileSystem from "expo-file-system";
-import * as Sharing from "expo-sharing";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import {

@@ -16,6 +16,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/notifications", tags=["Notifications"])
 
 
+def _get_user_id(current_user: dict) -> str:
+    return (
+        current_user.get("username")
+        or current_user.get("user_id")
+        or current_user.get("id")
+        or str(current_user.get("_id", "unknown"))
+    )
+
+
 # Response Models
 
 
@@ -58,16 +67,15 @@ async def get_notifications(
     """
     try:
         notification_service = NotificationService(db)
+        user_id = _get_user_id(current_user)
 
         notifications = await notification_service.get_user_notifications(
-            user_id=current_user.get("user_id") or current_user.get("username"),
+            user_id=user_id,
             unread_only=unread_only,
             limit=limit,
         )
 
-        unread_count = await notification_service.get_unread_count(
-            user_id=current_user.get("user_id") or current_user.get("username")
-        )
+        unread_count = await notification_service.get_unread_count(user_id=user_id)
 
         return NotificationListResponse(
             notifications=notifications, total=len(notifications), unread_count=unread_count
@@ -86,10 +94,9 @@ async def get_unread_count(
     """Get count of unread notifications (for badge)"""
     try:
         notification_service = NotificationService(db)
+        user_id = _get_user_id(current_user)
 
-        count = await notification_service.get_unread_count(
-            user_id=current_user.get("user_id") or current_user.get("username")
-        )
+        count = await notification_service.get_unread_count(user_id=user_id)
 
         return {"unread_count": count}
 
@@ -107,10 +114,11 @@ async def mark_notification_as_read(
     """Mark a notification as read"""
     try:
         notification_service = NotificationService(db)
+        user_id = _get_user_id(current_user)
 
         success = await notification_service.mark_as_read(
             notification_id=notification_id,
-            user_id=current_user.get("user_id") or current_user.get("username"),
+            user_id=user_id,
         )
 
         if not success:
@@ -133,10 +141,9 @@ async def mark_all_notifications_as_read(
     """Mark all notifications as read"""
     try:
         notification_service = NotificationService(db)
+        user_id = _get_user_id(current_user)
 
-        count = await notification_service.mark_all_as_read(
-            user_id=current_user.get("user_id") or current_user.get("username")
-        )
+        count = await notification_service.mark_all_as_read(user_id=user_id)
 
         return {"success": True, "message": f"Marked {count} notifications as read", "count": count}
 
@@ -154,10 +161,11 @@ async def delete_notification(
     """Delete a notification"""
     try:
         notification_service = NotificationService(db)
+        user_id = _get_user_id(current_user)
 
         success = await notification_service.delete_notification(
             notification_id=notification_id,
-            user_id=current_user.get("user_id") or current_user.get("username"),
+            user_id=user_id,
         )
 
         if not success:
