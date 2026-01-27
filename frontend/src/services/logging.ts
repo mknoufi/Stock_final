@@ -96,14 +96,14 @@ function log(
  * ```
  */
 export const logger = {
-  debug: (message: string, context?: Record<string, unknown>) =>
-    log("debug", message, context),
-  info: (message: string, context?: Record<string, unknown>) =>
-    log("info", message, context),
-  warn: (message: string, context?: Record<string, unknown>) =>
-    log("warn", message, context),
-  error: (message: string, context?: Record<string, unknown>) =>
-    log("error", message, context),
+  debug: (message: string, context?: any) =>
+    log("debug", message, normalizeContext(context)),
+  info: (message: string, context?: any) =>
+    log("info", message, normalizeContext(context)),
+  warn: (message: string, context?: any) =>
+    log("warn", message, normalizeContext(context)),
+  error: (message: string, context?: any) =>
+    log("error", message, normalizeContext(context)),
 };
 
 /**
@@ -118,15 +118,26 @@ export const logger = {
  */
 export function createLogger(module: string) {
   return {
-    debug: (message: string, context?: Record<string, unknown>) =>
-      log("debug", message, context, module),
-    info: (message: string, context?: Record<string, unknown>) =>
-      log("info", message, context, module),
-    warn: (message: string, context?: Record<string, unknown>) =>
-      log("warn", message, context, module),
-    error: (message: string, context?: Record<string, unknown>) =>
-      log("error", message, context, module),
+    debug: (message: string, context?: any) =>
+      log("debug", message, normalizeContext(context), module),
+    info: (message: string, context?: any) =>
+      log("info", message, normalizeContext(context), module),
+    warn: (message: string, context?: any) =>
+      log("warn", message, normalizeContext(context), module),
+    error: (message: string, context?: any) =>
+      log("error", message, normalizeContext(context), module),
   };
+}
+
+/**
+ * Normalizes context into a Record<string, unknown>
+ */
+function normalizeContext(context?: any): Record<string, unknown> | undefined {
+  if (!context) return undefined;
+  if (typeof context === "object" && context !== null && !Array.isArray(context)) {
+    return context as Record<string, unknown>;
+  }
+  return { data: context };
 }
 
 /**

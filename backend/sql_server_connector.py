@@ -877,5 +877,45 @@ class SQLServerConnector:
             raise DatabaseQueryError(f"Failed to fetch item quantities by barcode: {str(e)}")
 
 
+    async def execute_query(self, query: str, params: Optional[list[Any]] = None) -> list[dict[str, Any]]:
+        """
+        Execute an arbitrary SQL query and return results as a list of dictionaries.
+        This is an async-compatible wrapper for synchronous pyodbc execution.
+
+        Args:
+            query: The SQL query to execute.
+            params: Optional list of parameters for the query.
+
+        Returns:
+            List of result dictionaries.
+        """
+        if not self.connection:
+            if not self._attempt_auto_reconnect():
+                raise DatabaseConnectionError(DB_NOT_CONNECTED_MSG)
+
+        try:
+            # Use run_in_executor for async-friendly execution of synchronous pyodbc calls
+            import asyncio
+            loop = asyncio.get_event_loop()
+            
+            def _execute():
+                cursor = self.connection.cursor()
+                try:
+                    if params:
+                        cursor.execute(query, params)
+                    else:
+                        cursor.execute(query)
+                    
+                    rows = cursor.fetchall()
+                    return [self._cursor_to_dict(cursor, row) for row in rows]
+                finally:
+                    cursor.close()
+
+            return await loop.run_in_executor(None, _execute)
+
+        except Exception as e:
+            logger.error(f"Error executing custom query: {str(e)}")
+            raise DatabaseQueryError(f"Failed to execute custom query: {str(e)}")
+
 # Global connector instance
 sql_connector = SQLServerConnector()

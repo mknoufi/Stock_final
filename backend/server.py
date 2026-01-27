@@ -293,8 +293,10 @@ if enrichment_router:
 # Include API v2 router (upgraded endpoints)
 try:
     from backend.api.v2 import v2_router
+    from backend.api.backend_config_api import router as backend_config_router
 
     app.include_router(v2_router)
+    app.include_router(backend_config_router)
     logger.info("✓ API v2 router registered")
 except Exception as e:
     logger.warning(f"API v2 router not available: {e}")

@@ -223,6 +223,11 @@ class ChangeDetectionSyncService:
         if not self.enabled:
             return Fail(SyncConfigError("Sync is disabled"))
 
+        # Check if SQL connector is connected
+        if not self.sql_connector.connection:
+            logger.debug("SQL Server not connected, skipping change detection sync")
+            return Fail(ConnectionError("SQL Server connection not established"))
+
         logger.info("Starting change detection sync...")
         start_time = datetime.utcnow()
 
@@ -269,6 +274,7 @@ class ChangeDetectionSyncService:
         duration_ms = int((end_time - start_time).total_seconds() * 1000)
 
         # Update statistics
+        self._last_sync = end_time
         self._sync_stats["total_syncs"] += 1
         self._sync_stats["successful_syncs"] += 1
         self._sync_stats["items_checked"] += items_checked
@@ -345,11 +351,6 @@ class ChangeDetectionSyncService:
             logger.warning(msg)
             return Fail(SyncError(msg))
 
-        if not self.sql_connector.connection:
-            error = ConnectionError("SQL Server connection not established")
-            logger.error(str(error))
-            return Fail(error)
-
         try:
             self._running = True
             self._task = asyncio.create_task(self._run())
@@ -389,9 +390,40 @@ class ChangeDetectionSyncService:
         logger.info("Change detection sync service stopped")
         return Ok({"status": "stopped", "timestamp": datetime.utcnow().isoformat()})
 
-    async def sync_now(self) -> dict[str, Any]:
+    async def _run(self) -> None:
+        """Background loop for the sync service."""
+        logger.info(
+            "Starting change detection sync loop (interval: %ds)", self.sync_interval
+        )
+        while self._running:
+            try:
+                if self.enabled:
+                    await self._sync_changes()
+                else:
+                    logger.debug("Sync is disabled, skipping interval")
+
+                # Wait for the next interval
+                await asyncio.sleep(self.sync_interval)
+            except asyncio.CancelledError:
+                logger.info("Sync loop task cancelled")
+                break
+            except Exception as e:
+                logger.exception("Unexpected error in sync loop: %s", str(e))
+                # Wait a bit before retrying after an error
+                await asyncio.sleep(min(60, self.sync_interval))
+
+    def _get_next_sync_in(self) -> Optional[int]:
+        """Get seconds until next sync."""
+        if not self._running or not self._last_sync:
+            return None
+
+        elapsed = (datetime.utcnow() - self._last_sync).total_seconds()
+        next_in = max(0, int(self.sync_interval - elapsed))
+        return next_in
+
+    async def sync_now(self) -> SyncResult:
         """Trigger immediate change detection sync"""
-        return await self.sync_changed_items(force_full=True)
+        return await self._sync_changes()
 
     def get_status(self) -> dict[str, Any]:
         """

@@ -168,6 +168,11 @@ INDEXES: dict[str, list[tuple[list[tuple[str, Union[int, str]]], dict]]] = {
         # Resolution status
         ([("resolved", 1), ("timestamp", -1)], {"name": "idx_resolved"}),
     ],
+    # Products Collection (for change detection)
+    "products": [
+        ([("barcode", 1)], {"unique": True, "name": "idx_product_barcode"}),
+        ([("last_updated", -1)], {"name": "idx_product_updated"}),
+    ],
 }
 
 
@@ -196,10 +201,14 @@ async def create_indexes(db) -> dict[str, int]:
                     await collection.create_index(field_spec, **options)
                     created += 1
                 except Exception as e:
-                    logger.warning(
-                        f"Failed to create index {options.get('name')} "
-                        f"on {collection_name}: {str(e)}"
-                    )
+                    err_str = str(e)
+                    index_name = options.get("name", str(field_spec))
+                    if "IndexOptionsConflict" in err_str or "already exists" in err_str:
+                        logger.debug(f"{index_name} index already exists with different options, skipping")
+                    else:
+                        logger.warning(
+                            f"Failed to create index {index_name} on {collection_name}: {err_str}"
+                        )
 
             results[collection_name] = created
             logger.info(f"✓ Created {created} indexes on {collection_name}")

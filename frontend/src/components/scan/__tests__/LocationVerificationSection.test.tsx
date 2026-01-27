@@ -2,6 +2,11 @@ import React from "react";
 import { render, fireEvent } from "@testing-library/react-native";
 import { LocationVerificationSection } from "@/components/scan/LocationVerificationSection";
 
+// Mock ThemeContext to avoid importing the entire store/api chain
+jest.mock("@/context/ThemeContext", () => ({
+  useThemeContextSafe: () => null,
+}));
+
 describe("LocationVerificationSection", () => {
   it("calls onSelectFloor when a floor chip is pressed", () => {
     const onSelectFloor = jest.fn();

@@ -35,7 +35,6 @@ from backend.api.sync_status_api import set_auto_sync_manager
 from backend.auth.dependencies import init_auth_dependencies
 from backend.config import settings
 from backend.core import globals as g
-from backend.db.indexes import create_indexes
 from backend.db.initialization import init_default_users, init_mock_erp_data
 from backend.db.migrations import MigrationManager
 from backend.db.runtime import set_client, set_db
@@ -338,6 +337,12 @@ async def lifespan(app: FastAPI):  # noqa: C901
     set_cache_service(cache_service)
     set_refresh_token_service(refresh_token_service)
 
+    # Inject globals into legacy_routes (Critical for Auth)
+    legacy_routes.db = db
+    legacy_routes.cache_service = cache_service
+    legacy_routes.refresh_token_service = refresh_token_service
+    legacy_routes.activity_log_service = activity_log_service
+
     # Phase 1: Initialize Redis and related services
     redis_service = None
     pubsub_service = None
@@ -369,16 +374,8 @@ async def lifespan(app: FastAPI):  # noqa: C901
     except Exception as e:
         logger.warning(f"⚠️ mDNS service failed to start: {str(e)}")
 
-    # Create MongoDB indexes
-    try:
-        logger.info("📊 Creating MongoDB indexes...")
-        index_results = await create_indexes(db)
-        total_indexes = sum(index_results.values())
-        logger.info(
-            f"✓ MongoDB indexes created: {total_indexes} total across {len(index_results)} collections"
-        )
-    except Exception as e:
-        logger.warning(f"⚠️ Index creation warning: {str(e)}")
+    # Create MongoDB indexes via MigrationManager
+    # MigrationManager.ensure_indexes() now calls create_indexes internally
 
     # Initialize SQL Server connection if credentials are available
     sql_connected = False
@@ -389,18 +386,22 @@ async def lifespan(app: FastAPI):  # noqa: C901
         sql_database = getattr(settings, "SQL_SERVER_DATABASE", None)
         sql_user = getattr(settings, "SQL_SERVER_USER", None)
         sql_password = getattr(settings, "SQL_SERVER_PASSWORD", None)
-        sql_password_placeholder = (
-            isinstance(sql_password, str)
-            and sql_password.strip().lower()
-            in {"", "your-sql-password", "change-me", "password", "changeme"}
-        )
-        sql_credentials_ready = (not sql_user) or (
-            sql_password and not sql_password_placeholder
-        )
+        sql_password_placeholder = isinstance(
+            sql_password, str
+        ) and sql_password.strip().lower() in {
+            "",
+            "your-sql-password",
+            "change-me",
+            "password",
+            "changeme",
+            "your-actual-sql-password",
+        }
+        sql_credentials_ready = (not sql_user) or (sql_password and not sql_password_placeholder)
 
         # Always attach SQL connector to count_lines_router so it can handle its own fallbacks
         try:
             from backend.api.count_lines_api import router as count_lines_router
+
             setattr(count_lines_router, "sql_connector", sql_connector)
             logger.info("✓ SQL connector attached to count_lines_router")
         except Exception as e:
@@ -978,7 +979,7 @@ async def lifespan(app: FastAPI):  # noqa: C901
 
     # Close MongoDB connection
     try:
-        if 'client' in globals() and client:
+        if "client" in globals() and client:
             client.close()
             logger.info("✓ MongoDB connection closed")
     except Exception as e:

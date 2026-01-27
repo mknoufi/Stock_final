@@ -184,7 +184,7 @@ class EnhancedSQLServerConnectionPool:
         password_placeholder = (
             isinstance(self.password, str)
             and self.password.strip().lower()
-            in {"", "your-sql-password", "change-me", "password", "changeme"}
+            in {"", "your-sql-password", "change-me", "password", "changeme", "dev_sql_password_placeholder", "your-actual-sql-password"}
         )
         if password_placeholder:
             logger.warning("SQL Server connection pool initialization skipped (placeholder password detected)")

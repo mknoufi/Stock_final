@@ -261,6 +261,72 @@ async def get_erp_config(current_user: dict = Depends(get_current_user)):
     }
 
 
+@router.get("/item-batches/{item_code}")
+async def get_item_batches(
+    item_code: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Get batches/variants for a specific item code.
+    Used by the frontend to show all variants (same item code, different barcodes/stock).
+    """
+    if _db is None:
+        raise HTTPException(status_code=503, detail="Service not initialized")
+
+    normalized_code = _normalize_barcode_input(item_code, strict_numeric=False)
+
+    # 1. Try to fetch from SQL Server (if connected)
+    # Since we can't easily access the SQL connector here efficiently without a service,
+    # and we know it's likely offline, we'll implement a "Try SQL, else Mongo" logic.
+
+    # Check SQL Health explicitly to decide whether to try specific SQL query
+    # For now, we'll assume SQL is "offline" based on global state or timeouts,
+    # but we can check if data_health_service is connected.
+
+    from backend.core.globals import database_health_service
+
+    if database_health_service:
+        # Light check - check cached status
+        # In a real impl, we'd use the SQL Sync Service to fetch batches.
+        pass
+
+    # 2. Fallback: Search in MongoDB (Offline/Local Mode)
+    # We look for all items that share the same item_code.
+    # This supports the "Offline Mode" where we might have synced multiple batches.
+
+    regex_match = {"$regex": f"^{re.escape(normalized_code)}$", "$options": "i"}
+    query = {"$or": [{"item_code": normalized_code}, {"item_code": regex_match}]}
+
+    cursor = _db.erp_items.find(query)
+    mongo_batches = await cursor.to_list(length=100)
+
+    if not mongo_batches:
+        # If absolutely nothing found, return empty matches
+        # But usually we at least have the item itself.
+        # If the item code doesn't match, maybe we should 404?
+        # But returning empty batches is safer for the UI.
+        return {"batches": []}
+
+    # Format for frontend
+    formatted_batches = []
+    for batch in mongo_batches:
+        formatted_batches.append(
+            {
+                "item_code": batch.get("item_code"),
+                "barcode": batch.get("barcode"),
+                "item_name": batch.get("item_name"),
+                "batch_no": batch.get("batch_no", "DEFAULT"),  # Fallback if no batch info
+                "stock_qty": batch.get("stock_qty", 0),
+                "mrp": batch.get("mrp", 0),
+                "manufacturing_date": batch.get("mfg_date") or batch.get("manufacturing_date"),
+                "expiry_date": batch.get("expiry_date"),
+                "warehouse": batch.get("warehouse"),
+            }
+        )
+
+    return {"batches": formatted_batches, "source": "mongodb_offline_fallback"}
+
+
 @router.post("/erp/test")
 async def test_erp_connection(current_user: dict = Depends(get_current_user)):
     """

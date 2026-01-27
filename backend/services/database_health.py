@@ -146,7 +146,7 @@ class DatabaseHealthService:
                 is_placeholder = (
                     isinstance(sql_password, str)
                     and sql_password.strip().lower()
-                    in {"", "your-sql-password", "change-me", "password", "changeme"}
+                    in {"", "your-sql-password", "change-me", "password", "changeme", "dev_sql_password_placeholder"}
                 )
 
                 if is_placeholder:

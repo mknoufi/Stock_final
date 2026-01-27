@@ -3,11 +3,11 @@
  * Automatically detects and updates backend connection when ports/IPs change
  */
 
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createLogger } from './logging';
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createLogger } from "./logging";
 
-const log = createLogger('ConnectionManager');
+const log = createLogger("ConnectionManager");
 
 // Connection state
 interface ConnectionInfo {
@@ -18,7 +18,7 @@ interface ConnectionInfo {
   isHealthy: boolean;
 }
 
-const STORAGE_KEY = 'connection_info';
+const STORAGE_KEY = "connection_info";
 const HEALTH_CHECK_INTERVAL = 30000; // 30 seconds
 const CONNECTION_TIMEOUT = 5000; // 5 seconds
 
@@ -48,16 +48,16 @@ class ConnectionManager {
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
       if (saved) {
         this.currentConnection = JSON.parse(saved);
-        log.info('Loaded saved connection', this.currentConnection);
+        log.info("Loaded saved connection", this.currentConnection);
       }
 
       // Always detect on startup to handle network changes
       await this.detectAndSetConnection();
-      
+
       // Start health monitoring
       this.startHealthMonitoring();
     } catch (error) {
-      log.error('Failed to initialize connection', error);
+      log.error("Failed to initialize connection", error);
       // Set fallback connection
       this.setFallbackConnection();
     }
@@ -67,16 +67,16 @@ class ConnectionManager {
    * Detect best available backend connection
    */
   private async detectAndSetConnection(): Promise<ConnectionInfo> {
-    log.info('Starting backend connection detection...');
-    
-    const candidates = this.buildConnectionCandidates();
+    log.info("Starting backend connection detection...");
+
+    const candidates = await this.buildConnectionCandidates();
     const bestConnection = await this.findHealthyConnection(candidates);
-    
+
     if (bestConnection) {
       await this.setCurrentConnection(bestConnection);
-      log.info('Selected healthy connection', bestConnection);
+      log.info("Selected healthy connection", bestConnection);
     } else {
-      log.warn('No healthy connections found, using fallback');
+      log.warn("No healthy connections found, using fallback");
       this.setFallbackConnection();
     }
 
@@ -86,9 +86,9 @@ class ConnectionManager {
   /**
    * Build list of potential backend connections
    */
-  private buildConnectionCandidates(): Array<{url: string, priority: number}> {
-    const candidates: Array<{url: string, priority: number}> = [];
-    
+  private async buildConnectionCandidates(): Promise<{ url: string; priority: number }[]> {
+    const candidates: { url: string; priority: number }[] = [];
+
     // 1. Environment variable override (highest priority)
     const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
     if (envUrl) {
@@ -97,7 +97,7 @@ class ConnectionManager {
 
     // 2. Try to load from backend_port.json file
     try {
-      const response = await fetch('http://localhost/backend_port.json');
+      const response = await fetch("http://localhost/backend_port.json");
       if (response.ok) {
         const portData = await response.json();
         if (portData.url) {
@@ -105,36 +105,36 @@ class ConnectionManager {
         }
       }
     } catch (error) {
-      log.debug('Could not load backend_port.json', error);
+      log.debug("Could not load backend_port.json", error);
     }
 
     // 3. Platform-specific defaults
-    if (Platform.OS === 'android') {
+    if (Platform.OS === "android") {
       // Android emulator default
-      candidates.push({ url: 'http://10.0.2.2:8001', priority: 5 });
+      candidates.push({ url: "http://10.0.2.2:8001", priority: 5 });
     }
 
     // 4. Common development ports
     const commonPorts = [8001, 8000, 8080, 8085, 3000, 3001];
     const detectedIp = this.getDeviceIp();
-    
+
     for (const port of commonPorts) {
-      candidates.push({ 
-        url: `http://${detectedIp}:${port}`, 
-        priority: port === 8001 ? 7 : 6 
+      candidates.push({
+        url: `http://${detectedIp}:${port}`,
+        priority: port === 8001 ? 7 : 6,
       });
     }
 
     // 5. Localhost fallback
-    candidates.push({ url: 'http://localhost:8001', priority: 3 });
-    candidates.push({ url: 'http://127.0.0.1:8001', priority: 2 });
+    candidates.push({ url: "http://localhost:8001", priority: 3 });
+    candidates.push({ url: "http://127.0.0.1:8001", priority: 2 });
 
     // Remove duplicates and sort by priority
-    const unique = Array.from(
-      new Map(candidates.map(c => [c.url, c])).values()
-    ).sort((a, b) => b.priority - a.priority);
+    const unique = Array.from(new Map(candidates.map((c) => [c.url, c])).values()).sort(
+      (a, b) => b.priority - a.priority
+    );
 
-    log.debug('Built connection candidates', unique);
+    log.debug("Built connection candidates", unique);
     return unique;
   }
 
@@ -145,16 +145,15 @@ class ConnectionManager {
     // Try to get device's local IP
     // This is a simplified approach - in production you might want
     // more sophisticated network interface detection
-    return '192.168.1.2'; // Default LAN IP
+    return "192.168.1.2"; // Default LAN IP
   }
 
   /**
    * Find first healthy connection from candidates
    */
   private async findHealthyConnection(
-    candidates: Array<{url: string, priority: number}>
+    candidates: { url: string; priority: number }[]
   ): Promise<ConnectionInfo | null> {
-    
     for (const candidate of candidates) {
       const isHealthy = await this.checkHealth(candidate.url);
       if (isHealthy) {
@@ -164,11 +163,11 @@ class ConnectionManager {
           backendPort: parseInt(url.port) || 8001,
           backendIp: url.hostname,
           lastChecked: new Date().toISOString(),
-          isHealthy: true
+          isHealthy: true,
         };
       }
     }
-    
+
     return null;
   }
 
@@ -181,19 +180,19 @@ class ConnectionManager {
       const timeout = setTimeout(() => controller.abort(), CONNECTION_TIMEOUT);
 
       const response = await fetch(`${url}/api/health`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'StockVerifyApp/1.0'
+          Accept: "application/json",
+          "User-Agent": "StockVerifyApp/1.0",
         },
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeout);
       return response.ok;
-    } catch (error) {
-      if (error.name !== 'AbortError') {
-        log.debug(`Health check failed for ${url}`, error);
+    } catch (error: any) {
+      if (error && error.name !== "AbortError") {
+        log.debug(`Health check failed for ${url}`, { error });
       }
       return false;
     }
@@ -204,18 +203,18 @@ class ConnectionManager {
    */
   private setFallbackConnection(): void {
     const fallback: ConnectionInfo = {
-      backendUrl: 'http://localhost:8001',
+      backendUrl: "http://localhost:8001",
       backendPort: 8001,
-      backendIp: 'localhost',
+      backendIp: "localhost",
       lastChecked: new Date().toISOString(),
-      isHealthy: false
+      isHealthy: false,
     };
 
     this.currentConnection = fallback;
     this.saveConnection(fallback);
     this.notifyListeners(fallback);
-    
-    log.warn('Using fallback connection', fallback);
+
+    log.warn("Using fallback connection", fallback);
   }
 
   /**
@@ -234,7 +233,7 @@ class ConnectionManager {
     try {
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(connection));
     } catch (error) {
-      log.error('Failed to save connection', error);
+      log.error("Failed to save connection", error);
     }
   }
 
@@ -242,11 +241,11 @@ class ConnectionManager {
    * Notify all listeners of connection change
    */
   private notifyListeners(connection: ConnectionInfo): void {
-    this.listeners.forEach(listener => {
+    this.listeners.forEach((listener) => {
       try {
         listener(connection);
       } catch (error) {
-        log.error('Error in connection listener', error);
+        log.error("Error in connection listener", error);
       }
     });
   }
@@ -263,21 +262,21 @@ class ConnectionManager {
       if (this.currentConnection) {
         const wasHealthy = this.currentConnection.isHealthy;
         const isHealthy = await this.checkHealth(this.currentConnection.backendUrl);
-        
+
         if (wasHealthy !== isHealthy) {
           // Health status changed, update connection
           const updatedConnection = {
             ...this.currentConnection,
             isHealthy,
-            lastChecked: new Date().toISOString()
+            lastChecked: new Date().toISOString(),
           };
-          
+
           await this.setCurrentConnection(updatedConnection);
         }
 
         // If current connection is unhealthy, try to find new one
         if (!isHealthy) {
-          log.info('Current connection unhealthy, re-detecting...');
+          log.info("Current connection unhealthy, re-detecting...");
           await this.detectAndSetConnection();
         }
       }
@@ -306,7 +305,7 @@ class ConnectionManager {
    */
   public addListener(listener: (connection: ConnectionInfo) => void): void {
     this.listeners.push(listener);
-    
+
     // Immediately notify with current connection
     if (this.currentConnection) {
       listener(this.currentConnection);
@@ -327,7 +326,7 @@ class ConnectionManager {
    * Manual reconnection attempt
    */
   public async reconnect(): Promise<ConnectionInfo> {
-    log.info('Manual reconnection requested');
+    log.info("Manual reconnection requested");
     return await this.detectAndSetConnection();
   }
 
@@ -342,13 +341,13 @@ class ConnectionManager {
         backendPort: parseInt(urlObj.port) || 8001,
         backendIp: urlObj.hostname,
         lastChecked: new Date().toISOString(),
-        isHealthy: await this.checkHealth(url)
+        isHealthy: await this.checkHealth(url),
       };
 
       await this.setCurrentConnection(connection);
-      log.info('Backend URL manually updated', connection);
+      log.info("Backend URL manually updated", connection);
     } catch (error) {
-      log.error('Failed to set backend URL', error);
+      log.error("Failed to set backend URL", error);
     }
   }
 }

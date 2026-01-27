@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Union
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+from backend.db.indexes import create_indexes as create_optimized_indexes
 
 logger = logging.getLogger(__name__)
 
@@ -24,16 +25,29 @@ class MigrationManager:
         logger.info("Creating database indexes...")
 
         try:
+            # First create optimized indexes from indexes.py
+            logger.info("Applying optimized index definitions...")
+            await create_optimized_indexes(self.db)
+
+            # Then ensure standard migration indexes (safely)
             await self._ensure_users_indexes()
             await self._ensure_refresh_tokens_indexes()
             await self._ensure_sessions_indexes()
             await self._ensure_count_lines_indexes()
             await self._ensure_erp_items_indexes()
             await self._ensure_misc_indexes()
+            await self._ensure_products_indexes()
             logger.info("All database indexes created successfully")
         except Exception as e:
             logger.error(f"Error creating indexes: {str(e)}")
             raise
+
+    async def _ensure_products_indexes(self) -> None:
+        """Create indexes for products collection (used for change detection)."""
+        # Note: These are also covered by indexes.py, but ensured here for consistency
+        await self._create_index_safe(self.db.products, "barcode", unique=True, name="products.barcode")
+        await self._create_index_safe(self.db.products, [("last_updated", -1)], name="products.updated")
+        logger.info("✓ Products indexes created")
 
     async def _ensure_users_indexes(self) -> None:
         """Create indexes for users collection."""
@@ -64,24 +78,20 @@ class MigrationManager:
 
     async def _ensure_refresh_tokens_indexes(self) -> None:
         """Create indexes for refresh_tokens collection."""
-        try:
-            # Refresh tokens are stored as a one-way hash to reduce blast radius if DB is leaked.
-            # Use a sparse unique index so older records without token_hash don't block migrations.
-            await self.db.refresh_tokens.create_index("token_hash", unique=True, sparse=True)
-            await self.db.refresh_tokens.create_index("username")
-            await self.db.refresh_tokens.create_index("expires_at")
-            await self.db.refresh_tokens.create_index([("username", 1), ("revoked", 1)])
-            logger.info("✓ Refresh tokens indexes created")
-        except Exception as e:
-            if "IndexOptionsConflict" not in str(e) and "already exists" not in str(e):
-                logger.warning(f"Error creating refresh tokens indexes: {str(e)}")
+        # Refresh tokens are stored as a one-way hash to reduce blast radius if DB is leaked.
+        # Use a sparse unique index so older records without token_hash don't block migrations.
+        await self._create_index_safe(self.db.refresh_tokens, "token_hash", unique=True)
+        await self._create_index_safe(self.db.refresh_tokens, "username")
+        await self._create_index_safe(self.db.refresh_tokens, "expires_at")
+        await self._create_index_safe(self.db.refresh_tokens, [("username", 1), ("revoked", 1)])
+        logger.info("✓ Refresh tokens indexes created")
 
     async def _ensure_sessions_indexes(self) -> None:
         """Create indexes for sessions collection."""
         await self._create_index_safe(self.db.sessions, "id", unique=True, name="sessions.id")
         simple_indexes = ["warehouse", "staff_user", "status"]
         for field in simple_indexes:
-            await self.db.sessions.create_index(field)
+            await self._create_index_safe(self.db.sessions, field, name=f"sessions.{field}")
 
         compound_indexes = [
             [("started_at", -1)],
@@ -100,7 +110,7 @@ class MigrationManager:
         await self._create_index_safe(self.db.count_lines, "id", unique=True, name="count_lines.id")
         simple_indexes = ["session_id", "item_code", "counted_by", "status", "verified"]
         for field in simple_indexes:
-            await self.db.count_lines.create_index(field)
+            await self._create_index_safe(self.db.count_lines, field, name=f"count_lines.{field}")
 
         compound_indexes = [
             [("session_id", 1), ("item_code", 1)],
@@ -112,7 +122,7 @@ class MigrationManager:
             [("verified", 1), ("counted_at", -1)],
         ]
         for idx in compound_indexes:
-            await self.db.count_lines.create_index(idx)
+            await self._create_index_safe(self.db.count_lines, idx)
         logger.info("✓ Count lines indexes created")
 
     async def _ensure_erp_items_indexes(self) -> None:
@@ -125,8 +135,8 @@ class MigrationManager:
         simple_indexes = [
             # "barcode",  # Handled by backend/db/indexes.py as 'idx_barcode'
             "warehouse",
-            "category",
-            "subcategory",
+            # "category",  # Handled by backend/db/indexes.py as part of compound idx_category
+            # "subcategory",  # Handled by backend/db/indexes.py as part of compound idx_category
             "floor",
             "rack",
             "uom_code",
@@ -135,7 +145,7 @@ class MigrationManager:
             "data_complete",
         ]
         for field in simple_indexes:
-            await self.db.erp_items.create_index(field)
+            await self._create_index_safe(self.db.erp_items, field, name=f"erp_items.{field}")
 
         compound_indexes = [
             [("verified_at", -1)],
@@ -151,7 +161,7 @@ class MigrationManager:
             [("category", 1), ("data_complete", 1)],
         ]
         for idx in compound_indexes:
-            await self.db.erp_items.create_index(idx)
+            await self._create_index_safe(self.db.erp_items, idx)
 
         await self._ensure_text_index()
         logger.info("✓ ERP items indexes created")
@@ -174,32 +184,22 @@ class MigrationManager:
     async def _ensure_misc_indexes(self) -> None:
         """Create indexes for miscellaneous collections."""
         # Item variances
-        try:
-            await self.db.item_variances.create_index("item_code")
-            await self.db.item_variances.create_index("verified_by")
-            await self.db.item_variances.create_index([("verified_at", -1)])
-            await self.db.item_variances.create_index([("category", 1), ("floor", 1)])
-            await self.db.item_variances.create_index([("warehouse", 1), ("verified_at", -1)])
-            logger.info("✓ Item variances indexes created")
-        except Exception as e:
-            logger.warning(f"Error creating item variances indexes: {str(e)}")
+        await self._create_index_safe(self.db.item_variances, "item_code")
+        await self._create_index_safe(self.db.item_variances, "verified_by")
+        await self._create_index_safe(self.db.item_variances, [("verified_at", -1)])
+        await self._create_index_safe(self.db.item_variances, [("category", 1), ("floor", 1)])
+        await self._create_index_safe(self.db.item_variances, [("warehouse", 1), ("verified_at", -1)])
+        logger.info("✓ Item variances indexes created")
 
-        # ERP config and sync metadata
-        await self.db.erp_config.create_index([("_id", 1)])
-        logger.info("✓ ERP config indexes created")
-
-        await self.db.erp_sync_metadata.create_index("_id")
-        logger.info("✓ Sync metadata indexes created")
+        # ERP config and sync metadata - skip _id index creation (automatically managed by MongoDB)
+        logger.info("✓ ERP config and Sync metadata indexes verified")
 
         # Activity logs
-        try:
-            await self.db.activity_logs.create_index([("created_at", -1)])
-            await self.db.activity_logs.create_index("user_id")
-            await self.db.activity_logs.create_index([("user_id", 1), ("created_at", -1)])
-            await self.db.activity_logs.create_index("action")
-            logger.info("✓ Activity logs indexes created")
-        except Exception as e:
-            logger.warning(f"Error creating activity logs indexes: {str(e)}")
+        await self._create_index_safe(self.db.activity_logs, [("created_at", -1)])
+        await self._create_index_safe(self.db.activity_logs, "user_id")
+        await self._create_index_safe(self.db.activity_logs, [("user_id", 1), ("created_at", -1)])
+        await self._create_index_safe(self.db.activity_logs, "action")
+        logger.info("✓ Activity logs indexes created")
 
     async def _create_index_safe(
         self,
@@ -209,6 +209,11 @@ class MigrationManager:
         name: str = "",
     ) -> None:
         """Create an index with safe error handling for duplicates."""
+        # Skip _id index creation (automatically managed by MongoDB)
+        if key == "_id" or key == [("_id", 1)] or (isinstance(key, list) and len(key) == 1 and key[0][0] == "_id"):
+            logger.debug("Skipping _id index creation as it is managed by MongoDB")
+            return
+
         try:
             await collection.create_index(key, unique=unique)
         except Exception as e:
@@ -220,6 +225,13 @@ class MigrationManager:
                 logger.warning(
                     f"Cannot create unique index on {index_name}, duplicates exist: {err_str}"
                 )
+            elif "InvalidIndexSpecificationOption" in err_str and "unique" in err_str:
+                # Handle cases where unique=True is passed for _id or other restricted fields
+                logger.debug(f"Retrying index {index_name} without unique option")
+                try:
+                    await collection.create_index(key, unique=False)
+                except Exception as e2:
+                    logger.warning(f"Error creating {index_name} index (second attempt): {str(e2)}")
             else:
                 logger.warning(f"Error creating {index_name} index: {err_str}")
 

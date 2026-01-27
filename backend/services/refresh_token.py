@@ -76,7 +76,7 @@ class RefreshTokenService:
         """Store refresh token in database"""
         try:
             # Enforce single-session: Revoke ALL existing tokens for this user first
-            await self.revoke_all_user_tokens(username)
+            # await self.revoke_all_user_tokens(username)  # DISABLED: Causes race conditions in concurrent requests
 
             token_hash = _hash_token(token)
             document: dict[str, Any] = {
