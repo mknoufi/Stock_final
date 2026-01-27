@@ -196,6 +196,7 @@ class Settings(PydanticBaseSettings):
     # Session Management
     SESSION_TIMEOUT_MINUTES: int = Field(480, ge=1)  # 8 hours
     AUTO_LOGOUT_ENABLED: bool = True
+    AUTH_SINGLE_SESSION: bool = False
 
     @field_validator("JWT_SECRET", mode="before")
     @classmethod
@@ -326,9 +327,7 @@ class Settings(PydanticBaseSettings):
             normalized = "WARNING"
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if normalized not in valid_levels:
-            raise ValueError(
-                f"LOG_LEVEL must be one of: {', '.join(valid_levels)} (WARN accepted)"
-            )
+            raise ValueError(f"LOG_LEVEL must be one of: {', '.join(valid_levels)} (WARN accepted)")
         return normalized
 
     # Server
@@ -439,6 +438,7 @@ except Exception as e:
             self.METRICS_HISTORY_SIZE = int(os.getenv("METRICS_HISTORY_SIZE", 1000))
             self.ERP_SYNC_ENABLED = os.getenv("ERP_SYNC_ENABLED", "true").lower() == "true"
             self.ERP_SYNC_INTERVAL = int(os.getenv("ERP_SYNC_INTERVAL", 3600))
+            self.AUTH_SINGLE_SESSION = os.getenv("AUTH_SINGLE_SESSION", "true").lower() == "true"
             self.CHANGE_DETECTION_SYNC_ENABLED = (
                 os.getenv("CHANGE_DETECTION_SYNC_ENABLED", "true").lower() == "true"
             )

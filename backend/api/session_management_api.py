@@ -19,6 +19,7 @@ from backend.auth.dependencies import get_current_user_async as get_current_user
 from backend.db.runtime import get_db
 from backend.services.lock_manager import get_lock_manager
 from backend.services.redis_service import get_redis
+from backend.services.runtime import get_cache_service, get_refresh_token_service
 from backend.core.websocket_manager import manager
 
 logger = logging.getLogger(__name__)
@@ -669,3 +670,45 @@ async def check_session_integrity(
         affected_items=affected_count,
         message=msg,
     )
+
+
+@router.post("/logout-all")
+async def logout_all_sessions(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    refresh_token_service=Depends(get_refresh_token_service),
+) -> dict[str, Any]:
+    """
+    Logout all active sessions for the current user (Phase 1 Governance)
+    Mandatory endpoint to resolve AUTH_SESSION_CONFLICT
+    """
+    username = current_user["username"]
+    logger.info(f"Revoking all sessions for user: {username}")
+
+    # 1. Revoke all refresh tokens
+    revoked_tokens = await refresh_token_service.revoke_all_user_tokens(username)
+
+    # 2. Close all active session records
+    # Update sessions collection
+    sess_result = await db.sessions.update_many(
+        {"staff_user": username, "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]}},
+        {"$set": {"status": "CLOSED", "completed_at": datetime.utcnow()}},
+    )
+
+    # Update verification_sessions collection
+    v_sess_result = await db.verification_sessions.update_many(
+        {"user_id": username, "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]}},
+        {"$set": {"status": "CLOSED", "completed_at": time.time()}},
+    )
+
+    # 3. Release any rack locks (if any)
+    # This might require iterating or a more complex query if we had many,
+    # but for now we rely on the session heartbeat timeout to clean up Redis.
+
+    return {
+        "success": True,
+        "username": username,
+        "revoked_tokens": revoked_tokens,
+        "closed_sessions": sess_result.modified_count + v_sess_result.modified_count,
+        "message": "All active sessions have been logged out.",
+    }

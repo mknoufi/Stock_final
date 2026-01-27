@@ -28,7 +28,6 @@ import {
 } from "../../src/components/ui";
 import { theme } from "../../src/styles/modernDesignSystem";
 import {
-  ChangePinModal,
   ChangePasswordModal,
 } from "../../src/components/settings";
 
@@ -123,7 +122,6 @@ const SettingRow = ({
 export default function SettingsScreen() {
   const router = useRouter();
   const { settings, setSetting, resetSettings } = useSettingsStore();
-  const [showChangePinModal, setShowChangePinModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   const handleReset = () => {
@@ -260,18 +258,18 @@ export default function SettingsScreen() {
               style={styles.settingRow}
               onPress={() => {
                 if (Platform.OS !== "web") Haptics.selectionAsync();
-                setShowChangePinModal(true);
+                router.push("/security" as any);
               }}
             >
               <View style={styles.settingLeft}>
                 <View style={styles.iconContainer}>
                   <Ionicons
-                    name="keypad-outline"
+                    name="shield-checkmark-outline"
                     size={18}
                     color={theme.colors.text.primary}
                   />
                 </View>
-                <Text style={styles.settingLabel}>Change PIN</Text>
+                <Text style={styles.settingLabel}>Security & PIN</Text>
               </View>
               <Ionicons
                 name="chevron-forward"
@@ -375,18 +373,6 @@ export default function SettingsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
-
-      {/* Modals */}
-      <ChangePinModal
-        visible={showChangePinModal}
-        onClose={() => setShowChangePinModal(false)}
-        onSuccess={() => {
-          setShowChangePinModal(false);
-          if (Platform.OS !== "web")
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          Alert.alert("Success", "Your PIN has been changed successfully");
-        }}
-      />
 
       <ChangePasswordModal
         visible={showChangePasswordModal}

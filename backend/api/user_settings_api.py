@@ -11,14 +11,14 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.auth.dependencies import get_current_user
-from backend.core.schemas.audit_log import AuditAction
 from backend.core.schemas.user_settings import (
     UserSettings,
     UserSettingsResponse,
     UserSettingsUpdate,
 )
 from backend.db.runtime import get_db
-from backend.services.audit_service import audit_service
+from backend.services.audit_service import AuditService
+from backend.models.audit import AuditEventType, AuditLogStatus
 
 logger = logging.getLogger(__name__)
 
@@ -141,10 +141,12 @@ async def update_user_settings(
             await db.user_settings.insert_one(new_settings)
 
         # Log the update
-        await audit_service.log_settings_update(
-            user_id=user_id,
-            username=username,
-            changed_fields=changed_fields,
+        await AuditService(db).log_event(
+            event_type=AuditEventType.USER_SETTINGS_UPDATE,
+            status=AuditLogStatus.SUCCESS,
+            actor_id=user_id,
+            actor_username=username,
+            details={"action": "settings_update", "changed_fields": changed_fields},
         )
 
         # Fetch and return updated settings
@@ -197,12 +199,11 @@ async def reset_user_settings(
 
         if result.deleted_count > 0:
             # Log the reset
-            await audit_service.log(
-                user_id=user_id,
-                username=username,
-                action=AuditAction.SETTINGS_UPDATE,
-                resource_type="user_settings",
-                resource_id=user_id,
+            await AuditService(db).log_event(
+                event_type=AuditEventType.USER_SETTINGS_UPDATE,
+                status=AuditLogStatus.SUCCESS,
+                actor_id=user_id,
+                actor_username=username,
                 details={"action": "reset_to_defaults"},
             )
 

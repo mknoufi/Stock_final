@@ -162,6 +162,21 @@ class AuthenticationError(StockVerifyException):
         )
 
 
+class SessionConflictError(AuthenticationError):
+    """Session conflict errors (Phase 1)"""
+
+    def __init__(
+        self,
+        message: str = "This account is already active on another device.",
+        details: dict[str, Optional[Any]] = None,
+    ):
+        super().__init__(
+            message=message,
+            details=details or {},
+        )
+        self.error_code = "AUTH_SESSION_CONFLICT"
+
+
 class AuthorizationError(StockVerifyException):
     """Authorization errors"""
 

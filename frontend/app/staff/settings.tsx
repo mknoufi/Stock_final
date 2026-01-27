@@ -13,8 +13,6 @@ import {
   TouchableOpacity,
   Alert,
   Platform,
-  Modal,
-  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -24,11 +22,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useSettingsStore } from "../../src/store/settingsStore";
 import { useAuthStore } from "../../src/store/authStore";
-import apiClient from "../../src/services/httpClient";
 import ModernCard from "../../src/components/ui/ModernCard";
 import ModernHeader from "../../src/components/ui/ModernHeader";
-import ModernButton from "../../src/components/ui/ModernButton";
-import ModernInput from "../../src/components/ui/ModernInput";
 import {
   colors,
   spacing,
@@ -152,13 +147,6 @@ export default function StaffSettingsScreen() {
   const { settings, setSetting } = useSettingsStore();
   const { logout, user } = useAuthStore();
 
-  // PIN Change State
-  const [isPinModalVisible, setIsPinModalVisible] = React.useState(false);
-  const [currentPassword, setCurrentPassword] = React.useState("");
-  const [newPin, setNewPin] = React.useState("");
-  const [confirmPin, setConfirmPin] = React.useState("");
-  const [isChangingPin, setIsChangingPin] = React.useState(false);
-
   const handleLogout = useCallback(() => {
     if (Platform.OS !== "web") {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -195,58 +183,9 @@ export default function StaffSettingsScreen() {
     ]);
   }, [logout, router]);
 
-  const handleChangePin = useCallback(async () => {
-    const trimmedCurrent = currentPassword.trim();
-    if (!trimmedCurrent || !newPin || !confirmPin) {
-      Alert.alert("Error", "Please fill in all fields.");
-      return;
-    }
-
-    if (newPin.length !== 4 || !/^\d+$/.test(newPin)) {
-      Alert.alert("Error", "PIN must be 4 digits.");
-      return;
-    }
-
-    if (newPin !== confirmPin) {
-      Alert.alert("Error", "PINs do not match.");
-      return;
-    }
-
-    setIsChangingPin(true);
-    try {
-      const payload: {
-        current_password?: string;
-        current_pin?: string;
-        new_pin: string;
-      } = { new_pin: newPin };
-
-      if (/^\d{4}$/.test(trimmedCurrent)) {
-        payload.current_pin = trimmedCurrent;
-      } else {
-        payload.current_password = trimmedCurrent;
-      }
-
-      await apiClient.post("/auth/change-pin", payload);
-
-      Alert.alert("Success", "PIN updated successfully.");
-      setIsPinModalVisible(false);
-      setCurrentPassword("");
-      setNewPin("");
-      setConfirmPin("");
-    } catch (error: any) {
-      const detail = error.response?.data?.detail;
-      const message =
-        typeof detail === "string"
-          ? detail
-          : detail?.message || "Failed to update PIN.";
-      Alert.alert(
-        "Error",
-        message,
-      );
-    } finally {
-      setIsChangingPin(false);
-    }
-  }, [currentPassword, newPin, confirmPin]);
+  const handleSecurity = useCallback(() => {
+    router.push("/security" as any);
+  }, [router]);
 
   const handleHelp = useCallback(() => {
     router.push("/help" as any);
@@ -285,11 +224,11 @@ export default function StaffSettingsScreen() {
         <Animated.View entering={FadeInDown.delay(250).springify()}>
           <ModernCard style={styles.settingsCard}>
             <SettingRow
-              icon="keypad-outline"
-              label="Change PIN"
-              description="Set or update your 4-digit login PIN"
+              icon="shield-checkmark-outline"
+              label="Security & PIN"
+              description="Manage your PIN and biometric login"
               type="navigation"
-              onPress={() => setIsPinModalVisible(true)}
+              onPress={handleSecurity}
             />
           </ModernCard>
         </Animated.View>
@@ -422,113 +361,11 @@ export default function StaffSettingsScreen() {
           <Text style={styles.versionSubtext}>© 2026 Lavanya Mart</Text>
         </Animated.View>
       </ScrollView>
-
-      {/* PIN Change Modal */}
-      <Modal
-        visible={isPinModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsPinModalVisible(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalOverlay}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Change PIN</Text>
-              <TouchableOpacity onPress={() => setIsPinModalVisible(false)}>
-                <Ionicons name="close" size={24} color={colors.gray[500]} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalBody}>
-              <ModernInput
-                label="Current PIN or Password"
-                value={currentPassword}
-                onChangeText={setCurrentPassword}
-                placeholder="Enter current PIN or password"
-                secureTextEntry
-                autoCapitalize="none"
-              />
-              <View style={{ height: spacing.md }} />
-              <ModernInput
-                label="New PIN"
-                value={newPin}
-                onChangeText={setNewPin}
-                placeholder="Enter 4-digit PIN"
-                keyboardType="numeric"
-                maxLength={4}
-                secureTextEntry
-              />
-              <View style={{ height: spacing.md }} />
-              <ModernInput
-                label="Confirm New PIN"
-                value={confirmPin}
-                onChangeText={setConfirmPin}
-                placeholder="Confirm 4-digit PIN"
-                keyboardType="numeric"
-                maxLength={4}
-                secureTextEntry
-              />
-
-              <View style={styles.modalActions}>
-                <ModernButton
-                  title="Cancel"
-                  variant="outline"
-                  onPress={() => setIsPinModalVisible(false)}
-                  style={{ flex: 1, marginRight: spacing.sm }}
-                />
-                <ModernButton
-                  title="Save PIN"
-                  onPress={handleChangePin}
-                  loading={isChangingPin}
-                  style={{ flex: 1, marginLeft: spacing.sm }}
-                />
-              </View>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  modalContent: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.xl,
-    padding: spacing.xl,
-    shadowColor: colors.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: spacing.lg,
-  },
-  modalTitle: {
-    fontSize: typography.fontSize.xl,
-    fontWeight: typography.fontWeight.bold,
-    color: colors.gray[900],
-  },
-  modalBody: {
-    gap: spacing.xs,
-  },
-  modalActions: {
-    flexDirection: "row",
-    marginTop: spacing.xl,
-  },
   container: {
     flex: 1,
     backgroundColor: colors.gray[50],

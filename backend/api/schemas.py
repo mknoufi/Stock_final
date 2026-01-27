@@ -139,6 +139,20 @@ class PinLogin(BaseModel):
     """PIN-based login for staff users (4-digit numeric PIN)."""
 
     pin: str
+    username: Optional[str] = None
+
+
+class PinSetup(BaseModel):
+    pin: str
+    confirm_pin: str
+
+    @model_validator(mode="after")
+    def validate_pins_match(self) -> "PinSetup":
+        if self.pin != self.confirm_pin:
+            raise ValueError("PINs do not match")
+        if not self.pin.isdigit() or len(self.pin) != 4:
+            raise ValueError("PIN must be 4 digits")
+        return self
 
 
 class CorrectionReason(BaseModel):
@@ -288,3 +302,39 @@ class UnknownItemCreate(BaseModel):
     mrp: Optional[float] = None
     stock: Optional[float] = None
     serial: Optional[str] = None
+
+
+class PasswordResetRequest(BaseModel):
+    """Request for a password reset OTP."""
+
+    username: Optional[str] = None
+    phone_number: Optional[str] = None
+
+    @model_validator(mode="after")
+    def validate_identifier(self) -> "PasswordResetRequest":
+        if not self.username and not self.phone_number:
+            raise ValueError("Either username or phone_number must be provided")
+        return self
+
+
+class PasswordResetVerify(BaseModel):
+    """Verify OTP and get a reset token."""
+
+    username: str
+    otp: str
+
+
+class PasswordResetConfirm(BaseModel):
+    """Confirm password reset using the token."""
+
+    reset_token: str
+    new_password: str
+    confirm_password: str
+
+    @model_validator(mode="after")
+    def validate_passwords(self) -> "PasswordResetConfirm":
+        if self.new_password != self.confirm_password:
+            raise ValueError("Passwords do not match")
+        if len(self.new_password) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        return self

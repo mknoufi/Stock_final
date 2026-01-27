@@ -82,6 +82,7 @@ function RootStack() {
         <Stack.Screen name="welcome" />
         <Stack.Screen name="register" />
         <Stack.Screen name="help" />
+        <Stack.Screen name="security" options={{ presentation: "modal" }} />
         <Stack.Screen name="+not-found" />
       </Stack>
     </GestureHandlerRootView>

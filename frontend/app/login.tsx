@@ -15,11 +15,12 @@ import {
   ScrollView,
   TextInput,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
+import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useAuthStore } from "../src/store/authStore";
 import ModernButton from "../src/components/ui/ModernButton";
@@ -53,6 +54,7 @@ const SafeAnimatedView = ({ children, style, entering, ...props }: any) => {
 type LoginMode = "pin" | "credentials";
 
 export default function LoginScreen() {
+  const router = useRouter();
   const { login, loginWithPin, isLoading, lastLoggedUser } = useAuthStore();
   const [loginMode, setLoginMode] = useState<LoginMode>("credentials");
   const [pin, setPin] = useState("");
@@ -99,7 +101,7 @@ export default function LoginScreen() {
     async (newPin: string) => {
       // Only allow numeric input
       if (!/^\d*$/.test(newPin)) return;
-      
+
       // Prevent input while loading
       if (isLoading) return;
 
@@ -111,13 +113,21 @@ export default function LoginScreen() {
       // Auto-login when 4 digits entered
       if (newPin.length === 4) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        
+
         // Small delay to ensure UI updates before freezing for network request
         setTimeout(async () => {
           try {
-            const result = await loginWithPin(newPin);
+            const result = await loginWithPin(newPin, lastLoggedUser?.username);
             if (!result.success) {
-              Alert.alert("Login Failed", result.message || "Invalid PIN");
+              if ((result as any).code === "AUTH_SESSION_CONFLICT") {
+                Alert.alert(
+                  "Session Conflict",
+                  "This account is already active on another device.\n\nPlease ask your administrator to logout all existing sessions before you can sign in here.",
+                  [{ text: "OK" }],
+                );
+              } else {
+                Alert.alert("Login Failed", result.message || "Invalid PIN");
+              }
               setPin("");
             }
           } catch (_error) {
@@ -127,7 +137,7 @@ export default function LoginScreen() {
         }, 100);
       }
     },
-    [pin, loginWithPin, isLoading],
+    [pin, loginWithPin, isLoading, lastLoggedUser],
   );
 
   const handleBiometricAuth = useCallback(async () => {
@@ -145,11 +155,8 @@ export default function LoginScreen() {
   }, []);
 
   const handleForgotPassword = useCallback(() => {
-    Alert.alert(
-      "Forgot Password",
-      "Please contact your administrator to reset your password.",
-    );
-  }, []);
+    router.push("/forgot-password");
+  }, [router]);
 
   const handleLogin = useCallback(async () => {
     const newErrors: { pin?: string; username?: string; password?: string } =
@@ -161,7 +168,7 @@ export default function LoginScreen() {
           setErrors({ pin: "Please enter a 4-digit PIN" });
           return;
         }
-        const result = await loginWithPin(pin);
+        const result = await loginWithPin(pin, lastLoggedUser?.username);
         if (!result.success) {
           Alert.alert("Login Failed", result.message || "Invalid PIN");
           setPin("");
@@ -177,18 +184,22 @@ export default function LoginScreen() {
         }
         const result = await login(username, password);
         if (!result.success) {
-          Alert.alert("Login Failed", result.message || "Invalid credentials");
+          if ((result as any).code === "AUTH_SESSION_CONFLICT") {
+            Alert.alert(
+              "Session Conflict",
+              "This account is already active on another device.\n\nPlease ask your administrator to logout all existing sessions before you can sign in here.",
+              [{ text: "OK" }],
+            );
+          } else {
+            Alert.alert("Login Failed", result.message || "Invalid credentials");
+          }
           setPassword("");
         }
       }
     } catch (_error) {
-      Alert.alert(
-        "Login Failed",
-        "Please check your credentials and try again.",
-      );
-      setPassword("");
+      Alert.alert("Error", "An unexpected error occurred. Please try again.");
     }
-  }, [loginMode, pin, username, password, login, loginWithPin]);
+  }, [loginMode, pin, username, password, login, loginWithPin, lastLoggedUser]);
 
   const toggleLoginMode = useCallback(() => {
     if (loginMode === "credentials" && !lastLoggedUser) {
@@ -232,18 +243,30 @@ export default function LoginScreen() {
           <View style={styles.contentContainer}>
             {/* Welcome Section */}
             <SafeAnimatedView
-              entering={FadeInUp.duration(800).springify()}
+              entering={FadeInDown.duration(800).springify()}
               style={styles.welcomeSection}
             >
+              {lastLoggedUser && loginMode === "pin" ? (
+                <View style={styles.userBadge}>
+                  <View style={styles.userBadgeAvatar}>
+                    <Ionicons name="person" size={24} color={colors.primary[500]} />
+                  </View>
+                  <Text style={styles.userBadgeName}>
+                    {lastLoggedUser.full_name || lastLoggedUser.username}
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.logoContainer}>
+                  <Ionicons name="shield-checkmark" size={64} color={colors.primary[500]} />
+                </View>
+              )}
               <Text style={styles.welcomeTitle}>
-                {lastLoggedUser && loginMode === "pin"
-                  ? `Hi, ${lastLoggedUser.full_name?.split(" ")[0] || lastLoggedUser.username}`
-                  : "Welcome Back"}
+                {lastLoggedUser && loginMode === "pin" ? "Welcome Back" : "Lavanya Mart"}
               </Text>
               <Text style={styles.welcomeSubtitle}>
                 {lastLoggedUser && loginMode === "pin"
-                  ? "Enter your PIN to continue"
-                  : "Sign in to access your inventory management system"}
+                  ? "Scan your fingerprint or enter PIN"
+                  : "Secure Inventory Verification System"}
               </Text>
             </SafeAnimatedView>
 
@@ -363,7 +386,7 @@ export default function LoginScreen() {
                       <Text style={styles.errorText}>{errors.pin}</Text>
                     )}
 
-                    {/* Biometric & Forgot Options */}
+                    {/* Biometric & Switch Options */}
                     <View style={styles.pinActions}>
                       <TouchableOpacity
                         onPress={handleBiometricAuth}
@@ -371,15 +394,23 @@ export default function LoginScreen() {
                       >
                         <Ionicons
                           name="finger-print"
-                          size={40}
+                          size={44}
                           color={colors.primary[500]}
                         />
-                        <Text style={styles.biometricText}>Use Biometrics</Text>
+                        <Text style={styles.biometricText}>Unlock with TouchID</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity onPress={handleForgotPin}>
-                        <Text style={styles.forgotLink}>Forgot PIN?</Text>
-                      </TouchableOpacity>
+                      <View style={styles.pinBottomActions}>
+                        <TouchableOpacity onPress={handleForgotPin}>
+                          <Text style={styles.forgotLink}>Forgot PIN?</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.actionDivider} />
+
+                        <TouchableOpacity onPress={() => setLoginMode("credentials")}>
+                          <Text style={styles.switchAccountLink}>Switch Account</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </>
                 )}
@@ -583,19 +614,69 @@ const styles = StyleSheet.create({
   },
   pinActions: {
     alignItems: "center",
-    gap: spacing.lg,
-    marginTop: spacing.md,
+    gap: spacing.xl,
+    marginTop: spacing.lg,
   },
   biometricButton: {
     alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    padding: spacing.sm,
+    padding: spacing.md,
   },
   biometricText: {
     fontSize: typography.fontSize.sm,
     color: colors.primary[600],
     fontWeight: typography.fontWeight.medium,
+    marginTop: spacing.sm,
+  },
+  pinBottomActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.md,
+  },
+  actionDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: colors.gray[300],
+  },
+  switchAccountLink: {
+    fontSize: typography.fontSize.sm,
+    color: colors.primary[500],
+    fontWeight: typography.fontWeight.medium,
+  },
+  userBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.white,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.gray[200],
+    marginBottom: spacing.md,
+    ...shadows.sm,
+  },
+  userBadgeAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.primary[50],
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: spacing.sm,
+  },
+  userBadgeName: {
+    fontSize: typography.fontSize.sm,
+    fontWeight: typography.fontWeight.semibold,
+    color: colors.gray[800],
+  },
+  logoContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: colors.primary[50],
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: spacing.lg,
   },
   forgotLink: {
     fontSize: typography.fontSize.sm,

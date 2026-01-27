@@ -97,7 +97,7 @@ class ConnectionManager {
 
     // 2. Try to load from backend_port.json file
     try {
-      const response = await fetch("http://localhost/backend_port.json");
+      const response = await fetch("/backend_port.json");
       if (response.ok) {
         const portData = await response.json();
         if (portData.url) {

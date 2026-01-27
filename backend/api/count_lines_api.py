@@ -12,6 +12,7 @@ from backend.auth.dependencies import get_current_user
 from backend.db.runtime import get_db
 from backend.services.activity_log import ActivityLogService
 from backend.core.websocket_manager import manager
+from backend.models.audit import AuditEventType, AuditLogStatus
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -340,8 +341,7 @@ async def create_count_line(
             session_result = await db.sessions.find_one({"id": line_data.session_id})
             if session_result and not session_result.get("barcode"):
                 await db.sessions.update_one(
-                    {"id": line_data.session_id},
-                    {"$set": {"barcode": line_data.barcode}}
+                    {"id": line_data.session_id}, {"$set": {"barcode": line_data.barcode}}
                 )
                 logger.info(
                     f"Updated session {line_data.session_id} with barcode {line_data.barcode}"
@@ -351,17 +351,38 @@ async def create_count_line(
         # Non-critical error, continue execution
 
     # Log high-risk correction
-    if risk_flags and _activity_log_service:
-        await _activity_log_service.log_activity(
-            user=current_user["username"],
-            role=current_user.get("role", ""),
-            action="high_risk_correction",
-            entity_type="count_line",
-            entity_id=count_line["id"],
-            details={"risk_flags": risk_flags, "item_code": line_data.item_code},
-            ip_address=request.client.host if request and request.client else None,
-            user_agent=request.headers.get("user-agent") if request else None,
-        )
+    if risk_flags:
+        if _activity_log_service:
+            await _activity_log_service.log_activity(
+                user=current_user["username"],
+                role=current_user.get("role", ""),
+                action="high_risk_correction",
+                entity_type="count_line",
+                entity_id=count_line["id"],
+                details={"risk_flags": risk_flags, "item_code": line_data.item_code},
+                ip_address=request.client.host if request and request.client else None,
+                user_agent=request.headers.get("user-agent") if request else None,
+            )
+
+        # Audit Log for High Risk
+        try:
+            from backend.services.audit_service import AuditService
+
+            audit_service = AuditService(db)
+            await audit_service.log_event(
+                event_type=AuditEventType.STOCK_VARIANCE_DETECTED,
+                status=AuditLogStatus.WARNING,
+                actor_username=current_user["username"],
+                resource_id=count_line["id"],
+                details={
+                    "risk_flags": risk_flags,
+                    "item_code": line_data.item_code,
+                    "variance": variance,
+                    "financial_impact": financial_impact,
+                },
+            )
+        except Exception as e:
+            logger.error(f"Failed to write audit log: {e}")
 
     # Remove the MongoDB _id field before returning
     count_line.pop("_id", None)
@@ -544,8 +565,6 @@ async def approve_count_line(
                     "approval_status": "APPROVED",
                     "approved_by": current_user["username"],
                     "approved_at": datetime.utcnow(),
-                    "verified": True,
-                    "verified_by": current_user["username"],
                     "verified_at": datetime.utcnow(),
                 }
             },
@@ -553,6 +572,21 @@ async def approve_count_line(
 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Count line not found")
+
+        # Audit Log Approval
+        try:
+            from backend.services.audit_service import AuditService
+
+            audit_service = AuditService(db)
+            await audit_service.log_event(
+                event_type=AuditEventType.STOCK_COUNT_SUBMITTED,  # Using closest type or add generic stock event
+                status=AuditLogStatus.SUCCESS,
+                actor_username=current_user["username"],
+                resource_id=line_id,
+                details={"action": "approve_count_line", "line_id": line_id},
+            )
+        except Exception as e:
+            logger.error(f"Failed to write audit log: {e}")
 
         return {"success": True, "message": "Count line approved"}
     except Exception as e:
@@ -874,7 +908,9 @@ async def get_item_batches(
                     batches = sql_connector.get_item_batches(item_identifier)
                     fetch_success = True
                 else:
-                    logger.info(f"SQL connector available but not connected for '{item_identifier}'")
+                    logger.info(
+                        f"SQL connector available but not connected for '{item_identifier}'"
+                    )
             except Exception as sql_err:
                 logger.warning(f"SQL Server batch fetch failed for '{item_identifier}': {sql_err}")
 
@@ -882,10 +918,7 @@ async def get_item_batches(
         if not fetch_success:
             logger.info(f"Using MongoDB fallback for item batches: {item_identifier}")
             query: dict[str, Any] = {
-                "$or": [
-                    {"item_code": item_identifier},
-                    {"barcode": item_identifier}
-                ]
+                "$or": [{"item_code": item_identifier}, {"barcode": item_identifier}]
             }
             # Add item_id if it's a number
             if item_identifier.isdigit():
@@ -896,18 +929,20 @@ async def get_item_batches(
 
             # Transform MongoDB items to batch format
             for item in mongo_items:
-                batches.append({
-                    "batch_id": item.get("batch_id"),
-                    "batch_no": item.get("batch_no", ""),
-                    "barcode": item.get("barcode"),
-                    "mfg_date": item.get("mfg_date"),
-                    "expiry_date": item.get("expiry_date"),
-                    "stock_qty": item.get("stock_qty", 0),
-                    "warehouse_id": item.get("warehouse_id"),
-                    "warehouse_name": item.get("warehouse_name", "Cached"),
-                    "item_code": item.get("item_code"),
-                    "item_name": item.get("item_name"),
-                })
+                batches.append(
+                    {
+                        "batch_id": item.get("batch_id"),
+                        "batch_no": item.get("batch_no", ""),
+                        "barcode": item.get("barcode"),
+                        "mfg_date": item.get("mfg_date"),
+                        "expiry_date": item.get("expiry_date"),
+                        "stock_qty": item.get("stock_qty", 0),
+                        "warehouse_id": item.get("warehouse_id"),
+                        "warehouse_name": item.get("warehouse_name", "Cached"),
+                        "item_code": item.get("item_code"),
+                        "item_name": item.get("item_name"),
+                    }
+                )
 
         # Transform batch data to include both manual and auto barcodes
         transformed_batches = []

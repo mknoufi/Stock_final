@@ -173,6 +173,29 @@ INDEXES: dict[str, list[tuple[list[tuple[str, Union[int, str]]], dict]]] = {
         ([("barcode", 1)], {"unique": True, "name": "idx_product_barcode"}),
         ([("last_updated", -1)], {"name": "idx_product_updated"}),
     ],
+    # Audit Logs Collection
+    "audit_logs": [
+        # Time-based queries
+        ([("timestamp", -1)], {"name": "idx_audit_timestamp"}),
+        # Event type filtering
+        ([("event_type", 1), ("timestamp", -1)], {"name": "idx_audit_event_time"}),
+        # User history
+        ([("actor_id", 1), ("timestamp", -1)], {"name": "idx_audit_actor_time"}),
+        ([("actor_username", 1), ("timestamp", -1)], {"name": "idx_audit_username_time"}),
+        # Resource tracking
+        ([("resource_id", 1), ("timestamp", -1)], {"name": "idx_audit_resource_time"}),
+    ],
+    # Users Collection
+    "users": [
+        # Unique username
+        ([("username", 1)], {"unique": True, "name": "idx_username_unique"}),
+        # Unique phone number (sparse allowed for legacy users)
+        ([("phone_number", 1)], {"unique": True, "sparse": True, "name": "idx_phone_unique"}),
+        # Fast PIN lookup
+        ([("pin_lookup_hash", 1)], {"name": "idx_pin_lookup", "sparse": True}),
+        # Active users
+        ([("is_active", 1), ("username", 1)], {"name": "idx_active_users"}),
+    ],
 }
 
 
@@ -204,7 +227,9 @@ async def create_indexes(db) -> dict[str, int]:
                     err_str = str(e)
                     index_name = options.get("name", str(field_spec))
                     if "IndexOptionsConflict" in err_str or "already exists" in err_str:
-                        logger.debug(f"{index_name} index already exists with different options, skipping")
+                        logger.debug(
+                            f"{index_name} index already exists with different options, skipping"
+                        )
                     else:
                         logger.warning(
                             f"Failed to create index {index_name} on {collection_name}: {err_str}"

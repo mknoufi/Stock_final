@@ -29,26 +29,27 @@ def save_backend_info(port: int, local_ip: str, protocol: str = "http") -> None:
             "EXPO_PUBLIC_FRONTEND_PORT": "8081",
         }
 
-        # Save to backend_port.json in project root
-        # Assuming this file is in backend/utils/port_detector.py
-        # root is ../../
-        root_dir = Path(__file__).parent.parent
-        with open(root_dir / "backend_port.json", "w") as f:
+        # Save to backend_port.json in multiple locations
+        # File is at root/backend/utils/port_detector.py -> root is 3 parents up
+        project_root = Path(__file__).parent.parent.parent
+
+        # 1. Project Root
+        with open(project_root / "backend_port.json", "w") as f:
             json.dump(port_data, f)
 
-        # Save to frontend/public/backend_port.json for Expo Web
-        frontend_public = root_dir / "frontend" / "public"
-        if frontend_public.exists():
-            with open(frontend_public / "backend_port.json", "w") as f:
-                json.dump(port_data, f)
-            logger.info(f"Saved backend port info to {frontend_public / 'backend_port.json'}")
+        # 2. frontend/public (Static folder for Web)
+        frontend_public = project_root / "frontend" / "public"
+        frontend_public.mkdir(exist_ok=True)
+        with open(frontend_public / "backend_port.json", "w") as f:
+            json.dump(port_data, f)
+        logger.info(f"Saved to {frontend_public / 'backend_port.json'}")
 
-        # Save to frontend/src/backend_port.json for React Native
-        frontend_src = root_dir / "frontend" / "src"
+        # 3. frontend/src (For React Native)
+        frontend_src = project_root / "frontend" / "src"
         frontend_src.mkdir(exist_ok=True)
         with open(frontend_src / "backend_port.json", "w") as f:
             json.dump(port_data, f)
-        logger.info(f"Saved backend port info to {frontend_src / 'backend_port.json'}")
+        logger.info(f"Saved to {frontend_src / 'backend_port.json'}")
 
         logger.info(f"Saved backend info (IP: {local_ip}, Port: {port}) to multiple locations")
     except Exception as e:

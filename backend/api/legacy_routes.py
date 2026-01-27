@@ -106,7 +106,8 @@ except ImportError as e:
     init_enrichment_api = None  # type: ignore # noqa: F811
     enrichment_router = None  # type: ignore # noqa: F811
 
-from backend.services.runtime import get_refresh_token_service, get_db, get_cache_service
+from backend.db.runtime import get_db
+from backend.services.runtime import get_refresh_token_service, get_cache_service
 
 # Global service instances
 scheduled_export_service = None

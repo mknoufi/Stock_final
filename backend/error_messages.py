@@ -58,6 +58,14 @@ ERROR_MESSAGES = {
         "category": ErrorCategory.AUTHENTICATION,
         "status_code": 400,
     },
+    "AUTH_SESSION_CONFLICT": {
+        "message": "You are already logged in on another device.",
+        "detail": "Concurrent sessions are not allowed. Please logout from the other device.",
+        "code": "AUTH_006",
+        "category": ErrorCategory.AUTHENTICATION,
+        "status_code": 409,
+        "remediation": "Please use the Logout All option if available, or contact an administrator.",
+    },
     # Authorization Errors
     "AUTHZ_INSUFFICIENT_PERMISSIONS": {
         "message": "You don't have permission to perform this action.",

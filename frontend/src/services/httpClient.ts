@@ -28,15 +28,6 @@ const apiClient = axios.create({
  */
 const connectionManager = ConnectionManager.getInstance();
 
-connectionManager.addListener((connection: ConnectionInfo) => {
-  updateBaseURL(connection.backendUrl);
-  log.info('API base URL updated via ConnectionManager', { 
-    old: apiClient.defaults.baseURL,
-    new: connection.backendUrl,
-    isHealthy: connection.isHealthy 
-  });
-});
-
 /**
  * Update the base URL of the API client.
  * Called after backend reachability probe succeeds.
@@ -51,6 +42,15 @@ export const updateBaseURL = (newBaseUrl: string) => {
   apiClient.defaults.baseURL = newBaseUrl;
   API_BASE_URL = newBaseUrl; // Ensure exported constant is actually dynamic
 };
+
+connectionManager.addListener((connection: ConnectionInfo) => {
+  updateBaseURL(connection.backendUrl);
+  log.info("API base URL updated via ConnectionManager", {
+    old: apiClient.defaults.baseURL,
+    new: connection.backendUrl,
+    isHealthy: connection.isHealthy,
+  });
+});
 
 const summarizePayload = (payload: unknown): Record<string, unknown> | undefined => {
   if (payload == null) return undefined;

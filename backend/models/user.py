@@ -45,6 +45,7 @@ class UserBase(BaseModel):
     username: str
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
+    phone_number: Optional[str] = Field(None, pattern=r"^\+?[1-9]\d{1,14}$")
     role: str = "staff"
     is_active: bool = True
 
@@ -57,6 +58,7 @@ class UserCreate(UserBase):
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = None
+    phone_number: Optional[str] = Field(None, pattern=r"^\+?[1-9]\d{1,14}$")
     password: Optional[str] = None
     pin: Optional[str] = None
     is_active: Optional[bool] = None

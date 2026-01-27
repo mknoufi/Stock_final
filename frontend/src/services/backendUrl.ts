@@ -68,10 +68,8 @@ const buildCandidates = (): string[] => {
     candidates.push(process.env.EXPO_PUBLIC_BACKEND_URL);
   }
 
-  // 3) Try to load from backend_port.json if on web
-  if (Platform.OS === "web") {
-    candidates.push("/backend_port.json");
-  }
+  // 3) Try to load from backend_port.json if on web (handled in resolveBackendUrl)
+  // Removed "/backend_port.json" literal from candidates as it is not a valid base URL
 
   // 4) Runtime config from app.config.js extra
   const configUrl = Constants.expoConfig?.extra?.backendUrl as string | undefined;
@@ -114,6 +112,24 @@ export const resolveBackendUrl = async (): Promise<string> => {
   if (resolvedBackendUrl) return resolvedBackendUrl;
 
   const candidates = buildCandidates();
+
+  // Web-specific: Try to load from backend_port.json first
+  if (Platform.OS === "web") {
+    try {
+      const response = await fetch("/backend_port.json");
+      if (response.ok) {
+        const portData = await response.json();
+        if (portData.url) {
+          console.log("[BackendURL] Found URL in backend_port.json:", portData.url);
+          // Insert at the beginning of candidates
+          candidates.unshift(stripTrailingSlash(portData.url));
+        }
+      }
+    } catch (e) {
+      console.debug("[BackendURL] Failed to fetch /backend_port.json:", e);
+    }
+  }
+
   console.log("[BackendURL] Probing candidates in parallel:", candidates);
 
   try {

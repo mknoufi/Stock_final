@@ -34,6 +34,8 @@ from backend.services.system_report_service import SystemReportService  # noqa: 
 from backend.sql_server_connector import sql_connector  # noqa: E402
 from backend.utils.port_detector import PortDetector  # noqa: E402
 from backend.utils.service_manager import ServiceManager  # noqa: E402
+from backend.services.watchdog_service import WatchdogService  # noqa: E402
+
 
 # Constants
 BACKEND_PROCESS_NEEDLE = "server.py"
@@ -1023,4 +1025,28 @@ async def get_system_stats(current_user: dict = Depends(require_admin)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get system stats: {str(e)}",
+        )
+
+
+@admin_control_router.post("/watchdog/run")
+async def run_watchdog_checks(current_user: dict = Depends(require_admin)):
+    """
+    Manually trigger system watchdog checks.
+    Scans for velocity anomalies, brute force attacks, and system health issues.
+    """
+    try:
+        db = get_db()
+        watchdog = WatchdogService(db)
+        await watchdog.run_all_checks()
+
+        return {
+            "success": True,
+            "message": "Watchdog checks completed. Check audit logs for any alerts.",
+            "timestamp": datetime.now().isoformat(),
+        }
+    except Exception as e:
+        logger.error(f"Error running watchdog: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Watchdog execution failed: {str(e)}",
         )
