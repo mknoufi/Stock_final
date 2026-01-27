@@ -1,4 +1,4 @@
-const deferred = <T,>() => {
+const deferred = <T>() => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((res) => {
     resolve = res;
@@ -40,7 +40,9 @@ describe("authStore.loadStoredAuth race protection", () => {
 
     jest.doMock("../settingsStore", () => ({
       __esModule: true,
-      useSettingsStore: { getState: () => ({ settings: {}, syncFromBackend: jest.fn() }) },
+      useSettingsStore: {
+        getState: () => ({ settings: {}, syncFromBackend: jest.fn() }),
+      },
     }));
 
     jest.doMock("../networkStore", () => ({
@@ -90,4 +92,3 @@ describe("authStore.loadStoredAuth race protection", () => {
     expect(state.user?.username).toBe("staff1");
   });
 });
-

@@ -119,7 +119,10 @@ export default function SqlConfigScreen() {
         }}
       >
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={auroraTheme.colors.primary[500]} />
+          <ActivityIndicator
+            size="large"
+            color={auroraTheme.colors.primary[500]}
+          />
           <Text style={styles.loadingText}>Loading configuration...</Text>
         </View>
       </ScreenContainer>
@@ -145,7 +148,11 @@ export default function SqlConfigScreen() {
       >
         <GlassCard variant="medium" style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Ionicons name="server-outline" size={24} color={auroraTheme.colors.primary[400]} />
+            <Ionicons
+              name="server-outline"
+              size={24}
+              color={auroraTheme.colors.primary[400]}
+            />
             <Text style={styles.sectionTitle}>Connection Settings</Text>
           </View>
 
@@ -231,16 +238,26 @@ export default function SqlConfigScreen() {
             <Ionicons
               name={testResult.connected ? "checkmark-circle" : "close-circle"}
               size={28}
-              color={testResult.connected ? auroraTheme.colors.success[500] : auroraTheme.colors.error[500]}
+              color={
+                testResult.connected
+                  ? auroraTheme.colors.success[500]
+                  : auroraTheme.colors.error[500]
+              }
             />
             <View style={styles.testResultContent}>
               <Text
                 style={[
                   styles.testResultTitle,
-                  { color: testResult.connected ? auroraTheme.colors.success[500] : auroraTheme.colors.error[500] },
+                  {
+                    color: testResult.connected
+                      ? auroraTheme.colors.success[500]
+                      : auroraTheme.colors.error[500],
+                  },
                 ]}
               >
-                {testResult.connected ? "Connection Successful" : "Connection Failed"}
+                {testResult.connected
+                  ? "Connection Successful"
+                  : "Connection Failed"}
               </Text>
               <Text style={styles.testResultText}>{testResult.message}</Text>
             </View>
@@ -280,11 +297,16 @@ export default function SqlConfigScreen() {
         </View>
 
         <GlassCard variant="light" style={styles.infoBox}>
-          <Ionicons name="information-circle" size={24} color={auroraTheme.colors.primary[400]} />
+          <Ionicons
+            name="information-circle"
+            size={24}
+            color={auroraTheme.colors.primary[400]}
+          />
           <Text style={styles.infoText}>
-            SQL Server integration is used for real-time ERP synchronization. 
-            The system can operate independently with local data if connectivity is not available.
-            Changes require a backend service restart to take full effect.
+            SQL Server integration is used for real-time ERP synchronization.
+            The system can operate independently with local data if connectivity
+            is not available. Changes require a backend service restart to take
+            full effect.
           </Text>
         </GlassCard>
       </ScrollView>

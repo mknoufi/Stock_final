@@ -369,8 +369,8 @@ export default function SupervisorDashboard() {
   const completionPercentage =
     stats.totalSessions > 0
       ? ((stats.closedSessions + stats.reconciledSessions) /
-        stats.totalSessions) *
-      100
+          stats.totalSessions) *
+        100
       : 0;
 
   return (
@@ -841,7 +841,7 @@ export default function SupervisorDashboard() {
                     style={[
                       styles.optionButton,
                       locationType === zone.zone_name &&
-                      styles.optionButtonSelected,
+                        styles.optionButtonSelected,
                     ]}
                     onPress={() => handleLocationTypeChange(zone.zone_name)}
                   >
@@ -849,7 +849,7 @@ export default function SupervisorDashboard() {
                       style={[
                         styles.optionText,
                         locationType === zone.zone_name &&
-                        styles.optionTextSelected,
+                          styles.optionTextSelected,
                       ]}
                     >
                       {zone.zone_name}
@@ -873,7 +873,7 @@ export default function SupervisorDashboard() {
                         style={[
                           styles.optionButton,
                           selectedFloor === wh.warehouse_name &&
-                          styles.optionButtonSelected,
+                            styles.optionButtonSelected,
                         ]}
                         onPress={() => {
                           if (Platform.OS !== "web") Haptics.selectionAsync();
@@ -884,7 +884,7 @@ export default function SupervisorDashboard() {
                           style={[
                             styles.optionText,
                             selectedFloor === wh.warehouse_name &&
-                            styles.optionTextSelected,
+                              styles.optionTextSelected,
                           ]}
                         >
                           {wh.warehouse_name}
@@ -917,7 +917,7 @@ export default function SupervisorDashboard() {
                   !selectedFloor ||
                   !rackName.trim() ||
                   isCreatingSession) &&
-                styles.createButtonDisabled,
+                  styles.createButtonDisabled,
               ]}
               onPress={handleCreateSession}
               disabled={

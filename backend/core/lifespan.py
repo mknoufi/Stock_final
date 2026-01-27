@@ -1,11 +1,11 @@
 # ruff: noqa: E402
 # flake8: noqa: E402
 
+import asyncio
 import logging
 import os
 import sys
 import time
-import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Generic, Optional, TypeVar, cast
@@ -38,6 +38,7 @@ from backend.core import globals as g
 from backend.db.initialization import init_default_users, init_mock_erp_data
 from backend.db.migrations import MigrationManager
 from backend.db.runtime import set_client, set_db
+from backend.exceptions import StockVerifyException as DatabaseError
 
 # Services
 from backend.services.activity_log import ActivityLogService
@@ -46,10 +47,10 @@ from backend.services.activity_log import ActivityLogService
 from backend.services.auto_sync_manager import AutoSyncManager
 from backend.services.batch_operations import BatchOperationsService
 from backend.services.cache_service import CacheService
+from backend.services.change_detection_sync import ChangeDetectionSyncService
 from backend.services.database_health import DatabaseHealthService
 from backend.services.database_optimizer import DatabaseOptimizer
 from backend.services.error_log import ErrorLogService
-from backend.exceptions import StockVerifyException as DatabaseError
 from backend.services.lock_manager import get_lock_manager
 from backend.services.mdns_service import start_mdns, stop_mdns
 from backend.services.monitoring_service import MonitoringService
@@ -59,9 +60,8 @@ from backend.services.redis_service import close_redis, init_redis
 from backend.services.refresh_token import RefreshTokenService
 from backend.services.runtime import set_cache_service, set_refresh_token_service
 from backend.services.scheduled_export_service import ScheduledExportService
-from backend.services.sync_conflicts_service import SyncConflictsService
 from backend.services.sql_sync_service import SQLSyncService
-from backend.services.change_detection_sync import ChangeDetectionSyncService
+from backend.services.sync_conflicts_service import SyncConflictsService
 from backend.sql_server_connector import SQLServerConnector
 from backend.utils.port_detector import PortDetector, save_backend_info
 

@@ -29,9 +29,12 @@ export interface AuthState {
   login: (
     username: string,
     password: string,
-    rememberMe?: boolean
+    rememberMe?: boolean,
   ) => Promise<{ success: boolean; message?: string }>;
-  loginWithPin: (pin: string, username?: string) => Promise<{ success: boolean; message?: string }>;
+  loginWithPin: (
+    pin: string,
+    username?: string,
+  ) => Promise<{ success: boolean; message?: string }>;
   authenticateWithBiometrics: () => Promise<{
     success: boolean;
     message?: string;
@@ -40,8 +43,13 @@ export interface AuthState {
   getPinForBiometrics: () => Promise<string | null>;
   setUser: (user: User) => void;
   logout: () => Promise<void>;
-  logoutAll: (username?: string) => Promise<{ success: boolean; message?: string }>;
-  pinSetup: (pin: string, confirmPin: string) => Promise<{ success: boolean; message?: string }>;
+  logoutAll: (
+    username?: string,
+  ) => Promise<{ success: boolean; message?: string }>;
+  pinSetup: (
+    pin: string,
+    confirmPin: string,
+  ) => Promise<{ success: boolean; message?: string }>;
   setLoading: (loading: boolean) => void;
   loadStoredAuth: () => Promise<void>;
   lastLoggedUser: {
@@ -49,7 +57,9 @@ export interface AuthState {
     full_name: string;
     has_pin?: boolean;
   } | null;
-  setLastLoggedUser: (user: { username: string; full_name: string } | null) => void;
+  setLastLoggedUser: (
+    user: { username: string; full_name: string } | null,
+  ) => void;
   clearLastLoggedUser: () => Promise<void>;
 }
 
@@ -73,7 +83,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   setLastLoggedUser: async (
-    user: { username: string; full_name: string; has_pin?: boolean } | null
+    user: { username: string; full_name: string; has_pin?: boolean } | null,
   ) => {
     set({ lastLoggedUser: user });
     if (user) {
@@ -91,7 +101,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   login: async (
     username: string,
     password: string,
-    _rememberMe?: boolean
+    _rememberMe?: boolean,
   ): Promise<{ success: boolean; message?: string }> => {
     set({ isLoading: true });
     try {
@@ -109,7 +119,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           throw new Error("Invalid response format: missing access_token");
         }
 
-        apiClient.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+        apiClient.defaults.headers.common["Authorization"] =
+          `Bearer ${access_token}`;
         await secureStorage.setItem(TOKEN_STORAGE_KEY, access_token);
         if (refresh_token) {
           await secureStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refresh_token);
@@ -121,7 +132,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           full_name: user.full_name,
           has_pin: user.has_pin,
         };
-        await secureStorage.setItem(LAST_USER_STORAGE_KEY, JSON.stringify(lastUser));
+        await secureStorage.setItem(
+          LAST_USER_STORAGE_KEY,
+          JSON.stringify(lastUser),
+        );
 
         set({
           user,
@@ -146,34 +160,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       set({ isLoading: false });
-      return { success: false, message: response.data.message || "Login failed" };
+      return {
+        success: false,
+        message: response.data.message || "Login failed",
+      };
     } catch (_error: any) {
       set({ isLoading: false });
       const message =
-        _error.response?.data?.detail?.message || _error.response?.data?.message || "Login failed";
+        _error.response?.data?.detail?.message ||
+        _error.response?.data?.message ||
+        "Login failed";
       return { success: false, message };
     }
   },
 
   loginWithPin: async (
     pin: string,
-    username?: string
+    username?: string,
   ): Promise<{ success: boolean; message?: string }> => {
     set({ isLoading: true });
     try {
-      const response = await apiClient.post("/api/auth/login-pin", { pin, username });
+      const response = await apiClient.post("/api/auth/login-pin", {
+        pin,
+        username,
+      });
 
       if (response.data.success && response.data.data) {
         const { access_token, refresh_token, user } = response.data.data;
-        apiClient.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+        apiClient.defaults.headers.common["Authorization"] =
+          `Bearer ${access_token}`;
         await secureStorage.setItem(TOKEN_STORAGE_KEY, access_token);
         if (refresh_token) {
           await secureStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refresh_token);
         }
         await secureStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
 
-        const lastUser = { username: user.username, full_name: user.full_name, has_pin: true };
-        await secureStorage.setItem(LAST_USER_STORAGE_KEY, JSON.stringify(lastUser));
+        const lastUser = {
+          username: user.username,
+          full_name: user.full_name,
+          has_pin: true,
+        };
+        await secureStorage.setItem(
+          LAST_USER_STORAGE_KEY,
+          JSON.stringify(lastUser),
+        );
 
         const settings = useSettingsStore.getState().settings;
         if (settings.biometricAuth && pin) {
@@ -194,14 +224,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const networkState = useNetworkStore.getState();
         if (networkState.isOnline) {
           const { syncOfflineQueue } = await import("../services/syncService");
-          syncOfflineQueue({ background: true }).catch((err) => log.warn("Sync error", err));
+          syncOfflineQueue({ background: true }).catch((err) =>
+            log.warn("Sync error", err),
+          );
         }
 
         return { success: true };
       }
 
       set({ isLoading: false });
-      return { success: false, message: response.data.message || "Invalid PIN" };
+      return {
+        success: false,
+        message: response.data.message || "Invalid PIN",
+      };
     } catch (_error: any) {
       set({ isLoading: false });
       const message =
@@ -212,7 +247,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  authenticateWithBiometrics: async (): Promise<{ success: boolean; message?: string }> => {
+  authenticateWithBiometrics: async (): Promise<{
+    success: boolean;
+    message?: string;
+  }> => {
     try {
       const hasHardware = await LocalAuthentication.hasHardwareAsync();
       const isEnrolled = await LocalAuthentication.isEnrolledAsync();
@@ -232,9 +270,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (result.success) {
         const storedPin = await secureStorage.getItem(BIOMETRIC_PIN_KEY);
         if (storedPin) {
-          return await get().loginWithPin(storedPin, get().lastLoggedUser?.username);
+          return await get().loginWithPin(
+            storedPin,
+            get().lastLoggedUser?.username,
+          );
         }
-        return { success: false, message: "No PIN stored for biometric login." };
+        return {
+          success: false,
+          message: "No PIN stored for biometric login.",
+        };
       }
 
       return { success: false, message: "Authentication cancelled." };
@@ -276,14 +320,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isLoading: false,
     });
 
-    const { clearOfflineQueue } = await import("../services/offline/offlineStorage");
+    const { clearOfflineQueue } =
+      await import("../services/offline/offlineStorage");
     await clearOfflineQueue();
   },
 
-  logoutAll: async (username?: string): Promise<{ success: boolean; message?: string }> => {
+  logoutAll: async (
+    username?: string,
+  ): Promise<{ success: boolean; message?: string }> => {
     set({ isLoading: true });
     try {
-      const response = await apiClient.post("/api/sessions/logout-all", { username });
+      const response = await apiClient.post("/api/sessions/logout-all", {
+        username,
+      });
       set({ isLoading: false });
       return { success: response.data.success, message: response.data.message };
     } catch (_error) {
@@ -294,7 +343,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   pinSetup: async (
     pin: string,
-    confirmPin: string
+    confirmPin: string,
   ): Promise<{ success: boolean; message?: string }> => {
     set({ isLoading: true });
     try {
@@ -308,7 +357,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await secureStorage.setItem(BIOMETRIC_PIN_KEY, pin);
         return { success: true, message: "PIN updated" };
       }
-      return { success: false, message: response.data.message || "PIN setup failed" };
+      return {
+        success: false,
+        message: response.data.message || "PIN setup failed",
+      };
     } catch (_error) {
       set({ isLoading: false });
       return { success: false, message: "Server error during PIN setup" };
@@ -332,7 +384,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (storedUser && storedToken) {
         const user = JSON.parse(storedUser) as User;
-        apiClient.defaults.headers.common["Authorization"] = `Bearer ${storedToken}`;
+        apiClient.defaults.headers.common["Authorization"] =
+          `Bearer ${storedToken}`;
         set({
           user,
           isAuthenticated: true,

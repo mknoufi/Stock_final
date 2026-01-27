@@ -11,11 +11,15 @@ import fs from "node:fs";
  * unintended visual changes.
  */
 
-test.skip(!process.env.RUN_VISUAL, "Visual baselines are not enabled for this run.");
+test.skip(
+  !process.env.RUN_VISUAL,
+  "Visual baselines are not enabled for this run.",
+);
 
 async function ensureCredentialsMode(page: any) {
   const usernameField = page.getByPlaceholder(/username/i);
-  if (await usernameField.isVisible({ timeout: 750 }).catch(() => false)) return;
+  if (await usernameField.isVisible({ timeout: 750 }).catch(() => false))
+    return;
   const credentialsTab = page
     .getByRole("button", { name: /credentials/i })
     .or(page.getByText(/credentials/i));

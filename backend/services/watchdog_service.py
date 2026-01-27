@@ -1,8 +1,10 @@
 import logging
 from datetime import datetime, timedelta
-from typing import List, Dict, Any
+from typing import Any, Dict
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from backend.services.audit_service import AuditService, AuditEventType, AuditLogStatus
+
+from backend.services.audit_service import AuditEventType, AuditLogStatus, AuditService
 
 logger = logging.getLogger(__name__)
 

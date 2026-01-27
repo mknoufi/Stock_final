@@ -41,7 +41,7 @@ export const useSessionIntegrity = (
 
   // Take snapshot of item versions when session starts
   const takeSnapshot = useCallback(() => {
-    const snapshot = initialItemVersions.map(item => ({
+    const snapshot = initialItemVersions.map((item) => ({
       item_code: item.item_code,
       version: item.version,
       last_modified: item.last_modified,
@@ -56,10 +56,13 @@ export const useSessionIntegrity = (
 
     // Store snapshot in localStorage for persistence
     try {
-      localStorage.setItem(`session_${sessionId}_snapshot`, JSON.stringify({
-        snapshot,
-        timestamp: new Date().toISOString(),
-      }));
+      localStorage.setItem(
+        `session_${sessionId}_snapshot`,
+        JSON.stringify({
+          snapshot,
+          timestamp: new Date().toISOString(),
+        }),
+      );
     } catch (e) {
       console.warn("Failed to store session snapshot:", e);
     }
@@ -68,57 +71,70 @@ export const useSessionIntegrity = (
   }, [sessionId, initialItemVersions]);
 
   // Check for master data changes since snapshot
-  const checkIntegrity = useCallback(async (currentItemVersions: ItemVersion[]) => {
-    if (!integrityState.snapshotTaken) {
-      return null;
-    }
-
-    try {
-      const stored = localStorage.getItem(`session_${sessionId}_snapshot`);
-      if (!stored) return null;
-
-      const { snapshot } = JSON.parse(stored);
-      const warnings: SessionWarning[] = [];
-
-      // Compare current versions with snapshot
-      for (const current of currentItemVersions) {
-        const snapshotItem = snapshot.find((s: ItemVersion) => s.item_code === current.item_code);
-        
-        if (snapshotItem && snapshotItem.version !== current.version) {
-          warnings.push({
-            item_code: current.item_code,
-            item_name: current.item_code, // Would need to fetch item name
-            field_changed: "master_data",
-            old_value: snapshotItem.version,
-            new_value: current.version,
-            warning_type: "master_data_change",
-          });
-        }
+  const checkIntegrity = useCallback(
+    async (currentItemVersions: ItemVersion[]) => {
+      if (!integrityState.snapshotTaken) {
+        return null;
       }
 
-      const hasChanges = warnings.length > 0;
+      try {
+        const stored = localStorage.getItem(`session_${sessionId}_snapshot`);
+        if (!stored) return null;
 
-      setIntegrityState(prev => ({
-        ...prev,
-        itemsWithChanges: warnings.length,
-        warnings: hasChanges ? warnings : prev.warnings,
-      }));
+        const { snapshot } = JSON.parse(stored);
+        const warnings: SessionWarning[] = [];
 
-      return hasChanges ? warnings : null;
-    } catch (e) {
-      console.error("Failed to check session integrity:", e);
-      return null;
-    }
-  }, [sessionId, integrityState.snapshotTaken]);
+        // Compare current versions with snapshot
+        for (const current of currentItemVersions) {
+          const snapshotItem = snapshot.find(
+            (s: ItemVersion) => s.item_code === current.item_code,
+          );
+
+          if (snapshotItem && snapshotItem.version !== current.version) {
+            warnings.push({
+              item_code: current.item_code,
+              item_name: current.item_code, // Would need to fetch item name
+              field_changed: "master_data",
+              old_value: snapshotItem.version,
+              new_value: current.version,
+              warning_type: "master_data_change",
+            });
+          }
+        }
+
+        const hasChanges = warnings.length > 0;
+
+        setIntegrityState((prev) => ({
+          ...prev,
+          itemsWithChanges: warnings.length,
+          warnings: hasChanges ? warnings : prev.warnings,
+        }));
+
+        return hasChanges ? warnings : null;
+      } catch (e) {
+        console.error("Failed to check session integrity:", e);
+        return null;
+      }
+    },
+    [sessionId, integrityState.snapshotTaken],
+  );
 
   // Get session integrity status for display
   const getIntegrityStatus = useCallback(() => {
     if (!integrityState.snapshotTaken) {
-      return { status: "not_started", message: "No snapshot taken", severity: "info" };
+      return {
+        status: "not_started",
+        message: "No snapshot taken",
+        severity: "info",
+      };
     }
 
     if (integrityState.itemsWithChanges === 0) {
-      return { status: "clean", message: "No changes detected", severity: "success" };
+      return {
+        status: "clean",
+        message: "No changes detected",
+        severity: "success",
+      };
     }
 
     return {
@@ -252,13 +268,10 @@ export const useSessionManagement = (
 
   const [isSessionActive, setIsSessionActive] = useState(false);
 
-  const autoPause = useAutoPause(
-    isSessionActive,
-    () => {
-      setIsSessionActive(false);
-      onPause?.();
-    },
-  );
+  const autoPause = useAutoPause(isSessionActive, () => {
+    setIsSessionActive(false);
+    onPause?.();
+  });
 
   const startSession = useCallback(() => {
     setIsSessionActive(true);

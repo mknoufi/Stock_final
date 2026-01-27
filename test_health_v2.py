@@ -4,7 +4,7 @@ import json
 
 def test_health():
     base_url = "http://localhost:8001"
-    
+
     print("--- Testing Public Health Endpoint ---")
     try:
         resp = requests.get(f"{base_url}/api/v2/health/")

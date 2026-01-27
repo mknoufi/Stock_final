@@ -42,7 +42,11 @@ export function isTooShort(v: string): boolean {
   return v.length < 4;
 }
 
-export function scoreCandidate(mode: ScanMode, value: string, symbology?: string): number {
+export function scoreCandidate(
+  mode: ScanMode,
+  value: string,
+  symbology?: string,
+): number {
   if (!value || isTooShort(value)) return -999;
 
   const t = (symbology ?? "").toLowerCase();
@@ -59,7 +63,8 @@ export function scoreCandidate(mode: ScanMode, value: string, symbology?: string
     if (t.includes("ean") || t.includes("upc")) return -500;
 
     if (serial) score += 250;
-    if (t.includes("code128") || t.includes("code39") || t.includes("code93")) score += 60;
+    if (t.includes("code128") || t.includes("code39") || t.includes("code93"))
+      score += 60;
     if (t.includes("qr") || t.includes("datamatrix")) score += 40;
 
     // Penalize purely numeric non-ean (rare, but reduces false positives)
@@ -78,7 +83,13 @@ export function scoreCandidate(mode: ScanMode, value: string, symbology?: string
   if (mode === "AUTO") {
     if (ean) score += 120;
     if (serial) score += 120;
-    if (t.includes("code128") || t.includes("code39") || t.includes("qr") || t.includes("datamatrix")) score += 20;
+    if (
+      t.includes("code128") ||
+      t.includes("code39") ||
+      t.includes("qr") ||
+      t.includes("datamatrix")
+    )
+      score += 20;
   }
 
   return score;
@@ -92,24 +103,46 @@ export function decide(mode: ScanMode, candidate: ScanCandidate): ScanDecision {
 
   if (mode === "SERIAL") {
     if (isLikelyEanUpc(value) || t.includes("ean") || t.includes("upc")) {
-      return { ok: false, reason: "Detected EAN/UPC (product barcode). Scan the SERIAL label (letters+numbers)." };
+      return {
+        ok: false,
+        reason:
+          "Detected EAN/UPC (product barcode). Scan the SERIAL label (letters+numbers).",
+      };
     }
     if (!isSerialLike(value)) {
-      return { ok: false, reason: "Invalid serial format. Scan alphanumeric serial (e.g., QAN44ZAY711883)." };
+      return {
+        ok: false,
+        reason:
+          "Invalid serial format. Scan alphanumeric serial (e.g., QAN44ZAY711883).",
+      };
     }
     return { ok: true, kind: "SERIAL", value, reason: "Serial accepted." };
   }
 
   if (mode === "ITEM") {
     if (!isLikelyEanUpc(value)) {
-      return { ok: false, reason: "Not an EAN/UPC item barcode. Switch to SERIAL mode if you are scanning unit serial." };
+      return {
+        ok: false,
+        reason:
+          "Not an EAN/UPC item barcode. Switch to SERIAL mode if you are scanning unit serial.",
+      };
     }
     return { ok: true, kind: "ITEM", value, reason: "Item barcode accepted." };
   }
 
   // AUTO
-  if (isLikelyEanUpc(value)) return { ok: true, kind: "ITEM", value, reason: "Auto-detected item barcode." };
-  if (isSerialLike(value)) return { ok: true, kind: "SERIAL", value, reason: "Auto-detected serial." };
+  if (isLikelyEanUpc(value))
+    return {
+      ok: true,
+      kind: "ITEM",
+      value,
+      reason: "Auto-detected item barcode.",
+    };
+  if (isSerialLike(value))
+    return { ok: true, kind: "SERIAL", value, reason: "Auto-detected serial." };
 
-  return { ok: false, reason: "Unrecognized code. Try scanning a different barcode on the label." };
+  return {
+    ok: false,
+    reason: "Unrecognized code. Try scanning a different barcode on the label.",
+  };
 }

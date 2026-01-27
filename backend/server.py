@@ -70,13 +70,10 @@ from backend.core.lifespan import (  # client,
     lifespan,
     refresh_token_service,
 )
-from backend.exceptions import (
-    AuthenticationError,
-    StockVerifyException as DatabaseError,
-    NotFoundError,
-    RateLimitError as RateLimitExceededError,
-    ValidationError,
-)
+from backend.exceptions import AuthenticationError, NotFoundError
+from backend.exceptions import RateLimitError as RateLimitExceededError
+from backend.exceptions import StockVerifyException as DatabaseError
+from backend.exceptions import ValidationError
 
 # Utils
 from backend.utils.api_utils import result_to_response, sanitize_for_logging
@@ -292,8 +289,8 @@ if enrichment_router:
 
 # Include API v2 router (upgraded endpoints)
 try:
-    from backend.api.v2 import v2_router
     from backend.api.backend_config_api import router as backend_config_router
+    from backend.api.v2 import v2_router
 
     app.include_router(v2_router)
     app.include_router(backend_config_router)

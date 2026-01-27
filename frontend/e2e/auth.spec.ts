@@ -47,7 +47,9 @@ test.describe("Authentication", () => {
       await expect(usernameInput).toHaveValue("staff1");
       await expect(passwordInput).toHaveValue("staff123");
       const loginResponsePromise = page.waitForResponse((r) => {
-        return r.request().method() === "POST" && r.url().includes("/api/auth/login");
+        return (
+          r.request().method() === "POST" && r.url().includes("/api/auth/login")
+        );
       });
       const signInButton = page.getByRole("button", { name: /^sign in$/i });
       await signInButton.evaluate((el: any) => el.click());
@@ -82,7 +84,9 @@ test.describe("Authentication", () => {
       await expect(usernameInput).toHaveValue("staff1");
       await expect(passwordInput).toHaveValue("wrongpassword");
       const loginResponsePromise = page.waitForResponse((r) => {
-        return r.request().method() === "POST" && r.url().includes("/api/auth/login");
+        return (
+          r.request().method() === "POST" && r.url().includes("/api/auth/login")
+        );
       });
       const signInButton = page.getByRole("button", { name: /^sign in$/i });
       await signInButton.evaluate((el: any) => el.click());
@@ -119,7 +123,9 @@ test.describe("Authentication", () => {
       await usernameField.fill("admin");
       await passwordField.fill("wrongpassword");
       const loginResponsePromise = page.waitForResponse((r) => {
-        return r.request().method() === "POST" && r.url().includes("/api/auth/login");
+        return (
+          r.request().method() === "POST" && r.url().includes("/api/auth/login")
+        );
       });
       const signInButton = page.getByRole("button", { name: /^sign in$/i });
       await signInButton.evaluate((el: any) => el.click());
@@ -131,7 +137,9 @@ test.describe("Authentication", () => {
         await dialog.accept();
       } else {
         await expect(
-          page.getByText(/invalid|incorrect|failed/i).or(page.getByRole("alert")),
+          page
+            .getByText(/invalid|incorrect|failed/i)
+            .or(page.getByRole("alert")),
         ).toBeVisible({ timeout: 10000 });
       }
 
@@ -160,7 +168,10 @@ test.describe("Authentication", () => {
     });
 
     test("should logout successfully", async ({ page }) => {
-      test.skip(true, "Logout UI is app-role/layout dependent; enable when stable.");
+      test.skip(
+        true,
+        "Logout UI is app-role/layout dependent; enable when stable.",
+      );
       // Find and click logout button (might be in menu)
       const settingsLink = page.getByText(/settings/i).first();
       if (await settingsLink.isVisible({ timeout: 5000 }).catch(() => false)) {
@@ -182,7 +193,10 @@ test.describe("Authentication", () => {
 
   test.describe("Session Persistence", () => {
     test("should maintain session after page refresh", async ({ page }) => {
-      test.skip(true, "Persistence depends on storage and environment; enable when stable.");
+      test.skip(
+        true,
+        "Persistence depends on storage and environment; enable when stable.",
+      );
       // Login
       await page.goto("/login");
 

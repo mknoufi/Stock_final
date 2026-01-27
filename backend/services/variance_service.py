@@ -7,8 +7,9 @@ approval is required.
 """
 
 import logging
-from typing import Dict, List, Tuple, Optional
 from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)

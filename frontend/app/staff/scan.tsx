@@ -221,27 +221,27 @@ const ScanScreen = React.memo(function ScanScreen() {
   useEffect(() => {
     if (lastMessage?.type === "session_update") {
       const { status, reason } = lastMessage.payload;
-      
+
       if (status === "PAUSED") {
         safeSetState(setIsScanning, false);
         Alert.alert(
           "Session Paused",
           reason || "A supervisor has paused this session.",
-          [{ text: "OK" }]
+          [{ text: "OK" }],
         );
       } else if (status === "CLOSED" && !isFinishing) {
         Alert.alert(
           "Session Closed",
           reason || "This session has been closed.",
           [
-            { 
-              text: "OK", 
-              onPress: () => router.replace("/staff/home") 
-            }
-          ]
+            {
+              text: "OK",
+              onPress: () => router.replace("/staff/home"),
+            },
+          ],
         );
       }
-      
+
       // Refresh stats on any update
       loadSessionStats();
     }
@@ -304,7 +304,8 @@ const ScanScreen = React.memo(function ScanScreen() {
     }
 
     if (scanBufferRef.current.length > SCAN_BUFFER_MAX_SIZE) {
-      scanBufferRef.current = scanBufferRef.current.slice(-SCAN_BUFFER_MAX_SIZE);
+      scanBufferRef.current =
+        scanBufferRef.current.slice(-SCAN_BUFFER_MAX_SIZE);
     }
 
     const confident = scanBufferRef.current.find(
@@ -336,7 +337,7 @@ const ScanScreen = React.memo(function ScanScreen() {
     safeSetState(setLoading, true);
     try {
       let item: any;
-      
+
       // OPTIMISTIC STRATEGY: Try Local DB first for instant response
       try {
         item = await safeAsync(() =>
@@ -351,12 +352,14 @@ const ScanScreen = React.memo(function ScanScreen() {
         try {
           item = await safeAsync(() => getItemByBarcode(validation.value!));
         } catch (e) {
-           throw e;
+          throw e;
         }
       }
 
       if (item) {
-        await safeAsync(() => RecentItemsService.addRecent(item.item_code, item));
+        await safeAsync(() =>
+          RecentItemsService.addRecent(item.item_code, item),
+        );
         await loadRecentItems();
 
         // Check for duplicates
@@ -903,10 +906,14 @@ const ScanScreen = React.memo(function ScanScreen() {
 
       {/* Performance Monitor Overlay */}
       {__DEV__ && (
-        <View style={[
-          styles.performanceOverlay,
-          performanceWarning ? styles.performancePoor : styles.performanceGood
-        ]}>
+        <View
+          style={[
+            styles.performanceOverlay,
+            performanceWarning
+              ? styles.performancePoor
+              : styles.performanceGood,
+          ]}
+        >
           <Text style={styles.performanceText}>
             FPS: {performanceMetrics.fps ?? "--"}
           </Text>
@@ -934,11 +941,7 @@ const RecentItemCard = React.memo(function RecentItemCard(
           </Text>
           <Text style={styles.recentCode}>{item.item_code}</Text>
         </View>
-        <Ionicons
-          name="chevron-forward"
-          size={20}
-          color={colors.gray[400]}
-        />
+        <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
       </View>
     </ModernCard>
   );
@@ -951,17 +954,17 @@ const SearchResultItem = React.memo(function SearchResultItem(
 ) {
   const { item, onPress } = props;
   return (
-    <TouchableOpacity style={styles.resultItem} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={styles.resultItem}
+      onPress={onPress}
+      activeOpacity={0.7}
+    >
       <Ionicons name="cube-outline" size={20} color={colors.primary[600]} />
       <View style={styles.resultInfo}>
         <Text style={styles.resultName}>{item.item_name}</Text>
         <Text style={styles.resultCode}>{item.item_code}</Text>
       </View>
-      <Ionicons
-        name="chevron-forward"
-        size={20}
-        color={colors.gray[400]}
-      />
+      <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
     </TouchableOpacity>
   );
 });

@@ -392,9 +392,7 @@ class ChangeDetectionSyncService:
 
     async def _run(self) -> None:
         """Background loop for the sync service."""
-        logger.info(
-            "Starting change detection sync loop (interval: %ds)", self.sync_interval
-        )
+        logger.info("Starting change detection sync loop (interval: %ds)", self.sync_interval)
         while self._running:
             try:
                 if self.enabled:

@@ -4,13 +4,14 @@ Enhanced Supervisor Workflow API - Batch operations and photo enforcement
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Body
+
+from fastapi import APIRouter, Body, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
 from backend.auth.permissions import Permission, require_permission
 from backend.db.runtime import get_db
-from backend.services.count_state_machine import CountLineStateMachine, CountLineState
+from backend.services.count_state_machine import CountLineState, CountLineStateMachine
 from backend.services.notification_service import NotificationService
 
 logger = logging.getLogger(__name__)
@@ -324,9 +325,7 @@ async def check_photo_requirements(
                             else (
                                 "High value item"
                                 if mrp > 10000
-                                else "Damage reported"
-                                if has_damage
-                                else None
+                                else "Damage reported" if has_damage else None
                             )
                         )
                     ),

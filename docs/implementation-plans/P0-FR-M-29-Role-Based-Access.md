@@ -1,9 +1,9 @@
 # Implementation Plan: FR-M-29 Role-Based Access Control
 
-**Priority**: P0 - Critical  
-**Effort Estimate**: 8 hours  
-**Status**: Partially Implemented  
-**Owner**: TBD  
+**Priority**: P0 - Critical
+**Effort Estimate**: 8 hours
+**Status**: Partially Implemented
+**Owner**: TBD
 **Target Sprint**: Sprint 1
 
 ---
@@ -727,6 +727,6 @@ async def test_require_permission_decorator(client):
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-01-19  
+**Document Version**: 1.0
+**Last Updated**: 2026-01-19
 **Next Review**: After implementation

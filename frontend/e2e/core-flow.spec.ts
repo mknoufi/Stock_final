@@ -1,7 +1,9 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Core User Flow", () => {
-  test("Login -> Create Session -> Scan -> Verify -> Logout", async ({ page }) => {
+  test("Login -> Create Session -> Scan -> Verify -> Logout", async ({
+    page,
+  }) => {
     test.setTimeout(300000); // 5 minutes
 
     // Debug Network & Errors
@@ -23,7 +25,7 @@ test.describe("Core User Flow", () => {
       if (navigator.permissions) {
         // @ts-ignore
         navigator.permissions.query = async () => ({
-          state: 'granted',
+          state: "granted",
           onchange: null,
           addEventListener: () => {},
           removeEventListener: () => {},
@@ -41,7 +43,9 @@ test.describe("Core User Flow", () => {
     await page.getByRole("button", { name: "Sign In" }).click();
 
     await page.waitForURL("**/staff/home**", { timeout: 30000 });
-    await expect(page.getByText("Start New Session", { exact: true })).toBeVisible();
+    await expect(
+      page.getByText("Start New Session", { exact: true }),
+    ).toBeVisible();
 
     // 2. Create Session
     await page.getByText("Start New Session", { exact: true }).click();
@@ -69,11 +73,15 @@ test.describe("Core User Flow", () => {
     );
     await expect(qtyInput).toBeVisible();
     await qtyInput.fill("10");
-    await page.getByPlaceholder("Variance reason (if any)").fill("E2E variance");
+    await page
+      .getByPlaceholder("Variance reason (if any)")
+      .fill("E2E variance");
 
     // 5. Save & Verify (wait for countdown submit to finish and navigate back)
     await page.getByRole("button", { name: "Save & Verify" }).click();
-    await expect(page.getByText(/Undo \(\d+s\)/)).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Undo \(\d+s\)/)).toBeVisible({
+      timeout: 5000,
+    });
     await page.waitForURL("**/staff/scan?sessionId=**", { timeout: 60000 });
     await expect(page.getByText("Scan Items", { exact: true })).toBeVisible();
 

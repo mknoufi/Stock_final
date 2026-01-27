@@ -6,7 +6,7 @@ Provides backend connection information for frontend discovery
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel

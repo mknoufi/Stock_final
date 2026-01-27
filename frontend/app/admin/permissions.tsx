@@ -10,10 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
-import {
-  LoadingSpinner,
-  ScreenContainer,
-} from "../../src/components/ui";
+import { LoadingSpinner, ScreenContainer } from "../../src/components/ui";
 import { GlassCard } from "../../src/components/ui/GlassCard";
 import { AnimatedPressable } from "../../src/components/ui/AnimatedPressable";
 import {
@@ -66,7 +63,10 @@ export default function PermissionsScreen() {
 
   const loadUserPermissions = async (username: string) => {
     if (!username.trim()) {
-      Alert.alert("Input Required", "Please enter a username to load permissions.");
+      Alert.alert(
+        "Input Required",
+        "Please enter a username to load permissions.",
+      );
       return;
     }
     try {
@@ -101,7 +101,7 @@ export default function PermissionsScreen() {
 
     try {
       await removeUserPermissions(selectedUsername, [permission]);
-      setUserPermissions(userPermissions.filter(p => p !== permission));
+      setUserPermissions(userPermissions.filter((p) => p !== permission));
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to remove permission");
     }
@@ -134,18 +134,22 @@ export default function PermissionsScreen() {
       if (filteredPermissions.length === 0) return null;
 
       return (
-        <GlassCard key={category} variant="medium" style={styles.categoryContainer}>
+        <GlassCard
+          key={category}
+          variant="medium"
+          style={styles.categoryContainer}
+        >
           <View style={styles.categoryHeader}>
-             <Ionicons 
-                name={getCategoryIcon(category)} 
-                size={20} 
-                color={auroraTheme.colors.primary[400]} 
-             />
-             <Text style={styles.categoryTitle}>
-               {category.toUpperCase().replace("_", " ")}
-             </Text>
+            <Ionicons
+              name={getCategoryIcon(category)}
+              size={20}
+              color={auroraTheme.colors.primary[400]}
+            />
+            <Text style={styles.categoryTitle}>
+              {category.toUpperCase().replace("_", " ")}
+            </Text>
           </View>
-          
+
           <View style={styles.permissionsGrid}>
             {filteredPermissions.map((permission: string) => {
               const hasPermission = userPermissions.includes(permission);
@@ -164,10 +168,10 @@ export default function PermissionsScreen() {
                           : handleAddUserPermission(permission)
                       }
                     >
-                      <Ionicons 
-                        name={hasPermission ? "close" : "add"} 
-                        size={16} 
-                        color="#fff" 
+                      <Ionicons
+                        name={hasPermission ? "close" : "add"}
+                        size={16}
+                        color="#fff"
                       />
                       <Text style={styles.buttonText}>
                         {hasPermission ? "Remove" : "Add"}
@@ -227,7 +231,12 @@ export default function PermissionsScreen() {
             <Text style={styles.sectionLabel}>User Target</Text>
             <View style={styles.inputRow}>
               <View style={styles.inputWrapper}>
-                <Ionicons name="person-outline" size={20} color={auroraTheme.colors.text.muted} style={styles.inputIcon} />
+                <Ionicons
+                  name="person-outline"
+                  size={20}
+                  color={auroraTheme.colors.text.muted}
+                  style={styles.inputIcon}
+                />
                 <TextInput
                   style={styles.input}
                   placeholder="Enter username (e.g., staff1)"
@@ -249,7 +258,12 @@ export default function PermissionsScreen() {
           <View style={styles.searchSection}>
             <Text style={styles.sectionLabel}>Filter Permissions</Text>
             <View style={styles.inputWrapper}>
-              <Ionicons name="search-outline" size={20} color={auroraTheme.colors.text.muted} style={styles.inputIcon} />
+              <Ionicons
+                name="search-outline"
+                size={20}
+                color={auroraTheme.colors.text.muted}
+                style={styles.inputIcon}
+              />
               <TextInput
                 style={styles.input}
                 placeholder="Search across all categories..."
@@ -262,21 +276,30 @@ export default function PermissionsScreen() {
         </GlassCard>
       </View>
 
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         contentContainerStyle={[
           styles.contentContainer,
-          isWeb && styles.contentContainerWeb
+          isWeb && styles.contentContainerWeb,
         ]}
       >
         <View style={styles.statsRow}>
           <GlassCard variant="light" style={styles.statBox}>
-            <Text style={styles.statValue}>{availablePermissions?.permissions?.length || 0}</Text>
+            <Text style={styles.statValue}>
+              {availablePermissions?.permissions?.length || 0}
+            </Text>
             <Text style={styles.statLabel}>Total Perms</Text>
           </GlassCard>
           {selectedUsername && (
             <GlassCard variant="light" style={styles.statBox}>
-              <Text style={[styles.statValue, { color: auroraTheme.colors.primary[400] }]}>{userPermissions.length}</Text>
+              <Text
+                style={[
+                  styles.statValue,
+                  { color: auroraTheme.colors.primary[400] },
+                ]}
+              >
+                {userPermissions.length}
+              </Text>
               <Text style={styles.statLabel}>User Active</Text>
             </GlassCard>
           )}

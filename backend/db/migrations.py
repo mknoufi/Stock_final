@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Union
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
+
 from backend.db.indexes import create_indexes as create_optimized_indexes
 
 logger = logging.getLogger(__name__)
@@ -45,8 +46,12 @@ class MigrationManager:
     async def _ensure_products_indexes(self) -> None:
         """Create indexes for products collection (used for change detection)."""
         # Note: These are also covered by indexes.py, but ensured here for consistency
-        await self._create_index_safe(self.db.products, "barcode", unique=True, name="products.barcode")
-        await self._create_index_safe(self.db.products, [("last_updated", -1)], name="products.updated")
+        await self._create_index_safe(
+            self.db.products, "barcode", unique=True, name="products.barcode"
+        )
+        await self._create_index_safe(
+            self.db.products, [("last_updated", -1)], name="products.updated"
+        )
         logger.info("✓ Products indexes created")
 
     async def _ensure_users_indexes(self) -> None:
@@ -188,7 +193,9 @@ class MigrationManager:
         await self._create_index_safe(self.db.item_variances, "verified_by")
         await self._create_index_safe(self.db.item_variances, [("verified_at", -1)])
         await self._create_index_safe(self.db.item_variances, [("category", 1), ("floor", 1)])
-        await self._create_index_safe(self.db.item_variances, [("warehouse", 1), ("verified_at", -1)])
+        await self._create_index_safe(
+            self.db.item_variances, [("warehouse", 1), ("verified_at", -1)]
+        )
         logger.info("✓ Item variances indexes created")
 
         # ERP config and sync metadata - skip _id index creation (automatically managed by MongoDB)
@@ -210,7 +217,11 @@ class MigrationManager:
     ) -> None:
         """Create an index with safe error handling for duplicates."""
         # Skip _id index creation (automatically managed by MongoDB)
-        if key == "_id" or key == [("_id", 1)] or (isinstance(key, list) and len(key) == 1 and key[0][0] == "_id"):
+        if (
+            key == "_id"
+            or key == [("_id", 1)]
+            or (isinstance(key, list) and len(key) == 1 and key[0][0] == "_id")
+        ):
             logger.debug("Skipping _id index creation as it is managed by MongoDB")
             return
 

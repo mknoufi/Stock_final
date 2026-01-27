@@ -17,8 +17,8 @@ from backend.core.schemas.user_settings import (
     UserSettingsUpdate,
 )
 from backend.db.runtime import get_db
-from backend.services.audit_service import AuditService
 from backend.models.audit import AuditEventType, AuditLogStatus
+from backend.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 

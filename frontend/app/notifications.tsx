@@ -18,7 +18,12 @@ import { useNotificationStore } from "../src/store/notificationStore";
 import type { Notification } from "../src/services/api/api";
 import ModernHeader from "../src/components/ui/ModernHeader";
 import ModernCard from "../src/components/ui/ModernCard";
-import { colors, spacing, typography, borderRadius } from "../src/theme/modernDesign";
+import {
+  colors,
+  spacing,
+  typography,
+  borderRadius,
+} from "../src/theme/modernDesign";
 
 export default function NotificationsScreen() {
   const router = useRouter();
@@ -94,21 +99,29 @@ export default function NotificationsScreen() {
         activeOpacity={0.7}
       >
         <ModernCard
-          style={[
-            styles.notificationCard,
-            !item.read && styles.unreadCard,
-          ]}
+          style={[styles.notificationCard, !item.read && styles.unreadCard]}
         >
           <View style={styles.notificationContent}>
-            <View style={[styles.iconContainer, { backgroundColor: `${iconInfo.color}20` }]}>
-              <Ionicons name={iconInfo.name as any} size={24} color={iconInfo.color} />
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: `${iconInfo.color}20` },
+              ]}
+            >
+              <Ionicons
+                name={iconInfo.name as any}
+                size={24}
+                color={iconInfo.color}
+              />
             </View>
             <View style={styles.textContainer}>
               <Text style={styles.notificationTitle}>{item.title}</Text>
               <Text style={styles.notificationMessage} numberOfLines={2}>
                 {item.message}
               </Text>
-              <Text style={styles.timeText}>{formatTimeAgo(item.created_at)}</Text>
+              <Text style={styles.timeText}>
+                {formatTimeAgo(item.created_at)}
+              </Text>
             </View>
             {!item.read && <View style={styles.unreadDot} />}
           </View>
@@ -119,7 +132,11 @@ export default function NotificationsScreen() {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <Ionicons name="notifications-off-outline" size={64} color={colors.gray[300]} />
+      <Ionicons
+        name="notifications-off-outline"
+        size={64}
+        color={colors.gray[300]}
+      />
       <Text style={styles.emptyTitle}>No Notifications</Text>
       <Text style={styles.emptySubtitle}>
         {showUnreadOnly
@@ -148,7 +165,12 @@ export default function NotificationsScreen() {
           style={[styles.filterTab, !showUnreadOnly && styles.activeTab]}
           onPress={() => setShowUnreadOnly(false)}
         >
-          <Text style={[styles.filterText, !showUnreadOnly && styles.activeFilterText]}>
+          <Text
+            style={[
+              styles.filterText,
+              !showUnreadOnly && styles.activeFilterText,
+            ]}
+          >
             All
           </Text>
         </TouchableOpacity>
@@ -156,7 +178,12 @@ export default function NotificationsScreen() {
           style={[styles.filterTab, showUnreadOnly && styles.activeTab]}
           onPress={() => setShowUnreadOnly(true)}
         >
-          <Text style={[styles.filterText, showUnreadOnly && styles.activeFilterText]}>
+          <Text
+            style={[
+              styles.filterText,
+              showUnreadOnly && styles.activeFilterText,
+            ]}
+          >
             Unread ({unreadCount})
           </Text>
         </TouchableOpacity>

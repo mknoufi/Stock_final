@@ -7,17 +7,15 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from backend.api.schemas import (
     ApiResponse,
-    PinLogin,
-    PinSetup,
     PasswordResetConfirm,
     PasswordResetRequest,
     PasswordResetVerify,
+    PinLogin,
+    PinSetup,
     TokenResponse,
     UserLogin,
     UserRegister,
 )
-from backend.services.otp_service import OTPService
-from backend.services.whatsapp_service import WhatsAppService
 from backend.auth.dependencies import auth_deps, get_current_user
 from backend.config import settings
 from backend.db.runtime import get_db
@@ -30,12 +28,14 @@ from backend.exceptions import (
     RateLimitError,
     SessionConflictError,
 )
+from backend.models.audit import AuditEventType, AuditLogStatus
+from backend.services.otp_service import OTPService
 from backend.services.runtime import get_cache_service, get_refresh_token_service
+from backend.services.whatsapp_service import WhatsAppService
 from backend.utils.api_utils import result_to_response, sanitize_for_logging
 from backend.utils.auth_utils import create_access_token, get_password_hash, verify_password
 from backend.utils.crypto_utils import get_pin_lookup_hash
 from backend.utils.result import Fail, Ok, Result
-from backend.models.audit import AuditEventType, AuditLogStatus
 
 logger = logging.getLogger(__name__)
 

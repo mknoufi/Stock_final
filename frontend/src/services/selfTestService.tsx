@@ -237,7 +237,8 @@ export class SelfTestService {
           if (error.response?.status === 404) {
             return true;
           }
-          const typedError = error instanceof Error ? error : new Error(String(error));
+          const typedError =
+            error instanceof Error ? error : new Error(String(error));
           throw typedError;
         }
       }),

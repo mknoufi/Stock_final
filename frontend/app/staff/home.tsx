@@ -204,10 +204,7 @@ const StaffHome = React.memo(function StaffHome() {
   const { setActiveSession, setFloor, setRack } = useScanSessionStore();
 
   // Queries
-  const {
-    data: sessionsData,
-    refetch,
-  } = useSessionsQuery({
+  const { data: sessionsData, refetch } = useSessionsQuery({
     page: 1,
     pageSize: SESSION_PAGE_SIZE,
   });
@@ -555,7 +552,9 @@ const StaffHome = React.memo(function StaffHome() {
           icon: "log-out-outline",
           onPress: () => {
             if (Platform.OS === "web" && typeof window !== "undefined") {
-              const confirmed = window.confirm("Are you sure you want to logout?");
+              const confirmed = window.confirm(
+                "Are you sure you want to logout?",
+              );
               if (confirmed) {
                 logout().finally(() => {
                   router.replace("/welcome" as any);

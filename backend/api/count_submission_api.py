@@ -2,13 +2,15 @@
 Count line submission endpoint with variance threshold checking
 """
 
+import logging
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
+
+from backend.api.schemas_variance import CountLineSubmission
 from backend.auth.dependencies import get_current_user
 from backend.db.runtime import get_db
 from backend.services.variance_service import VarianceService
-from backend.api.schemas_variance import CountLineSubmission
-from datetime import datetime
-import logging
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

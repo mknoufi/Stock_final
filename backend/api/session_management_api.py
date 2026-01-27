@@ -16,11 +16,11 @@ from pydantic import BaseModel
 from backend.api.response_models import PaginatedResponse
 from backend.api.schemas import Session, SessionCreate
 from backend.auth.dependencies import get_current_user_async as get_current_user
+from backend.core.websocket_manager import manager
 from backend.db.runtime import get_db
 from backend.services.lock_manager import get_lock_manager
 from backend.services.redis_service import get_redis
-from backend.services.runtime import get_cache_service, get_refresh_token_service
-from backend.core.websocket_manager import manager
+from backend.services.runtime import get_refresh_token_service
 
 logger = logging.getLogger(__name__)
 

@@ -30,7 +30,7 @@ import {
 } from "../src/services/offlineQueue";
 import {
   startSyncService,
-  stopSyncService
+  stopSyncService,
 } from "../src/services/offline/syncService";
 import apiClient, { updateBaseURL } from "../src/services/httpClient";
 import { initSentry } from "../src/services/sentry";
@@ -295,7 +295,7 @@ export default function RootLayout() {
             stopSyncService();
             try {
               stopOfflineQueue();
-            } catch { }
+            } catch {}
           });
         }
 

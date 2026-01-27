@@ -34,8 +34,9 @@ try:
     REDIS_AVAILABLE = True
 except ImportError:
     try:
-        import redis
         from redis.exceptions import RedisError
+
+        import redis
 
         REDIS_AVAILABLE = True
     except ImportError:
@@ -210,7 +211,7 @@ class CacheService:
         status = {
             "type": "redis" if self.use_redis else "memory",
             "status": "healthy",
-            "details": {}
+            "details": {},
         }
 
         if self.use_redis:
@@ -219,13 +220,13 @@ class CacheService:
                 start_time = time.time()
                 await asyncio.wait_for(self.redis_client.ping(), timeout=2.0)
                 latency = (time.time() - start_time) * 1000
-                
+
                 info = await self.redis_client.info()
                 status["details"] = {
                     "latency_ms": round(latency, 2),
                     "used_memory": info.get("used_memory_human"),
                     "connected_clients": info.get("connected_clients"),
-                    "uptime_days": info.get("uptime_in_days")
+                    "uptime_days": info.get("uptime_in_days"),
                 }
             except Exception as e:
                 status["status"] = "unhealthy"
@@ -233,9 +234,9 @@ class CacheService:
         else:
             status["details"] = {
                 "items_count": len(self._memory_cache),
-                "max_size": self.max_memory_size
+                "max_size": self.max_memory_size,
             }
-            
+
         return status
 
     async def clear_pattern(self, pattern: str) -> int:
@@ -291,11 +292,7 @@ class CacheService:
     async def get_stats(self) -> dict[str, Any]:
         """Get cache status for health check (alias for backward compatibility)"""
         status = await self.get_status()
-        return {
-            "backend": status["type"],
-            "status": status["status"],
-            "details": status["details"]
-        }
+        return {"backend": status["type"], "status": status["status"], "details": status["details"]}
 
     # Aliases for compatibility if needed, but better to update callers
     get_async = get

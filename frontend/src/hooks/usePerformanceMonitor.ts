@@ -29,7 +29,9 @@ interface PerformanceMonitorReturn {
 /**
  * Hook for monitoring app performance metrics
  */
-export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}): PerformanceMonitorReturn {
+export function usePerformanceMonitor(
+  options: PerformanceMonitorOptions = {},
+): PerformanceMonitorReturn {
   const {
     sampleInterval = 1000,
     performanceThreshold = 30,
@@ -39,7 +41,7 @@ export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}): 
   const [metrics, setMetrics] = useState<PerformanceMetrics>({});
   const [isMonitoring, setIsMonitoring] = useState(false);
   const [performanceWarning, setPerformanceWarning] = useState(false);
-  
+
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFrameTimeRef = useRef<number>(performance.now());
   const frameCountRef = useRef<number>(0);
@@ -50,11 +52,11 @@ export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}): 
     // FPS calculation
     const currentTime = performance.now();
     const deltaTime = currentTime - lastFrameTimeRef.current;
-    
+
     if (deltaTime > 0) {
       const fps = Math.round(1000 / deltaTime);
       newMetrics.fps = fps;
-      
+
       // Check for performance warning
       if (fps < performanceThreshold) {
         setPerformanceWarning(true);
@@ -80,11 +82,11 @@ export function usePerformanceMonitor(options: PerformanceMonitorOptions = {}): 
 
   const startMonitoring = useCallback(() => {
     if (intervalRef.current) return;
-    
+
     setIsMonitoring(true);
     frameCountRef.current = 0;
     lastFrameTimeRef.current = performance.now();
-    
+
     intervalRef.current = setInterval(measurePerformance, sampleInterval);
   }, [sampleInterval, measurePerformance]);
 

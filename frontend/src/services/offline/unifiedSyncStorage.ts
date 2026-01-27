@@ -1,4 +1,3 @@
-
 import { storage } from "../storage/asyncStorageService";
 import { createLogger } from "../logging";
 
@@ -6,7 +5,7 @@ const log = createLogger("UnifiedSyncStorage");
 
 const UNIFIED_QUEUE_KEY = "unified_sync_queue:v1";
 
-export type SyncStatus = 'pending' | 'locked' | 'error' | 'synced';
+export type SyncStatus = "pending" | "locked" | "error" | "synced";
 
 export interface UnifiedSyncItem {
   id: string;
@@ -49,19 +48,21 @@ export class UnifiedSyncStorage {
   /**
    * Add an item to the queue
    */
-  async add(item: Omit<UnifiedSyncItem, 'timestamp' | 'retries' | 'status'>): Promise<UnifiedSyncItem> {
+  async add(
+    item: Omit<UnifiedSyncItem, "timestamp" | "retries" | "status">,
+  ): Promise<UnifiedSyncItem> {
     const fullItem: UnifiedSyncItem = {
       ...item,
       timestamp: new Date().toISOString(),
       retries: 0,
-      status: 'pending' as SyncStatus,
+      status: "pending" as SyncStatus,
     };
 
     try {
       const queue = await this.getQueue();
-      
+
       // Prevent duplicates by ID
-      const existingIndex = queue.findIndex(i => i.id === fullItem.id);
+      const existingIndex = queue.findIndex((i) => i.id === fullItem.id);
       if (existingIndex >= 0) {
         queue[existingIndex] = { ...queue[existingIndex], ...fullItem };
       } else {
@@ -69,10 +70,16 @@ export class UnifiedSyncStorage {
       }
 
       await storage.set(UNIFIED_QUEUE_KEY, queue, { silent: true });
-      log.debug("Added item to unified queue", { id: fullItem.id, type: fullItem.type });
+      log.debug("Added item to unified queue", {
+        id: fullItem.id,
+        type: fullItem.type,
+      });
       return fullItem;
     } catch (error) {
-      log.error("Failed to add item to unified queue", { error, id: fullItem.id });
+      log.error("Failed to add item to unified queue", {
+        error,
+        id: fullItem.id,
+      });
       throw error;
     }
   }
@@ -83,7 +90,7 @@ export class UnifiedSyncStorage {
   async update(id: string, updates: Partial<UnifiedSyncItem>): Promise<void> {
     try {
       const queue = await this.getQueue();
-      const index = queue.findIndex(i => i.id === id);
+      const index = queue.findIndex((i) => i.id === id);
       if (index >= 0) {
         queue[index] = { ...queue[index], ...updates } as UnifiedSyncItem;
         await storage.set(UNIFIED_QUEUE_KEY, queue, { silent: true });
@@ -99,7 +106,7 @@ export class UnifiedSyncStorage {
   async remove(ids: string[]): Promise<void> {
     try {
       const queue = await this.getQueue();
-      const filtered = queue.filter(i => !ids.includes(i.id));
+      const filtered = queue.filter((i) => !ids.includes(i.id));
       await storage.set(UNIFIED_QUEUE_KEY, filtered, { silent: true });
       log.debug("Removed items from unified queue", { count: ids.length });
     } catch (error) {
@@ -120,7 +127,7 @@ export class UnifiedSyncStorage {
    */
   async getPendingCount(): Promise<number> {
     const queue = await this.getQueue();
-    return queue.filter(i => i.status === 'pending').length;
+    return queue.filter((i) => i.status === "pending").length;
   }
 
   /**
@@ -128,18 +135,15 @@ export class UnifiedSyncStorage {
    */
   async migrateFromLegacy(): Promise<void> {
     try {
-      const {
-        getPendingVerifications,
-        deletePendingVerification,
-        localDb,
-      } = await import("../../db/localDb");
+      const { getPendingVerifications, deletePendingVerification, localDb } =
+        await import("../../db/localDb");
 
       // 1. Migrate verifications
       const verifications = await getPendingVerifications();
       for (const v of verifications) {
         await this.add({
           id: `legacy_verification_${v.id}`,
-          type: 'item_verification',
+          type: "item_verification",
           payload: {
             barcode: v.barcode,
             verified: v.verified === 1,
@@ -157,7 +161,7 @@ export class UnifiedSyncStorage {
       for (const cl of countLines) {
         await this.add({
           id: `legacy_count_line_${cl.id}`,
-          type: 'count_line',
+          type: "count_line",
           payload: JSON.parse(cl.payload_json),
         });
         if (cl.id !== undefined) {

@@ -5,9 +5,9 @@ OTP Service - Manages generation, storage, and verification of one-time password
 import logging
 import secrets
 import string
-import hashlib
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
 logger = logging.getLogger(__name__)

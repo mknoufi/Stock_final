@@ -1,7 +1,7 @@
 # Requirements Gap Analysis: Power Platform Spec vs Current Implementation
 
-**Date:** 2026-01-19  
-**Version:** 1.0  
+**Date:** 2026-01-19
+**Version:** 1.0
 **Status:** Analysis Complete
 
 ---
@@ -40,7 +40,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-01: Read-only Source Integration
 
-**Requirement**: No writes to SQL Server  
+**Requirement**: No writes to SQL Server
 **Implementation**:
 
 - ✅ SQL Server connector is read-only (pyodbc with SELECT-only queries)
@@ -50,7 +50,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-02: App DB in Cloud
 
-**Requirement**: All app data in Dataverse  
+**Requirement**: All app data in Dataverse
 **Implementation**:
 
 - ✅ MongoDB stores all operational data (sessions, counts, variances, photos, approvals)
@@ -59,7 +59,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-03: Incremental Sync
 
-**Requirement**: Delta refresh using RowVersion/ModifiedDate  
+**Requirement**: Delta refresh using RowVersion/ModifiedDate
 **Implementation**:
 
 - ✅ `SQLSyncService` supports incremental sync via `last_sync_time`
@@ -69,7 +69,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-04: Required Master Fields
 
-**Requirement**: All required columns present  
+**Requirement**: All required columns present
 **Implementation**:
 
 - ✅ `ERPItem` schema includes: item_code, item_name, barcode, category, subcategory, uom, mrp, sale_price, stock_qty, last_cost, hsn, gst_percent, has_batches, is_serialized, photo_url
@@ -77,7 +77,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-05: Mobile & Web
 
-**Requirement**: Canvas mobile + Admin web app  
+**Requirement**: Canvas mobile + Admin web app
 **Implementation**:
 
 - ✅ React Native mobile app (iOS/Android via Expo)
@@ -86,7 +86,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-06: Authentication
 
-**Requirement**: Username+password, PIN quick unlock, biometric  
+**Requirement**: Username+password, PIN quick unlock, biometric
 **Implementation**:
 
 - ✅ Username+password via JWT (`backend/api/auth_api.py`)
@@ -96,7 +96,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-07: Sessions
 
-**Requirement**: Create sessions with site_type, site_name, rack_no  
+**Requirement**: Create sessions with site_type, site_name, rack_no
 **Implementation**:
 
 - ✅ Session model includes: location, floor, rack, site metadata
@@ -105,7 +105,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-08: Session Limits
 
-**Requirement**: Max 5 active sessions per user  
+**Requirement**: Max 5 active sessions per user
 **Implementation**:
 
 - ✅ Enforced in `backend/api/sessions_api.py`
@@ -114,7 +114,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-09: Session Listing
 
-**Requirement**: Human-readable labels with timestamps  
+**Requirement**: Human-readable labels with timestamps
 **Implementation**:
 
 - ✅ Sessions include location hierarchy (floor, rack)
@@ -123,7 +123,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-10: Item Location Record
 
-**Requirement**: Record item↔session location mapping  
+**Requirement**: Record item↔session location mapping
 **Implementation**:
 
 - ✅ `CountLine` model links items to sessions with location metadata
@@ -131,7 +131,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-11: Search Basics
 
-**Requirement**: Search by barcode and item name; filter by category/subcategory  
+**Requirement**: Search by barcode and item name; filter by category/subcategory
 **Implementation**:
 
 - ✅ Search service supports barcode + name search
@@ -140,7 +140,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-12: Search Pagination
 
-**Requirement**: ≤10 initial results, "Load more" for next 10  
+**Requirement**: ≤10 initial results, "Load more" for next 10
 **Implementation**:
 
 - ✅ Pagination with configurable page_size (default 20, max 50)
@@ -149,7 +149,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-13: Search Fields
 
-**Requirement**: Show barcode, item name, MRP, sale price, stock  
+**Requirement**: Show barcode, item name, MRP, sale price, stock
 **Implementation**:
 
 - ✅ `ERPItem` schema returns all required fields
@@ -158,7 +158,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-14: Best Match Sorting & Suggestions
 
-**Requirement**: Starts-with > contains > fuzzy; "Did you mean..."  
+**Requirement**: Starts-with > contains > fuzzy; "Did you mean..."
 **Implementation**:
 
 - ✅ Relevance scoring: Exact barcode (100) > Item code (80) > Name starts-with (60) > Name contains (40)
@@ -167,7 +167,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-15: Item Tile
 
-**Requirement**: Show category, subcategory, UOM, stock, MRP, sale price, photo  
+**Requirement**: Show category, subcategory, UOM, stock, MRP, sale price, photo
 **Implementation**:
 
 - ✅ Item detail screen shows all required fields
@@ -175,7 +175,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-16: Same-name Variants
 
-**Requirement**: List same-name items with different barcodes; toggle zero-stock  
+**Requirement**: List same-name items with different barcodes; toggle zero-stock
 **Implementation**:
 
 - ✅ Variant detection logic exists
@@ -184,7 +184,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-17: Counting Modes
 
-**Requirement**: Simple, Batch, Serialized, Kg split  
+**Requirement**: Simple, Batch, Serialized, Kg split
 **Implementation**:
 
 - ✅ All modes supported in data model
@@ -193,7 +193,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-18: Damage Capture
 
-**Requirement**: damage_qty, remark, photo; per-serial damage  
+**Requirement**: damage_qty, remark, photo; per-serial damage
 **Implementation**:
 
 - ✅ `CountLine` includes: damaged_qty, non_returnable_damaged_qty, damage_notes
@@ -202,7 +202,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-19: Photo Upload
 
-**Requirement**: Multiple photos; apply one to all lines  
+**Requirement**: Multiple photos; apply one to all lines
 **Implementation**:
 
 - ✅ Multiple photo support via `photo_proofs` array
@@ -211,7 +211,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-27: Offline Capability
 
-**Requirement**: Count offline; sync with conflict detection  
+**Requirement**: Count offline; sync with conflict detection
 **Implementation**:
 
 - ✅ MMKV local storage
@@ -225,7 +225,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-20: Submit with 5s Delay
 
-**Requirement**: Confirm button disabled for 5 seconds  
+**Requirement**: Confirm button disabled for 5 seconds
 **Implementation**:
 
 - ⚠️ Submit logic exists but 5-second delay not enforced
@@ -234,7 +234,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-21: Variance Calculation
 
-**Requirement**: vs latest snapshot; store expected_qty, counted_qty, variance_qty, variance_value  
+**Requirement**: vs latest snapshot; store expected_qty, counted_qty, variance_qty, variance_value
 **Implementation**:
 
 - ✅ Variance calculation logic exists
@@ -244,7 +244,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-22: Supervisor Workflow
 
-**Requirement**: Approve / Request Recount / Reject; photo may be required  
+**Requirement**: Approve / Request Recount / Reject; photo may be required
 **Implementation**:
 
 - ⚠️ Basic approval logic exists
@@ -254,7 +254,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-23: Recount Notifications
 
-**Requirement**: Task to assigned user; count now/later; scope limited  
+**Requirement**: Task to assigned user; count now/later; scope limited
 **Implementation**:
 
 - ❌ Not implemented
@@ -263,7 +263,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-24: Supervisor Can Recount
 
-**Requirement**: Supervisor can perform recount  
+**Requirement**: Supervisor can perform recount
 **Implementation**:
 
 - ✅ Role-based permissions exist
@@ -273,7 +273,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-25: Session Closing
 
-**Requirement**: Review list tiles, then close  
+**Requirement**: Review list tiles, then close
 **Implementation**:
 
 - ✅ Session close endpoint exists
@@ -283,7 +283,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-26: Real-time Monitoring
 
-**Requirement**: Admin dashboard with quantity/value status; INR; last_cost default; drill-down  
+**Requirement**: Admin dashboard with quantity/value status; INR; last_cost default; drill-down
 **Implementation**:
 
 - ⚠️ Basic dashboard exists
@@ -295,7 +295,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-28: Audit Trail
 
-**Requirement**: who/when/what on sessions, counts, approvals, recounts  
+**Requirement**: who/when/what on sessions, counts, approvals, recounts
 **Implementation**:
 
 - ✅ ActivityLogService exists
@@ -309,7 +309,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-29: Role-based Access
 
-**Requirement**: Admin/Supervisor/Counter permissions  
+**Requirement**: Admin/Supervisor/Counter permissions
 **Implementation**:
 
 - ⚠️ Roles exist in user model
@@ -319,7 +319,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-30: Variance Thresholds
 
-**Requirement**: Auto-require supervisor when qty ≥ 1 or value ≥ ₹500  
+**Requirement**: Auto-require supervisor when qty ≥ 1 or value ≥ ₹500
 **Implementation**:
 
 - ❌ Not implemented
@@ -328,7 +328,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-31: Post-submit Edit Control
 
-**Requirement**: Counters cannot edit after submit; supervisors can reopen; audit all  
+**Requirement**: Counters cannot edit after submit; supervisors can reopen; audit all
 **Implementation**:
 
 - ❌ Not implemented
@@ -337,7 +337,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-32: Unknown Barcode Capture
 
-**Requirement**: Log unknown scans with photo/notes/location  
+**Requirement**: Log unknown scans with photo/notes/location
 **Implementation**:
 
 - ⚠️ Unknown items collection exists
@@ -347,7 +347,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-33: Barcode Symbologies
 
-**Requirement**: EAN-13, UPC-A/E, Code 128, QR  
+**Requirement**: EAN-13, UPC-A/E, Code 128, QR
 **Implementation**:
 
 - ✅ Expo Barcode Scanner supports all formats
@@ -356,7 +356,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-34: Session Integrity Warnings
 
-**Requirement**: Flag if master data changed after session start  
+**Requirement**: Flag if master data changed after session start
 **Implementation**:
 
 - ❌ Not implemented
@@ -365,7 +365,7 @@ This document maps the **35 Must-Have Functional Requirements (FR-M-01 to FR-M-3
 
 #### FR-M-35: Auto-pause & Inactivity
 
-**Requirement**: Auto-pause after N minutes; update last_used_at  
+**Requirement**: Auto-pause after N minutes; update last_used_at
 **Implementation**:
 
 - ⚠️ `last_used_at` field exists
@@ -446,8 +446,8 @@ For stakeholders familiar with Power Platform, here's how current stack maps:
 
 ### Option 1: Complete Current Stack (Recommended)
 
-**Effort**: 77 hours (P0 + P1 + P2)  
-**Timeline**: 2-3 weeks with 1 developer  
+**Effort**: 77 hours (P0 + P1 + P2)
+**Timeline**: 2-3 weeks with 1 developer
 **Pros**:
 
 - Leverage existing 80% completion
@@ -462,8 +462,8 @@ For stakeholders familiar with Power Platform, here's how current stack maps:
 
 ### Option 2: Migrate to Power Platform
 
-**Effort**: 200+ hours (complete rebuild)  
-**Timeline**: 6-8 weeks with 1 developer  
+**Effort**: 200+ hours (complete rebuild)
+**Timeline**: 6-8 weeks with 1 developer
 **Pros**:
 
 - Low-code maintenance
@@ -479,8 +479,8 @@ For stakeholders familiar with Power Platform, here's how current stack maps:
 
 ### Option 3: Hybrid Approach
 
-**Effort**: 120 hours  
-**Timeline**: 4-5 weeks  
+**Effort**: 120 hours
+**Timeline**: 4-5 weeks
 **Approach**:
 
 - Keep FastAPI backend as "Custom Connector"
@@ -541,6 +541,6 @@ For stakeholders familiar with Power Platform, here's how current stack maps:
 
 ---
 
-**Document Prepared By**: AI Agent (Antigravity)  
-**Review Status**: Pending Stakeholder Review  
+**Document Prepared By**: AI Agent (Antigravity)
+**Review Status**: Pending Stakeholder Review
 **Last Updated**: 2026-01-19 19:31 IST

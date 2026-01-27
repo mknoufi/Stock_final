@@ -11,17 +11,15 @@ Provides endpoints for managing count line state transitions:
 
 import logging
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Body
+
+from fastapi import APIRouter, Body, Depends, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel, Field
 
 from backend.auth.dependencies import get_current_user
 from backend.auth.permissions import Permission, require_permission
 from backend.db.runtime import get_db
-from backend.services.count_state_machine import (
-    CountLineStateMachine,
-    CountLineState,
-)
+from backend.services.count_state_machine import CountLineState, CountLineStateMachine
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/count-lines", tags=["Count Line State Management"])

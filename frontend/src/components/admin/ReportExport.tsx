@@ -55,7 +55,8 @@ export const ReportExport: React.FC<ReportExportProps> = ({ days }) => {
         Alert.alert("Success", `Report saved to ${file.uri}`);
       }
     } catch (error) {
-      const typedError = error instanceof Error ? error : new Error(String(error));
+      const typedError =
+        error instanceof Error ? error : new Error(String(error));
       __DEV__ && console.error("Export failed:", typedError);
       errorReporter.report(typedError, "ReportExport.handleExportPDF");
       Alert.alert("Error", "Failed to export PDF report");

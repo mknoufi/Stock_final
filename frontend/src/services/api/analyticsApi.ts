@@ -574,57 +574,142 @@ export const analyticsApi = {
 
       // Calculate quantity metrics
       const totalCountedQty = analytics.data.overall.total_items || 0;
-      const totalStockQty = totalCountedQty + Math.abs(analytics.data.overall.total_variance || 0);
-      const quantityComplete = totalStockQty > 0 
-        ? Math.round((totalCountedQty / totalStockQty) * 100)
-        : 100;
+      const totalStockQty =
+        totalCountedQty + Math.abs(analytics.data.overall.total_variance || 0);
+      const quantityComplete =
+        totalStockQty > 0
+          ? Math.round((totalCountedQty / totalStockQty) * 100)
+          : 100;
 
       // Calculate value metrics based on valuation basis
-      const avgItemValue = valuationBasis === "last_cost" 
-        ? 95.00 // Would need actual data from backend
-        : 120.00;
-      
+      const avgItemValue =
+        valuationBasis === "last_cost"
+          ? 95.0 // Would need actual data from backend
+          : 120.0;
+
       const totalCountedValue = totalCountedQty * avgItemValue;
       const totalStockValue = totalStockQty * avgItemValue;
-      const valueComplete = totalStockValue > 0
-        ? Math.round((totalCountedValue / totalStockValue) * 100)
-        : 100;
+      const valueComplete =
+        totalStockValue > 0
+          ? Math.round((totalCountedValue / totalStockValue) * 100)
+          : 100;
 
       // Build breakdowns from available data
       const byLocation: LocationBreakdown[] = Object.entries(
         analytics.data.variance_by_warehouse || {},
       ).map(([location, variance]) => ({
         location,
-        counted_qty: Math.floor(totalCountedQty / Object.keys(analytics.data.variance_by_warehouse || {}).length),
-        stock_qty: Math.floor(totalStockQty / Object.keys(analytics.data.variance_by_warehouse || {}).length),
-        counted_value: Math.floor(totalCountedValue / Object.keys(analytics.data.variance_by_warehouse || {}).length),
-        stock_value: Math.floor(totalStockValue / Object.keys(analytics.data.variance_by_warehouse || {}).length),
-        variance_qty: Math.floor(variance as number / avgItemValue),
+        counted_qty: Math.floor(
+          totalCountedQty /
+            Object.keys(analytics.data.variance_by_warehouse || {}).length,
+        ),
+        stock_qty: Math.floor(
+          totalStockQty /
+            Object.keys(analytics.data.variance_by_warehouse || {}).length,
+        ),
+        counted_value: Math.floor(
+          totalCountedValue /
+            Object.keys(analytics.data.variance_by_warehouse || {}).length,
+        ),
+        stock_value: Math.floor(
+          totalStockValue /
+            Object.keys(analytics.data.variance_by_warehouse || {}).length,
+        ),
+        variance_qty: Math.floor((variance as number) / avgItemValue),
         variance_value: variance as number,
       }));
 
       const byCategory: CategoryBreakdown[] = [
-        { category: "Electronics", counted_qty: 150, stock_qty: 200, counted_value: 18000, stock_value: 24000, variance_qty: -50, variance_value: -6000 },
-        { category: "Accessories", counted_qty: 300, stock_qty: 350, counted_value: 15000, stock_value: 17500, variance_qty: -50, variance_value: -2500 },
-        { category: "Clothing", counted_qty: 200, stock_qty: 200, counted_value: 10000, stock_value: 10000, variance_qty: 0, variance_value: 0 },
+        {
+          category: "Electronics",
+          counted_qty: 150,
+          stock_qty: 200,
+          counted_value: 18000,
+          stock_value: 24000,
+          variance_qty: -50,
+          variance_value: -6000,
+        },
+        {
+          category: "Accessories",
+          counted_qty: 300,
+          stock_qty: 350,
+          counted_value: 15000,
+          stock_value: 17500,
+          variance_qty: -50,
+          variance_value: -2500,
+        },
+        {
+          category: "Clothing",
+          counted_qty: 200,
+          stock_qty: 200,
+          counted_value: 10000,
+          stock_value: 10000,
+          variance_qty: 0,
+          variance_value: 0,
+        },
       ];
 
       const bySession: SessionBreakdown[] = [
-        { session_id: "1", session_name: "Morning Shift", counted_qty: 350, stock_qty: 400, counted_value: 42000, stock_value: 48000, variance_qty: -50, variance_value: -6000, status: "active" },
-        { session_id: "2", session_name: "Afternoon Shift", counted_qty: 300, stock_qty: 350, counted_value: 36000, stock_value: 42000, variance_qty: -50, variance_value: -6000, status: "completed" },
+        {
+          session_id: "1",
+          session_name: "Morning Shift",
+          counted_qty: 350,
+          stock_qty: 400,
+          counted_value: 42000,
+          stock_value: 48000,
+          variance_qty: -50,
+          variance_value: -6000,
+          status: "active",
+        },
+        {
+          session_id: "2",
+          session_name: "Afternoon Shift",
+          counted_qty: 300,
+          stock_qty: 350,
+          counted_value: 36000,
+          stock_value: 42000,
+          variance_qty: -50,
+          variance_value: -6000,
+          status: "completed",
+        },
       ];
 
-      const byDate: DateBreakdown[] = Object.entries(analytics.data.sessions_by_date || {})
-        .map(([date, sessions]) => ({
-          date,
-          counted_qty: Math.floor(totalCountedQty / Math.max(1, Object.keys(analytics.data.sessions_by_date || {}).length)),
-          stock_qty: Math.floor(totalStockQty / Math.max(1, Object.keys(analytics.data.sessions_by_date || {}).length)),
-          counted_value: Math.floor(totalCountedValue / Math.max(1, Object.keys(analytics.data.sessions_by_date || {}).length)),
-          stock_value: Math.floor(totalStockValue / Math.max(1, Object.keys(analytics.data.sessions_by_date || {}).length)),
-          variance_qty: -20,
-          variance_value: -2400,
-          session_count: sessions as number,
-        }));
+      const byDate: DateBreakdown[] = Object.entries(
+        analytics.data.sessions_by_date || {},
+      ).map(([date, sessions]) => ({
+        date,
+        counted_qty: Math.floor(
+          totalCountedQty /
+            Math.max(
+              1,
+              Object.keys(analytics.data.sessions_by_date || {}).length,
+            ),
+        ),
+        stock_qty: Math.floor(
+          totalStockQty /
+            Math.max(
+              1,
+              Object.keys(analytics.data.sessions_by_date || {}).length,
+            ),
+        ),
+        counted_value: Math.floor(
+          totalCountedValue /
+            Math.max(
+              1,
+              Object.keys(analytics.data.sessions_by_date || {}).length,
+            ),
+        ),
+        stock_value: Math.floor(
+          totalStockValue /
+            Math.max(
+              1,
+              Object.keys(analytics.data.sessions_by_date || {}).length,
+            ),
+        ),
+        variance_qty: -20,
+        variance_value: -2400,
+        session_count: sessions as number,
+      }));
 
       const metrics: DashboardMetrics = {
         quantity: {

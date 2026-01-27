@@ -41,10 +41,7 @@
     {
       "name": "Session Management API Client",
       "description": "Session CRUD and related endpoints for supervisor/staff workflows.",
-      "files": [
-        "src/services/api/sessionApi.ts",
-        "src/services/api/models.ts"
-      ]
+      "files": ["src/services/api/sessionApi.ts", "src/services/api/models.ts"]
     },
     {
       "name": "Item Verification API Client",
@@ -99,10 +96,7 @@
     {
       "name": "Network Awareness",
       "description": "Connectivity detection and network state integration for sync behavior.",
-      "files": [
-        "src/services/networkService.ts",
-        "src/store/networkStore.ts"
-      ]
+      "files": ["src/services/networkService.ts", "src/store/networkStore.ts"]
     },
     {
       "name": "Persistent Storage Abstractions",

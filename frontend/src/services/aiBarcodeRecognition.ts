@@ -67,7 +67,8 @@ class TensorFlowBarcodeService implements AIBarcodeRecognitionService {
       this.isInitialized = true;
       console.log("✅ AI Barcode Recognition Service initialized");
     } catch (error) {
-      const typedError = error instanceof Error ? error : new Error(String(error));
+      const typedError =
+        error instanceof Error ? error : new Error(String(error));
       console.warn(
         "⚠️ AI Barcode Recognition Service initialization failed:",
         typedError,

@@ -65,12 +65,13 @@ import {
   shadows,
 } from "@/theme/unified";
 
-
 export default function ItemDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ barcode: string; sessionId: string }>();
   const { barcode, sessionId } = params;
-  const normalizedSessionId = Array.isArray(sessionId) ? sessionId[0] : sessionId;
+  const normalizedSessionId = Array.isArray(sessionId)
+    ? sessionId[0]
+    : sessionId;
   const { currentFloor, currentRack } = useScanSessionStore();
   const { settings } = useSettingsStore();
 
@@ -118,7 +119,8 @@ export default function ItemDetailScreen() {
       // Exclude current item (same barcode)
       if (v.barcode === item?.barcode) return false;
       // Filter by stock if not showing zero stock
-      if (!showZeroStock && (v.stock_qty || v.current_stock || 0) <= 0) return false;
+      if (!showZeroStock && (v.stock_qty || v.current_stock || 0) <= 0)
+        return false;
       return true;
     });
   }, [rawVariants, showZeroStock, item]);
@@ -303,9 +305,9 @@ export default function ItemDetailScreen() {
       quantity,
       mrp,
       remark,
-      serialEntries
+      serialEntries,
     },
-    2000 // 2 seconds debounce
+    2000, // 2 seconds debounce
   );
 
   useEffect(() => {
@@ -327,7 +329,17 @@ export default function ItemDetailScreen() {
     };
 
     performAutosave();
-  }, [debouncedFormData, item, sessionId, quantity, mrp, remark, submitting, currentFloor, currentRack]);
+  }, [
+    debouncedFormData,
+    item,
+    sessionId,
+    quantity,
+    mrp,
+    remark,
+    submitting,
+    currentFloor,
+    currentRack,
+  ]);
 
   // Check if item uses weight-based UOM (kg) - allows fractional quantities
   const isWeightBasedUOM = useMemo(() => {
@@ -447,7 +459,10 @@ export default function ItemDetailScreen() {
         (e) => e.serial_number.toUpperCase() === normalized,
       );
       if (isLocalDuplicate) {
-        Alert.alert("Duplicate Serial", "This serial number is already in your list.");
+        Alert.alert(
+          "Duplicate Serial",
+          "This serial number is already in your list.",
+        );
         return;
       }
 
@@ -775,7 +790,6 @@ export default function ItemDetailScreen() {
     [earliestYear],
   );
 
-
   const validateSerials = useCallback((): boolean => {
     if (!isSerializedItem) return true;
 
@@ -993,16 +1007,19 @@ export default function ItemDetailScreen() {
     setSubmitCountdown(null);
   };
 
-
-
-
   if (loading) {
     return (
       <ThemedScreen>
-        <ModernHeader title="Verify Item" showBackButton onBackPress={handleBackPress} />
+        <ModernHeader
+          title="Verify Item"
+          showBackButton
+          onBackPress={handleBackPress}
+        />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={colors.primary[600]} />
-          <Text style={{ marginTop: 12, color: semanticColors.text.secondary }}>Loading item details...</Text>
+          <Text style={{ marginTop: 12, color: semanticColors.text.secondary }}>
+            Loading item details...
+          </Text>
         </View>
       </ThemedScreen>
     );
@@ -1011,15 +1028,25 @@ export default function ItemDetailScreen() {
   if (!item) {
     return (
       <ThemedScreen>
-        <ModernHeader title="Verify Item" showBackButton onBackPress={handleBackPress} />
+        <ModernHeader
+          title="Verify Item"
+          showBackButton
+          onBackPress={handleBackPress}
+        />
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.error[500]} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={64}
+            color={colors.error[500]}
+          />
           <Text style={styles.errorTitle}>Item Not Found</Text>
-          <Text style={styles.errorText}>We couldn't retrieve details for the scanned barcode.</Text>
+          <Text style={styles.errorText}>
+            We couldn't retrieve details for the scanned barcode.
+          </Text>
           <ModernButton
             title="Try Again"
             onPress={handleBackPress}
-            style={{ marginTop: 24, width: '100%' }}
+            style={{ marginTop: 24, width: "100%" }}
           />
         </View>
       </ThemedScreen>
@@ -1044,11 +1071,21 @@ export default function ItemDetailScreen() {
             <ModernCard style={styles.itemCard}>
               <View style={styles.itemHeader}>
                 <View style={styles.iconContainer}>
-                  <Ionicons name="cube-outline" size={24} color={colors.primary[600]} />
+                  <Ionicons
+                    name="cube-outline"
+                    size={24}
+                    color={colors.primary[600]}
+                  />
                 </View>
 
                 <View style={styles.itemInfo}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: spacing.sm,
+                    }}
+                  >
                     <Text
                       style={[
                         styles.itemName,
@@ -1064,10 +1101,19 @@ export default function ItemDetailScreen() {
                         style={[
                           styles.sourceBadge,
                           item._source === "sql"
-                            ? { backgroundColor: colors.primary[50], borderColor: colors.primary[200] }
+                            ? {
+                                backgroundColor: colors.primary[50],
+                                borderColor: colors.primary[200],
+                              }
                             : item._source === "cache"
-                              ? { backgroundColor: colors.warning[50], borderColor: colors.warning[200] }
-                              : { backgroundColor: colors.success[50], borderColor: colors.success[200] },
+                              ? {
+                                  backgroundColor: colors.warning[50],
+                                  borderColor: colors.warning[200],
+                                }
+                              : {
+                                  backgroundColor: colors.success[50],
+                                  borderColor: colors.success[200],
+                                },
                         ]}
                       >
                         <Text
@@ -1080,7 +1126,11 @@ export default function ItemDetailScreen() {
                                 : { color: colors.success[700] },
                           ]}
                         >
-                          {item._source === "sql" ? "SQL" : item._source === "cache" ? "Cache" : "MongoDB"}
+                          {item._source === "sql"
+                            ? "SQL"
+                            : item._source === "cache"
+                              ? "Cache"
+                              : "MongoDB"}
                         </Text>
                       </View>
                     )}
@@ -1116,11 +1166,13 @@ export default function ItemDetailScreen() {
                     adjustsFontSizeToFit
                     minimumFontScale={0.7}
                   >
-                    {settings.showItemStock ? (() => {
-                      const qty = item.current_stock ?? item.stock_qty ?? 0;
-                      const uom = item.uom_name || item.uom_code || "";
-                      return uom ? `${qty} ${uom}` : String(qty);
-                    })() : "---"}
+                    {settings.showItemStock
+                      ? (() => {
+                          const qty = item.current_stock ?? item.stock_qty ?? 0;
+                          const uom = item.uom_name || item.uom_code || "";
+                          return uom ? `${qty} ${uom}` : String(qty);
+                        })()
+                      : "---"}
                   </Text>
                 </View>
                 <View style={styles.detailItem}>
@@ -1162,7 +1214,9 @@ export default function ItemDetailScreen() {
                     adjustsFontSizeToFit
                     minimumFontScale={0.7}
                   >
-                    {settings.showItemPrices ? `₹${item.sale_price || item.sales_price || 0}` : "---"}
+                    {settings.showItemPrices
+                      ? `₹${item.sale_price || item.sales_price || 0}`
+                      : "---"}
                   </Text>
                 </View>
               </View>
@@ -1174,7 +1228,9 @@ export default function ItemDetailScreen() {
               {/* Quantity Input - PRIMARY SECTION */}
               <View style={styles.section}>
                 {/* Barcode Display */}
-                <View style={{ alignItems: "center", marginBottom: spacing.md }}>
+                <View
+                  style={{ alignItems: "center", marginBottom: spacing.md }}
+                >
                   <Text
                     style={{
                       fontSize: fontSize.sm,
@@ -1195,7 +1251,7 @@ export default function ItemDetailScreen() {
                     adjustsFontSizeToFit
                     minimumFontScale={0.6}
                   >
-                  {item.barcode || barcode || "N/A"}
+                    {item.barcode || barcode || "N/A"}
                   </Text>
                 </View>
 
@@ -1239,7 +1295,11 @@ export default function ItemDetailScreen() {
 
                 {item?._source === "cache" && (
                   <View style={styles.staleWarning}>
-                    <Ionicons name="warning" size={18} color={colors.warning[700]} />
+                    <Ionicons
+                      name="warning"
+                      size={18}
+                      color={colors.warning[700]}
+                    />
                     <View style={styles.staleWarningContent}>
                       <Text style={styles.staleWarningTitle}>ERP Offline</Text>
                       <Text style={styles.staleWarningText}>
@@ -1319,7 +1379,9 @@ export default function ItemDetailScreen() {
                           setQuantity("0");
                         }
                       }}
-                      keyboardType={isWeightBasedUOM ? "decimal-pad" : "number-pad"}
+                      keyboardType={
+                        isWeightBasedUOM ? "decimal-pad" : "number-pad"
+                      }
                       selectTextOnFocus
                       placeholder="0"
                       placeholderTextColor={semanticColors.text.disabled}
@@ -1421,7 +1483,9 @@ export default function ItemDetailScreen() {
                           ]
                             .filter(
                               (value) =>
-                                value !== undefined && value !== null && value !== "",
+                                value !== undefined &&
+                                value !== null &&
+                                value !== "",
                             )
                             .join(":");
 
@@ -1453,7 +1517,9 @@ export default function ItemDetailScreen() {
                                     <Text
                                       style={[
                                         styles.batchSub,
-                                        { color: semanticColors.text.secondary },
+                                        {
+                                          color: semanticColors.text.secondary,
+                                        },
                                       ]}
                                     >
                                       {variant.item_code}
@@ -1463,12 +1529,17 @@ export default function ItemDetailScreen() {
                                     <Text
                                       style={[
                                         styles.batchMeta,
-                                        { color: semanticColors.text.secondary },
+                                        {
+                                          color: semanticColors.text.secondary,
+                                        },
                                       ]}
                                     >
-                                      Exp: {formatBatchDate(variant.expiry_date)}{" "}
+                                      Exp:{" "}
+                                      {formatBatchDate(variant.expiry_date)}{" "}
                                       Mfg:{" "}
-                                      {formatBatchDate(variant.manufacturing_date)}
+                                      {formatBatchDate(
+                                        variant.manufacturing_date,
+                                      )}
                                     </Text>
                                   )}
                                 </View>
@@ -1501,7 +1572,8 @@ export default function ItemDetailScreen() {
               )}
 
               {/* Manufacturing & Expiry Date Section */}
-              {(settings.columnVisibility.mfgDate || settings.columnVisibility.expiryDate) && (
+              {(settings.columnVisibility.mfgDate ||
+                settings.columnVisibility.expiryDate) && (
                 <View style={styles.section}>
                   {/* Mfg Date Toggle */}
                   {settings.columnVisibility.mfgDate && (
@@ -1531,7 +1603,9 @@ export default function ItemDetailScreen() {
                           false: colors.neutral[200],
                           true: colors.primary[600],
                         }}
-                        thumbColor={hasMfgDate ? colors.white : colors.neutral[50]}
+                        thumbColor={
+                          hasMfgDate ? colors.white : colors.neutral[50]
+                        }
                       />
                     </View>
                   )}
@@ -1540,7 +1614,9 @@ export default function ItemDetailScreen() {
                   {settings.columnVisibility.mfgDate && hasMfgDate && (
                     <View style={styles.itemDateSection}>
                       <View style={styles.dateLabelRow}>
-                        <Text style={styles.itemDateLabel}>Manufacturing Date</Text>
+                        <Text style={styles.itemDateLabel}>
+                          Manufacturing Date
+                        </Text>
                         <View style={styles.dateFormatPicker}>
                           {DATE_FORMAT_OPTIONS.map((opt) => (
                             <TouchableOpacity
@@ -1699,7 +1775,9 @@ export default function ItemDetailScreen() {
                           false: colors.neutral[200],
                           true: colors.warning[600],
                         }}
-                        thumbColor={hasExpiryDate ? colors.white : colors.neutral[50]}
+                        thumbColor={
+                          hasExpiryDate ? colors.white : colors.neutral[50]
+                        }
                       />
                     </View>
                   )}
@@ -1742,7 +1820,10 @@ export default function ItemDetailScreen() {
                           {
                             borderColor:
                               itemExpiryDate &&
-                              !validateDateInput(itemExpiryDate, itemExpiryDateFormat)
+                              !validateDateInput(
+                                itemExpiryDate,
+                                itemExpiryDateFormat,
+                              )
                                 ? colors.error[500]
                                 : colors.neutral[300],
                             backgroundColor: semanticColors.background.paper,
@@ -2040,14 +2121,16 @@ export default function ItemDetailScreen() {
                       style={styles.chipsScroll}
                     >
                       {mrpVariants.map((variant, index) => {
-                        const variantKey = variant?.id || variant?.value || index;
+                        const variantKey =
+                          variant?.id || variant?.value || index;
                         return (
                           <TouchableOpacity
                             key={`mrp-${variantKey}-${index}`}
                             style={[
                               styles.chip,
                               {
-                                backgroundColor: semanticColors.background.paper,
+                                backgroundColor:
+                                  semanticColors.background.paper,
                                 borderColor: semanticColors.border.default,
                               },
                               selectedMrpVariant?.value === variant.value && {
@@ -2123,7 +2206,9 @@ export default function ItemDetailScreen() {
                       false: colors.neutral[200],
                       true: colors.error[500],
                     }}
-                    thumbColor={isDamageEnabled ? colors.white : colors.neutral[50]}
+                    thumbColor={
+                      isDamageEnabled ? colors.white : colors.neutral[50]
+                    }
                   />
                 </View>
 
@@ -2132,7 +2217,10 @@ export default function ItemDetailScreen() {
                     <Text
                       style={[
                         styles.detailLabel,
-                        { color: colors.error[700], fontWeight: fontWeight.bold },
+                        {
+                          color: colors.error[700],
+                          fontWeight: fontWeight.bold,
+                        },
                       ]}
                     >
                       Select Damage Type
@@ -2141,14 +2229,16 @@ export default function ItemDetailScreen() {
                       <TouchableOpacity
                         style={[
                           styles.damageTypeButton,
-                          damageType === "returnable" && styles.damageTypeSelected,
+                          damageType === "returnable" &&
+                            styles.damageTypeSelected,
                         ]}
                         onPress={() => setDamageType("returnable")}
                       >
                         <Text
                           style={[
                             styles.damageTypeText,
-                            damageType === "returnable" && styles.damageTypeTextSelected,
+                            damageType === "returnable" &&
+                              styles.damageTypeTextSelected,
                           ]}
                         >
                           Returnable
@@ -2157,7 +2247,8 @@ export default function ItemDetailScreen() {
                       <TouchableOpacity
                         style={[
                           styles.damageTypeButton,
-                          damageType === "nonreturnable" && styles.damageTypeSelected,
+                          damageType === "nonreturnable" &&
+                            styles.damageTypeSelected,
                         ]}
                         onPress={() => setDamageType("nonreturnable")}
                       >
@@ -2174,7 +2265,12 @@ export default function ItemDetailScreen() {
                     </View>
 
                     <View style={{ marginTop: spacing.md }}>
-                      <Text style={[styles.detailLabel, { color: colors.error[700] }]}>
+                      <Text
+                        style={[
+                          styles.detailLabel,
+                          { color: colors.error[700] },
+                        ]}
+                      >
                         Damage Quantity
                       </Text>
                       <TextInput
@@ -2229,7 +2325,9 @@ export default function ItemDetailScreen() {
                           <Text style={styles.photoPreviewText}>
                             Photo captured
                           </Text>
-                          <TouchableOpacity onPress={() => setDamagePhoto(null)}>
+                          <TouchableOpacity
+                            onPress={() => setDamagePhoto(null)}
+                          >
                             <Text style={styles.photoRemoveText}>Remove</Text>
                           </TouchableOpacity>
                         </View>
@@ -2330,7 +2428,9 @@ export default function ItemDetailScreen() {
         >
           <ModernButton
             title={
-              submitCountdown !== null ? `Undo (${submitCountdown}s)` : "Save & Verify"
+              submitCountdown !== null
+                ? `Undo (${submitCountdown}s)`
+                : "Save & Verify"
             }
             onPress={
               submitCountdown !== null ? cancelSubmit : handleSubmitPress
@@ -2354,7 +2454,10 @@ export default function ItemDetailScreen() {
               data={selectOptions}
               keyExtractor={(i) => i}
               renderItem={({ item: opt }) => (
-                <Pressable onPress={() => onSelectOption(opt)} style={styles.modalOption}>
+                <Pressable
+                  onPress={() => onSelectOption(opt)}
+                  style={styles.modalOption}
+                >
                   <Text style={styles.modalOptionText}>{opt}</Text>
                 </Pressable>
               )}
@@ -2378,7 +2481,6 @@ export default function ItemDetailScreen() {
         onClose={() => setShowSerialScanner(false)}
       />
     </ThemedScreen>
-
   );
 }
 
@@ -2569,7 +2671,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...shadows.sm,
-    ...(Platform.OS === "web" && { cursor: "pointer" } as any),
+    ...(Platform.OS === "web" && ({ cursor: "pointer" } as any)),
   },
   staleWarning: {
     flexDirection: "row",
@@ -2656,7 +2758,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.neutral[300],
     marginRight: spacing.sm,
-    ...(Platform.OS === "web" && { cursor: "pointer" } as any),
+    ...(Platform.OS === "web" && ({ cursor: "pointer" } as any)),
   },
   chipSelected: {
     backgroundColor: colors.primary[50],

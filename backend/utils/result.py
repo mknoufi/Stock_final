@@ -4,6 +4,7 @@ Designed for high reliability and clear error tracking.
 """
 
 from __future__ import annotations
+
 import logging
 import traceback
 from collections.abc import Callable

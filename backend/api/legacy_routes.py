@@ -39,18 +39,17 @@ from backend.api.schemas import (  # noqa: E402
 # New feature services
 from backend.config import settings  # noqa: E402
 from backend.error_messages import get_error_message  # noqa: E402
+from backend.exceptions import AuthenticationError, NotFoundError
+from backend.exceptions import RateLimitError as RateLimitExceededError
+from backend.exceptions import (  # noqa: E402; Using base class as generic database error for now
+    StockVerifyException as DatabaseError,
+)
+from backend.exceptions import ValidationError
 
 # Service type imports
 # Production services
 # from backend.services.connection_pool import SQLServerConnectionPool  # Legacy pool removed
 from backend.services.database_optimizer import DatabaseOptimizer  # noqa: E402
-from backend.exceptions import (  # noqa: E402
-    AuthenticationError,
-    StockVerifyException as DatabaseError,  # Using base class as generic database error for now
-    NotFoundError,
-    RateLimitError as RateLimitExceededError,
-    ValidationError,
-)
 
 # Global service instances (injected by main.py)
 db: Any = None
@@ -106,8 +105,6 @@ except ImportError as e:
     init_enrichment_api = None  # type: ignore # noqa: F811
     enrichment_router = None  # type: ignore # noqa: F811
 
-from backend.db.runtime import get_db
-from backend.services.runtime import get_refresh_token_service, get_cache_service
 
 # Global service instances
 scheduled_export_service = None

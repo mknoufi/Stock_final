@@ -1,7 +1,7 @@
 # Stock Verify System - Inventory Report
 
-**Generated:** 2026-01-19  
-**Architecture:** Custom FastAPI + React Native (NOT Power Platform)  
+**Generated:** 2026-01-19
+**Architecture:** Custom FastAPI + React Native (NOT Power Platform)
 **Version:** 2.1
 
 ---

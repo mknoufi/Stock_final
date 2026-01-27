@@ -71,15 +71,15 @@ export interface CreateSessionParams {
 }
 
 // Create session (with offline support)
-export const createSession = async (
-  params: string | CreateSessionParams,
-) => {
+export const createSession = async (params: string | CreateSessionParams) => {
   const warehouse = typeof params === "string" ? params : params.warehouse;
   const sessionType = typeof params !== "string" ? params.type : undefined;
 
   // Structured fields
-  const locationType = typeof params !== "string" ? params.location_type : undefined;
-  const locationName = typeof params !== "string" ? params.location_name : undefined;
+  const locationType =
+    typeof params !== "string" ? params.location_type : undefined;
+  const locationName =
+    typeof params !== "string" ? params.location_name : undefined;
   const rackNo = typeof params !== "string" ? params.rack_no : undefined;
 
   const networkStatus = getNetworkStatus();
@@ -389,7 +389,9 @@ export const getSessionStats = async (
     if (error?.response?.status === 404) {
       // Vital: Do not remove offline sessions from cache just because API can't find them
       if (!sessionId.startsWith("offline_")) {
-        log.warn(`Session ${sessionId} not found on server, removing from cache`);
+        log.warn(
+          `Session ${sessionId} not found on server, removing from cache`,
+        );
         await removeSessionFromCache(sessionId);
       }
     } else {
@@ -536,9 +538,13 @@ export const bulkCloseSessions = async (sessionIds: string[]) => {
 // Bulk reconcile sessions
 export const bulkReconcileSessions = async (sessionIds: string[]) => {
   try {
-    const response = await api.post("/api/sessions/bulk/reconcile", sessionIds, {
-      skipOfflineQueue: true,
-    } as any);
+    const response = await api.post(
+      "/api/sessions/bulk/reconcile",
+      sessionIds,
+      {
+        skipOfflineQueue: true,
+      } as any,
+    );
     return response.data;
   } catch (error: unknown) {
     __DEV__ && console.error("Bulk reconcile sessions error:", error);
@@ -889,7 +895,9 @@ export const searchItems = async (
       hasMore: !!result.has_more,
     };
   } catch (error: any) {
-    log.error("searchItems failed, falling back to cache", { error: error.message });
+    log.error("searchItems failed, falling back to cache", {
+      error: error.message,
+    });
     const cachedItems = await searchItemsInCache(query);
     return {
       items: cachedItems.map((item) => ({
@@ -987,7 +995,10 @@ export const searchItemsOptimized = async (
     const metadata = data.metadata || {};
 
     const mappedItems: Item[] = items.map((item: Record<string, unknown>) => ({
-      id: (item.id as string) || (item._id as string) || (item.item_code as string),
+      id:
+        (item.id as string) ||
+        (item._id as string) ||
+        (item.item_code as string),
       item_code: item.item_code as string,
       barcode: item.barcode as string,
       name: item.item_name as string,
@@ -995,7 +1006,8 @@ export const searchItemsOptimized = async (
       description: item.description as string,
       uom: (item.uom_name as string) || (item.uom as string),
       uom_name: (item.uom_name as string) || (item.uom as string),
-      stock_qty: (item.stock_qty as number) ?? (item.current_stock as number) ?? 0,
+      stock_qty:
+        (item.stock_qty as number) ?? (item.current_stock as number) ?? 0,
       mrp: item.mrp as number,
       sale_price: item.sale_price as number,
       sales_price: (item.sale_price as number) || (item.sales_price as number),
@@ -1013,7 +1025,7 @@ export const searchItemsOptimized = async (
 
     // Cache top items
     for (const item of mappedItems.slice(0, 10)) {
-       await cacheItem(item as any);
+      await cacheItem(item as any);
     }
 
     return {
@@ -1224,7 +1236,9 @@ export const saveDraft = async (lineData: CreateCountLinePayload) => {
     const response = await api.post("/api/count-lines/draft", lineData);
     return response.data;
   } catch (error: any) {
-    log.warn("Failed to save draft", { error: error?.message || String(error) });
+    log.warn("Failed to save draft", {
+      error: error?.message || String(error),
+    });
     return null;
   }
 };
@@ -1248,13 +1262,18 @@ export const createCountLine = async (
 
   try {
     // If offline OR working with an offline-created session, use local logic
-    const isOfflineSession = String(countData.session_id || "").startsWith("offline_");
+    const isOfflineSession = String(countData.session_id || "").startsWith(
+      "offline_",
+    );
 
     if (!isOnline() || isOfflineSession) {
-      log.debug("Offline mode or offline session - creating offline count line", {
-        isOnline: isOnline(),
-        isOfflineSession,
-      });
+      log.debug(
+        "Offline mode or offline session - creating offline count line",
+        {
+          isOnline: isOnline(),
+          isOfflineSession,
+        },
+      );
 
       const itemName = await resolveItemName();
       const offlineCountLine = (await createOfflineCountLine(countData, {
@@ -2484,12 +2503,20 @@ export const generateReport = async (
     };
 
     const responseType =
-      format === "json" ? "json" : Platform.OS === "web" ? "blob" : "arraybuffer";
+      format === "json"
+        ? "json"
+        : Platform.OS === "web"
+          ? "blob"
+          : "arraybuffer";
 
-    const response = await api.post("/api/admin/control/reports/generate", null, {
-      params,
-      responseType: responseType as any,
-    });
+    const response = await api.post(
+      "/api/admin/control/reports/generate",
+      null,
+      {
+        params,
+        responseType: responseType as any,
+      },
+    );
 
     const header =
       (response.headers?.["content-disposition"] as string | undefined) ||
@@ -2503,7 +2530,9 @@ export const generateReport = async (
       return { kind: "json", data: response.data };
     }
 
-    const contentType = response.headers?.["content-type"] as string | undefined;
+    const contentType = response.headers?.["content-type"] as
+      | string
+      | undefined;
     if (Platform.OS === "web") {
       return {
         kind: "file",
@@ -3201,9 +3230,12 @@ export const getNotifications = async (
   unreadOnly: boolean = false,
   limit: number = 50,
 ): Promise<Notification[]> => {
-  const response = await api.get<NotificationListResponse>("/api/notifications", {
-    params: { unread_only: unreadOnly, limit },
-  });
+  const response = await api.get<NotificationListResponse>(
+    "/api/notifications",
+    {
+      params: { unread_only: unreadOnly, limit },
+    },
+  );
   return response.data.notifications || [];
 };
 
@@ -3217,10 +3249,11 @@ export const getUnreadNotificationCount = async (): Promise<number> => {
 export const markNotificationAsRead = async (
   notificationId: string,
 ): Promise<void> => {
-  await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/read`);
+  await api.post(
+    `/api/notifications/${encodeURIComponent(notificationId)}/read`,
+  );
 };
 
 export const markAllNotificationsAsRead = async (): Promise<void> => {
   await api.post("/api/notifications/mark-all-read");
 };
-

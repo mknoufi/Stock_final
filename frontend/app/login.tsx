@@ -73,7 +73,8 @@ export default function LoginScreen() {
     // Simple health check to warm up connection
     const warmUp = async () => {
       try {
-        const { default: apiClient } = await import("../src/services/httpClient");
+        const { default: apiClient } =
+          await import("../src/services/httpClient");
         await apiClient.get("/health", { timeout: 2000 });
       } catch (_e) {
         // Ignore warm-up errors
@@ -191,7 +192,10 @@ export default function LoginScreen() {
               [{ text: "OK" }],
             );
           } else {
-            Alert.alert("Login Failed", result.message || "Invalid credentials");
+            Alert.alert(
+              "Login Failed",
+              result.message || "Invalid credentials",
+            );
           }
           setPassword("");
         }
@@ -249,7 +253,11 @@ export default function LoginScreen() {
               {lastLoggedUser && loginMode === "pin" ? (
                 <View style={styles.userBadge}>
                   <View style={styles.userBadgeAvatar}>
-                    <Ionicons name="person" size={24} color={colors.primary[500]} />
+                    <Ionicons
+                      name="person"
+                      size={24}
+                      color={colors.primary[500]}
+                    />
                   </View>
                   <Text style={styles.userBadgeName}>
                     {lastLoggedUser.full_name || lastLoggedUser.username}
@@ -257,11 +265,17 @@ export default function LoginScreen() {
                 </View>
               ) : (
                 <View style={styles.logoContainer}>
-                  <Ionicons name="shield-checkmark" size={64} color={colors.primary[500]} />
+                  <Ionicons
+                    name="shield-checkmark"
+                    size={64}
+                    color={colors.primary[500]}
+                  />
                 </View>
               )}
               <Text style={styles.welcomeTitle}>
-                {lastLoggedUser && loginMode === "pin" ? "Welcome Back" : "Lavanya Mart"}
+                {lastLoggedUser && loginMode === "pin"
+                  ? "Welcome Back"
+                  : "Lavanya Mart"}
               </Text>
               <Text style={styles.welcomeSubtitle}>
                 {lastLoggedUser && loginMode === "pin"
@@ -397,7 +411,9 @@ export default function LoginScreen() {
                           size={44}
                           color={colors.primary[500]}
                         />
-                        <Text style={styles.biometricText}>Unlock with TouchID</Text>
+                        <Text style={styles.biometricText}>
+                          Unlock with TouchID
+                        </Text>
                       </TouchableOpacity>
 
                       <View style={styles.pinBottomActions}>
@@ -407,8 +423,12 @@ export default function LoginScreen() {
 
                         <View style={styles.actionDivider} />
 
-                        <TouchableOpacity onPress={() => setLoginMode("credentials")}>
-                          <Text style={styles.switchAccountLink}>Switch Account</Text>
+                        <TouchableOpacity
+                          onPress={() => setLoginMode("credentials")}
+                        >
+                          <Text style={styles.switchAccountLink}>
+                            Switch Account
+                          </Text>
                         </TouchableOpacity>
                       </View>
                     </View>

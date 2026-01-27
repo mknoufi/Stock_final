@@ -1,6 +1,6 @@
 import asyncio
-import sys
 import logging
+import sys
 from pathlib import Path
 
 # Add project root to path
@@ -9,9 +9,10 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from motor.motor_asyncio import AsyncIOMotorClient  # noqa: E402
-from backend.sql_server_connector import SQLServerConnector  # noqa: E402
-from backend.services.sql_sync_service import SQLSyncService  # noqa: E402
+
 from backend.config import settings  # noqa: E402
+from backend.services.sql_sync_service import SQLSyncService  # noqa: E402
+from backend.sql_server_connector import SQLServerConnector  # noqa: E402
 
 # Setup logging
 logging.basicConfig(

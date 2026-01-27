@@ -251,155 +251,163 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         ]}
         testID={testID}
       >
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* User Profile Section */}
-        {!collapsed && (
-          <View
-            style={[
-              styles.profileSection,
-              { borderBottomColor: theme.colors.border },
-            ]}
-          >
-            <View style={styles.profileAvatar}>
-              <Ionicons name="person" size={24} color={theme.colors.primary} />
-            </View>
-            <View style={styles.profileInfo}>
-              <Text
-                style={[styles.profileName, { color: theme.colors.text }]}
-                numberOfLines={1}
-              >
-                {user?.full_name || "Admin"}
-              </Text>
-              <Text
-                style={[
-                  styles.profileRole,
-                  { color: theme.colors.textSecondary },
-                ]}
-              >
-                Administrator
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Navigation Groups */}
-        {ADMIN_GROUPS.map((group) => {
-          const isExpanded = expandedGroups.has(group.title);
-
-          return (
-            <View key={group.title} style={styles.group}>
-              {!collapsed && (
-                <TouchableOpacity
-                  style={styles.groupHeader}
-                  onPress={() => toggleGroup(group.title)}
-                  activeOpacity={0.7}
+        <ScrollView
+          style={styles.scrollView}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* User Profile Section */}
+          {!collapsed && (
+            <View
+              style={[
+                styles.profileSection,
+                { borderBottomColor: theme.colors.border },
+              ]}
+            >
+              <View style={styles.profileAvatar}>
+                <Ionicons
+                  name="person"
+                  size={24}
+                  color={theme.colors.primary}
+                />
+              </View>
+              <View style={styles.profileInfo}>
+                <Text
+                  style={[styles.profileName, { color: theme.colors.text }]}
+                  numberOfLines={1}
                 >
-                  <Text
-                    style={[
-                      styles.groupTitle,
-                      { color: theme.colors.textSecondary },
-                    ]}
+                  {user?.full_name || "Admin"}
+                </Text>
+                <Text
+                  style={[
+                    styles.profileRole,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  Administrator
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Navigation Groups */}
+          {ADMIN_GROUPS.map((group) => {
+            const isExpanded = expandedGroups.has(group.title);
+
+            return (
+              <View key={group.title} style={styles.group}>
+                {!collapsed && (
+                  <TouchableOpacity
+                    style={styles.groupHeader}
+                    onPress={() => toggleGroup(group.title)}
+                    activeOpacity={0.7}
                   >
-                    {group.title}
-                  </Text>
-                  <Ionicons
-                    name={isExpanded ? "chevron-down" : "chevron-forward"}
-                    size={16}
-                    color={theme.colors.textSecondary}
-                  />
-                </TouchableOpacity>
-              )}
+                    <Text
+                      style={[
+                        styles.groupTitle,
+                        { color: theme.colors.textSecondary },
+                      ]}
+                    >
+                      {group.title}
+                    </Text>
+                    <Ionicons
+                      name={isExpanded ? "chevron-down" : "chevron-forward"}
+                      size={16}
+                      color={theme.colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                )}
 
-              {(!collapsed && isExpanded) || collapsed ? (
-                <View style={styles.groupItems}>
-                  {group.items.map((item) => {
-                    const active = isActive(item.route);
-                    const iconColor = active
-                      ? theme.colors.primary
-                      : theme.colors.textSecondary;
-                    const bgColor = active
-                      ? theme.colors.overlayPrimary || "rgba(76, 175, 80, 0.1)"
-                      : "transparent";
+                {(!collapsed && isExpanded) || collapsed ? (
+                  <View style={styles.groupItems}>
+                    {group.items.map((item) => {
+                      const active = isActive(item.route);
+                      const iconColor = active
+                        ? theme.colors.primary
+                        : theme.colors.textSecondary;
+                      const bgColor = active
+                        ? theme.colors.overlayPrimary ||
+                          "rgba(76, 175, 80, 0.1)"
+                        : "transparent";
 
-                    return (
-                      <TouchableOpacity
-                        key={item.key}
-                        style={[
-                          styles.item,
-                          { backgroundColor: bgColor },
-                          active && styles.itemActive,
-                        ]}
-                        onPress={() => handleItemPress(item)}
-                        activeOpacity={0.7}
-                        accessibilityRole="button"
-                        accessibilityState={{ selected: active }}
-                        accessibilityLabel={item.label}
-                      >
-                        <Ionicons
-                          name={item.icon}
-                          size={20}
-                          color={iconColor}
-                        />
-                        {!collapsed && (
-                          <>
-                            <Text
-                              style={[
-                                styles.itemLabel,
-                                {
-                                  color: active
-                                    ? theme.colors.primary
-                                    : theme.colors.text,
-                                },
-                              ]}
-                            >
-                              {item.label}
-                            </Text>
-                            {item.badge !== undefined && item.badge > 0 && (
-                              <View
+                      return (
+                        <TouchableOpacity
+                          key={item.key}
+                          style={[
+                            styles.item,
+                            { backgroundColor: bgColor },
+                            active && styles.itemActive,
+                          ]}
+                          onPress={() => handleItemPress(item)}
+                          activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                          accessibilityLabel={item.label}
+                        >
+                          <Ionicons
+                            name={item.icon}
+                            size={20}
+                            color={iconColor}
+                          />
+                          {!collapsed && (
+                            <>
+                              <Text
                                 style={[
-                                  styles.itemBadge,
-                                  { backgroundColor: theme.colors.error },
+                                  styles.itemLabel,
+                                  {
+                                    color: active
+                                      ? theme.colors.primary
+                                      : theme.colors.text,
+                                  },
                                 ]}
                               >
-                                <Text style={styles.itemBadgeText}>
-                                  {item.badge > 99 ? "99+" : item.badge}
-                                </Text>
-                              </View>
-                            )}
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </View>
-          );
-        })}
-      </ScrollView>
+                                {item.label}
+                              </Text>
+                              {item.badge !== undefined && item.badge > 0 && (
+                                <View
+                                  style={[
+                                    styles.itemBadge,
+                                    { backgroundColor: theme.colors.error },
+                                  ]}
+                                >
+                                  <Text style={styles.itemBadgeText}>
+                                    {item.badge > 99 ? "99+" : item.badge}
+                                  </Text>
+                                </View>
+                              )}
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
+        </ScrollView>
 
-      {/* Logout Button */}
-      {!collapsed && (
-        <TouchableOpacity
-          style={[styles.logoutButton, { borderTopColor: theme.colors.border }]}
-          onPress={handleLogout}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Logout"
-        >
-          <Ionicons
-            name="log-out-outline"
-            size={20}
-            color={theme.colors.error}
-          />
-          <Text style={[styles.logoutLabel, { color: theme.colors.error }]}>
-            Logout
-          </Text>
-        </TouchableOpacity>
-      )}
+        {/* Logout Button */}
+        {!collapsed && (
+          <TouchableOpacity
+            style={[
+              styles.logoutButton,
+              { borderTopColor: theme.colors.border },
+            ]}
+            onPress={handleLogout}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Logout"
+          >
+            <Ionicons
+              name="log-out-outline"
+              size={20}
+              color={theme.colors.error}
+            />
+            <Text style={[styles.logoutLabel, { color: theme.colors.error }]}>
+              Logout
+            </Text>
+          </TouchableOpacity>
+        )}
       </BlurView>
     </View>
   );

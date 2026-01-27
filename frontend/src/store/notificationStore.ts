@@ -71,7 +71,7 @@ export const useNotificationStore = create<NotificationState>()(
           await markNotificationAsRead(notificationId);
           set((state) => ({
             notifications: state.notifications.map((n) =>
-              n._id === notificationId ? { ...n, read: true } : n
+              n._id === notificationId ? { ...n, read: true } : n,
             ),
             unreadCount: Math.max(0, state.unreadCount - 1),
           }));
@@ -84,7 +84,10 @@ export const useNotificationStore = create<NotificationState>()(
         try {
           await markAllNotificationsAsRead();
           set((state) => ({
-            notifications: state.notifications.map((n) => ({ ...n, read: true })),
+            notifications: state.notifications.map((n) => ({
+              ...n,
+              read: true,
+            })),
             unreadCount: 0,
           }));
         } catch (error: any) {
@@ -107,8 +110,8 @@ export const useNotificationStore = create<NotificationState>()(
       partialize: (state) => ({
         notifications: state.notifications.slice(0, 100), // Keep last 100
       }),
-    }
-  )
+    },
+  ),
 );
 
 // Polling hook for real-time notification updates

@@ -1,9 +1,9 @@
 # Implementation Plan: FR-M-26 Real-Time Monitoring Dashboard
 
-**Priority**: P0 - Critical  
-**Effort Estimate**: 16 hours  
-**Status**: Not Implemented  
-**Owner**: TBD  
+**Priority**: P0 - Critical
+**Effort Estimate**: 16 hours
+**Status**: Not Implemented
+**Owner**: TBD
 **Target Sprint**: Sprint 1
 
 ---
@@ -463,6 +463,6 @@ If issues arise:
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-01-19  
+**Document Version**: 1.0
+**Last Updated**: 2026-01-19
 **Next Review**: After implementation

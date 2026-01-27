@@ -1,10 +1,11 @@
-import sys
-import time
-import requests
 import json
 import logging
+import sys
+import time
+from datetime import date, datetime
 from pathlib import Path
-from datetime import datetime, date
+
+import requests
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -20,9 +21,9 @@ logging.basicConfig(
 logger = logging.getLogger("SyncBridgeAgent")
 
 try:
-    from backend.sql_server_connector import SQLServerConnector
-    from backend.services.sql_sync_service import _build_new_item_dict
     from backend.config import settings
+    from backend.services.sql_sync_service import _build_new_item_dict
+    from backend.sql_server_connector import SQLServerConnector
 except ImportError as e:
     logger.error(f"Failed to import backend modules: {e}")
     sys.exit(1)

@@ -1,7 +1,7 @@
 # Implementation Plans Index
 
-**Project**: Stock Verification System  
-**Date**: 2026-01-19  
+**Project**: Stock Verification System
+**Date**: 2026-01-19
 **Status**: Planning Phase
 
 ---
@@ -22,8 +22,8 @@ This directory contains detailed implementation plans for closing the gaps ident
 
 ### 1. FR-M-26: Real-Time Monitoring Dashboard
 
-**File**: `P0-FR-M-26-Real-Time-Dashboard.md`  
-**Effort**: 16 hours  
+**File**: `P0-FR-M-26-Real-Time-Dashboard.md`
+**Effort**: 16 hours
 **Status**: Not Started
 
 **Summary**: Build comprehensive admin dashboard with:
@@ -46,8 +46,8 @@ This directory contains detailed implementation plans for closing the gaps ident
 
 ### 2. FR-M-29: Role-Based Access Control
 
-**File**: `P0-FR-M-29-Role-Based-Access.md`  
-**Effort**: 8 hours  
+**File**: `P0-FR-M-29-Role-Based-Access.md`
+**Effort**: 8 hours
 **Status**: Not Started
 
 **Summary**: Implement fine-grained RBAC with three roles:
@@ -72,8 +72,8 @@ This directory contains detailed implementation plans for closing the gaps ident
 
 ### 3. FR-M-30: Variance Thresholds
 
-**File**: `P0-FR-M-30-Variance-Thresholds.md`  
-**Effort**: 6 hours  
+**File**: `P0-FR-M-30-Variance-Thresholds.md`
+**Effort**: 6 hours
 **Status**: Not Started
 
 **Summary**: Auto-require supervisor approval when:
@@ -98,8 +98,8 @@ This directory contains detailed implementation plans for closing the gaps ident
 
 ### 4. FR-M-31: Post-Submit Edit Control
 
-**File**: `P0-FR-M-31-Post-Submit-Edit-Control.md` (TODO)  
-**Effort**: 8 hours  
+**File**: `P0-FR-M-31-Post-Submit-Edit-Control.md` (TODO)
+**Effort**: 8 hours
 **Status**: Not Started
 
 **Summary**: Implement state machine for count lines:
@@ -121,7 +121,7 @@ This directory contains detailed implementation plans for closing the gaps ident
 
 ### 5. FR-M-22: Supervisor Workflow
 
-**File**: `P1-FR-M-22-Supervisor-Workflow.md` (TODO)  
+**File**: `P1-FR-M-22-Supervisor-Workflow.md` (TODO)
 **Effort**: 8 hours
 
 **Summary**: Complete approval workflow with:
@@ -134,7 +134,7 @@ This directory contains detailed implementation plans for closing the gaps ident
 
 ### 6. FR-M-23: Recount Notifications
 
-**File**: `P1-FR-M-23-Recount-Notifications.md` (TODO)  
+**File**: `P1-FR-M-23-Recount-Notifications.md` (TODO)
 **Effort**: 6 hours
 
 **Summary**: Notification system for recount assignments:
@@ -147,7 +147,7 @@ This directory contains detailed implementation plans for closing the gaps ident
 
 ### 7. FR-M-34: Session Integrity Warnings
 
-**File**: `P1-FR-M-34-Session-Integrity-Warnings.md` (TODO)  
+**File**: `P1-FR-M-34-Session-Integrity-Warnings.md` (TODO)
 **Effort**: 6 hours
 
 **Summary**: Detect and flag master data changes:
@@ -160,7 +160,7 @@ This directory contains detailed implementation plans for closing the gaps ident
 
 ### 8. FR-M-28: Comprehensive Audit Trail
 
-**File**: `P1-FR-M-28-Comprehensive-Audit-Trail.md` (TODO)  
+**File**: `P1-FR-M-28-Comprehensive-Audit-Trail.md` (TODO)
 **Effort**: 4 hours
 
 **Summary**: Enhance audit logging:
@@ -175,28 +175,28 @@ This directory contains detailed implementation plans for closing the gaps ident
 
 ### 9. FR-M-35: Auto-Pause & Inactivity
 
-**File**: `P2-FR-M-35-Auto-Pause-Inactivity.md` (TODO)  
+**File**: `P2-FR-M-35-Auto-Pause-Inactivity.md` (TODO)
 **Effort**: 4 hours
 
 ---
 
 ### 10. FR-M-32: Enhanced Unknown Barcode Capture
 
-**File**: `P2-FR-M-32-Unknown-Barcode-Capture.md` (TODO)  
+**File**: `P2-FR-M-32-Unknown-Barcode-Capture.md` (TODO)
 **Effort**: 4 hours
 
 ---
 
 ### 11. FR-M-20: 5-Second Submit Delay
 
-**File**: `P2-FR-M-20-Submit-Delay.md` (TODO)  
+**File**: `P2-FR-M-20-Submit-Delay.md` (TODO)
 **Effort**: 1 hour
 
 ---
 
 ### 12. S-03: Enhanced Exports
 
-**File**: `P2-S-03-Enhanced-Exports.md` (TODO)  
+**File**: `P2-S-03-Enhanced-Exports.md` (TODO)
 **Effort**: 6 hours
 
 ---
@@ -372,5 +372,5 @@ FR-M-30 (Variance Thresholds)
 
 ---
 
-**Last Updated**: 2026-01-19  
+**Last Updated**: 2026-01-19
 **Next Review**: 2026-01-22 (Sprint 1 Kickoff)

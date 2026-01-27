@@ -139,15 +139,19 @@ class DatabaseHealthService:
                 sql_password = None
                 try:
                     from backend.config import settings
+
                     sql_password = getattr(settings, "SQL_SERVER_PASSWORD", None)
                 except Exception:
                     pass
 
-                is_placeholder = (
-                    isinstance(sql_password, str)
-                    and sql_password.strip().lower()
-                    in {"", "your-sql-password", "change-me", "password", "changeme", "dev_sql_password_placeholder"}
-                )
+                is_placeholder = isinstance(sql_password, str) and sql_password.strip().lower() in {
+                    "",
+                    "your-sql-password",
+                    "change-me",
+                    "password",
+                    "changeme",
+                    "dev_sql_password_placeholder",
+                }
 
                 if is_placeholder:
                     error_detail = "SQL Server password is using a placeholder value"
@@ -172,7 +176,7 @@ class DatabaseHealthService:
                     "last_check": datetime.utcnow().isoformat(),
                     "response_time": response_time,
                     "error": None,
-                    "source": "sql_server"
+                    "source": "sql_server",
                 }
                 self._health_status["sql_server"] = status_data
                 logger.debug(f"SQL Server health check: OK ({response_time:.3f}s)")
@@ -189,10 +193,12 @@ class DatabaseHealthService:
                         "response_time": response_time,
                         "error": error_detail,
                         "note": f"SQL Server offline, using {item_count} cached items",
-                        "source": "mongodb_cache"
+                        "source": "mongodb_cache",
                     }
                     self._health_status["sql_server"] = status_data
-                    logger.info(f"SQL Server health check: OK (Fallback to MongoDB cache with {item_count} items)")
+                    logger.info(
+                        f"SQL Server health check: OK (Fallback to MongoDB cache with {item_count} items)"
+                    )
                     return status_data
             except Exception as e:
                 logger.error(f"Fallback health check failed: {e}")

@@ -1,9 +1,9 @@
 /**
  * UI Standardization Constants
- * 
+ *
  * Provides consistent styling values across all components.
  * Use these values to ensure visual consistency throughout the app.
- * 
+ *
  * Based on Material Design 3 guidelines and iOS HIG for accessibility.
  */
 
@@ -37,7 +37,7 @@ export const sizes = {
   // Touch targets (44px minimum for accessibility)
   touchMin: 44,
   touchComfortable: 48,
-  
+
   // Button heights
   button: {
     sm: 36,
@@ -45,14 +45,14 @@ export const sizes = {
     lg: 52,
     xl: 60,
   },
-  
+
   // Input heights
   input: {
     sm: 40,
     md: 48,
     lg: 56,
   },
-  
+
   // Icon sizes
   icon: {
     xs: 16,
@@ -61,14 +61,14 @@ export const sizes = {
     lg: 28,
     xl: 32,
   },
-  
+
   // Card
   card: {
     minHeight: 80,
     borderRadius: radius.lg,
     padding: spacing.md,
   },
-  
+
   // List item
   listItem: {
     small: 48,
@@ -85,18 +85,18 @@ export const colors = {
   primary: "#3B82F6",
   primaryDark: "#2563EB",
   primaryLight: "#60A5FA",
-  
+
   // Secondary - Emerald
   secondary: "#10B981",
   secondaryDark: "#059669",
   secondaryLight: "#34D399",
-  
+
   // Status colors
   success: "#22C55E",
   warning: "#F59E0B",
   error: "#EF4444",
   info: "#3B82F6",
-  
+
   // Text
   text: {
     primary: "#0F172A",
@@ -105,14 +105,14 @@ export const colors = {
     disabled: "#CBD5E1",
     inverse: "#FFFFFF",
   },
-  
+
   // Background
   background: {
     default: "#FAFBFC",
     paper: "#FFFFFF",
     elevated: "#F8F9FB",
   },
-  
+
   // Border
   border: {
     default: "#E2E8F0",

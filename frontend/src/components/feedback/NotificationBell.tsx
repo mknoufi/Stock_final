@@ -6,7 +6,11 @@ import React, { useEffect } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useNotificationStore, startNotificationPolling, stopNotificationPolling } from "../../store/notificationStore";
+import {
+  useNotificationStore,
+  startNotificationPolling,
+  stopNotificationPolling,
+} from "../../store/notificationStore";
 
 interface NotificationBellProps {
   size?: number;

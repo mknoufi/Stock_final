@@ -181,13 +181,19 @@ class EnhancedSQLServerConnectionPool:
     def _initialize_pool(self):
         """Pre-create initial connections"""
         # Skip initialization if using placeholder password
-        password_placeholder = (
-            isinstance(self.password, str)
-            and self.password.strip().lower()
-            in {"", "your-sql-password", "change-me", "password", "changeme", "dev_sql_password_placeholder", "your-actual-sql-password"}
-        )
+        password_placeholder = isinstance(self.password, str) and self.password.strip().lower() in {
+            "",
+            "your-sql-password",
+            "change-me",
+            "password",
+            "changeme",
+            "dev_sql_password_placeholder",
+            "your-actual-sql-password",
+        }
         if password_placeholder:
-            logger.warning("SQL Server connection pool initialization skipped (placeholder password detected)")
+            logger.warning(
+                "SQL Server connection pool initialization skipped (placeholder password detected)"
+            )
             self._metrics.health_status = "not_configured"
             return
 

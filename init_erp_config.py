@@ -6,10 +6,10 @@ import os
 async def main():
     client = AsyncIOMotorClient('mongodb://localhost:27017')
     db = client['stock_verification']
-    
+
     # Check if config exists
     config = await db.erp_config.find_one({})
-    
+
     if not config:
         print("Creating default erp_config...")
         default_config = {

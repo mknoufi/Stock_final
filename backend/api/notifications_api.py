@@ -4,6 +4,7 @@ Notifications API - In-app notifications and task management
 
 import logging
 from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel

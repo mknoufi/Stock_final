@@ -18,10 +18,15 @@ const getCandidatePorts = (): number[] => {
     const fallbackPorts = [8000, 8001, 8085];
     return Array.from(new Set([envPort, ...fallbackPorts]));
   }
-  return [8000, 8001, 8085, 8002, 8003, 8004, 8005, 8006, 8007, 8008, 8009, 8010];
+  return [
+    8000, 8001, 8085, 8002, 8003, 8004, 8005, 8006, 8007, 8008, 8009, 8010,
+  ];
 };
 
-const timeoutFetch = async (url: string, timeoutMs = 1500): Promise<boolean> => {
+const timeoutFetch = async (
+  url: string,
+  timeoutMs = 1500,
+): Promise<boolean> => {
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
@@ -42,7 +47,8 @@ const timeoutFetch = async (url: string, timeoutMs = 1500): Promise<boolean> => 
   }
 };
 
-const stripTrailingSlash = (url: string) => (url.endsWith("/") ? url.slice(0, -1) : url);
+const stripTrailingSlash = (url: string) =>
+  url.endsWith("/") ? url.slice(0, -1) : url;
 
 const buildCandidates = (): string[] => {
   const candidates: string[] = [];
@@ -72,7 +78,9 @@ const buildCandidates = (): string[] => {
   // Removed "/backend_port.json" literal from candidates as it is not a valid base URL
 
   // 4) Runtime config from app.config.js extra
-  const configUrl = Constants.expoConfig?.extra?.backendUrl as string | undefined;
+  const configUrl = Constants.expoConfig?.extra?.backendUrl as
+    | string
+    | undefined;
   if (configUrl) {
     candidates.push(configUrl);
   }
@@ -100,7 +108,9 @@ const buildCandidates = (): string[] => {
   }
 
   // De-dupe while preserving priority order
-  return Array.from(new Set(candidates.filter(Boolean).map(stripTrailingSlash)));
+  return Array.from(
+    new Set(candidates.filter(Boolean).map(stripTrailingSlash)),
+  );
 };
 
 // Best-effort initial URL (sync) used until async probing finishes.
@@ -120,7 +130,10 @@ export const resolveBackendUrl = async (): Promise<string> => {
       if (response.ok) {
         const portData = await response.json();
         if (portData.url) {
-          console.log("[BackendURL] Found URL in backend_port.json:", portData.url);
+          console.log(
+            "[BackendURL] Found URL in backend_port.json:",
+            portData.url,
+          );
           // Insert at the beginning of candidates
           candidates.unshift(stripTrailingSlash(portData.url));
         }
@@ -161,7 +174,10 @@ export const resolveBackendUrl = async (): Promise<string> => {
   }
 
   // Fallback if nothing responds
-  console.warn("[BackendURL] No healthy backend found! Fallback to:", BACKEND_URL);
+  console.warn(
+    "[BackendURL] No healthy backend found! Fallback to:",
+    BACKEND_URL,
+  );
   resolvedBackendUrl = BACKEND_URL;
   return BACKEND_URL;
 };

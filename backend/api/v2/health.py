@@ -94,11 +94,7 @@ async def health_check_detailed_v2(
 async def _get_health_data() -> ApiResponse[HealthCheckResponse]:
     """Internal helper to get health data."""
     try:
-        from backend.core.lifespan import (
-            cache_service,
-            connection_pool,
-            database_health_service,
-        )
+        from backend.core.lifespan import cache_service, connection_pool, database_health_service
 
         services = {
             "mongodb": await _check_mongodb(database_health_service),

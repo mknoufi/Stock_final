@@ -162,7 +162,11 @@ export const ModernHeader: React.FC<ModernHeaderProps> = ({
               style={styles.backButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="settings-outline" size={24} color={colors.gray[700]} />
+              <Ionicons
+                name="settings-outline"
+                size={24}
+                color={colors.gray[700]}
+              />
             </TouchableOpacity>
           )}
           {rightAction && (

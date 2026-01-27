@@ -80,7 +80,7 @@ async def get_health_metrics():
         health_data["mongodb"] = {
             "status": "connected" if mongo_info.get("status") == "healthy" else "disconnected",
             "response_time": mongo_info.get("response_time"),
-            "error": mongo_info.get("error")
+            "error": mongo_info.get("error"),
         }
 
         # Update SQL Server status in dependencies

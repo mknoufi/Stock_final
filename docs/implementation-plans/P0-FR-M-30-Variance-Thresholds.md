@@ -1,9 +1,9 @@
 # Implementation Plan: FR-M-30 Variance Thresholds
 
-**Priority**: P0 - Critical  
-**Effort Estimate**: 6 hours  
-**Status**: Not Implemented  
-**Owner**: TBD  
+**Priority**: P0 - Critical
+**Effort Estimate**: 6 hours
+**Status**: Not Implemented
+**Owner**: TBD
 **Target Sprint**: Sprint 1
 
 ---
@@ -638,6 +638,6 @@ async def test_value_threshold_exceeded():
 
 ---
 
-**Document Version**: 1.0  
-**Last Updated**: 2026-01-19  
+**Document Version**: 1.0
+**Last Updated**: 2026-01-19
 **Next Review**: After implementation

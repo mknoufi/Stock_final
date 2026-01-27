@@ -86,7 +86,9 @@ class ConnectionManager {
   /**
    * Build list of potential backend connections
    */
-  private async buildConnectionCandidates(): Promise<{ url: string; priority: number }[]> {
+  private async buildConnectionCandidates(): Promise<
+    { url: string; priority: number }[]
+  > {
     const candidates: { url: string; priority: number }[] = [];
 
     // 1. Environment variable override (highest priority)
@@ -130,9 +132,9 @@ class ConnectionManager {
     candidates.push({ url: "http://127.0.0.1:8001", priority: 2 });
 
     // Remove duplicates and sort by priority
-    const unique = Array.from(new Map(candidates.map((c) => [c.url, c])).values()).sort(
-      (a, b) => b.priority - a.priority
-    );
+    const unique = Array.from(
+      new Map(candidates.map((c) => [c.url, c])).values(),
+    ).sort((a, b) => b.priority - a.priority);
 
     log.debug("Built connection candidates", unique);
     return unique;
@@ -152,7 +154,7 @@ class ConnectionManager {
    * Find first healthy connection from candidates
    */
   private async findHealthyConnection(
-    candidates: { url: string; priority: number }[]
+    candidates: { url: string; priority: number }[],
   ): Promise<ConnectionInfo | null> {
     for (const candidate of candidates) {
       const isHealthy = await this.checkHealth(candidate.url);
@@ -220,7 +222,9 @@ class ConnectionManager {
   /**
    * Set current connection and notify listeners
    */
-  private async setCurrentConnection(connection: ConnectionInfo): Promise<void> {
+  private async setCurrentConnection(
+    connection: ConnectionInfo,
+  ): Promise<void> {
     this.currentConnection = connection;
     await this.saveConnection(connection);
     this.notifyListeners(connection);
@@ -261,7 +265,9 @@ class ConnectionManager {
     this.healthCheckTimer = setInterval(async () => {
       if (this.currentConnection) {
         const wasHealthy = this.currentConnection.isHealthy;
-        const isHealthy = await this.checkHealth(this.currentConnection.backendUrl);
+        const isHealthy = await this.checkHealth(
+          this.currentConnection.backendUrl,
+        );
 
         if (wasHealthy !== isHealthy) {
           // Health status changed, update connection

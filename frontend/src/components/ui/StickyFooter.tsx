@@ -11,13 +11,7 @@ interface Props {
   testID?: string;
 }
 
-function StickyFooter({
-  title,
-  disabled,
-  loading,
-  onPress,
-  testID,
-}: Props) {
+function StickyFooter({ title, disabled, loading, onPress, testID }: Props) {
   const { theme } = useThemeContext();
 
   return (

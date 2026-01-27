@@ -27,9 +27,7 @@ import {
   AnimatedPressable,
 } from "../../src/components/ui";
 import { theme } from "../../src/styles/modernDesignSystem";
-import {
-  ChangePasswordModal,
-} from "../../src/components/settings";
+import { ChangePasswordModal } from "../../src/components/settings";
 
 // Reusable Setting Row Component
 const SettingRow = ({

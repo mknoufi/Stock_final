@@ -134,7 +134,11 @@ export function createLogger(module: string) {
  */
 function normalizeContext(context?: any): Record<string, unknown> | undefined {
   if (!context) return undefined;
-  if (typeof context === "object" && context !== null && !Array.isArray(context)) {
+  if (
+    typeof context === "object" &&
+    context !== null &&
+    !Array.isArray(context)
+  ) {
     return context as Record<string, unknown>;
   }
   return { data: context };

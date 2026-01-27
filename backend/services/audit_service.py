@@ -1,7 +1,9 @@
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
+
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from backend.models.audit import AuditLog, AuditEventType, AuditLogStatus
+
+from backend.models.audit import AuditEventType, AuditLog, AuditLogStatus
 
 
 class AuditService:

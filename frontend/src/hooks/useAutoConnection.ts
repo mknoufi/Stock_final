@@ -6,7 +6,9 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { Platform } from "react-native";
 import { createLogger } from "../services/logging";
-import ConnectionManager, { ConnectionInfo } from "../services/connectionManager";
+import ConnectionManager, {
+  ConnectionInfo,
+} from "../services/connectionManager";
 // import EnvironmentConfig from "../config/environment";
 
 const log = createLogger("AutoConnectionHook");
@@ -29,7 +31,7 @@ interface UseAutoConnectionReturn {
 }
 
 export const useAutoConnection = (
-  options: UseAutoConnectionOptions = {}
+  options: UseAutoConnectionOptions = {},
 ): UseAutoConnectionReturn => {
   const {
     onConnectionChange,
@@ -86,7 +88,9 @@ export const useAutoConnection = (
       setError(err instanceof Error ? err : new Error("Reconnection failed"));
 
       if (onConnectionError) {
-        onConnectionError(err instanceof Error ? err : new Error("Reconnection failed"));
+        onConnectionError(
+          err instanceof Error ? err : new Error("Reconnection failed"),
+        );
       }
     } finally {
       setIsReconnecting(false);
@@ -104,7 +108,11 @@ export const useAutoConnection = (
       const currentConnection = connectionManager.getConnection();
 
       // Only attempt reconnection if we have a connection but it's unhealthy
-      if (currentConnection && !currentConnection.isHealthy && !isReconnecting) {
+      if (
+        currentConnection &&
+        !currentConnection.isHealthy &&
+        !isReconnecting
+      ) {
         log.info("Auto-reconnection: detected unhealthy connection");
         await reconnect();
       }
@@ -142,7 +150,13 @@ export const useAutoConnection = (
         clearInterval(interval);
       }
     };
-  }, [enableAutoReconnect, reconnectInterval, isReconnecting, reconnect, connectionManager]);
+  }, [
+    enableAutoReconnect,
+    reconnectInterval,
+    isReconnecting,
+    reconnect,
+    connectionManager,
+  ]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -167,7 +181,9 @@ export const useAutoConnection = (
         await connectionManager.reconnect();
         return true;
       } catch (err) {
-        log.error(`Reconnection attempt ${retryCount + 1} failed`, { error: err });
+        log.error(`Reconnection attempt ${retryCount + 1} failed`, {
+          error: err,
+        });
 
         if (retryCount < maxRetries) {
           retryCount++;
@@ -192,10 +208,16 @@ export const useAutoConnection = (
       }
     } catch (err) {
       log.error("Enhanced reconnection failed", { error: err });
-      setError(err instanceof Error ? err : new Error("Enhanced reconnection failed"));
+      setError(
+        err instanceof Error ? err : new Error("Enhanced reconnection failed"),
+      );
 
       if (onConnectionError) {
-        onConnectionError(err instanceof Error ? err : new Error("Enhanced reconnection failed"));
+        onConnectionError(
+          err instanceof Error
+            ? err
+            : new Error("Enhanced reconnection failed"),
+        );
       }
     } finally {
       setIsReconnecting(false);

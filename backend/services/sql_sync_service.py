@@ -923,7 +923,9 @@ class SQLSyncService:
             )
 
         self._running = True
-        self._task = asyncio.create_task(self._run_sync_loop() if hasattr(self, '_run_sync_loop') else self._sync_loop())
+        self._task = asyncio.create_task(
+            self._run_sync_loop() if hasattr(self, "_run_sync_loop") else self._sync_loop()
+        )
 
     async def stop(self):
         """Stop background sync"""

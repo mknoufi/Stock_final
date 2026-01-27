@@ -34,11 +34,14 @@ export function useSafeAsync() {
     };
   }, []);
 
-  const safeSetState = useCallback(<T>(setter: (value: T) => void, value: T) => {
-    if (mountedRef.current) {
-      setter(value);
-    }
-  }, []);
+  const safeSetState = useCallback(
+    <T>(setter: (value: T) => void, value: T) => {
+      if (mountedRef.current) {
+        setter(value);
+      }
+    },
+    [],
+  );
 
   const safeAsyncOperation = useCallback(
     async <T>(

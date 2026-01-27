@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,8 @@ import {
   ScrollView,
   TextInput,
   Alert,
-} from 'react-native';
-import { auroraTheme } from '../../theme/auroraTheme';
+} from "react-native";
+import { auroraTheme } from "../../theme/auroraTheme";
 
 interface Batch {
   batch_id: string;
@@ -45,7 +45,9 @@ export const BatchDetailsModal: React.FC<BatchDetailsModalProps> = ({
 }) => {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(false);
-  const [countedStocks, setCountedStocks] = useState<{ [key: string]: string }>({});
+  const [countedStocks, setCountedStocks] = useState<{ [key: string]: string }>(
+    {},
+  );
 
   const fetchBatches = useCallback(async () => {
     if (!item) return;
@@ -58,12 +60,12 @@ export const BatchDetailsModal: React.FC<BatchDetailsModalProps> = ({
       if (data.success) {
         setBatches(data.batches || []);
       } else {
-        Alert.alert('Error', 'Failed to fetch batch details');
+        Alert.alert("Error", "Failed to fetch batch details");
         setBatches([]);
       }
     } catch (error) {
-      console.error('Error fetching batches:', error);
-      Alert.alert('Error', 'Failed to fetch batch details');
+      console.error("Error fetching batches:", error);
+      Alert.alert("Error", "Failed to fetch batch details");
       setBatches([]);
     } finally {
       setLoading(false);
@@ -77,19 +79,19 @@ export const BatchDetailsModal: React.FC<BatchDetailsModalProps> = ({
   }, [visible, item, fetchBatches]);
 
   const handleCountedStockChange = (batchId: string, value: string) => {
-    setCountedStocks(prev => ({
+    setCountedStocks((prev) => ({
       ...prev,
-      [batchId]: value
+      [batchId]: value,
     }));
   };
 
   const handleBatchSelect = (batch: Batch) => {
-    const countedStock = parseInt(countedStocks[batch.batch_id] || '0', 10);
+    const countedStock = parseInt(countedStocks[batch.batch_id] || "0", 10);
     onBatchSelect(batch, countedStock);
   };
 
   const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
+    if (!dateString) return "N/A";
     try {
       return new Date(dateString).toLocaleDateString();
     } catch {
@@ -116,7 +118,9 @@ export const BatchDetailsModal: React.FC<BatchDetailsModalProps> = ({
           </View>
 
           <View style={styles.itemInfo}>
-            <Text style={styles.itemName}>{item.item_name || item.name || 'Unknown Item'}</Text>
+            <Text style={styles.itemName}>
+              {item.item_name || item.name || "Unknown Item"}
+            </Text>
             <Text style={styles.itemCode}>Code: {item.item_code}</Text>
           </View>
 
@@ -126,8 +130,12 @@ export const BatchDetailsModal: React.FC<BatchDetailsModalProps> = ({
             </View>
           ) : batches.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No batches found for this item</Text>
-              <Text style={styles.emptySubtext}>This item may not be in any batch</Text>
+              <Text style={styles.emptyText}>
+                No batches found for this item
+              </Text>
+              <Text style={styles.emptySubtext}>
+                This item may not be in any batch
+              </Text>
               <TouchableOpacity
                 style={styles.continueButton}
                 onPress={() => {
@@ -135,7 +143,9 @@ export const BatchDetailsModal: React.FC<BatchDetailsModalProps> = ({
                   onBatchSelect(null as any, 0);
                 }}
               >
-                <Text style={styles.continueButtonText}>Continue Without Batch</Text>
+                <Text style={styles.continueButtonText}>
+                  Continue Without Batch
+                </Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -144,36 +154,46 @@ export const BatchDetailsModal: React.FC<BatchDetailsModalProps> = ({
                 <View key={batch.batch_id} style={styles.batchCard}>
                   <View style={styles.batchHeader}>
                     <Text style={styles.batchNo}>Batch: {batch.batch_no}</Text>
-                    <Text style={styles.stockQty}>Stock: {batch.stock_qty}</Text>
+                    <Text style={styles.stockQty}>
+                      Stock: {batch.stock_qty}
+                    </Text>
                   </View>
 
                   <View style={styles.batchDetails}>
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Barcode:</Text>
-                      <Text style={styles.detailValue}>{batch.barcode || 'N/A'}</Text>
+                      <Text style={styles.detailValue}>
+                        {batch.barcode || "N/A"}
+                      </Text>
                     </View>
 
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Mfg Date:</Text>
-                      <Text style={styles.detailValue}>{formatDate(batch.mfg_date)}</Text>
+                      <Text style={styles.detailValue}>
+                        {formatDate(batch.mfg_date)}
+                      </Text>
                     </View>
 
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Expiry:</Text>
-                      <Text style={styles.detailValue}>{formatDate(batch.expiry_date)}</Text>
+                      <Text style={styles.detailValue}>
+                        {formatDate(batch.expiry_date)}
+                      </Text>
                     </View>
 
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Location:</Text>
                       <Text style={styles.detailValue}>
-                        {batch.warehouse_name || 'N/A'}
-                        {batch.shelf_name ? ` - ${batch.shelf_name}` : ''}
+                        {batch.warehouse_name || "N/A"}
+                        {batch.shelf_name ? ` - ${batch.shelf_name}` : ""}
                       </Text>
                     </View>
 
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Opening Stock:</Text>
-                      <Text style={styles.detailValue}>{batch.opening_stock}</Text>
+                      <Text style={styles.detailValue}>
+                        {batch.opening_stock}
+                      </Text>
                     </View>
                   </View>
 
@@ -183,8 +203,10 @@ export const BatchDetailsModal: React.FC<BatchDetailsModalProps> = ({
                       style={styles.countedStockInput}
                       placeholder="Enter counted quantity"
                       keyboardType="numeric"
-                      value={countedStocks[batch.batch_id] || ''}
-                      onChangeText={(value) => handleCountedStockChange(batch.batch_id, value)}
+                      value={countedStocks[batch.batch_id] || ""}
+                      onChangeText={(value) =>
+                        handleCountedStockChange(batch.batch_id, value)
+                      }
                     />
                   </View>
 
@@ -207,27 +229,27 @@ export const BatchDetailsModal: React.FC<BatchDetailsModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   modalContent: {
-    width: '90%',
+    width: "90%",
     maxWidth: 400,
-    maxHeight: '80%',
+    maxHeight: "80%",
     backgroundColor: auroraTheme.colors.surface.base,
     borderRadius: auroraTheme.borderRadius.xl,
     padding: auroraTheme.spacing.lg,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: auroraTheme.spacing.md,
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: auroraTheme.colors.text.primary,
   },
   closeButton: {
@@ -245,7 +267,7 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: auroraTheme.colors.text.primary,
     marginBottom: auroraTheme.spacing.xs,
   },
@@ -255,7 +277,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     padding: auroraTheme.spacing.xl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   loadingText: {
     fontSize: 16,
@@ -263,7 +285,7 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     padding: auroraTheme.spacing.xl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     fontSize: 16,
@@ -273,10 +295,10 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: auroraTheme.colors.text.secondary,
-    textAlign: 'center',
+    textAlign: "center",
   },
   batchList: {
-    maxHeight: '60%',
+    maxHeight: "60%",
   },
   batchCard: {
     backgroundColor: auroraTheme.colors.background.secondary,
@@ -285,14 +307,14 @@ const styles = StyleSheet.create({
     marginBottom: auroraTheme.spacing.sm,
   },
   batchHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: auroraTheme.spacing.sm,
   },
   batchNo: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: auroraTheme.colors.text.primary,
   },
   stockQty: {
@@ -303,8 +325,8 @@ const styles = StyleSheet.create({
     marginBottom: auroraTheme.spacing.md,
   },
   detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingVertical: auroraTheme.spacing.xs,
     borderBottomWidth: 1,
     borderBottomColor: auroraTheme.colors.border.subtle,
@@ -315,12 +337,12 @@ const styles = StyleSheet.create({
   },
   detailValue: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: auroraTheme.colors.text.primary,
   },
   countedStockContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: auroraTheme.spacing.sm,
   },
   countedStockLabel: {
@@ -343,24 +365,24 @@ const styles = StyleSheet.create({
     borderRadius: auroraTheme.borderRadius.md,
     paddingVertical: auroraTheme.spacing.sm,
     paddingHorizontal: auroraTheme.spacing.md,
-    alignItems: 'center',
+    alignItems: "center",
   },
   selectButtonText: {
     color: auroraTheme.colors.text.primary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   continueButton: {
     backgroundColor: auroraTheme.colors.neutral[600],
     borderRadius: auroraTheme.borderRadius.md,
     paddingVertical: auroraTheme.spacing.sm,
     paddingHorizontal: auroraTheme.spacing.md,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: auroraTheme.spacing.md,
   },
   continueButtonText: {
     color: auroraTheme.colors.text.primary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
 });

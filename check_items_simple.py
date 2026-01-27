@@ -8,7 +8,7 @@ async def check_items():
         db = get_database()
         count = await db.erp_items.count_documents({})
         print(f'Total items in database: {count}')
-        
+
         if count > 0:
             items = await db.erp_items.find({}).limit(5).to_list(None)
             print('Sample items:')
@@ -19,7 +19,7 @@ async def check_items():
                 print(f'  - {name} (Code: {code}, Barcode: {barcode})')
         else:
             print('No items found in database')
-            
+
     except Exception as e:
         print(f'Error: {e}')
 

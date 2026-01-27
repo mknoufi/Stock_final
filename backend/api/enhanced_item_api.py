@@ -3,8 +3,8 @@ Enhanced Item API - Upgraded endpoints with better error handling,
 caching, validation, and performance monitoring
 """
 
-import logging
 import asyncio
+import logging
 import re
 import time
 from datetime import datetime

@@ -96,28 +96,30 @@ export default function VariancesScreen() {
           text: "Confirm",
           style: action === "reject" ? "destructive" : "default",
           onPress: async () => {
-             try {
+            try {
               setLoading(true);
               const ids = Array.from(selectedIds);
               let result;
-              
-              if (action === 'approve') {
-                  result = await ItemVerificationAPI.bulkApproveVariances(ids);
+
+              if (action === "approve") {
+                result = await ItemVerificationAPI.bulkApproveVariances(ids);
               } else {
-                  result = await ItemVerificationAPI.bulkRejectVariances(ids);
+                result = await ItemVerificationAPI.bulkRejectVariances(ids);
               }
 
-              toastService.showSuccess(`Successfully ${action}d ${result.modified_count} items`);
+              toastService.showSuccess(
+                `Successfully ${action}d ${result.modified_count} items`,
+              );
               setSelectedIds(new Set());
               loadVariances(true);
-             } catch (error: any) {
-               Alert.alert("Error", error.message || "Bulk action failed");
-             } finally {
-               setLoading(false);
-             }
-          }
-        }
-      ]
+            } catch (error: any) {
+              Alert.alert("Error", error.message || "Bulk action failed");
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ],
     );
   };
 
@@ -233,14 +235,17 @@ export default function VariancesScreen() {
 
     const varianceSign = isPositive ? "+" : "";
 
-    const isSelected = item.count_line_id ? selectedIds.has(item.count_line_id) : false;
+    const isSelected = item.count_line_id
+      ? selectedIds.has(item.count_line_id)
+      : false;
 
     return (
       <AnimatedPressable
         onLongPress={() => {
           if (item.count_line_id) {
-             toggleSelection(item.count_line_id);
-             if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            toggleSelection(item.count_line_id);
+            if (Platform.OS !== "web")
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }
         }}
         onPress={() => {
@@ -264,35 +269,45 @@ export default function VariancesScreen() {
           padding={theme.spacing.md}
           borderRadius={theme.borderRadius.lg}
           style={{
-            borderColor: isSelected 
-              ? theme.colors.primary[500] 
+            borderColor: isSelected
+              ? theme.colors.primary[500]
               : `${statusColor}40`,
             borderWidth: isSelected ? 2 : 1,
-            backgroundColor: isSelected ? 'rgba(79, 70, 229, 0.1)' : undefined
+            backgroundColor: isSelected ? "rgba(79, 70, 229, 0.1)" : undefined,
           }}
         >
           <View style={styles.varianceHeader}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-                {/* Selection Circle */}
-                {isSelectionMode && (
-                    <View style={{ 
-                        marginRight: 12,
-                        width: 24, 
-                        height: 24, 
-                        borderRadius: 12, 
-                        borderWidth: 2,
-                        borderColor: isSelected ? theme.colors.primary[500] : theme.colors.text.tertiary,
-                        backgroundColor: isSelected ? theme.colors.primary[500] : 'transparent',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                    }}>
-                        {isSelected && <Ionicons name="checkmark" size={16} color="white" />}
-                    </View>
-                )}
-                <View style={styles.varianceHeaderLeft}>
-                    <Text style={styles.itemName}>{item.item_name}</Text>
-                    <Text style={styles.itemCode}>{item.item_code}</Text>
+            <View
+              style={{ flexDirection: "row", alignItems: "center", flex: 1 }}
+            >
+              {/* Selection Circle */}
+              {isSelectionMode && (
+                <View
+                  style={{
+                    marginRight: 12,
+                    width: 24,
+                    height: 24,
+                    borderRadius: 12,
+                    borderWidth: 2,
+                    borderColor: isSelected
+                      ? theme.colors.primary[500]
+                      : theme.colors.text.tertiary,
+                    backgroundColor: isSelected
+                      ? theme.colors.primary[500]
+                      : "transparent",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={16} color="white" />
+                  )}
                 </View>
+              )}
+              <View style={styles.varianceHeaderLeft}>
+                <Text style={styles.itemName}>{item.item_name}</Text>
+                <Text style={styles.itemCode}>{item.item_code}</Text>
+              </View>
             </View>
             <View
               style={[
@@ -378,67 +393,84 @@ export default function VariancesScreen() {
         >
           <View style={styles.headerLeft}>
             {isSelectionMode ? (
-                 <AnimatedPressable onPress={() => setSelectedIds(new Set())} style={styles.backButton}>
-                    <Ionicons name="close" size={24} color={theme.colors.text.primary} />
-                 </AnimatedPressable>
+              <AnimatedPressable
+                onPress={() => setSelectedIds(new Set())}
+                style={styles.backButton}
+              >
+                <Ionicons
+                  name="close"
+                  size={24}
+                  color={theme.colors.text.primary}
+                />
+              </AnimatedPressable>
             ) : (
-                <AnimatedPressable
+              <AnimatedPressable
                 onPress={() => router.back()}
                 style={styles.backButton}
-                >
+              >
                 <Ionicons
-                    name="arrow-back"
-                    size={24}
-                    color={theme.colors.text.primary}
+                  name="arrow-back"
+                  size={24}
+                  color={theme.colors.text.primary}
                 />
-                </AnimatedPressable>
+              </AnimatedPressable>
             )}
             <View>
               <Text style={styles.pageTitle}>
-                  {isSelectionMode ? `${selectedIds.size} Selected` : "Variances"}
+                {isSelectionMode ? `${selectedIds.size} Selected` : "Variances"}
               </Text>
               <Text style={styles.pageSubtitle}>
-                {isSelectionMode ? "Select items to approve/reject" : `${pagination.total} discrepancies found`}
+                {isSelectionMode
+                  ? "Select items to approve/reject"
+                  : `${pagination.total} discrepancies found`}
               </Text>
             </View>
           </View>
-          
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+
+          <View style={{ flexDirection: "row", gap: 8 }}>
             {isSelectionMode && (
-                 <AnimatedPressable
-                    style={styles.exportButton}
-                    onPress={handleSelectAll}
+              <AnimatedPressable
+                style={styles.exportButton}
+                onPress={handleSelectAll}
+              >
+                <GlassCard
+                  intensity={20}
+                  padding={8}
+                  borderRadius={theme.borderRadius.full}
                 >
-                    <GlassCard intensity={20} padding={8} borderRadius={theme.borderRadius.full}>
-                        <Ionicons 
-                            name={selectedIds.size === variances.length ? "checkmark-done-circle" : "checkmark-circle-outline"}
-                            size={20} 
-                            color={theme.colors.text.primary} 
-                        />
-                    </GlassCard>
-                </AnimatedPressable>
+                  <Ionicons
+                    name={
+                      selectedIds.size === variances.length
+                        ? "checkmark-done-circle"
+                        : "checkmark-circle-outline"
+                    }
+                    size={20}
+                    color={theme.colors.text.primary}
+                  />
+                </GlassCard>
+              </AnimatedPressable>
             )}
 
             <AnimatedPressable
-                style={[
+              style={[
                 styles.exportButton,
                 variances.length === 0 && { opacity: 0.5 },
-                ]}
-                onPress={handleExportCSV}
-                disabled={variances.length === 0}
+              ]}
+              onPress={handleExportCSV}
+              disabled={variances.length === 0}
             >
-            <GlassCard
-              intensity={20}
-              padding={8}
-              borderRadius={theme.borderRadius.full}
-            >
-              <Ionicons
-                name="download-outline"
-                size={20}
-                color={theme.colors.text.primary}
-              />
-            </GlassCard>
-          </AnimatedPressable>
+              <GlassCard
+                intensity={20}
+                padding={8}
+                borderRadius={theme.borderRadius.full}
+              >
+                <Ionicons
+                  name="download-outline"
+                  size={20}
+                  color={theme.colors.text.primary}
+                />
+              </GlassCard>
+            </AnimatedPressable>
           </View>
         </Animated.View>
 
@@ -509,35 +541,44 @@ export default function VariancesScreen() {
 
       {/* Bulk Action Bar */}
       {isSelectionMode && (
-        <Animated.View 
-            entering={FadeInDown.duration(300)}
-            style={styles.bulkActionBar}
+        <Animated.View
+          entering={FadeInDown.duration(300)}
+          style={styles.bulkActionBar}
         >
-            <GlassCard
-                intensity={80}
-                padding={16}
-                borderRadius={theme.borderRadius.xl}
-                style={{ flexDirection: 'row', gap: 12, width: '100%' }}
+          <GlassCard
+            intensity={80}
+            padding={16}
+            borderRadius={theme.borderRadius.xl}
+            style={{ flexDirection: "row", gap: 12, width: "100%" }}
+          >
+            <AnimatedPressable
+              style={[
+                styles.bulkButton,
+                { backgroundColor: theme.colors.error[500] },
+              ]}
+              onPress={() => handleBulkAction("reject")}
             >
-                <AnimatedPressable 
-                    style={[styles.bulkButton, { backgroundColor: theme.colors.error[500] }]}
-                    onPress={() => handleBulkAction('reject')}
-                >
-                    <Ionicons name="close-circle" size={20} color="white" />
-                    <Text style={styles.bulkButtonText}>Reject ({selectedIds.size})</Text>
-                </AnimatedPressable>
+              <Ionicons name="close-circle" size={20} color="white" />
+              <Text style={styles.bulkButtonText}>
+                Reject ({selectedIds.size})
+              </Text>
+            </AnimatedPressable>
 
-                <AnimatedPressable 
-                    style={[styles.bulkButton, { backgroundColor: theme.colors.success[500] }]}
-                    onPress={() => handleBulkAction('approve')}
-                >
-                    <Ionicons name="checkmark-circle" size={20} color="white" />
-                    <Text style={styles.bulkButtonText}>Approve ({selectedIds.size})</Text>
-                </AnimatedPressable>
-            </GlassCard>
+            <AnimatedPressable
+              style={[
+                styles.bulkButton,
+                { backgroundColor: theme.colors.success[500] },
+              ]}
+              onPress={() => handleBulkAction("approve")}
+            >
+              <Ionicons name="checkmark-circle" size={20} color="white" />
+              <Text style={styles.bulkButtonText}>
+                Approve ({selectedIds.size})
+              </Text>
+            </AnimatedPressable>
+          </GlassCard>
         </Animated.View>
       )}
-
     </ScreenContainer>
   );
 }
@@ -697,29 +738,29 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xs,
   },
   bulkActionBar: {
-      position: 'absolute',
-      bottom: 30,
-      left: 20,
-      right: 20,
-      alignItems: 'center'
+    position: "absolute",
+    bottom: 30,
+    left: 20,
+    right: 20,
+    alignItems: "center",
   },
   bulkButton: {
-      flex: 1,
-      height: 50,
-      borderRadius: theme.borderRadius.lg,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.3,
-      shadowRadius: 4.65,
-      elevation: 8,
+    flex: 1,
+    height: 50,
+    borderRadius: theme.borderRadius.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4.65,
+    elevation: 8,
   },
   bulkButtonText: {
-      color: 'white',
-      fontWeight: 'bold',
-      fontSize: 16
-  }
+    color: "white",
+    fontWeight: "bold",
+    fontSize: 16,
+  },
 });

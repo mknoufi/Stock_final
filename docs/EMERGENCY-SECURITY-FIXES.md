@@ -1,7 +1,7 @@
 # CRITICAL SECURITY ISSUES - IMMEDIATE ACTION REQUIRED
 
-**Date**: 2026-01-26  
-**Severity**: 🚨 EMERGENCY  
+**Date**: 2026-01-26
+**Severity**: 🚨 EMERGENCY
 **Timeline**: Fix within 6 hours
 
 ## NEWLY DISCOVERED CRITICAL VULNERABILITIES
@@ -17,17 +17,17 @@
 async def bulk_close_sessions(session_ids: list[str], current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["supervisor", "admin"]:
         raise HTTPException(status_code=403, detail="Insufficient permissions")
-    
+
     # CRITICAL FIX: Validate user can only access their warehouse sessions
     user_warehouse = current_user.get("warehouse")
-    
+
     for session_id in session_ids:
         # Verify session belongs to user's warehouse
         session = await db.sessions.find_one({"id": session_id})
         if not session or session.get("warehouse") != user_warehouse:
             logger.warning(f"User {current_user['username']} attempted to access session {session_id} from different warehouse")
             raise HTTPException(status_code=403, detail="Unauthorized session access")
-        
+
         result = await db.sessions.update_one(
             {"id": session_id, "warehouse": user_warehouse},  # Add warehouse check
             {"$set": {"status": "closed", "ended_at": datetime.utcnow()}}
@@ -74,7 +74,7 @@ async def migrate_pin_to_salted_hash(username: str, plain_pin: str):
 async def detect_risk_flags_atomic(erp_item_id: str, line_data: CountLineCreate) -> list[str]:
     """Atomic variance calculation to prevent timing attacks"""
     risk_flags = []
-    
+
     # CRITICAL FIX: Use atomic database operation
     async with db.transaction():  # Implement MongoDB transaction
         # Get latest ERP data with lock
@@ -82,26 +82,26 @@ async def detect_risk_flags_atomic(erp_item_id: str, line_data: CountLineCreate)
             {"_id": erp_item_id},
             {"$inc": {"read_lock": 1}}  # Lock item for calculation
         )
-        
+
         if not erp_item:
             risk_flags.append("ERP_ITEM_NOT_FOUND")
             return risk_flags
-        
+
         # Calculate variance with locked data
         erp_qty = erp_item.get("stock_qty", 0)
         variance = line_data.counted_qty - erp_qty
         variance_percent = (variance / erp_qty * 100) if erp_qty > 0 else 0
-        
+
         # Risk detection
         if abs(variance) > 100 or variance_percent > 50:
             risk_flags.append("LARGE_VARIANCE")
-        
+
         # Release lock
         await db.erp_items.update_one(
             {"_id": erp_item_id},
             {"$inc": {"read_lock": -1}}
         )
-    
+
     return risk_flags
 ```
 
@@ -117,18 +117,18 @@ async def update_user(user_id: str, user_data: dict, current_user: dict = Depend
     if current_user["_id"] == user_id and "role" in user_data:
         logger.critical(f"User {current_user['username']} attempted to modify own role to {user_data['role']}")
         raise HTTPException(status_code=403, detail="Cannot modify your own role")
-    
+
     # Additional protection: Only admins can modify roles
     if "role" in user_data and current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Only admins can modify user roles")
-    
+
     # Validate new role value
     allowed_roles = ["staff", "supervisor", "admin"]
     if "role" in user_data and user_data["role"] not in allowed_roles:
         raise HTTPException(status_code=400, detail="Invalid role")
-    
+
     await db.users.update_one(
-        {"_id": user_id}, 
+        {"_id": user_id},
         {"$set": user_data}
     )
 ```

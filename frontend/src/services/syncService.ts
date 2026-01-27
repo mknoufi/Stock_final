@@ -177,16 +177,24 @@ export const syncOfflineQueue = async (
           }
         }
       } catch (batchError: unknown) {
-        const errorMessage = batchError instanceof Error ? batchError.message : "Unknown batch error";
-        
+        const errorMessage =
+          batchError instanceof Error
+            ? batchError.message
+            : "Unknown batch error";
+
         // Check if this is an auth error (401) - don't retry, just mark all as failed
         const axiosError = batchError as { response?: { status?: number } };
         if (axiosError.response?.status === 401) {
-          log.warn("Auth error during sync - will retry after re-authentication");
+          log.warn(
+            "Auth error during sync - will retry after re-authentication",
+          );
           // Don't increment retries for auth errors - they may resolve after login
         } else {
-          log.error(`Batch sync failed: ${errorMessage}`, batchError as Record<string, unknown>);
-          
+          log.error(
+            `Batch sync failed: ${errorMessage}`,
+            batchError as Record<string, unknown>,
+          );
+
           // Mark all items in this batch as failed and increment retries
           failedCount += batch.length;
           for (const item of batch) {
@@ -199,12 +207,15 @@ export const syncOfflineQueue = async (
       options?.onProgress?.(processed, total);
     }
 
-    log.info(`Sync complete: ${successCount} succeeded, ${failedCount} failed`, {
-      total,
-      successCount,
-      failedCount,
-      errorCount: errors.length,
-    });
+    log.info(
+      `Sync complete: ${successCount} succeeded, ${failedCount} failed`,
+      {
+        total,
+        successCount,
+        failedCount,
+        errorCount: errors.length,
+      },
+    );
 
     await cleanupOldFailedItems();
 
@@ -254,7 +265,9 @@ const cleanupOldFailedItems = async (): Promise<number> => {
     }
 
     if (itemsToRemove.length > 0) {
-      log.info(`Cleaned up ${itemsToRemove.length} items that exceeded retry threshold`);
+      log.info(
+        `Cleaned up ${itemsToRemove.length} items that exceeded retry threshold`,
+      );
     }
 
     return itemsToRemove.length;
