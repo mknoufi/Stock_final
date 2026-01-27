@@ -11,14 +11,15 @@ from starlette.requests import Request
 logger = logging.getLogger(__name__)
 
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+class SecurityHeadersMiddleware:
     """
     Security Headers Middleware
-    Implements OWASP recommended security headers
+    Implements OWASP recommended security headers.
+    Uses pure ASGI pattern to avoid TaskGroup crashes in BaseHTTPMiddleware.
     """
 
     def __init__(self, app, **options):
-        super().__init__(app)
+        self.app = app
         self.options = options
 
         # Security headers configuration
@@ -82,29 +83,36 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Remove None values
         self.headers = {k: v for k, v in self.headers.items() if v is not None}
 
-    async def dispatch(self, request: Request, call_next):
-        """Process request with security headers"""
-        response = await call_next(request)
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
 
-        # Add security headers to response
-        for header_name, header_value in self.headers.items():
-            # Skip HSTS for non-HTTPS connections
-            if header_name == "Strict-Transport-Security":
-                if request.url.scheme != "https":
-                    continue
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                # Convert list of tuples to MultiDict or just edit in place
+                # ASGI headers are list of (name, value) bytes
+                from starlette.datastructures import MutableHeaders
 
-            response.headers[header_name] = header_value
+                headers = MutableHeaders(scope=message)
 
-        # Remove potentially dangerous headers
-        dangerous_headers = [
-            "Server",
-            "X-Powered-By",
-            "X-AspNet-Version",
-            "X-AspNetMvc-Version",
-        ]
+                # Add security headers
+                for header_name, header_value in self.headers.items():
+                    if header_name == "Strict-Transport-Security":
+                        if scope.get("scheme") != "https":
+                            continue
+                    headers[header_name] = header_value
 
-        for header in dangerous_headers:
-            if header in response.headers:
-                del response.headers[header]
+                # Remove potentially dangerous headers
+                dangerous_headers = [
+                    "Server",
+                    "X-Powered-By",
+                    "X-AspNet-Version",
+                    "X-AspNetMvc-Version",
+                ]
+                for header in dangerous_headers:
+                    if header in headers:
+                        del headers[header]
 
-        return response
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)

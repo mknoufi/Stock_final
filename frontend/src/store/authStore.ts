@@ -24,6 +24,7 @@ export interface AuthState {
   isLoading: boolean;
   isInitialized: boolean;
   hasValidToken: () => boolean;
+  checkTokenExpired: (token: string) => boolean;
   startHeartbeat: () => void;
   stopHeartbeat: () => void;
   login: (
@@ -70,7 +71,7 @@ const BIOMETRIC_PIN_KEY = "biometric_pin";
 const LAST_USER_STORAGE_KEY = "last_logged_user";
 
 const log = createLogger("authStore");
-let heartbeatInterval: any = null;
+let heartbeatInterval: NodeJS.Timeout | null = null;
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -369,6 +370,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setLoading: (loading: boolean) => set({ isLoading: loading }),
 
+  // Helper function to check if JWT token is expired
+  checkTokenExpired: (token: string): boolean => {
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return false; // Not a valid JWT
+      
+      const payload = parts[1] ? JSON.parse(atob(parts[1])) : null;
+      if (!payload || !payload.exp) return false;
+      
+      const now = Math.floor(Date.now() / 1000);
+      
+      // Add 30 second buffer to account for clock skew
+      return payload.exp < (now - 30);
+    } catch {
+      return false; // If we can't parse, assume it's valid
+    }
+  },
+
   loadStoredAuth: async () => {
     if (get().isInitialized) return;
 
@@ -383,6 +402,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       if (storedUser && storedToken) {
+        // Check if token is expired
+        const isExpired = get().checkTokenExpired(storedToken);
+        if (isExpired) {
+          log.warn("Stored token is expired, clearing auth state");
+          await get().logout();
+          set({ isLoading: false, isInitialized: true });
+          return;
+        }
+
         const user = JSON.parse(storedUser) as User;
         apiClient.defaults.headers.common["Authorization"] =
           `Bearer ${storedToken}`;

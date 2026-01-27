@@ -3,7 +3,7 @@ import { create } from "zustand";
 export interface SyncItem {
   id: string;
   operation: string;
-  payload: any;
+  payload: Record<string, unknown>;
   timestamp: number;
 }
 

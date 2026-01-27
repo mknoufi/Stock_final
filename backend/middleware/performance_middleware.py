@@ -23,66 +23,72 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 
-class PerformanceMiddleware(BaseHTTPMiddleware):
-    """Middleware to track request performance"""
+class PerformanceMiddleware:
+    """Middleware to track request performance (ASGI Pattern)"""
 
     def __init__(self, app: ASGIApp, monitoring: MonitoringService):
-        super().__init__(app)
+        self.app = app
         self.monitoring = monitoring
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        """Process request and track performance"""
-        start_time = time.time()
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
 
-        # Get endpoint path
-        endpoint = request.url.path
+        start_time = time.time()
+        endpoint = scope["path"]
+        method = scope["method"]
+
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                duration = time.time() - start_time
+                status_code = message["status"]
+
+                # Track request
+                self.monitoring.track_request(
+                    endpoint=endpoint,
+                    method=method,
+                    status_code=status_code,
+                    duration=duration,
+                )
+
+                # Add performance headers
+                from starlette.datastructures import MutableHeaders
+
+                headers = MutableHeaders(scope=message)
+                headers["X-Response-Time"] = f"{duration:.3f}s"
+
+                # Try to get X-Request-ID from request headers which is in scope
+                # But headers in scope are bytes
+                req_headers = dict(scope.get("headers", []))
+                request_id = req_headers.get(b"x-request-id", b"unknown").decode()
+                headers["X-Request-ID"] = request_id
+
+            await send(message)
 
         try:
-            # Process request
-            response = await call_next(request)
-
-            # Calculate duration
-            duration = time.time() - start_time
-
-            # Track request
-            self.monitoring.track_request(
-                endpoint=endpoint,
-                method=request.method,
-                status_code=response.status_code,
-                duration=duration,
-            )
-
-            # Add performance headers
-            response.headers["X-Response-Time"] = f"{duration:.3f}s"
-            response.headers["X-Request-ID"] = request.headers.get("X-Request-ID", "unknown")
-
-            return response
-
+            await self.app(scope, receive, send_wrapper)
         except Exception as e:
             duration = time.time() - start_time
-
-            # Track error
             self.monitoring.track_error(
                 endpoint=endpoint,
                 error=e,
                 context={
-                    "method": request.method,
+                    "method": method,
                     "duration": duration,
                 },
             )
+            raise e
 
-            raise
 
-
-class CacheMiddleware(BaseHTTPMiddleware):
-    """Middleware to add cache headers for GET requests"""
+class CacheMiddleware:
+    """Middleware to add cache headers for GET requests (ASGI Pattern)"""
 
     def __init__(
         self,
         app: ASGIApp,
         default_cache_max_age: int = 300,  # 5 minutes
     ):
-        super().__init__(app)
+        self.app = app
         self.default_cache_max_age = default_cache_max_age
 
         # Endpoints that should not be cached
@@ -92,18 +98,25 @@ class CacheMiddleware(BaseHTTPMiddleware):
             "/api/count-lines",
         }
 
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        """Add cache headers to response"""
-        response = await call_next(request)
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
 
-        # Only cache successful GET requests
-        if (
-            request.method == "GET"
-            and response.status_code == 200
-            and request.url.path not in self.no_cache_paths
-        ):
-            # Add cache headers
-            response.headers["Cache-Control"] = f"public, max-age={self.default_cache_max_age}"
-            response.headers["ETag"] = f'"{hash(request.url.path)}"'
+        method = scope["method"]
+        path = scope["path"]
 
-        return response
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+
+                # Only cache successful GET requests
+                if method == "GET" and status_code == 200 and path not in self.no_cache_paths:
+                    from starlette.datastructures import MutableHeaders
+
+                    headers = MutableHeaders(scope=message)
+                    headers["Cache-Control"] = f"public, max-age={self.default_cache_max_age}"
+                    headers["ETag"] = f'"{hash(path)}"'
+
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)

@@ -50,15 +50,15 @@ class CorrelationIDFilter(logging.Filter):
 logger = logging.getLogger(__name__)
 
 
-class RequestIDMiddleware(BaseHTTPMiddleware):
+class RequestIDMiddleware:
     """
-    Request ID / Correlation ID Middleware
-
+    Request ID / Correlation ID Middleware (ASGI Pattern)
     Features:
     - X-Request-ID: Unique per-request identifier (generated if not provided)
     - X-Correlation-ID: Traces requests across services (propagated from upstream)
     - Context variables for async access throughout the request lifecycle
     - Response headers for client-side correlation
+    Uses pure ASGI pattern to avoid TaskGroup crashes in BaseHTTPMiddleware.
     """
 
     def __init__(
@@ -67,12 +67,16 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         request_id_header: str = "X-Request-ID",
         correlation_id_header: str = "X-Correlation-ID",
     ):
-        super().__init__(app)
+        self.app = app
         self.request_id_header = request_id_header
         self.correlation_id_header = correlation_id_header
 
-    async def dispatch(self, request: Request, call_next):
-        """Process request with request and correlation IDs"""
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        request = Request(scope, receive=receive)
+
         # Get or generate request ID
         request_id = request.headers.get(self.request_id_header.lower())
         if not request_id:
@@ -89,24 +93,30 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 
         try:
             # Store in request state for backward compatibility
-            request.state.request_id = request_id
-            request.state.correlation_id = correlation_id
+            # This is slightly tricky in pure ASGI as request.state is not automatically available
+            # We can use scope['state'] which is where Starlette stores it
+            if "state" not in scope:
+                scope["state"] = {}
+            scope["state"]["request_id"] = request_id
+            scope["state"]["correlation_id"] = correlation_id
 
-            # Log request with IDs (only for non-health endpoints to reduce noise)
-            if not request.url.path.startswith("/health"):
+            # Log request with IDs (only for non-health endpoints)
+            if not scope["path"].startswith("/health"):
                 logger.debug(
-                    f"Request: {request.method} {request.url.path} "
+                    f"Request: {scope['method']} {scope['path']} "
                     f"[request_id={request_id}, correlation_id={correlation_id}]"
                 )
 
-            # Process request
-            response = await call_next(request)
+            async def send_wrapper(message):
+                if message["type"] == "http.response.start":
+                    from starlette.datastructures import MutableHeaders
 
-            # Add IDs to response headers
-            response.headers[self.request_id_header] = request_id
-            response.headers[self.correlation_id_header] = correlation_id
+                    headers = MutableHeaders(scope=message)
+                    headers[self.request_id_header] = request_id
+                    headers[self.correlation_id_header] = correlation_id
+                await send(message)
 
-            return response
+            await self.app(scope, receive, send_wrapper)
         finally:
             # Reset context variables
             request_id_ctx.reset(request_id_token)

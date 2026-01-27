@@ -17,8 +17,8 @@ from backend.services.rate_limiter import RateLimiter
 logger = logging.getLogger(__name__)
 
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Middleware to enforce rate limiting"""
+class RateLimitMiddleware:
+    """Middleware to enforce rate limiting (ASGI Pattern)"""
 
     def __init__(
         self,
@@ -27,7 +27,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         enabled: bool = True,
         jwt_secret: Optional[str] = None,
     ):
-        super().__init__(app)
+        self.app = app
         self.rate_limiter = rate_limiter
         self.enabled = enabled
         # SECURITY: Require JWT_SECRET from environment, no insecure fallback
@@ -38,15 +38,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 "User-based rate limiting will fall back to IP-based limiting."
             )
 
-    async def dispatch(self, request: Request, call_next: Callable):
-        """Check rate limit before processing request"""
-        if not self.enabled:
-            return await call_next(request)
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not self.enabled:
+            return await self.app(scope, receive, send)
+
+        request = Request(scope, receive=receive)
+        path = scope["path"]
 
         # Skip rate limiting for public endpoints (health, login, register)
         public_paths = ["/api/health", "/api/auth/login", "/api/auth/register"]
-        if request.url.path in public_paths:
-            return await call_next(request)
+        if path in public_paths:
+            return await self.app(scope, receive, send)
 
         # Extract user ID from token if available, fallback to IP-based limiting
         user_id = None
@@ -62,54 +64,67 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Fallback to IP-based limiting if no user ID
         if not user_id:
-            # Use X-Forwarded-For header for proxied requests, otherwise client host
             forwarded_for = request.headers.get("X-Forwarded-For")
             client_ip = forwarded_for.split(",")[0].strip() if forwarded_for else None
             user_id = client_ip or (request.client.host if request.client else "anonymous")
 
-        # Get endpoint
-        endpoint = request.url.path
-
         # Check rate limit
-        allowed, info = self.rate_limiter.is_allowed(user_id=user_id, endpoint=endpoint)
+        allowed, info = self.rate_limiter.is_allowed(user_id=user_id, endpoint=path)
 
-        # Extract rate limit info
         limit = info.get("limit", self.rate_limiter.default_rate)
         remaining = info.get("remaining", 0)
         reset_in = info.get("reset_in", 60)
 
         if not allowed:
             retry_after = info.get("retry_after", 60)
-            raise HTTPException(
-                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                detail={
-                    "success": False,
-                    "error": {
-                        "message": "Rate limit exceeded. Please try again later.",
-                        "code": "RATE_LIMIT_EXCEEDED",
-                        "category": "rate_limit",
-                        "details": {
-                            "limit": limit,
-                            "remaining": 0,
-                            "reset_in": reset_in,
-                            "retry_after": retry_after,
-                        },
+
+            # Send 429 Too Many Requests response directly
+            import json
+
+            response_body = {
+                "success": False,
+                "error": {
+                    "message": "Rate limit exceeded. Please try again later.",
+                    "code": "RATE_LIMIT_EXCEEDED",
+                    "category": "rate_limit",
+                    "details": {
+                        "limit": limit,
+                        "remaining": 0,
+                        "reset_in": reset_in,
+                        "retry_after": retry_after,
                     },
                 },
-                headers={
-                    "Retry-After": str(retry_after),
-                    "X-RateLimit-Limit": str(limit),
-                    "X-RateLimit-Remaining": "0",
-                    "X-RateLimit-Reset": str(reset_in),
-                },
+            }
+
+            await send(
+                {
+                    "type": "http.response.start",
+                    "status": 429,
+                    "headers": [
+                        (b"content-type", b"application/json"),
+                        (b"retry-after", str(retry_after).encode()),
+                        (b"x-ratelimit-limit", str(limit).encode()),
+                        (b"x-ratelimit-remaining", b"0"),
+                        (b"x-ratelimit-reset", str(reset_in).encode()),
+                    ],
+                }
             )
+            await send(
+                {
+                    "type": "http.response.body",
+                    "body": json.dumps(response_body).encode("utf-8"),
+                }
+            )
+            return
 
-        # Process request
-        response = await call_next(request)
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                from starlette.datastructures import MutableHeaders
 
-        # Add rate limit headers to successful responses
-        response.headers["X-RateLimit-Limit"] = str(limit)
-        response.headers["X-RateLimit-Remaining"] = str(remaining)
-        response.headers["X-RateLimit-Reset"] = str(reset_in)
+                headers = MutableHeaders(scope=message)
+                headers["X-RateLimit-Limit"] = str(limit)
+                headers["X-RateLimit-Remaining"] = str(remaining)
+                headers["X-RateLimit-Reset"] = str(reset_in)
+            await send(message)
 
-        return response
+        await self.app(scope, receive, send_wrapper)

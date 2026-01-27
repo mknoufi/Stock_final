@@ -13,10 +13,11 @@ from starlette.responses import JSONResponse
 logger = logging.getLogger(__name__)
 
 
-class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
+class RequestSizeLimitMiddleware:
     """
-    Middleware to limit request payload size
-    Prevents denial-of-service attacks via large requests
+    Middleware to limit request payload size (ASGI Pattern)
+    Prevents denial-of-service attacks via large requests.
+    Uses pure ASGI pattern to avoid TaskGroup crashes in BaseHTTPMiddleware.
     """
 
     def __init__(
@@ -25,44 +26,79 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
         max_size: int = 10 * 1024 * 1024,  # 10 MB default
         exempt_paths: list = None,
     ):
-        super().__init__(app)
+        self.app = app
         self.max_size = max_size
         self.exempt_paths = exempt_paths or ["/health"]
         logger.info(f"Request size limit: {max_size / (1024 * 1024):.1f} MB")
 
-    async def dispatch(self, request: Request, call_next):
-        # Skip size check for exempt paths (like health checks)
-        if any(request.url.path.startswith(path) for path in self.exempt_paths):
-            return await call_next(request)
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        path = scope["path"]
+
+        # Skip size check for exempt paths
+        if any(path.startswith(p) for p in self.exempt_paths):
+            return await self.app(scope, receive, send)
 
         # Check Content-Length header
-        content_length = request.headers.get("content-length")
+        headers = dict(scope.get("headers", []))
+        content_length_bytes = headers.get(b"content-length")
 
-        if content_length:
+        if content_length_bytes:
             try:
-                content_length = int(content_length)
+                content_length = int(content_length_bytes.decode())
             except ValueError:
-                return JSONResponse(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    content={
-                        "detail": "Invalid Content-Length header",
-                        "error": "INVALID_CONTENT_LENGTH",
-                    },
+                import json
+
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 400,
+                        "headers": [(b"content-type", b"application/json")],
+                    }
                 )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": json.dumps(
+                            {
+                                "detail": "Invalid Content-Length header",
+                                "error": "INVALID_CONTENT_LENGTH",
+                            }
+                        ).encode("utf-8"),
+                    }
+                )
+                return
 
             if content_length > self.max_size:
+                client_host = scope.get("client", ["unknown"])[0]
                 logger.warning(
                     f"Request too large: {content_length} bytes (max: {self.max_size}) "
-                    f"from {request.client.host if request.client else 'unknown'}"
+                    f"from {client_host}"
                 )
-                return JSONResponse(
-                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    content={
-                        "detail": f"Request payload too large. Maximum size: {self.max_size} bytes",
-                        "max_size_mb": round(self.max_size / (1024 * 1024), 2),
-                        "received_size_mb": round(content_length / (1024 * 1024), 2),
-                        "error": "REQUEST_TOO_LARGE",
-                    },
-                )
+                import json
 
-        return await call_next(request)
+                await send(
+                    {
+                        "type": "http.response.start",
+                        "status": 413,
+                        "headers": [(b"content-type", b"application/json")],
+                    }
+                )
+                await send(
+                    {
+                        "type": "http.response.body",
+                        "body": json.dumps(
+                            {
+                                "detail": f"Request payload too large. Maximum size: {self.max_size} bytes",
+                                "max_size_mb": round(self.max_size / (1024 * 1024), 2),
+                                "received_size_mb": round(content_length / (1024 * 1024), 2),
+                                "error": "REQUEST_TOO_LARGE",
+                            }
+                        ).encode("utf-8"),
+                    }
+                )
+                return
+
+        await self.app(scope, receive, send)

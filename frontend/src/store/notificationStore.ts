@@ -48,9 +48,10 @@ export const useNotificationStore = create<NotificationState>()(
             isLoading: false,
             lastFetched: Date.now(),
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const err = error instanceof Error ? error : new Error(String(error));
           set({
-            error: error.message || "Failed to fetch notifications",
+            error: err.message || "Failed to fetch notifications",
             isLoading: false,
           });
         }
@@ -90,8 +91,9 @@ export const useNotificationStore = create<NotificationState>()(
             })),
             unreadCount: 0,
           }));
-        } catch (error: any) {
-          set({ error: error.message || "Failed to mark all as read" });
+        } catch (error: unknown) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          set({ error: err.message || "Failed to mark all as read" });
         }
       },
 

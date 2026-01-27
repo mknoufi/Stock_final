@@ -26,12 +26,13 @@ export const useWebSocket = (sessionId?: string) => {
 
     // Convert http:// to ws:// or https:// to wss://
     const wsUrl = API_BASE_URL.replace(/^http/, "ws") + "/ws/updates";
-    const urlWithParams = `${wsUrl}${sessionId ? `?session_id=${sessionId}` : ""}`;
+    // Use query parameter for authentication instead of subprotocols
+    const urlWithParams = `${wsUrl}?token=${encodeURIComponent(token)}${sessionId ? `&session_id=${sessionId}` : ""}`;
 
-    console.log("[WebSocket] Connecting to:", wsUrl);
+    console.log("[WebSocket] Connecting to:", wsUrl.replace(/token=[^&]+/, "token=***"));
 
-    // Prefer subprotocol auth (avoids leaking tokens in URLs/logs)
-    const socket = new WebSocket(urlWithParams, ["jwt", token]);
+    // Use query param auth instead of subprotocols (server doesn't support subprotocol handshake)
+    const socket = new WebSocket(urlWithParams);
 
     socket.onopen = () => {
       console.log("[WebSocket] Connected");

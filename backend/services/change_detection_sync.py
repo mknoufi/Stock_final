@@ -451,3 +451,7 @@ class ChangeDetectionSyncService:
             status["success_rate"] = f"{success_rate:.1f}%"
 
         return status
+
+    def get_stats(self) -> dict[str, Any]:
+        """Alias for get_status to maintain backward compatibility with tests."""
+        return self.get_status()

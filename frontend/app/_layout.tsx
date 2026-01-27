@@ -151,27 +151,8 @@ export default function RootLayout() {
         return;
       }
 
-      // Emergency fallback: force initialization after 3 seconds
-      const emergencyTimeout = setTimeout(() => {
-        if (__DEV__) {
-          console.error("🚨 [EMERGENCY] FORCING INITIALIZATION AFTER 3s!");
-          console.error(
-            "🚨 Current isLoading:",
-            useAuthStore.getState().isLoading,
-          );
-          console.error("🚨 Current isInitialized:", isInitialized);
-        }
-        useAuthStore.getState().setLoading(false);
-        useAuthStore.setState({ isInitialized: true });
-        setIsInitialized(true);
-        setInitError("Initialization timed out - some features may not work");
-        SplashScreen.hideAsync().catch((e) => {
-          __DEV__ && console.error("SplashScreen hide failed:", e);
-        });
-      }, 3000);
-
       try {
-        // Initialize storage first
+        // Initialize storage first (critical)
         try {
           const mmkvPromise = mmkvStorage.initialize();
           const timeoutPromise = new Promise((_, reject) =>
@@ -185,93 +166,102 @@ export default function RootLayout() {
           console.warn("⚠️ MMKV initialization failed or timed out:", e);
         }
 
-        // Initialize backend URL discovery first with timeout
-        try {
-          const backendUrlPromise = initializeBackendURL().then((url) => {
-            if (url) updateBaseURL(url);
-          });
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Backend URL initialization timeout")),
-              5000,
-            ),
-          );
-          await Promise.race([backendUrlPromise, timeoutPromise]);
-        } catch (urlError) {
+        // Run independent initialization steps in parallel
+        const [
+          backendUrlResult,
+          authResult,
+          settingsResult,
+          syncResult,
+          themeResult,
+        ] = await Promise.allSettled([
+          // Backend URL discovery (with timeout)
+          (async () => {
+            const backendUrlPromise = initializeBackendURL().then((url) => {
+              if (url) updateBaseURL(url);
+            });
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Backend URL initialization timeout")),
+                5000,
+              ),
+            );
+            await Promise.race([backendUrlPromise, timeoutPromise]);
+          })(),
+
+          // Load stored auth (with timeout)
+          (async () => {
+            const authPromise = loadStoredAuth();
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Auth loading timeout")), 3000),
+            );
+            await Promise.race([authPromise, timeoutPromise]);
+          })(),
+
+          // Load settings (with timeout)
+          (async () => {
+            const settingsPromise = loadSettings();
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Settings loading timeout")),
+                3000,
+              ),
+            );
+            await Promise.race([settingsPromise, timeoutPromise]);
+          })(),
+
+          // Register background sync task (with timeout)
+          (async () => {
+            const syncPromise = registerBackgroundSync();
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Background sync timeout")),
+                1000,
+              ),
+            );
+            await Promise.race([syncPromise, timeoutPromise]);
+          })(),
+
+          // Initialize theme (with timeout)
+          (async () => {
+            const themePromise = ThemeService.initialize();
+            const timeoutPromise = new Promise((_, reject) =>
+              setTimeout(
+                () => reject(new Error("Theme initialization timeout")),
+                1000,
+              ),
+            );
+            await Promise.race([themePromise, timeoutPromise]);
+          })(),
+        ]);
+
+        // Log any failures but continue
+        if (backendUrlResult.status === "rejected") {
           if (__DEV__) {
             console.warn(
-              "⚠️ Backend URL initialization failed or timed out:",
-              urlError,
+              "⚠️ Backend URL initialization failed:",
+              backendUrlResult.reason,
             );
           }
-          // Continue anyway - will use default URL
         }
-
-        // Load stored auth
-        try {
-          const authPromise = loadStoredAuth();
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("Auth loading timeout")), 3000),
-          );
-          await Promise.race([authPromise, timeoutPromise]);
-        } catch (authError) {
+        if (authResult.status === "rejected") {
           if (__DEV__) {
-            console.warn("⚠️ Auth loading failed or timed out:", authError);
-          }
-          // Continue anyway - user can login manually
-        }
-
-        // Load settings
-        try {
-          const settingsPromise = loadSettings();
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Settings loading timeout")),
-              3000,
-            ),
-          );
-          await Promise.race([settingsPromise, timeoutPromise]);
-        } catch (settingsError) {
-          if (__DEV__) {
-            console.warn(
-              "⚠️ Settings loading failed or timed out:",
-              settingsError,
-            );
-          }
-          // Continue anyway - will use defaults
-        }
-
-        // Register background sync task (with timeout)
-        try {
-          const syncPromise = registerBackgroundSync();
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Background sync timeout")),
-              1000,
-            ),
-          );
-          await Promise.race([syncPromise, timeoutPromise]);
-        } catch (syncError) {
-          if (__DEV__) {
-            console.warn("⚠️ Background sync registration failed:", syncError);
+            console.warn("⚠️ Auth loading failed:", authResult.reason);
           }
         }
-
-        // Initialize theme (with timeout)
-        try {
-          const themePromise = ThemeService.initialize();
-          const timeoutPromise = new Promise((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Theme initialization timeout")),
-              1000,
-            ),
-          );
-          await Promise.race([themePromise, timeoutPromise]);
-        } catch (themeError) {
+        if (settingsResult.status === "rejected") {
           if (__DEV__) {
-            console.warn("⚠️ Theme initialization failed:", themeError);
+            console.warn("⚠️ Settings loading failed:", settingsResult.reason);
           }
-          // Continue anyway - will use default theme
+        }
+        if (syncResult.status === "rejected") {
+          if (__DEV__) {
+            console.warn("⚠️ Background sync failed:", syncResult.reason);
+          }
+        }
+        if (themeResult.status === "rejected") {
+          if (__DEV__) {
+            console.warn("⚠️ Theme initialization failed:", themeResult.reason);
+          }
         }
 
         if (Platform.OS !== "web") {
@@ -301,7 +291,6 @@ export default function RootLayout() {
 
         // Always set initialized to true, even if some steps failed
         clearTimeout(maxTimeout);
-        clearTimeout(emergencyTimeout);
         useAuthStore.getState().setLoading(false); // Ensure loading is cleared
         useAuthStore.setState({ isInitialized: true }); // Ensure store is initialized
         setIsInitialized(true);
@@ -333,7 +322,6 @@ export default function RootLayout() {
         // Always set initialized to true to prevent infinite loading
         console.warn("⚠️ [INIT] Initialization had errors but continuing...");
         clearTimeout(maxTimeout);
-        clearTimeout(emergencyTimeout);
         useAuthStore.getState().setLoading(false);
         setIsInitialized(true);
         await SplashScreen.hideAsync();

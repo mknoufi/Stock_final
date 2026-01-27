@@ -303,7 +303,7 @@ class Settings(PydanticBaseSettings):
         default=None, description="Sentry DSN for error tracking. Set via SENTRY_DSN env var."
     )
     SENTRY_ENVIRONMENT: Optional[str] = Field(
-        default=None, description="Sentry environment (defaults to ENVIRONMENT setting)"
+        default="development", description="Sentry environment (defaults to ENVIRONMENT setting)"
     )
     SENTRY_TRACES_SAMPLE_RATE: float = Field(
         default=0.1,

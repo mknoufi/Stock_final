@@ -35,10 +35,11 @@ class SessionContextFilter(logging.Filter):
         return True
 
 
-class SessionContextLoggingMiddleware(BaseHTTPMiddleware):
+class SessionContextLoggingMiddleware:
     """
     Middleware that extracts user and session context from JWT tokens
-    and makes it available for logging throughout the request lifecycle
+    and makes it available for logging throughout the request lifecycle.
+    Uses pure ASGI pattern to avoid TaskGroup crashes in BaseHTTPMiddleware.
     """
 
     def __init__(
@@ -47,7 +48,7 @@ class SessionContextLoggingMiddleware(BaseHTTPMiddleware):
         exclude_paths: Optional[list[str]] = None,
         log_request_body: bool = False,
     ):
-        super().__init__(app)
+        self.app = app
         self.exclude_paths = exclude_paths or [
             "/health",
             "/api/health",
@@ -57,17 +58,24 @@ class SessionContextLoggingMiddleware(BaseHTTPMiddleware):
         ]
         self.log_request_body = log_request_body
 
-    async def dispatch(self, request: Request, call_next):
-        """Process request with session context logging"""
-        start_time = time.time()
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+
+        request = Request(scope, receive=receive)
+        path = scope["path"]
 
         # Skip excluded paths
-        path = request.url.path
         if any(path.startswith(excluded) for excluded in self.exclude_paths):
-            return await call_next(request)
+            return await self.app(scope, receive, send)
+
+        start_time = time.time()
 
         # Extract request ID if available
-        request_id = getattr(request.state, "request_id", None)
+        # Request ID might be added by a previous middleware in scope['state']
+        # But for Starlette/FastAPI, it's often in request.state
+        # Since we are early in the chain, we might need to check headers
+        request_id = request.headers.get("X-Request-ID")
         if request_id:
             current_request_id.set(request_id)
 
@@ -82,19 +90,36 @@ class SessionContextLoggingMiddleware(BaseHTTPMiddleware):
         # Log request start with context
         self._log_request_start(request, user_info)
 
-        # Process request
-        response = await call_next(request)
+        async def send_wrapper(message):
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+                duration_ms = (time.time() - start_time) * 1000
 
-        # Calculate duration
-        duration_ms = (time.time() - start_time) * 1000
+                # Mock a response object for logging (only needs status_code)
+                class MockResponse:
+                    def __init__(self, code):
+                        self.status_code = code
 
-        # Log request completion
-        self._log_request_complete(request, response, duration_ms, user_info)
+                self._log_request_complete(
+                    request, MockResponse(status_code), duration_ms, user_info
+                )
+                self._clear_context()
 
-        # Clear context vars after request
-        self._clear_context()
+            await send(message)
 
-        return response
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except Exception as e:
+            # Log exception and duration if it hasn't been logged yet
+            duration_ms = (time.time() - start_time) * 1000
+
+            class ErrorResponse:
+                def __init__(self):
+                    self.status_code = 500
+
+            self._log_request_complete(request, ErrorResponse(), duration_ms, user_info)
+            self._clear_context()
+            raise e
 
     async def _extract_user_context(self, request: Request) -> Optional[dict[str, Any]]:
         """Extract user context from JWT token without full validation"""
