@@ -173,21 +173,49 @@ async def create_session(
         )
         return Session(**existing_session)
 
-    # Check session limit - users can have maximum 5 open sessions
-    MAX_OPEN_SESSIONS = 5
-    open_sessions_count = await db.sessions.count_documents(
-        {"staff_user": current_user["username"], "status": "OPEN"}
+    # Enforce Invariant E: Single Session per User
+    # In a live production environment, opening a new session must invalidate old ones.
+    MAX_OPEN_SESSIONS = 1
+
+    # Find any active sessions for this user across both collections
+    open_sessions_filter = {
+        "staff_user": current_user["username"],
+        "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]},
+    }
+
+    # Auto-close strategy to satisfy "Single Session" mandate
+    # We close them with a special status to indicate system intervention
+    now_ts = time.time()
+    now_dt = datetime.utcnow()
+
+    # 1. Close in main sessions collection
+    await db.sessions.update_many(
+        open_sessions_filter,
+        {
+            "$set": {
+                "status": "CLOSED",
+                "completed_at": now_dt,
+                "close_reason": "SYSTEM_AUTO_CLOSE_NEW_SESSION",
+            }
+        },
     )
 
-    if open_sessions_count >= MAX_OPEN_SESSIONS:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"Session limit reached. You already have {open_sessions_count} open sessions. "
-                f"Please close existing sessions before creating a new one "
-                f"(maximum {MAX_OPEN_SESSIONS})."
-            ),
-        )
+    # 2. Close in verification_sessions
+    await db.verification_sessions.update_many(
+        {"user_id": current_user["username"], "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]}},
+        {
+            "$set": {
+                "status": "CLOSED",
+                "completed_at": now_ts,
+                "close_reason": "SYSTEM_AUTO_CLOSE_NEW_SESSION",
+            }
+        },
+    )
+
+    # 3. Revoke previous refresh tokens to ensure session is strictly bound
+    refresh_token_service = get_refresh_token_service()
+    if refresh_token_service:
+        await refresh_token_service.revoke_all_user_tokens(current_user["username"])
 
     # Create Session object
     session = Session(

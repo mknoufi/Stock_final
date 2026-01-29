@@ -160,19 +160,24 @@ class ChangeDetectionSyncService:
                 )
             )
 
-    @result_function(SyncError)
-    async def _fetch_changed_products(self) -> list[ProductData]:
+    async def _fetch_changed_products(self) -> Result[list[ProductData], SyncError]:
         """Fetch changed products from the database."""
         query_result = self._get_products_with_changes_query(self._last_sync)
         if query_result.is_err:
             return query_result  # type: ignore
 
         query = query_result.unwrap()
-        params = [self._last_sync] if self._last_sync else None
+        
+        # Only pass params if query has a WHERE clause (contains '?')
+        # This prevents parameter mismatch errors
+        params = [self._last_sync] if (self._last_sync and '?' in query) else None
 
         try:
-            # Execute query and return results
-            results = await self.sql_connector.execute_query(query, params)
+            # Execute query - may be sync or async
+            results = self.sql_connector.execute_query(query, params)
+            # Handle if execute_query returns a coroutine
+            if asyncio.iscoroutine(results):
+                results = await results
             return Ok(results or [])
         except Exception as e:
             return Fail(
@@ -182,8 +187,9 @@ class ChangeDetectionSyncService:
                 )
             )
 
-    @result_function(SyncError)
-    async def _apply_changes_to_mongodb(self, changes: list[ProductData]) -> dict[str, int]:
+    async def _apply_changes_to_mongodb(
+        self, changes: list[ProductData]
+    ) -> Result[dict[str, int], SyncError]:
         """Apply changes to MongoDB."""
         if not changes:
             return Ok({"matched": 0, "modified": 0})

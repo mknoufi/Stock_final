@@ -381,8 +381,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       
       const now = Math.floor(Date.now() / 1000);
       
-      // Add 30 second buffer to account for clock skew
-      return payload.exp < (now - 30);
+      // Remove aggressive 30-second buffer - let server handle expiration
+      // Only consider expired if actually expired
+      return payload.exp < now;
     } catch {
       return false; // If we can't parse, assume it's valid
     }
@@ -431,21 +432,40 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   startHeartbeat: () => {
     if (heartbeatInterval) return;
+    
+    let consecutiveFailures = 0;
+    const MAX_FAILURES = 3; // Allow 3 failures before logout
+    
     heartbeatInterval = setInterval(async () => {
       if (!get().isAuthenticated) {
         get().stopHeartbeat();
         return;
       }
+      
       try {
         const response = await apiClient.get("/api/auth/heartbeat");
+        consecutiveFailures = 0; // Reset on success
+        
         if (
           response.data.success === false ||
           (response.data.data && response.data.data.session_valid === false)
         ) {
           await get().logout();
         }
-      } catch (_) {}
-    }, 60000);
+      } catch (error) {
+        consecutiveFailures++;
+        log.warn("Heartbeat failed", { 
+          failureCount: consecutiveFailures,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        
+        // Only logout after multiple consecutive failures
+        if (consecutiveFailures >= MAX_FAILURES) {
+          log.error("Heartbeat failed multiple times, logging out");
+          await get().logout();
+        }
+      }
+    }, 300000); // 5 minutes instead of 60 seconds
   },
 
   stopHeartbeat: () => {

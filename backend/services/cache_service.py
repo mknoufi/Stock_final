@@ -35,39 +35,30 @@ try:
 except ImportError:
     try:
         from redis.exceptions import RedisError
-
-        import redis
-
-        REDIS_AVAILABLE = True
     except ImportError:
-        REDIS_AVAILABLE = False
-        logger.warning("Redis not available, using in-memory cache")
-
-        # Define dummy RedisError for type safety when Redis is missing
-        class RedisError(Exception):
-            pass
+        RedisError = Exception
+    REDIS_AVAILABLE = False
 
 
 class CacheService:
     """
     Cache service with Redis backend and in-memory fallback
-    Handles caching of frequently accessed data
+    Thread-safe and async-safe for concurrent access
     """
-
-    _instance: Optional["CacheService"] = None
 
     def __init__(
         self,
         redis_url: Optional[str] = None,
         default_ttl: int = 3600,  # 1 hour default
-        max_memory_size: int = 1000,  # Max items in memory cache
-        socket_timeout: int = 5,
+        max_memory_size: int = 100,  # Max items in memory cache
+        socket_timeout: float = 5.0,
     ):
+        self.redis_url = redis_url
         self.default_ttl = default_ttl
         self.max_memory_size = max_memory_size
         self.socket_timeout = socket_timeout
         self._memory_cache: dict[str, tuple] = {}
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()  # Use asyncio.Lock for async safety
 
         # Try Redis connection
         if REDIS_AVAILABLE and redis_url:

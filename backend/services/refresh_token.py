@@ -76,7 +76,9 @@ class RefreshTokenService:
         """Store refresh token in database"""
         try:
             # Enforce single-session: Revoke ALL existing tokens for this user first
-            # await self.revoke_all_user_tokens(username)  # DISABLED: Causes race conditions in concurrent requests
+            # Enforce single-session: Revoke ALL existing tokens for this user first
+            # Use a short grace period to prevent race conditions from parallel requests (e.g. app init)
+            await self.revoke_all_user_tokens(username, grace_period_seconds=10)
 
             token_hash = _hash_token(token)
             document: dict[str, Any] = {
@@ -122,12 +124,21 @@ class RefreshTokenService:
             token_hash = _hash_token(token)
             stored_token = await self.db.refresh_tokens.find_one(
                 {
-                    "$or": [
-                        {"token_hash": token_hash},
-                        # Backward compatibility with older records (migrate-on-read)
-                        {"token": token},
+                    "$and": [
+                        {
+                            "$or": [
+                                {"token_hash": token_hash},
+                                # Backward compatibility with older records (migrate-on-read)
+                                {"token": token},
+                            ]
+                        },
+                        {
+                            "$or": [
+                                {"revoked": False},
+                                {"grace_until": {"$gt": datetime.utcnow()}},
+                            ]
+                        },
                     ],
-                    "revoked": False,
                     "expires_at": {"$gt": datetime.utcnow()},
                 }
             )
@@ -167,12 +178,18 @@ class RefreshTokenService:
             logger.error(f"Error revoking token: {str(e)}")
             return False
 
-    async def revoke_all_user_tokens(self, username: str) -> int:
+    async def revoke_all_user_tokens(self, username: str, grace_period_seconds: int = 0) -> int:
         """Revoke all refresh tokens for a user"""
         try:
+            update_data = {"revoked": True, "revoked_at": datetime.utcnow()}
+            if grace_period_seconds > 0:
+                update_data["grace_until"] = datetime.utcnow() + timedelta(
+                    seconds=grace_period_seconds
+                )
+
             result = await self.db.refresh_tokens.update_many(
                 {"username": username, "revoked": False},
-                {"$set": {"revoked": True, "revoked_at": datetime.utcnow()}},
+                {"$set": update_data},
             )
             return result.modified_count
         except Exception as e:

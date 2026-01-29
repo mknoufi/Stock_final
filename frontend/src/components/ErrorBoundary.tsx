@@ -4,9 +4,10 @@
  * Enhanced with modern design system support
  */
 
-import React, { Component, ReactNode } from "react";
+import React, { ReactNode } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { ErrorBoundary as ReactErrorBoundary } from "react-error-boundary";
 import { errorReporter } from "../services/errorRecovery";
 import {
   modernColors,
@@ -17,122 +18,82 @@ import { PremiumButton } from "./premium/PremiumButton";
 
 interface Props {
   children: ReactNode;
-  fallback?: (error: Error, errorInfo: any) => ReactNode;
+  fallback?: (error: Error) => ReactNode;
 }
 
-interface State {
-  hasError: boolean;
-  error: Error | null;
-  errorInfo: any;
-}
-
-export class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    };
-  }
-
-  static getDerivedStateFromError(error: Error): State {
-    return {
-      hasError: true,
-      error,
-      errorInfo: null,
-    };
-  }
-
-  componentDidCatch(error: Error, errorInfo: any) {
-    // Safely report error
+const ErrorFallback = ({
+  error,
+  resetErrorBoundary,
+}: {
+  error: any;
+  resetErrorBoundary: () => void;
+}) => {
+  // Report error when component mounts
+  React.useEffect(() => {
     try {
       if (errorReporter && typeof errorReporter.report === "function") {
-        errorReporter.report(error, "ErrorBoundary", {
-          componentStack: errorInfo?.componentStack,
-        });
+        errorReporter.report(error, "ErrorBoundary");
       }
     } catch (reportError) {
       console.error("Error reporting failed:", reportError);
     }
+  }, [error]);
 
-    this.setState({
-      error,
-      errorInfo,
-    });
-  }
-
-  handleReset = () => {
-    this.setState({
-      hasError: false,
-      error: null,
-      errorInfo: null,
-    });
-  };
-
-  render() {
-    if (this.state.hasError) {
-      if (this.props.fallback) {
-        try {
-          return this.props.fallback(this.state.error!, this.state.errorInfo);
-        } catch (fallbackError) {
-          console.error("Fallback render failed:", fallbackError);
-          // Continue to default error UI
-        }
-      }
-
-      return (
-        <View style={styles.container}>
-          <ScrollView
-            contentContainerStyle={styles.content}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.iconContainer}>
-              <Ionicons
-                name="warning-outline"
-                size={80}
-                color={modernColors.error.main}
-              />
-            </View>
-
-            <Text style={styles.title}>Something went wrong</Text>
-
-            <Text style={styles.message}>
-              {this.state.error?.message || "An unexpected error occurred"}
-            </Text>
-
-            {__DEV__ && this.state.error && (
-              <View style={styles.details}>
-                <Text style={styles.detailsTitle}>Error Details:</Text>
-                <Text style={styles.detailsText}>
-                  {this.state.error.toString()}
-                </Text>
-                {this.state.errorInfo?.componentStack && (
-                  <Text style={styles.detailsText}>
-                    {this.state.errorInfo.componentStack}
-                  </Text>
-                )}
-              </View>
-            )}
-
-            <View style={styles.buttonContainer}>
-              <PremiumButton
-                title="Try Again"
-                onPress={this.handleReset}
-                variant="primary"
-                size="medium"
-                icon="refresh-outline"
-                gradientColors={[...modernColors.gradients.primary]}
-              />
-            </View>
-          </ScrollView>
+  return (
+    <View style={styles.container}>
+      <ScrollView
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.iconContainer}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={80}
+            color={modernColors.error.main}
+          />
         </View>
-      );
-    }
 
-    return this.props.children;
-  }
-}
+        <Text style={styles.title}>Something went wrong</Text>
+
+        <Text style={styles.message}>
+          {error?.message || "An unexpected error occurred"}
+        </Text>
+
+        {__DEV__ && error && (
+          <View style={styles.details}>
+            <Text style={styles.detailsTitle}>Error Details:</Text>
+            <Text style={styles.detailsText}>{error.toString()}</Text>
+          </View>
+        )}
+
+        <View style={styles.buttonContainer}>
+          <PremiumButton
+            title="Try Again"
+            onPress={resetErrorBoundary}
+            variant="primary"
+            size="medium"
+            icon="refresh-outline"
+            gradientColors={[...modernColors.gradients.primary]}
+          />
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
+
+export const ErrorBoundary = ({ children, fallback }: Props) => {
+  return (
+    <ReactErrorBoundary
+      fallbackRender={
+        fallback
+          ? ({ error }) => fallback(error as Error)
+          : (props) => <ErrorFallback {...props} />
+      }
+    >
+      {children}
+    </ReactErrorBoundary>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {

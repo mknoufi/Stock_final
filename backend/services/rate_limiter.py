@@ -3,8 +3,8 @@ Rate Limiter Service - Prevent API abuse and handle concurrent requests
 Implements token bucket algorithm for rate limiting
 """
 
+import asyncio
 import logging
-import threading
 import time
 from collections import defaultdict
 from typing import Any, Optional
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class RateLimiter:
     """
-    Thread-safe rate limiter using token bucket algorithm
+    Async-safe rate limiter using token bucket algorithm
     Supports per-user and per-endpoint rate limiting
     """
 
@@ -32,7 +32,7 @@ class RateLimiter:
 
         # Token buckets: key -> (tokens, last_refill)
         self._buckets: dict[str, tuple] = {}
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()  # Use asyncio.Lock for async safety
 
         # Request tracking for analytics
         self._request_counts: dict[str, int] = defaultdict(int)
@@ -165,28 +165,30 @@ class ConcurrentRequestHandler:
     def __init__(self, max_concurrent: int = 50, queue_size: int = 100):
         self.max_concurrent = max_concurrent
         self.queue_size = queue_size
-        self._semaphore = threading.Semaphore(max_concurrent)
+        self._semaphore = asyncio.Semaphore(max_concurrent)  # Use asyncio.Semaphore
         self._queue: list = []
         self._active = 0
-        self._lock = threading.Lock()
+        self._lock = asyncio.Lock()  # Use asyncio.Lock
 
-    def acquire(self, timeout: float = 5.0) -> bool:
+    async def acquire(self, timeout: float = 5.0) -> bool:
         """Acquire slot for request"""
-        if self._semaphore.acquire(timeout=timeout):
-            with self._lock:
+        try:
+            await asyncio.wait_for(self._semaphore.acquire(), timeout=timeout)
+            async with self._lock:
                 self._active += 1
             return True
-        return False
+        except asyncio.TimeoutError:
+            return False
 
-    def release(self):
+    async def release(self):
         """Release slot after request"""
-        with self._lock:
+        async with self._lock:
             self._active = max(0, self._active - 1)
         self._semaphore.release()
 
-    def get_stats(self) -> dict[str, Any]:
+    async def get_stats(self) -> dict[str, Any]:
         """Get handler statistics"""
-        with self._lock:
+        async with self._lock:
             return {
                 "max_concurrent": self.max_concurrent,
                 "active": self._active,

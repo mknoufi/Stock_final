@@ -12,6 +12,8 @@ export interface Item {
   current_stock?: number;
   category?: string;
   subcategory?: string;
+  is_misplaced?: boolean;
+  expected_location?: string;
   uom?: string;
   uom_name?: string;
   uom_code?: string;
@@ -50,12 +52,7 @@ export interface Item {
 
 export type ScannerMode = "item" | "serial";
 
-export type PhotoProofType =
-  | "ITEM"
-  | "SERIAL"
-  | "LOCATION"
-  | "DAMAGE"
-  | "SHELF";
+export type PhotoProofType = "ITEM" | "SERIAL" | "LOCATION" | "DAMAGE" | "SHELF";
 
 export interface ScanFormData {
   countedQty: string;

@@ -7,10 +7,12 @@ import asyncio
 import csv
 import io
 import logging
+import base64
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
+import pandas as pd
 from bson import ObjectId
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -28,6 +30,7 @@ class ExportFrequency(str, Enum):
 class ExportFormat(str, Enum):
     CSV = "csv"
     JSON = "json"
+    EXCEL = "excel"
 
 
 class ScheduledExportService:
@@ -123,10 +126,17 @@ class ScheduledExportService:
                 raise ValueError(f"Unknown export type: {export_type}")
 
             # Format data
+            # Format data
             if format_type == ExportFormat.CSV:
                 file_content = self._format_as_csv(data)
                 file_extension = "csv"
+            elif format_type == ExportFormat.EXCEL:
+                # Excel export (base64 encoded binary)
+                file_content_bytes = self._format_as_excel(data)
+                file_content = base64.b64encode(file_content_bytes).decode("utf-8")
+                file_extension = "xlsx"
             else:
+                # Default to JSON
                 import json
 
                 file_content = json.dumps(data, indent=2, default=str)
@@ -418,3 +428,14 @@ class ScheduledExportService:
             except asyncio.CancelledError:
                 pass
         logger.info("Scheduled export service stopped")
+
+    def _format_as_excel(self, data: list[dict]) -> bytes:
+        """Convert data to Excel format (bytes)"""
+        if not data:
+            data = [{"message": "No data"}]
+
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
+            df = pd.DataFrame(data)
+            df.to_excel(writer, index=False)
+        return output.getvalue()

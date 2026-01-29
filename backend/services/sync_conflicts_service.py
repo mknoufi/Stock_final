@@ -185,6 +185,24 @@ class SyncConflictsService:
         if resolution != ConflictResolution.IGNORE and resolved_data:
             entity_type = conflict.get("entity_type")
             entity_id = conflict.get("entity_id")
+
+            # --- Rule 7 & G-04: Conflict Forking ---
+            # If the entity is already APPROVED, we must FORK instead of OVERWRITING.
+            if entity_type == "count_line":
+                target_doc = await self.db.verification_records.find_one(
+                    {"_id": ObjectId(entity_id)}
+                )
+                if target_doc and target_doc.get("status") == "APPROVED":
+                    logger.info(f"Rule 7: Forking approved record {entity_id}")
+                    await self._fork_approved_record(
+                        str(entity_type), str(entity_id), target_doc, resolved_data
+                    )
+                    return {
+                        "conflict_id": conflict_id,
+                        "resolution": "FORKED",
+                        "resolved_data": resolved_data,
+                    }
+
             if entity_type and entity_id:
                 await self._apply_resolved_data(str(entity_type), str(entity_id), resolved_data)
 
@@ -195,6 +213,30 @@ class SyncConflictsService:
             "resolution": resolution.value,
             "resolved_data": resolved_data,
         }
+
+    async def _fork_approved_record(
+        self, entity_type: str, entity_id: str, original_doc: dict, new_data: dict
+    ):
+        """Creates a forked version of an approved record to preserve audit history (Rule 7)."""
+        forked_doc = original_doc.copy()
+        del forked_doc["_id"]
+        forked_doc["original_id"] = entity_id
+        forked_doc["status"] = "FORKED_REVISION"
+        forked_doc["data"] = new_data
+        forked_doc["forked_at"] = datetime.now(UTC)
+
+        await self.db.verification_records.insert_one(forked_doc)
+
+        # Log the fork in audit trail
+        await self.db.audit_logs.insert_one(
+            {
+                "event": "RECORD_FORKED",
+                "entity_type": entity_type,
+                "entity_id": entity_id,
+                "timestamp": datetime.now(UTC),
+                "details": "Conflict resolution triggered a fork to preserve approved state.",
+            }
+        )
 
     async def _apply_resolved_data(self, entity_type: str, entity_id: str, data: dict[str, Any]):
         """Apply resolved data to the entity"""

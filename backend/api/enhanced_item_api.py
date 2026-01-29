@@ -98,9 +98,12 @@ async def get_item_by_barcode_enhanced(
     force_source: Optional[str] = Query(None, description="Force data source: mongodb, or cache"),
     include_metadata: bool = Query(True, description="Include response metadata"),
     current_user: dict = Depends(get_current_user),
+    session_id: Optional[str] = Query(None, description="Current session ID for context"),
+    rack_no: Optional[str] = Query(None, description="Current rack number for context"),
 ):
     """
-    Enhanced barcode lookup with multiple data sources, caching, and performance monitoring
+    Enhanced barcode lookup with multiple data sources, caching, and performance monitoring.
+    Also checks for 'is_misplaced' status if session context is provided.
     """
     start_time = time.time()
 
@@ -182,6 +185,53 @@ async def get_item_by_barcode_enhanced(
             ),
         }
 
+        # --- Misplaced Item Logic ---
+        # Check if item is misplaced relative to the provided session/rack context
+        if item_data and (session_id or rack_no):
+            try:
+                # 1. Determine Context Location
+                context_floor = None
+                context_rack = None
+
+                if rack_no:
+                    context_rack = rack_no.strip().upper()
+
+                # If session_id provided, fetch session for floor (and rack if not provided)
+                if session_id:
+                    session = await db.sessions.find_one({"id": session_id})
+                    if session:
+                        if not context_rack and session.get("rack"):
+                            context_rack = str(session.get("rack")).strip().upper()
+                        if session.get("floor"):
+                            context_floor = str(session.get("floor")).strip().upper()
+
+                # 2. Determine Item Expected Location from ERP Data
+                # ERP item might have 'floor'/'rack' or 'location'
+                item_floor = (item_data.get("floor") or "").strip().upper()
+                item_rack = (item_data.get("rack") or "").strip().upper()
+
+                # 3. Compare (if Item has specific location assigned)
+                if item_floor or item_rack:
+                    is_misplaced = False
+
+                    # Check Rack mismatch
+                    if context_rack and item_rack and context_rack != item_rack:
+                        is_misplaced = True
+
+                    # Check Floor mismatch (only if we have context floor)
+                    if context_floor and item_floor and context_floor != item_floor:
+                        is_misplaced = True
+
+                    # Add flag to item_data
+                    item_data["is_misplaced"] = is_misplaced
+
+                    # Also add expected location for UI convenience
+                    if is_misplaced:
+                        item_data["expected_location"] = f"{item_floor}/{item_rack}"
+
+            except Exception as e:
+                logger.warning(f"Failed to calculate is_misplaced: {e}")
+
         # Cache successful result
         if item_data and cache_service:
             await cache_service.set_async(
@@ -229,6 +279,8 @@ async def _fetch_from_specific_source(barcode: str, source: str) -> tuple[Option
                 ]
             }
         )
+        if item:
+            item["_id"] = str(item["_id"])
         return item, "mongodb"
 
     elif source == "cache":
@@ -362,14 +414,19 @@ def _build_match_conditions(
     trimmed_query = query.strip()
 
     # Use provided search_fields, with smart defaults based on query pattern
-    # User requirements:
-    # - "only barcode and item name are search criteria"
-    # - "if it starts with 51,52,53, check for barcode"
-    # - "after first three characters, list item names matching"
+    # --- Rule 6: Serial Scan Engine (Strict Isolation) ---
+    # The system must strictly isolate barcode searches for prefixes 51, 52, and 53.
+    # If a search string matches these prefixes, the system MUST NOT fall back to name-based fuzzy matching.
+    is_strict_barcode = trimmed_query.startswith(("51", "52", "53"))
 
-    # If search_fields explicitly provided, use all of them
-    # This allows API callers to search across item_code, barcode, and item_name
-    target_fields = search_fields if search_fields else ["item_name", "item_code", "barcode"]
+    if is_strict_barcode:
+        target_fields = ["barcode"]
+        logger.info(f"Rule 6: Strict barcode search enabled for {trimmed_query}")
+    else:
+        # User requirements:
+        # - "only barcode and item name are search criteria"
+        # - "after first three characters, list item names matching"
+        target_fields = search_fields if search_fields else ["item_name", "barcode"]
 
     # Build $or conditions for all target fields
     for field in target_fields:

@@ -25,7 +25,7 @@ class WebSocketService {
    * @param baseUrl - Base URL (e.g., "ws://192.168.1.100:8001")
    * @param endpoint - Endpoint path (e.g., "/api/ws/supervisor")
    */
-  async connect(baseUrl: string, endpoint: string = "/api/ws/supervisor") {
+  async connect(baseUrl: string, endpoint: string = "/ws/updates") {
     // Get auth token
     this.token = await authService.getAccessToken();
     if (!this.token) {
@@ -46,10 +46,7 @@ class WebSocketService {
       return;
     }
 
-    console.log(
-      "[WebSocket] Connecting to:",
-      this.url.replace(/token=[^&]+/, "token=***"),
-    );
+    console.log("[WebSocket] Connecting to:", this.url.replace(/token=[^&]+/, "token=***"));
 
     this.ws = new WebSocket(this.url);
 
@@ -74,15 +71,13 @@ class WebSocketService {
 
     this.ws.onclose = (event) => {
       console.log(
-        `[WebSocket] Disconnected (code: ${event.code}, reason: ${event.reason || "none"})`,
+        `[WebSocket] Disconnected (code: ${event.code}, reason: ${event.reason || "none"})`
       );
       this.ws = null;
 
       // Only attempt reconnection if not intentionally disconnected
       if (!this.isIntentionalDisconnect) {
-        console.log(
-          `[WebSocket] Will reconnect in ${this.reconnectInterval / 1000}s...`,
-        );
+        console.log(`[WebSocket] Will reconnect in ${this.reconnectInterval / 1000}s...`);
         this.reconnectTimer = setTimeout(() => {
           this._connect();
         }, this.reconnectInterval);
@@ -117,7 +112,7 @@ class WebSocketService {
     if (handlers) {
       this.handlers.set(
         type,
-        handlers.filter((h) => h !== handler),
+        handlers.filter((h) => h !== handler)
       );
       console.log(`[WebSocket] Unsubscribed from "${type}"`);
     }
@@ -131,9 +126,7 @@ class WebSocketService {
   private notify(type: string, payload: any) {
     const handlers = this.handlers.get(type);
     if (handlers && handlers.length > 0) {
-      console.log(
-        `[WebSocket] Notifying ${handlers.length} handler(s) for "${type}"`,
-      );
+      console.log(`[WebSocket] Notifying ${handlers.length} handler(s) for "${type}"`);
       handlers.forEach((handler) => {
         try {
           handler(payload);

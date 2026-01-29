@@ -15,6 +15,7 @@ from backend.api.response_models import ApiResponse, PaginatedResponse
 from backend.auth.dependencies import get_current_user_async as get_current_user
 from backend.db.runtime import get_db
 from backend.services.ai_search import ai_search_service
+from backend.services.sql_verification_service import sql_verification_service
 
 # Add project root to path for direct execution (debugging)
 # This allows the file to be run directly for testing/debugging
@@ -39,6 +40,13 @@ class ItemResponse(BaseModel):
     subcategory: Optional[str] = None
     warehouse: Optional[str] = None
     uom_name: Optional[str] = None
+    # SQL verification fields
+    sql_verified_qty: Optional[float] = None
+    last_sql_verified_at: Optional[str] = None
+    variance: Optional[float] = None
+    mongo_cached_qty_previous: Optional[float] = None
+    sql_qty_mismatch_flag: Optional[bool] = None
+    sql_verification_status: Optional[str] = None
 
 
 @router.get("/", response_model=ApiResponse[PaginatedResponse[ItemResponse]])
@@ -332,4 +340,70 @@ async def identify_item(
         return ApiResponse.error_response(
             error_code="VISUAL_SEARCH_ERROR",
             error_message=f"Identification failed: {str(e)}",
+        )
+
+
+@router.get("/{item_code}", response_model=ApiResponse[ItemResponse])
+async def get_item_details(
+    item_code: str,
+    verify_sql: bool = Query(False, description="Verify against SQL Server"),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ApiResponse[ItemResponse]:
+    """
+    Get item details with optional SQL verification
+    When verify_sql=true, triggers SQL quantity verification and updates MongoDB
+    """
+    try:
+        db = get_db()
+        
+        # Get item from MongoDB
+        item = await db.erp_items.find_one({"item_code": item_code})
+        if not item:
+            return ApiResponse.error_response(
+                error_code="ITEM_NOT_FOUND",
+                error_message=f"Item with code {item_code} not found",
+            )
+        
+        # Trigger SQL verification if requested
+        if verify_sql:
+            try:
+                verification_result = await sql_verification_service.verify_item_quantity(item_code)
+                if verification_result["success"]:
+                    # Refresh item data after verification
+                    item = await db.erp_items.find_one({"item_code": item_code})
+            except Exception as e:
+                # Log error but don't fail the request
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning(f"SQL verification failed for {item_code}: {str(e)}")
+        
+        # Convert to response
+        item_response = ItemResponse(
+            id=str(item["_id"]),
+            name=item.get("item_name", ""),
+            item_code=item.get("item_code"),
+            barcode=item.get("barcode"),
+            stock_qty=item.get("stock_qty", 0.0),
+            mrp=item.get("mrp"),
+            category=item.get("category"),
+            subcategory=item.get("subcategory"),
+            warehouse=item.get("warehouse"),
+            uom_name=item.get("uom_name"),
+            sql_verified_qty=item.get("sql_verified_qty"),
+            last_sql_verified_at=item.get("last_sql_verified_at").isoformat() if item.get("last_sql_verified_at") else None,
+            variance=item.get("variance"),
+            mongo_cached_qty_previous=item.get("mongo_cached_qty_previous"),
+            sql_qty_mismatch_flag=item.get("sql_qty_mismatch_flag"),
+            sql_verification_status=item.get("sql_verification_status"),
+        )
+        
+        return ApiResponse.success_response(
+            data=item_response,
+            message=f"Retrieved item details for {item_code}",
+        )
+        
+    except Exception as e:
+        return ApiResponse.error_response(
+            error_code="INTERNAL_ERROR",
+            error_message=f"Failed to get item details: {str(e)}",
         )

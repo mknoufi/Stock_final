@@ -4,9 +4,9 @@ Tracks performance, errors, and system health
 Provides Prometheus-compatible metrics
 """
 
+import asyncio
 import logging
-import threading
-from collections import defaultdict, deque
+from collections import deque, defaultdict
 from datetime import datetime, timedelta
 from typing import Any, Optional
 
@@ -14,18 +14,13 @@ logger = logging.getLogger(__name__)
 
 
 class MonitoringService:
-    """
-    Monitoring service for application metrics
-    Tracks requests, errors, performance, and system health
-    """
+    """Track API performance metrics with automatic cleanup"""
 
     def __init__(self, history_size: int = 1000):
         self.history_size = history_size
-
-        # Metrics
-        self._request_count = 0
-        self._error_count = 0
-        self._total_response_time = 0.0
+        self._request_history: deque = deque(maxlen=history_size)
+        self._metrics: dict[str, Any] = {}
+        self._lock = asyncio.Lock()  # Use asyncio.Lock for async safety
         self._request_times: deque = deque(maxlen=history_size)
 
         # Per-endpoint metrics
@@ -49,9 +44,12 @@ class MonitoringService:
             "start_time": datetime.utcnow(),
         }
 
-        self._lock = threading.Lock()
+        # Metrics
+        self._request_count = 0
+        self._error_count = 0
+        self._total_response_time = 0.0
 
-    def track_request(
+    async def track_request(
         self,
         endpoint: str,
         method: str = "GET",
@@ -59,7 +57,7 @@ class MonitoringService:
         duration: float = 0.0,
     ):
         """Track API request"""
-        with self._lock:
+        async with self._lock:
             self._request_count += 1
             self._total_response_time += duration
             self._request_times.append(
@@ -83,11 +81,11 @@ class MonitoringService:
                 metrics["errors"] += 1
                 self._error_count += 1
 
-    def track_error(
+    async def track_error(
         self, endpoint: str, error: Exception, context: dict[str, Optional[Any]] = None
     ):
         """Track error occurrence"""
-        with self._lock:
+        async with self._lock:
             self._error_count += 1
 
             error_info = {
@@ -111,9 +109,9 @@ class MonitoringService:
                 }
             self._endpoint_metrics[endpoint_key]["errors"] += 1
 
-    def get_metrics(self) -> dict[str, Any]:
+    async def get_metrics(self) -> dict[str, Any]:
         """Get current metrics"""
-        with self._lock:
+        async with self._lock:
             uptime = (datetime.utcnow() - self._health_status["start_time"]).total_seconds()
             avg_response_time = (
                 self._total_response_time / self._request_count if self._request_count > 0 else 0.0
@@ -157,9 +155,9 @@ class MonitoringService:
                 "recent_errors": list(self._recent_errors)[-10:],  # Last 10 errors
             }
 
-    def get_health(self) -> dict[str, Any]:
+    async def get_health(self) -> dict[str, Any]:
         """Get health status"""
-        with self._lock:
+        async with self._lock:
             uptime = (datetime.utcnow() - self._health_status["start_time"]).total_seconds()
 
             # Determine health status
@@ -186,9 +184,9 @@ class MonitoringService:
                 },
             }
 
-    def reset(self):
+    async def reset(self):
         """Reset all metrics"""
-        with self._lock:
+        async with self._lock:
             self._request_count = 0
             self._error_count = 0
             self._total_response_time = 0.0
@@ -196,12 +194,12 @@ class MonitoringService:
             self._endpoint_metrics.clear()
             self._recent_errors.clear()
 
-    def get_prometheus_metrics(self) -> str:
+    async def get_prometheus_metrics(self) -> str:
         """
         Get metrics in Prometheus text format
         https://prometheus.io/docs/instrumenting/exposition_formats/
         """
-        with self._lock:
+        async with self._lock:
             lines = []
 
             # Request count

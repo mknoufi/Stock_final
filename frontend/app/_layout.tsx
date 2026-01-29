@@ -3,7 +3,7 @@
 // ==========================================
 
 import React from "react";
-
+import { scan } from "react-scan"; // Import react-scan
 import { Platform, View, Text, ActivityIndicator } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -40,7 +40,6 @@ import {
   modernColors,
   modernTypography,
 } from "../src/styles/modernDesignSystem";
-
 import {
   useFonts,
   Inter_400Regular,
@@ -48,6 +47,14 @@ import {
   Inter_600SemiBold,
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
+
+// Initialize react-scan in development
+if (__DEV__) {
+  scan({
+    enabled: true,
+    log: true,
+  });
+}
 
 // keep the splash screen visible while complete fetching resources
 // On web, wrap in try-catch to prevent blocking
@@ -285,7 +292,7 @@ export default function RootLayout() {
             stopSyncService();
             try {
               stopOfflineQueue();
-            } catch {}
+            } catch { }
           });
         }
 
@@ -512,7 +519,3 @@ export default function RootLayout() {
     </QueryClientProvider>
   );
 }
-
-// ==========================================
-// END OF LOGGING
-// ==========================================

@@ -233,6 +233,7 @@ class SQLSyncService:
         self._last_new_item_check: Optional[datetime] = None
         self._last_nightly_sync: Optional[datetime] = None
         self._new_item_check_interval: int = 1800  # Check for new items every 30 minutes
+        self._sync_lock = asyncio.Lock()  # Prevent concurrent sync operations
         self._sync_stats = {
             "total_syncs": 0,
             "successful_syncs": 0,
@@ -685,6 +686,7 @@ class SQLSyncService:
         update_fields: dict[str, Any] = {
             "last_synced": now,
             "updated_at": now,
+            "last_verified_at": now,
         }
 
         if sql_qty != mongo_qty:
@@ -692,6 +694,7 @@ class SQLSyncService:
                 {
                     "stock_qty": sql_qty,
                     "sql_server_qty": sql_qty,
+                    "sql_verified_qty": sql_qty,
                     "qty_changed_at": now,
                     "qty_change_delta": sql_qty - mongo_qty,
                 }
@@ -758,98 +761,27 @@ class SQLSyncService:
 
     async def check_item_qty_realtime(self, item_code: str) -> dict[str, Any]:
         """
-        Real-time quantity check for a specific item
-        Called when staff selects an item for counting
+        Get quantity from MongoDB (primary source).
+        SQL Server is only used for periodic syncs, not real-time reads.
 
         Args:
             item_code: Item code to check
 
         Returns:
-            Dictionary with qty info and update status
+            Dictionary with qty info from MongoDB cache
         """
-        if not self.sql_connector.test_connection():
-            logger.warning("SQL Server not available for real-time check")
-            # Return MongoDB data without update
-            mongo_item = await self.mongo_db.erp_items.find_one({"item_code": item_code})
-            if mongo_item:
-                return {
-                    "item_code": item_code,
-                    "sql_qty": mongo_item.get("stock_qty"),
-                    "updated": False,
-                    "source": "mongodb_cache",
-                    "message": "SQL Server unavailable, using cached data",
-                }
-            else:
-                raise ValueError(f"Item {item_code} not found")
-
-        try:
-            # Fetch latest qty from SQL Server
-            sql_item = self.sql_connector.get_item_by_code(item_code)
-            if not sql_item:
-                raise ValueError(f"Item {item_code} not found in SQL Server")
-
-            sql_qty = float(sql_item.get("stock_qty", 0.0))
-
-            # Get current MongoDB record
-            mongo_item = await self.mongo_db.erp_items.find_one({"item_code": item_code})
-
-            if not mongo_item:
-                logger.warning(f"Item {item_code} not in MongoDB, will be created on next sync")
-                return {
-                    "item_code": item_code,
-                    "sql_qty": sql_qty,
-                    "updated": False,
-                    "source": "sql_server",
-                    "message": "Item not in MongoDB yet",
-                }
-
-            mongo_qty = float(mongo_item.get("stock_qty", 0.0))
-
-            # Check if qty changed
-            if sql_qty != mongo_qty:
-                # Update MongoDB with new qty (preserve enrichments!)
-                await self.mongo_db.erp_items.update_one(
-                    {"item_code": item_code},
-                    {
-                        "$set": {
-                            "stock_qty": sql_qty,
-                            "sql_server_qty": sql_qty,
-                            "last_checked": datetime.utcnow(),
-                            "qty_changed_at": datetime.utcnow(),
-                            "qty_change_delta": sql_qty - mongo_qty,
-                        }
-                    },
-                )
-
-                logger.info(f"Real-time qty update for {item_code}: {mongo_qty} → {sql_qty}")
-
-                return {
-                    "item_code": item_code,
-                    "sql_qty": sql_qty,
-                    "previous_qty": mongo_qty,
-                    "delta": sql_qty - mongo_qty,
-                    "updated": True,
-                    "source": "sql_server",
-                    "message": "Quantity updated from SQL Server",
-                }
-            else:
-                # Qty unchanged
-                await self.mongo_db.erp_items.update_one(
-                    {"item_code": item_code},
-                    {"$set": {"last_checked": datetime.utcnow()}},
-                )
-
-                return {
-                    "item_code": item_code,
-                    "sql_qty": sql_qty,
-                    "updated": False,
-                    "source": "sql_server",
-                    "message": "Quantity unchanged",
-                }
-
-        except Exception as e:
-            logger.error(f"Real-time qty check failed for {item_code}: {str(e)}")
-            raise
+        # Get item from MongoDB (primary source)
+        mongo_item = await self.mongo_db.erp_items.find_one({"item_code": item_code})
+        if mongo_item:
+            return {
+                "item_code": item_code,
+                "sql_qty": mongo_item.get("stock_qty"),
+                "updated": False,
+                "source": "mongodb_cache",
+                "message": "Using MongoDB cache (SQL Server only for periodic syncs)",
+            }
+        else:
+            raise ValueError(f"Item {item_code} not found")
 
     async def _sync_loop(self):
         """
@@ -857,35 +789,40 @@ class SQLSyncService:
         1. Variance-only sync (every 15 min) - minimal SQL load
         2. New item discovery (every 30 min) - finds new items
         3. Nightly full sync (at 2 AM) - complete data verification
+        
+        Uses async lock to prevent concurrent sync operations.
         """
         while self._running and self.enabled:
-            try:
-                # Check connection before attempting sync
-                if not self.sql_connector.test_connection():
-                    logger.warning(
-                        "SQL Server connection not available, skipping sync. "
-                        "Will retry in next interval."
-                    )
-                    self._sync_stats["failed_syncs"] += 1
-                else:
-                    # Check if it's time for nightly full sync (2 AM)
-                    if self.should_run_nightly_sync():
-                        logger.info("🌙 Running nightly full data verification...")
-                        await self.nightly_full_sync()
-                        self._sync_stats["total_syncs"] += 1
+            # Use lock to ensure only one sync operation at a time
+            async with self._sync_lock:
+                try:
+                    # Check connection before attempting sync
+                    if not self.sql_connector.test_connection():
+                        logger.warning(
+                            "SQL Server connection not available, skipping sync. "
+                            "Will retry in next interval."
+                        )
+                        self._sync_stats["failed_syncs"] += 1
                     else:
-                        # Regular variance-only sync (minimal SQL load)
-                        await self.sync_variance_only()
-                        self._sync_stats["total_syncs"] += 1
+                        # Check if it's time for nightly full sync (2 AM)
+                        if self.should_run_nightly_sync():
+                            logger.info("🌙 Running nightly full data verification...")
+                            await self.nightly_full_sync()
+                            self._sync_stats["total_syncs"] += 1
+                        else:
+                            # Regular variance-only sync (minimal SQL load)
+                            await self.sync_variance_only()
+                            self._sync_stats["total_syncs"] += 1
 
-                        # Check for new items every 30 minutes
-                        if self.should_check_new_items():
-                            logger.info("🔍 Running new item discovery (every 30 min)...")
-                            await self.discover_new_items(limit=200)
+                            # Check for new items every 30 minutes
+                            # This runs AFTER variance sync completes (sequential)
+                            if self.should_check_new_items():
+                                logger.info("🔍 Running new item discovery (every 30 min)...")
+                                await self.discover_new_items(limit=200)
 
-            except Exception as e:
-                logger.error(f"Sync loop error: {str(e)}")
-                self._sync_stats["failed_syncs"] += 1
+                except Exception as e:
+                    logger.error(f"Sync loop error: {str(e)}")
+                    self._sync_stats["failed_syncs"] += 1
 
             # Wait for next sync interval
             await asyncio.sleep(self.sync_interval)

@@ -159,6 +159,7 @@ class Settings(PydanticBaseSettings):
         return v
 
     # SQL Server (Optional - app works without it)
+    SQL_SERVER_DRIVER: str = Field(default="SQL Server", description="ODBC driver name for SQL Server")
     SQL_SERVER_HOST: Optional[str] = Field(
         None,
         description="SQL Server host (optional)",
@@ -196,7 +197,7 @@ class Settings(PydanticBaseSettings):
     # Session Management
     SESSION_TIMEOUT_MINUTES: int = Field(480, ge=1)  # 8 hours
     AUTO_LOGOUT_ENABLED: bool = True
-    AUTH_SINGLE_SESSION: bool = False
+    AUTH_SINGLE_SESSION: bool = True
 
     @field_validator("JWT_SECRET", mode="before")
     @classmethod

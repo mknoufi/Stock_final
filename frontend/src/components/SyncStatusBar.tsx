@@ -93,19 +93,35 @@ export const SyncStatusBar: React.FC = () => {
     <View
       style={[
         styles.container,
-        !syncStatus.isOnline && styles.offlineContainer,
+        // Removed offlineContainer style to keep bar consistent blue
       ]}
     >
       {/* Online indicator */}
+      {/* Status Indicators */}
       <View style={styles.statusRow}>
-        <Ionicons
-          name={syncStatus.isOnline ? "wifi" : "wifi-outline"}
-          size={16}
-          color={syncStatus.isOnline ? "#4CAF50" : "#f44336"}
-        />
-        <Text style={styles.statusText}>
-          {syncStatus.isOnline ? "Online" : "Offline"}
-        </Text>
+        {/* SQL Source Indicator */}
+        <View style={styles.indicatorItem}>
+          <Ionicons
+            name={syncStatus.isOnline ? "server" : "server-outline"}
+            size={16}
+            color={syncStatus.isOnline ? "#4CAF50" : "#f44336"} // Green or Red
+          />
+          <Text style={styles.statusText}>
+            Source
+          </Text>
+        </View>
+
+        {/* Mongo/App Data Indicator */}
+        <View style={styles.indicatorItem}>
+          <Ionicons
+            name="leaf" // Leaf for Mongo/App Data
+            size={16}
+            color="#4CAF50" // Always green for local app data
+          />
+          <Text style={styles.statusText}>
+            App
+          </Text>
+        </View>
       </View>
 
       {/* Queue count */}
@@ -175,7 +191,12 @@ const styles = StyleSheet.create({
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 12, // Increased gap between status items
+  },
+  indicatorItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4
   },
   statusText: {
     color: "#fff",

@@ -6,10 +6,16 @@ from dotenv import load_dotenv
 
 load_dotenv("backend/.env")
 
-host = os.getenv("SQL_SERVER_HOST", "192.168.1.109")
-user = os.getenv("SQL_SERVER_USER", "stockapp")
-password = os.getenv("SQL_SERVER_PASSWORD", "StockApp@2025!")
-database = os.getenv("SQL_SERVER_DB", "E_MART_KITCHEN_CARE")
+host = os.getenv("SQL_SERVER_HOST")
+user = os.getenv("SQL_SERVER_USER")
+password = os.getenv("SQL_SERVER_PASSWORD")
+database = os.getenv("SQL_SERVER_DB")
+
+if not all([host, user, password, database]):
+    raise ValueError(
+        "SQL_SERVER_HOST, SQL_SERVER_USER, SQL_SERVER_PASSWORD, and SQL_SERVER_DB "
+        "must be set in .env file for testing"
+    )
 
 print(f"Testing connection to {host} / {database} as {user}")
 

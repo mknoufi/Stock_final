@@ -32,7 +32,7 @@ async def get_prometheus_metrics():
             media_type="text/plain; version=0.0.4",
         )
 
-    metrics_text = _monitoring_service.get_prometheus_metrics()
+    metrics_text = await _monitoring_service.get_prometheus_metrics()
 
     return Response(content=metrics_text, media_type="text/plain; version=0.0.4")
 
@@ -49,7 +49,7 @@ async def get_metrics_json():
             },
         }
 
-    metrics = _monitoring_service.get_metrics()
+    metrics = await _monitoring_service.get_metrics()
 
     return {"success": True, "data": metrics}
 
@@ -68,7 +68,7 @@ async def get_health_metrics():
 
     # Get monitoring service health if available
     if _monitoring_service is not None:
-        monitoring_health = _monitoring_service.get_health()
+        monitoring_health = await _monitoring_service.get_health()
         health_data.update(monitoring_health)
 
     # Get database health if available
@@ -125,7 +125,7 @@ async def get_metrics_stats():
     # Get monitoring service stats if available
     if _monitoring_service is not None:
         try:
-            monitoring_stats = _monitoring_service.get_stats()
+            monitoring_stats = await _monitoring_service.get_metrics()
             stats["services"] = monitoring_stats
         except Exception as e:
             stats["services"] = {"error": str(e)}

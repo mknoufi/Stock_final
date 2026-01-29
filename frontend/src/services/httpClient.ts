@@ -13,8 +13,7 @@ const log = createLogger("httpClient");
 export let API_BASE_URL: string = BACKEND_URL;
 
 const IS_TEST_ENV =
-  process.env.NODE_ENV === "test" ||
-  typeof process.env.JEST_WORKER_ID !== "undefined";
+  process.env.NODE_ENV === "test" || typeof process.env.JEST_WORKER_ID !== "undefined";
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -34,8 +33,7 @@ const connectionManager = ConnectionManager.getInstance();
  * Called after backend reachability probe succeeds.
  */
 export const updateBaseURL = (newBaseUrl: string) => {
-  if (apiClient.defaults.baseURL === newBaseUrl && API_BASE_URL === newBaseUrl)
-    return;
+  if (apiClient.defaults.baseURL === newBaseUrl && API_BASE_URL === newBaseUrl) return;
 
   log.info("Updating API base URL", {
     old: apiClient.defaults.baseURL,
@@ -54,14 +52,10 @@ connectionManager.addListener((connection: ConnectionInfo) => {
   });
 });
 
-const summarizePayload = (
-  payload: unknown,
-): Record<string, unknown> | undefined => {
+const summarizePayload = (payload: unknown): Record<string, unknown> | undefined => {
   if (payload == null) return undefined;
-  if (typeof payload === "string")
-    return { type: "string", length: payload.length };
-  if (typeof payload === "number" || typeof payload === "boolean")
-    return { type: typeof payload };
+  if (typeof payload === "string") return { type: "string", length: payload.length };
+  if (typeof payload === "number" || typeof payload === "boolean") return { type: typeof payload };
   if (Array.isArray(payload)) return { type: "array", length: payload.length };
   if (typeof payload === "object") {
     const keys = Object.keys(payload as Record<string, unknown>);
@@ -89,9 +83,7 @@ const toFullUrl = (baseURL: string | undefined, url: string | undefined) => {
   return base ? `${base}/${path}` : url;
 };
 
-const summarizeResponseData = (
-  data: unknown,
-): Record<string, unknown> | undefined => {
+const summarizeResponseData = (data: unknown): Record<string, unknown> | undefined => {
   if (data == null) return undefined;
   if (typeof data === "string") return { type: "string", length: data.length };
   if (Array.isArray(data)) return { type: "array", length: data.length };
@@ -112,9 +104,7 @@ const summarizeResponseData = (
 
 const shouldLogNetworkDebug =
   !IS_TEST_ENV &&
-  (typeof __DEV__ !== "undefined"
-    ? __DEV__
-    : process.env.NODE_ENV === "development");
+  (typeof __DEV__ !== "undefined" ? __DEV__ : process.env.NODE_ENV === "development");
 
 let refreshInFlight: Promise<string | null> | null = null;
 
@@ -132,13 +122,11 @@ const refreshAccessToken = async (): Promise<string | null> => {
       {
         timeout: 20000,
         headers: { "Content-Type": "application/json" },
-      },
+      }
     );
 
     const payload =
-      response.data &&
-      typeof response.data === "object" &&
-      "data" in response.data
+      response.data && typeof response.data === "object" && "data" in response.data
         ? (response.data as { data?: any }).data
         : response.data;
 
@@ -148,8 +136,7 @@ const refreshAccessToken = async (): Promise<string | null> => {
     if (!accessToken || typeof accessToken !== "string") return null;
 
     await secureStorage.setItem("auth_token", accessToken);
-    apiClient.defaults.headers.common["Authorization"] =
-      `Bearer ${accessToken}`;
+    apiClient.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
 
     if (nextRefreshToken && typeof nextRefreshToken === "string") {
       await secureStorage.setItem("refresh_token", nextRefreshToken);
@@ -174,10 +161,7 @@ apiClient.interceptors.request.use(
     }
 
     // Ensure Auth token is attached if available (fixes 401 loop if defaults are lost)
-    if (
-      !config.headers["Authorization"] &&
-      !config.headers.common?.["Authorization"]
-    ) {
+    if (!config.headers["Authorization"] && !config.headers.common?.["Authorization"]) {
       try {
         const token = await secureStorage.getItem("auth_token");
         if (token) {
@@ -200,11 +184,7 @@ apiClient.interceptors.request.use(
     const hasAuth = !!authHeader;
 
     if (shouldLogNetworkDebug) {
-      if (
-        !hasAuth &&
-        !fullUrl.includes("/auth/login") &&
-        !fullUrl.includes("/health")
-      ) {
+      if (!hasAuth && !fullUrl.includes("/auth/login") && !fullUrl.includes("/health")) {
         log.debug("API request (No Auth Header)", { url: fullUrl });
       } else if (hasAuth && !fullUrl.includes("/auth/login")) {
         const tokenString = String(authHeader);
@@ -228,6 +208,7 @@ apiClient.interceptors.request.use(
       fullUrl.includes("/auth/login") ||
       fullUrl.includes("/auth/login-pin") ||
       fullUrl.includes("/auth/refresh") ||
+      fullUrl.includes("/auth/register") ||
       fullUrl.includes("/auth/logout") ||
       fullUrl.includes("/health");
     if (!isPublic && !hasAuth) {
@@ -248,8 +229,13 @@ apiClient.interceptors.request.use(
       error: (error as { message?: string } | null)?.message || String(error),
     });
     return Promise.reject(error);
-  },
+  }
 );
+
+// 401 Circuit Breaker - Prevent logout storms
+let lastUnauthorizedTime = 0;
+const UNAUTHORIZED_DEBOUNCE_MS = 5000; // 5 seconds
+let unauthorizedHandlerCallCount = 0;
 
 // Add response interceptor for debugging and session handling
 apiClient.interceptors.response.use(
@@ -263,10 +249,34 @@ apiClient.interceptors.response.use(
   (error) => {
     const fullUrl = toFullUrl(error.config?.baseURL, error.config?.url);
     const status = error.response?.status;
-    const data = error.response?.data as
-      | { code?: string; message?: string }
-      | undefined;
+    const data = error.response?.data as { code?: string; message?: string } | undefined;
     const errorCode = data?.code;
+
+    // Helper to perform debounced logout
+    const performLogout = () => {
+      const now = Date.now();
+      const timeSinceLastUnauthorized = now - lastUnauthorizedTime;
+
+      if (timeSinceLastUnauthorized < UNAUTHORIZED_DEBOUNCE_MS) {
+        unauthorizedHandlerCallCount++;
+        log.warn("401 circuit breaker active - ignoring subsequent unauthorized", {
+          url: fullUrl,
+          count: unauthorizedHandlerCallCount,
+          timeSinceLast: timeSinceLastUnauthorized,
+        });
+        return;
+      }
+
+      // Reset circuit breaker
+      lastUnauthorizedTime = now;
+      unauthorizedHandlerCallCount = 1;
+
+      // Clear storage immediately to prevent stale token persistence
+      secureStorage.removeItem("auth_token").catch(() => {});
+      secureStorage.removeItem("refresh_token").catch(() => {});
+
+      handleUnauthorized();
+    };
 
     // Handle Network Restrictions (403 NETWORK_NOT_ALLOWED)
     if (status === 403 && errorCode === "NETWORK_NOT_ALLOWED") {
@@ -282,12 +292,7 @@ apiClient.interceptors.response.use(
     // Handle Session Revocation (401/403 SESSION_REVOKED)
     if ((status === 401 || status === 403) && errorCode === "SESSION_REVOKED") {
       log.warn("Session revoked (single device enforcement)", { url: fullUrl });
-
-      // Clear tokens
-      secureStorage.removeItem("auth_token").catch(() => {});
-      secureStorage.removeItem("refresh_token").catch(() => {});
-
-      handleUnauthorized();
+      performLogout();
       return Promise.reject(error);
     }
 
@@ -304,9 +309,7 @@ apiClient.interceptors.response.use(
       const isRefresh = fullUrl.includes("/api/auth/refresh");
       if (isRefresh) {
         log.warn("Token refresh request returned 401", { url: fullUrl });
-        secureStorage.removeItem("auth_token").catch(() => {});
-        secureStorage.removeItem("refresh_token").catch(() => {});
-        handleUnauthorized();
+        performLogout();
         return Promise.reject(error);
       }
 
@@ -324,8 +327,7 @@ apiClient.interceptors.response.use(
           .then((token) => {
             if (token) {
               originalRequest.headers["Authorization"] = `Bearer ${token}`;
-              apiClient.defaults.headers.common["Authorization"] =
-                `Bearer ${token}`;
+              apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
               return apiClient(originalRequest);
             }
             return Promise.reject(error);
@@ -368,11 +370,7 @@ apiClient.interceptors.response.use(
         url: fullUrl,
       });
 
-      // Clear storage immediately to prevent stale token persistence
-      secureStorage.removeItem("auth_token").catch(() => {});
-      secureStorage.removeItem("refresh_token").catch(() => {});
-
-      handleUnauthorized();
+      performLogout();
       return Promise.reject(error);
     }
 
@@ -400,7 +398,7 @@ apiClient.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
 export default apiClient;

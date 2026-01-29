@@ -153,12 +153,13 @@ class AuthenticationError(StockVerifyException):
         self,
         message: str = "Authentication failed",
         details: dict[str, Optional[Any]] = None,
+        status_code: int = 401,
     ):
         super().__init__(
             message=message,
             error_code="AUTHENTICATION_ERROR",
             details=details or {},
-            status_code=401,
+            status_code=status_code,
         )
 
 
@@ -173,6 +174,7 @@ class SessionConflictError(AuthenticationError):
         super().__init__(
             message=message,
             details=details or {},
+            status_code=409,
         )
         self.error_code = "AUTH_SESSION_CONFLICT"
 

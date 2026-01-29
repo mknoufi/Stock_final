@@ -1,8 +1,10 @@
 # ruff: noqa: E402
 import logging
 import sys
+import threading
 from pathlib import Path
 from typing import Any, Optional
+import asyncio
 
 import pyodbc
 from tenacity import retry, stop_after_attempt, wait_exponential
@@ -53,6 +55,35 @@ class SQLServerConnector:
         self._available_tables: dict[str, str] = {}
         self._table_columns: dict[str, dict[str, str]] = {}
         self._enabled_optional_fields: list[str] = []
+        # Threading lock to prevent "Connection is busy" errors
+        self._query_lock = threading.Lock()
+        # Asyncio semaphore to prevent concurrent async queries on single connection
+        self._async_semaphore = None  # Created when async loop is available
+    
+    async def connect(self) -> None:
+        """Connect to SQL Server"""
+        if self.connection:
+            return
+        
+        try:
+            # Use connection builder to get connection string
+            builder = SQLServerConnectionBuilder()
+            connection_string = await builder.build_connection_string()
+            
+            # Connect to database
+            self.connection = pyodbc.connect(connection_string)
+            logger.info("Connected to SQL Server successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to connect to SQL Server: {str(e)}")
+            raise DatabaseConnectionError(f"Connection failed: {str(e)}")
+    
+    async def disconnect(self) -> None:
+        """Disconnect from SQL Server"""
+        if self.connection:
+            self.connection.close()
+            self.connection = None
+            logger.info("Disconnected from SQL Server")
 
     def _build_column_list(self) -> str:
         """Build SELECT column list with proper aliases"""
@@ -94,6 +125,31 @@ class SQLServerConnector:
 
         return query
 
+    async def execute_query(self, query: str) -> Any:
+        """Execute a SQL query and return results"""
+        if not self.connection:
+            await self.connect()
+        
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(query)
+            
+            # For SELECT queries, fetch results
+            if query.strip().upper().startswith('SELECT'):
+                columns = [column[0] for column in cursor.description]
+                results = []
+                for row in cursor.fetchall():
+                    results.append(dict(zip(columns, row)))
+                return results
+            else:
+                # For INSERT/UPDATE/DELETE, return affected rows
+                self.connection.commit()
+                return cursor.rowcount
+                
+        except Exception as e:
+            logger.error(f"SQL query execution failed: {str(e)}")
+            raise DatabaseQueryError(f"Query execution failed: {str(e)}")
+    
     def _reset_dynamic_metadata(self) -> None:
         """Reset cached optional select/join fragments."""
         self.optional_columns_clause = ""
@@ -612,15 +668,17 @@ class SQLServerConnector:
             raise DatabaseConnectionError(DB_NOT_CONNECTED_MSG)
 
         try:
-            cursor = self.connection.cursor()
-            query = self._get_formatted_query("get_all_items")
+            # Use threading lock to prevent concurrent query conflicts
+            with self._query_lock:
+                cursor = self.connection.cursor()
+                query = self._get_formatted_query("get_all_items")
 
-            cursor.execute(query)
-            rows = cursor.fetchall()
+                cursor.execute(query)
+                rows = cursor.fetchall()
 
-            # Convert rows to dictionaries (before closing cursor)
-            results = [self._cursor_to_dict(cursor, row) for row in rows]
-            cursor.close()
+                # Convert rows to dictionaries (before closing cursor)
+                results = [self._cursor_to_dict(cursor, row) for row in rows]
+                cursor.close()
 
             logger.info(f"Retrieved {len(results)} items from ERP")
             return results
@@ -824,57 +882,62 @@ class SQLServerConnector:
             logger.error(f"Error fetching items by codes: {str(e)}")
             raise DatabaseQueryError(f"Failed to fetch items by codes: {str(e)}")
 
-    def get_item_quantities_only(self, barcodes: list[str]) -> dict[str, float]:
+    def get_item_quantities_only(self, item_codes: list[str]) -> dict[str, float]:
         """
-        Fetch ONLY quantities for specific batches by barcode - minimal SQL load.
-        Returns a dict mapping barcode -> stock_qty.
+        Fetch ONLY quantities for specific items by item_code - minimal SQL load.
+        Returns a dict mapping item_code -> stock_qty.
 
         Args:
-            barcodes: List of barcodes (AutoBarcode) to fetch quantities for
+            item_codes: List of item codes (ProductCode) to fetch quantities for
 
         Returns:
-            Dict mapping barcode to stock_qty
+            Dict mapping item_code to total stock_qty
         """
         if not self.connection:
             raise DatabaseConnectionError(DB_NOT_CONNECTED_MSG)
 
-        if not barcodes:
+        if not item_codes:
             return {}
 
         # Limit batch size
-        barcodes = barcodes[:1000]
+        item_codes = item_codes[:1000]
 
         try:
-            cursor = self.connection.cursor()
+            # Use threading lock to prevent concurrent query conflicts
+            with self._query_lock:
+                cursor = self.connection.cursor()
 
-            # Build minimal query - only fetch barcode and qty from ProductBatches
-            placeholders = ", ".join("?" for _ in barcodes)
+                # Build minimal query - sum quantities by item_code from ProductBatches + Products
+                placeholders = ", ".join("?" for _ in item_codes)
 
-            # Safe parameterized query - user input is properly parameterized
-            query = f"""
-                SELECT CAST(AutoBarcode AS VARCHAR(50)) as barcode, Stock as stock_qty
-                FROM dbo.ProductBatches
-                WHERE CAST(AutoBarcode AS VARCHAR(50)) IN ({placeholders})
-            """
+                # Safe parameterized query - user input is properly parameterized
+                query = f"""
+                    SELECT P.ProductCode as item_code, COALESCE(SUM(PB.Stock), 0) as stock_qty
+                    FROM dbo.Products P
+                    LEFT JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID
+                    WHERE P.ProductCode IN ({placeholders})
+                    GROUP BY P.ProductCode
+                """
 
-            cursor.execute(query, barcodes)
-            rows = cursor.fetchall()
+                cursor.execute(query, item_codes)
+                rows = cursor.fetchall()
 
-            # Build result dict
-            results = {}
-            for row in rows:
-                barcode = str(row[0]) if row[0] is not None else ""
-                stock_qty = float(row[1]) if row[1] is not None else 0.0
-                if barcode:
-                    results[barcode] = stock_qty
+                # Build result dict
+                results = {}
+                for row in rows:
+                    item_code = str(row[0]) if row[0] is not None else ""
+                    stock_qty = float(row[1]) if row[1] is not None else 0.0
+                    if item_code:
+                        results[item_code] = stock_qty
 
-            cursor.close()
-            logger.debug(f"Retrieved quantities for {len(results)} barcodes")
+                cursor.close()
+            
+            logger.debug(f"Retrieved quantities for {len(results)} item codes")
             return results
 
         except Exception as e:
-            logger.error(f"Error fetching item quantities by barcode: {str(e)}")
-            raise DatabaseQueryError(f"Failed to fetch item quantities by barcode: {str(e)}")
+            logger.error(f"Error fetching item quantities by item code: {str(e)}")
+            raise DatabaseQueryError(f"Failed to fetch item quantities by item code: {str(e)}")
 
     async def execute_query(
         self, query: str, params: Optional[list[Any]] = None
@@ -882,6 +945,7 @@ class SQLServerConnector:
         """
         Execute an arbitrary SQL query and return results as a list of dictionaries.
         This is an async-compatible wrapper for synchronous pyodbc execution.
+        Uses both threading lock AND asyncio semaphore to prevent concurrent queries.
 
         Args:
             query: The SQL query to execute.
@@ -894,30 +958,36 @@ class SQLServerConnector:
             if not self._attempt_auto_reconnect():
                 raise DatabaseConnectionError(DB_NOT_CONNECTED_MSG)
 
-        try:
-            # Use run_in_executor for async-friendly execution of synchronous pyodbc calls
-            import asyncio
+        # Initialize semaphore if not already done
+        if self._async_semaphore is None:
+            self._async_semaphore = asyncio.Semaphore(1)
 
-            loop = asyncio.get_event_loop()
+        # Use semaphore to prevent concurrent async queries
+        async with self._async_semaphore:
+            try:
+                # Use run_in_executor for async-friendly execution of synchronous pyodbc calls
+                loop = asyncio.get_event_loop()
 
-            def _execute():
-                cursor = self.connection.cursor()
-                try:
-                    if params:
-                        cursor.execute(query, params)
-                    else:
-                        cursor.execute(query)
+                def _execute():
+                    # Use threading lock to prevent concurrent query conflicts
+                    with self._query_lock:
+                        cursor = self.connection.cursor()
+                        try:
+                            if params:
+                                cursor.execute(query, params)
+                            else:
+                                cursor.execute(query)
 
-                    rows = cursor.fetchall()
-                    return [self._cursor_to_dict(cursor, row) for row in rows]
-                finally:
-                    cursor.close()
+                            rows = cursor.fetchall()
+                            return [self._cursor_to_dict(cursor, row) for row in rows]
+                        finally:
+                            cursor.close()
 
-            return await loop.run_in_executor(None, _execute)
+                return await loop.run_in_executor(None, _execute)
 
-        except Exception as e:
-            logger.error(f"Error executing custom query: {str(e)}")
-            raise DatabaseQueryError(f"Failed to execute custom query: {str(e)}")
+            except Exception as e:
+                logger.error(f"Error executing custom query: {str(e)}")
+                raise DatabaseQueryError(f"Failed to execute custom query: {str(e)}")
 
 
 # Global connector instance

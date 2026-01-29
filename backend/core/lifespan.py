@@ -62,6 +62,8 @@ from backend.services.runtime import set_cache_service, set_refresh_token_servic
 from backend.services.scheduled_export_service import ScheduledExportService
 from backend.services.sql_sync_service import SQLSyncService
 from backend.services.sync_conflicts_service import SyncConflictsService
+from backend.services.lock_service import LockService
+from backend.services.variant_service import VariantService
 from backend.sql_server_connector import SQLServerConnector
 from backend.utils.port_detector import PortDetector, save_backend_info
 
@@ -618,8 +620,45 @@ async def lifespan(app: FastAPI):  # noqa: C901
     except Exception as e:
         logger.error(f"Failed to initialize auth dependencies: {str(e)}")
 
-    # Initialize new feature services
-    global scheduled_export_service, sync_conflicts_service
+    # Initialize Lock Service
+    try:
+        lock_service = LockService(db)
+        await lock_service.initialize()
+        logger.info("✓ Lock service initialized")
+    except Exception as e:
+        logger.error(f"Failed to initialize lock service: {str(e)}")
+        # We might want to raise here if strict locking is critical,
+        # but for now log error.
+        lock_service = None  # fallback? Or just fail.
+
+    # Initialize Variant Service (Rule 5)
+    try:
+        variant_service = VariantService(db)
+        logger.info("✓ Variant service initialized for Rule 5 compliance")
+    except Exception as e:
+        logger.error(f"Failed to initialize variant service: {str(e)}")
+        variant_service = None
+
+    # Initialize Snapshot Service (Rule 2 Mandatory)
+    try:
+        from backend.services.snapshot_service import SnapshotService
+
+        snapshot_service = SnapshotService(db)
+        logger.info("✓ Snapshot service initialized for Rule 2 compliance")
+    except Exception as e:
+        logger.error(f"Failed to initialize snapshot service: {str(e)}")
+        snapshot_service = None
+
+    # Initialize count_lines_api with dependencies
+    try:
+        from backend.api.count_lines_api import init_count_lines_api
+
+        # Use global activity_log_service
+
+        init_count_lines_api(activity_log_service, lock_service, snapshot_service, variant_service)
+        logger.info("✓ CountLines API initialized with dependencies (including VariantService)")
+    except Exception as e:
+        logger.error(f"Failed to initialize CountLines API: {str(e)}")
     try:
         # Scheduled export service
         scheduled_export_service = ScheduledExportService(db)
@@ -711,7 +750,7 @@ async def lifespan(app: FastAPI):  # noqa: C901
 
     try:
         # Initialize verification API
-        init_verification_api(db, cache_service)
+        init_verification_api(db, cache_service, erp_sync_service)
         logger.info("✓ Item verification API initialized")
     except Exception as e:
         logger.error(f"Failed to initialize verification API: {str(e)}")

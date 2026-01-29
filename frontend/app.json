@@ -4,10 +4,16 @@
     "slug": "lavanya-mart-stock-verify",
     "version": "1.0.0",
     "scheme": "lavanyamart",
+    "sdkVersion": "54.0.0",
     "userInterfaceStyle": "automatic",
     "description": "Modern stock verification system for Lavanya Mart inventory management",
     "primaryColor": "#3B82F6",
     "backgroundColor": "#FFFFFF",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "ios": {
       "bundleIdentifier": "com.lavanyamart.stockverify",
       "supportsTablet": true,

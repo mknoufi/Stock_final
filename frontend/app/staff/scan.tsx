@@ -62,6 +62,8 @@ import {
   shadows,
 } from "../../src/theme/modernDesign";
 
+import { useAuthStore } from "../../src/store/authStore";
+
 const SCAN_BUFFER_TIMEOUT = 2000; // 2 seconds
 const SCAN_BUFFER_MAX_SIZE = 10;
 const SCAN_CONFIDENCE_THRESHOLD = 2;
@@ -72,6 +74,8 @@ const ScanScreen = React.memo(function ScanScreen() {
   const sessionId = Array.isArray(rawSessionId)
     ? rawSessionId[0]
     : rawSessionId;
+
+  const { user, logout } = useAuthStore();
 
   const { currentFloor, currentRack } = useScanSessionStore();
   const [permission, requestPermission] = useCameraPermissions();
@@ -444,6 +448,31 @@ const ScanScreen = React.memo(function ScanScreen() {
     }
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      "Confirm Logout",
+      "Are you sure you want to log out ending your session?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Logout",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              if (sessionId) {
+                // Optional: updateSessionStatus(sessionId, "paused");
+              }
+              await logout();
+              router.replace("/auth/login");
+            } catch (e) {
+              console.error(e);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   if (isScanning) {
     if (!permission) {
       // Camera permissions are still loading
@@ -580,12 +609,20 @@ const ScanScreen = React.memo(function ScanScreen() {
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <ModernHeader
-        title="Scan Items"
-        showBackButton
-        onBackPress={() => router.back()}
+        title={`Welcome, ${user?.full_name?.split(" ")[0] || "Staff"}`}
         subtitle={`${currentFloor || ""} ${currentRack ? `• ${currentRack}` : ""}`}
-        rightComponent={<SyncStatusPill />}
+        showBackButton={false}
+        onBackPress={() => router.back()}
+        rightComponent={
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <SyncStatusPill />
+            <TouchableOpacity onPress={handleLogout} style={{ padding: 4 }}>
+              <Ionicons name="log-out-outline" size={24} color={colors.primary[500]} />
+            </TouchableOpacity>
+          </View>
+        }
       />
+
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}

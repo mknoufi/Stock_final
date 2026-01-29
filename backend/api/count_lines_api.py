@@ -13,16 +13,31 @@ from backend.core.websocket_manager import manager
 from backend.db.runtime import get_db
 from backend.models.audit import AuditEventType, AuditLogStatus
 from backend.services.activity_log import ActivityLogService
+from backend.services.lock_service import LockService, ResourceLockedError
+from backend.services.snapshot_service import SnapshotService
+from backend.services.variant_service import VariantService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
 _activity_log_service: Optional[ActivityLogService] = None
+_lock_service: Optional[LockService] = None
+_snapshot_service: Optional[SnapshotService] = None
+_variant_service: Optional[VariantService] = None
 
 
-def init_count_lines_api(activity_log_service: ActivityLogService):
-    global _activity_log_service
+def init_count_lines_api(
+    activity_log_service: ActivityLogService,
+    lock_service: Optional[LockService] = None,
+    snapshot_service: Optional[SnapshotService] = None,
+    variant_service: Optional[VariantService] = None,
+):
+    global _activity_log_service, _lock_service, _snapshot_service, _variant_service
     _activity_log_service = activity_log_service
+    _lock_service = lock_service
+    _snapshot_service = snapshot_service
+    _variant_service = variant_service
 
 
 def _get_db_client(db_override=None):
@@ -162,8 +177,21 @@ async def create_count_line(
     if not erp_item:
         raise HTTPException(status_code=404, detail="Item not found in ERP")
 
-    # Calculate variance
-    variance = line_data.counted_qty - erp_item["stock_qty"]
+    # --- Rule 2: Stock Snapshot Control ---
+    # Instead of live ERP qty, we must use a frozen snapshot.
+    # Verification triggers the snapshot creation if it doesn't exist.
+    erp_snapshot = None
+    if _snapshot_service:
+        erp_snapshot = await _snapshot_service.get_or_create_snapshot(
+            line_data.session_id, line_data.item_code, current_user["username"]
+        )
+
+    # Use snapshot qty if available, fallback to live (emergency only)
+    erp_qty = erp_snapshot.get("erp_qty") if erp_snapshot else erp_item.get("stock_qty", 0)
+    baseline_hash = erp_snapshot.get("baseline_hash") if erp_snapshot else "UNHASHED_FALLBACK"
+
+    # Calculate variance using snapshot quantity (Rule 2 + Rule 4)
+    variance = line_data.counted_qty - erp_qty
 
     # Validate mandatory correction reason for variance
     if abs(variance) > 0 and not line_data.correction_reason and not line_data.variance_reason:
@@ -175,6 +203,41 @@ async def create_count_line(
     # Detect risk flags
     risk_flags = detect_risk_flags(erp_item, line_data, variance)
 
+    # --- Misplaced Stock Logic ---
+    # Compare found location (line_data) vs expected (erp_item)
+    is_misplaced = False
+
+    # Normalize inputs: Empty string equals None for comparison
+    found_floor = (line_data.floor_no or "").strip().upper()
+    found_rack = (line_data.rack_no or "").strip().upper()
+
+    # ERP location might be stored in 'floor'/'rack' OR 'location' field.
+    # Schema says: floor: Optional[str], rack: Optional[str], location: Optional[str]
+    expected_floor = (erp_item.get("floor") or "").strip().upper()
+    expected_rack = (erp_item.get("rack") or "").strip().upper()
+
+    # If ERP has no specific location defined, we can't mark it misplaced?
+    # Or if logic mandates strict slotting?
+    # Let's assume if ERP has location info, we validate.
+
+    if expected_floor or expected_rack:
+        # Check mismatch
+        floor_mismatch = found_floor and expected_floor and found_floor != expected_floor
+        rack_mismatch = found_rack and expected_rack and found_rack != expected_rack
+
+        if floor_mismatch or rack_mismatch:
+            is_misplaced = True
+            risk_flags.append("MISPLACED_ITEM")
+            # If not already flagged by variance/etc, ensure we force review
+            line_data.is_misplaced = True
+            line_data.expected_location = f"{expected_floor}/{expected_rack}"
+            line_data.found_location = f"{found_floor}/{found_rack}"
+
+            # --- Rule Compliance: Ensure RelocationStatus is typed correctly ---
+            from backend.api.schemas import RelocationStatus
+
+            line_data.relocation_status = RelocationStatus.PENDING
+
     # Enforce strict mode validation
     if session.get("type") == "STRICT" and abs(variance) > 0:
         risk_flags.append("STRICT_MODE_VARIANCE")
@@ -185,92 +248,164 @@ async def create_count_line(
         erp_item["mrp"], counted_mrp, line_data.counted_qty
     )
 
-    # Determine approval status based on risk
-    # High-risk corrections require supervisor review
-    approval_status = "NEEDS_REVIEW" if risk_flags else "PENDING"
+    # --- Strict Governance: Atomic Locking & Uniqueness Gate ---
+    # Rule 5: Variant Propagation Engine
+    # We lock the item_id family in addition to the location specific lock
+    item_id = erp_item.get("item_id")
+    variant_lock_key = f"product:{item_id}" if item_id else None
 
-    # Check for duplicates - now includes barcode to allow multiple batches of the same item
-    duplicate_filter = {
-        "session_id": line_data.session_id,
-        "item_code": line_data.item_code,
-        "counted_by": current_user["username"],
-    }
-    if line_data.barcode:
-        duplicate_filter["barcode"] = line_data.barcode
-
-    duplicate_result = db.count_lines.count_documents(duplicate_filter)
-    duplicate_check = (
-        await duplicate_result if inspect.isawaitable(duplicate_result) else duplicate_result
+    lock_key = (
+        f"{line_data.session_id}:{line_data.item_code}:{line_data.floor_no}:{line_data.rack_no}"
     )
-    if duplicate_check > 0:
-        risk_flags.append("DUPLICATE_CORRECTION")
-        approval_status = "NEEDS_REVIEW"
+    lock_acquired = False
+    variant_lock_acquired = False
 
-    # Create count line with enhanced fields
-    count_line = {
-        "id": str(uuid.uuid4()),
-        "session_id": line_data.session_id,
-        "item_code": line_data.item_code,
-        "barcode": line_data.barcode or erp_item.get("barcode"),
-        "item_name": erp_item["item_name"],
-        "erp_qty": erp_item["stock_qty"],
-        "counted_qty": line_data.counted_qty,
-        "variance": variance,
-        # Legacy fields
-        "variance_reason": line_data.variance_reason,
-        "variance_note": line_data.variance_note,
-        "remark": line_data.remark,
-        "photo_base64": line_data.photo_base64,
-        # Enhanced fields
-        "damaged_qty": line_data.damaged_qty,
-        "item_condition": line_data.item_condition,
-        "floor_no": line_data.floor_no,
-        "rack_no": line_data.rack_no,
-        "mark_location": line_data.mark_location,
-        "sr_no": line_data.sr_no,
-        "manufacturing_date": line_data.manufacturing_date,
-        "mfg_date_format": (line_data.mfg_date_format.value if line_data.mfg_date_format else None),
-        "expiry_date": line_data.expiry_date,
-        "expiry_date_format": (
-            line_data.expiry_date_format.value if line_data.expiry_date_format else None
-        ),
-        "non_returnable_damaged_qty": line_data.non_returnable_damaged_qty,
-        "correction_reason": (
-            line_data.correction_reason.model_dump() if line_data.correction_reason else None
-        ),
-        "photo_proofs": (
-            [p.model_dump() for p in line_data.photo_proofs] if line_data.photo_proofs else None
-        ),
-        "correction_metadata": (
-            line_data.correction_metadata.model_dump() if line_data.correction_metadata else None
-        ),
-        "approval_status": approval_status,
-        "approval_by": None,
-        "approval_at": None,
-        "rejection_reason": None,
-        "risk_flags": risk_flags,
-        "financial_impact": financial_impact,
-        # User and timestamp
-        "counted_by": current_user["username"],
-        "counted_at": datetime.utcnow(),
-        # MRP tracking
-        "mrp_erp": erp_item["mrp"],
-        "mrp_counted": line_data.mrp_counted,
-        # Additional fields
-        "split_section": line_data.split_section,
-        "serial_numbers": (line_data.serial_numbers if line_data.serial_numbers else None),
-        # Enhanced serial entries with per-serial attributes
-        "serial_entries": (
-            [s.model_dump() for s in line_data.serial_entries] if line_data.serial_entries else None
-        ),
-        # Legacy approval fields
-        "status": "pending",
-        "verified": False,
-        "verified_at": None,
-        "verified_by": None,
-    }
+    try:
+        if _lock_service:
+            try:
+                # 1. Acquire Variant Family Lock (Rule 5)
+                if variant_lock_key and _variant_service:
+                    # We use a session-scoped product lock to allow parallel counts in different sessions
+                    # BUT for Rule 5 strictness, we might want global product lock if specified.
+                    # Mandate says: "locks/flags on any batch must propagate to all related SKUs"
+                    session_variant_lock = f"session:{line_data.session_id}:{variant_lock_key}"
+                    variant_lock_acquired = await _lock_service.acquire_lock(
+                        session_variant_lock, current_user["username"]
+                    )
 
-    await db.count_lines.insert_one(count_line)
+                # 2. Acquire Specific Item/Location Lock
+                # 30s TTL default
+                lock_acquired = await _lock_service.acquire_lock(lock_key, current_user["username"])
+            except ResourceLockedError as e:
+                # If we failed to acquire variant lock, specifically call it out
+                lock_error_detail = (
+                    "Item or one of its variants is currently being counted by another user."
+                )
+                if "session" in str(e):
+                    lock_error_detail = "A related SKU/Variant is currently being counted in this session. Please wait."
+
+                raise HTTPException(
+                    status_code=423,
+                    detail=lock_error_detail,
+                )
+
+        # Uniqueness Gate: Block duplicate location scans
+        # Rule: UNIQUE(window_id, item_code, location_code, zone)
+        # Using floor_no + rack_no as proxy for location+zone
+        unique_filter = {
+            "session_id": line_data.session_id,
+            "item_code": line_data.item_code,
+            "floor_no": line_data.floor_no,
+            "rack_no": line_data.rack_no,
+        }
+        # If barcode is present, strict check against barcode too?
+        # No, duplicate items in same rack is the issue.
+
+        # Check if already exists
+        existing_count = await db.count_lines.find_one(unique_filter)
+        if existing_count:
+            raise HTTPException(
+                status_code=409,
+                detail="Duplicate Scan: This item has already been counted in this specific location (Floor/Rack). Ask supervisor to REVERIFY if needed.",
+            )
+
+        # Existing Warning-only Duplicate Check (Legacy, mostly redundant now but keeps 'DUPLICATE_CORRECTION' flag logic if we wanted to allow it)
+        # We can keep it for checking duplicates across *different* locations? No, that's allowed.
+        # So the below logic is mostly covered by Strict Gate above.
+        # But let's check if the user wanted to flag something else.
+        # The legacy check was: session + item + username. (Prevents same user scanning same item ANYWHERE?)
+        # That was invalid logic. We replace it.
+
+        # Determine approval status based on risk
+        # High-risk corrections require supervisor review
+        approval_status = "NEEDS_REVIEW" if risk_flags else "PENDING"
+
+        # Create count line with enhanced fields
+        count_line = {
+            "id": str(uuid.uuid4()),
+            "session_id": line_data.session_id,
+            "item_code": line_data.item_code,
+            "barcode": line_data.barcode or erp_item.get("barcode"),
+            "item_name": erp_item["item_name"],
+            "erp_qty": erp_qty,  # Rule 2: Frozen quantity
+            "baseline_hash": baseline_hash,  # Rule 2: Snapshot Hash
+            "counted_qty": line_data.counted_qty,
+            "variance": variance,
+            # Legacy fields
+            "variance_reason": line_data.variance_reason,
+            "variance_note": line_data.variance_note,
+            "remark": line_data.remark,
+            "photo_base64": line_data.photo_base64,
+            # Enhanced fields
+            "damaged_qty": line_data.damaged_qty,
+            "item_condition": line_data.item_condition,
+            "floor_no": line_data.floor_no,
+            "rack_no": line_data.rack_no,
+            "mark_location": line_data.mark_location,
+            "sr_no": line_data.sr_no,
+            "manufacturing_date": line_data.manufacturing_date,
+            "mfg_date_format": (
+                line_data.mfg_date_format.value if line_data.mfg_date_format else None
+            ),
+            "expiry_date": line_data.expiry_date,
+            "expiry_date_format": (
+                line_data.expiry_date_format.value if line_data.expiry_date_format else None
+            ),
+            "non_returnable_damaged_qty": line_data.non_returnable_damaged_qty,
+            "correction_reason": (
+                line_data.correction_reason.model_dump() if line_data.correction_reason else None
+            ),
+            "photo_proofs": (
+                [p.model_dump() for p in line_data.photo_proofs] if line_data.photo_proofs else None
+            ),
+            "correction_metadata": (
+                line_data.correction_metadata.model_dump()
+                if line_data.correction_metadata
+                else None
+            ),
+            "approval_status": approval_status,
+            "approval_by": None,
+            "approval_at": None,
+            "rejection_reason": None,
+            # Misplaced Stock Fields
+            "is_misplaced": is_misplaced,
+            "expected_location": line_data.expected_location,
+            "found_location": line_data.found_location,
+            "relocation_status": line_data.relocation_status,  # PENDING/MOVED/IGNORED
+            "risk_flags": risk_flags,
+            "financial_impact": financial_impact,
+            # User and timestamp
+            "created_by": current_user["username"],  # Legacy field
+            "counted_by": current_user["username"],
+            "counted_at": datetime.utcnow(),
+            # MRP tracking
+            "mrp_erp": erp_item["mrp"],
+            "mrp_counted": line_data.mrp_counted,
+            # Additional fields
+            "split_section": line_data.split_section,
+            "serial_numbers": (line_data.serial_numbers if line_data.serial_numbers else None),
+            # Enhanced serial entries with per-serial attributes
+            "serial_entries": (
+                [s.model_dump() for s in line_data.serial_entries]
+                if line_data.serial_entries
+                else None
+            ),
+            # Legacy approval fields
+            "status": "pending",
+            "verified": False,
+            "verified_at": None,
+            "verified_by": None,
+        }
+
+        await db.count_lines.insert_one(count_line)
+
+    finally:
+        if _lock_service:
+            if lock_acquired:
+                await _lock_service.release_lock(lock_key, current_user["username"])
+            if variant_lock_acquired:
+                session_variant_lock = f"session:{line_data.session_id}:{variant_lock_key}"
+                await _lock_service.release_lock(session_variant_lock, current_user["username"])
 
     # Real-time Broadcast: Notify active subscribers (e.g. Watchtower)
     try:

@@ -136,6 +136,12 @@ const ADMIN_GROUPS: SidebarGroup[] = [
         icon: "journal",
         route: "/admin/logs",
       },
+      {
+        key: "ai-assistant",
+        label: "AI Assistant",
+        icon: "chatbubble-ellipses",
+        route: "/admin/ai-assistant",
+      },
     ],
   },
   {
@@ -326,7 +332,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                         : theme.colors.textSecondary;
                       const bgColor = active
                         ? theme.colors.overlayPrimary ||
-                          "rgba(76, 175, 80, 0.1)"
+                        "rgba(76, 175, 80, 0.1)"
                         : "transparent";
 
                       return (
@@ -424,11 +430,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     ...(Platform.OS === "web"
       ? {
-          position: "fixed" as const,
-          left: 0,
-          top: 0,
-          bottom: 0,
-        }
+        position: "fixed" as const,
+        left: 0,
+        top: 0,
+        bottom: 0,
+      }
       : {}),
   } as any,
   scrollView: {

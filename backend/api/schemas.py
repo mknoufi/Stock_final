@@ -100,6 +100,14 @@ class ERPItem(BaseModel):
     manufacturing_date: Optional[str] = None
     expiry_date: Optional[str] = None
 
+    # SQL Verification fields
+    sql_verified_qty: Optional[float] = None
+    last_sql_verified_at: Optional[datetime] = None
+    variance: Optional[float] = None
+    mongo_cached_qty_previous: Optional[float] = None
+    sql_qty_mismatch_flag: Optional[bool] = None
+    sql_verification_status: Optional[str] = None
+
 
 class UserInfo(BaseModel):
     id: str
@@ -193,6 +201,12 @@ class SerialEntry(BaseModel):
     expiry_date_format: Optional[DateFormatType] = None
 
 
+class RelocationStatus(str, Enum):
+    PENDING = "PENDING"
+    MOVED = "MOVED"
+    IGNORED = "IGNORED"
+
+
 class CountLineCreate(BaseModel):
     session_id: str
     item_code: str
@@ -223,6 +237,12 @@ class CountLineCreate(BaseModel):
     correction_metadata: Optional[CorrectionMetadata] = None
     category_correction: Optional[str] = None
     subcategory_correction: Optional[str] = None
+
+    # Misplaced Stock Fields
+    is_misplaced: Optional[bool] = False
+    expected_location: Optional[str] = None
+    found_location: Optional[str] = None
+    relocation_status: Optional[RelocationStatus] = None
 
 
 class BulkCountLineUpdate(BaseModel):

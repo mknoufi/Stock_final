@@ -1,38 +1,50 @@
 import asyncio
-import sys
-from pathlib import Path
-
-# Add project root to path
-project_root = Path(__file__).parent
-sys.path.insert(0, str(project_root))
-
+import os
 from motor.motor_asyncio import AsyncIOMotorClient
-from backend.config import settings
-from backend.utils.auth_utils import get_password_hash
+from passlib.context import CryptContext
 
-async def reset_password():
-    client = AsyncIOMotorClient(settings.MONGO_URL)
-    db = client[settings.DB_NAME]
+# Config
+MONGO_URL = "mongodb://localhost:27017"
+DB_NAME = "stock_verification"
 
-    hashed_password = str(get_password_hash("password"))
-    print(f"Generated hash: {hashed_password}")
+# Password context
+pwd_context = CryptContext(
+    schemes=["argon2", "bcrypt"],
+    deprecated="auto",
+    argon2__memory_cost=65536,
+    argon2__time_cost=3,
+    argon2__parallelism=4,
+)
 
-    # Use update_one with explicit dictionary
-    update_doc = {"$set": {"hashed_password": hashed_password}}
 
-    # Note: In bash heredoc, $ might be interpreted. I escaped it above.
-    # But wait, if I escape it in heredoc, it might be passed as $set to python?
-    # Let's check the file content after creation.
+async def reset_admin():
+    client = AsyncIOMotorClient(MONGO_URL)
+    db = client[DB_NAME]
 
+    # Check current doc
+    user = await db.users.find_one({"username": "admin"})
+    if user:
+        print(f"Current Admin Doc Keys: {list(user.keys())}")
+        if "hashed_password" in user:
+            print("Found existing 'hashed_password' field.")
+
+    new_hash = pwd_context.hash("admin123")
+
+    # Update hashed_password (and clear legacy password field to be clean)
     result = await db.users.update_one(
         {"username": "admin"},
-        {"$set": {"hashed_password": hashed_password}}
+        {"$set": {"hashed_password": new_hash, "is_active": True}, "$unset": {"password": ""}},
     )
 
     if result.modified_count > 0:
-        print("Admin password reset to 'password'")
+        print("SUCCESS: Admin 'hashed_password' reset to 'admin123' (legacy 'password' removed).")
+    elif result.matched_count > 0:
+        print("INFO: Admin password matched current. Updated fields anyway.")
     else:
-        print("Admin user not found or password already set")
+        print("ERROR: Admin user not found to update.")
+
+    client.close()
+
 
 if __name__ == "__main__":
-    asyncio.run(reset_password())
+    asyncio.run(reset_admin())

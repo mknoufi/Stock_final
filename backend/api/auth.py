@@ -26,7 +26,6 @@ from backend.exceptions import (
     DatabaseConnectionError,
     NotFoundError,
     RateLimitError,
-    SessionConflictError,
 )
 from backend.models.audit import AuditEventType, AuditLogStatus
 from backend.services.otp_service import OTPService
@@ -454,20 +453,14 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
             return Fail(AuthorizationError("Account is deactivated. Please contact support."))
 
         # Check for active session conflict (Phase 1 Governance)
+        # Modified to "Last Login Wins" strategy:
+        # Instead of blocking, we allow the login to proceed.
+        # The generate_auth_tokens -> store_refresh_token flow will automatically revoke old sessions.
         if getattr(settings, "AUTH_SINGLE_SESSION", True):
             session_check = await check_for_active_session(credentials.username)
             if session_check.is_ok and session_check.unwrap():
-                logger.warning(f"Session conflict for user: {credentials.username}")
-                error = get_error_message("AUTH_SESSION_CONFLICT")
-                return Fail(
-                    SessionConflictError(
-                        message=error["message"],
-                        details={
-                            "detail": error["detail"],
-                            "code": error["code"],
-                            "remediation": error.get("remediation"),
-                        },
-                    )
+                logger.info(
+                    f"Active session found for {credentials.username} - will be auto-revoked by new login."
                 )
 
         # Generate tokens
@@ -602,20 +595,14 @@ async def login_with_pin(
             return Fail(AuthorizationError("Account is deactivated. Please contact support."))
 
         # Check for active session conflict (Phase 1 Governance)
+        # Modified to "Last Login Wins" strategy:
+        # Instead of blocking, we allow the login to proceed.
+        # The generate_auth_tokens -> store_refresh_token flow will automatically revoke old sessions.
         if getattr(settings, "AUTH_SINGLE_SESSION", True):
             session_check = await check_for_active_session(found_user["username"])
             if session_check.is_ok and session_check.unwrap():
-                logger.warning(f"Session conflict for user (PIN): {found_user['username']}")
-                error = get_error_message("AUTH_SESSION_CONFLICT")
-                return Fail(
-                    SessionConflictError(
-                        message=error["message"],
-                        details={
-                            "detail": error["detail"],
-                            "code": error["code"],
-                            "remediation": error.get("remediation"),
-                        },
-                    )
+                logger.info(
+                    f"Active session found for {found_user['username']} - will be auto-revoked by new login."
                 )
 
         # Generate tokens

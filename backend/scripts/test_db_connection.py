@@ -107,10 +107,12 @@ async def test_backend_api():
     print("=" * 60)
 
     import requests
+    backend_url = os.getenv("BACKEND_URL", "http://localhost:8001")
+    print(f"   Target: {backend_url}")
 
     # Test health endpoint
     try:
-        response = requests.get("http://localhost:8000/health/", timeout=5)
+        response = requests.get(f"{backend_url}/api/health", timeout=5)
         if response.status_code == 200:
             health = response.json()
             print("✅ Health Endpoint: SUCCESS")
@@ -119,13 +121,13 @@ async def test_backend_api():
         else:
             print(f"⚠️  Health Endpoint: Status {response.status_code}")
     except requests.exceptions.ConnectionError:
-        print("❌ Health Endpoint: Backend not running on port 8000")
+        print("❌ Health Endpoint: Backend not reachable")
     except Exception as e:
         print(f"❌ Health Endpoint: Error - {e}")
 
     # Test items endpoint (requires auth, but we can check if it exists)
     try:
-        response = requests.get("http://localhost:8000/api/erp/items/barcode/523658", timeout=5)
+        response = requests.get(f"{backend_url}/api/erp/items/barcode/523658", timeout=5)
         if response.status_code == 200:
             print("✅ Item Lookup API: SUCCESS")
             item = response.json()
@@ -135,7 +137,7 @@ async def test_backend_api():
         else:
             print(f"⚠️  Item Lookup API: Status {response.status_code}")
     except requests.exceptions.ConnectionError:
-        print("❌ Item Lookup API: Backend not running")
+        print("❌ Item Lookup API: Backend not reachable")
     except Exception as e:
         print(f"❌ Item Lookup API: Error - {e}")
 

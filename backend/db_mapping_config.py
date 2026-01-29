@@ -18,19 +18,19 @@ TABLE_MAPPINGS = {
 }
 
 # Column mappings for Products table
+# Note: Only columns that exist directly in Products table
+# Stock, UnitName, WarehouseID are from joined tables (ProductBatches, UnitOfMeasures)
 PRODUCTS_COLUMN_MAP = {
     "item_code": "ProductCode",
     "item_name": "ProductName",
     "barcode": "ProductCode",  # Default to ProductCode, will be enhanced with ProductBarcodes
-    "stock_qty": "Stock",
-    "uom_code": "BasicUnitID",
-    "uom_name": "UnitName",  # From UnitOfMeasures join
+    "uom_code": "BasicUnitID",  # FK to UnitOfMeasures
     "category": "ProductGroupID",  # FK to ProductGroups
     "subcategory": "ProductCategoryID",  # FK to ProductCategory
     "hsn_code": "HSNCode",
     "gst_category_id": "GSTTaxCategoryID",  # FK to GSTCategory
-    "location": "WarehouseID",
     "item_id": "ProductID",
+    "is_active": "IsActive",
 }
 
 # Column mappings for ProductBatches table
@@ -370,6 +370,15 @@ SQL_TEMPLATES = {
         SELECT ZoneID as zone_id, ZoneName as zone_name
         FROM dbo.Zone
         ORDER BY ZoneName
+    """,
+    "get_item_quantity": """
+        SELECT 
+            COALESCE(SUM(PB.Stock), 0) as quantity
+        FROM dbo.Products P
+        LEFT JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID
+        WHERE P.ProductCode = '{barcode}'
+            AND P.IsActive = 1
+            AND PB.AutoBarcode IS NOT NULL
     """,
 }
 

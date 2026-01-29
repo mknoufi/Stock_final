@@ -9,6 +9,7 @@ import logging
 from copy import deepcopy
 from datetime import datetime, timedelta
 from typing import Any, Optional
+import traceback
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -22,13 +23,15 @@ logger = logging.getLogger(__name__)
 # These will be initialized at runtime
 db: AsyncIOMotorDatabase = None
 cache_service = None
+sql_sync_service = None
 
 
-def init_verification_api(database, cache_svc=None):
+def init_verification_api(database, cache_svc=None, sql_svc=None):
     """Initialize verification API with dependencies"""
-    global db, cache_service
+    global db, cache_service, sql_sync_service
     db = database
     cache_service = cache_svc
+    sql_sync_service = sql_svc
 
 
 verification_router = APIRouter(prefix="/api/v2/erp/items", tags=["Item Verification"])
@@ -210,6 +213,67 @@ async def update_item_master(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@verification_router.post("/{barcode}/refresh-sql-qty")
+async def refresh_item_qty_from_sql(
+    barcode: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Manually refresh item quantity from SQL Server.
+    Updates MongoDB if there's a difference.
+    """
+    if not sql_sync_service:
+        raise HTTPException(
+            status_code=503,
+            detail="SQL Sync Service not available (SQL Server might be disabled or offline)",
+        )
+
+    try:
+        # Check if SQL is connected (wrapped to avoid blocking event loop)
+        is_connected = await asyncio.to_thread(sql_sync_service.sql_connector.test_connection)
+        if not is_connected:
+            raise HTTPException(status_code=503, detail="SQL Server is currently unreachable")
+
+        # Attempt to sync single item
+        # Try finding by barcode first, as the param suggests
+        updated_item = await sql_sync_service.sync_single_item_by_barcode(barcode)
+
+        if not updated_item:
+            # If not found by barcode, try as item_code (legacy support)
+            # This requires looking up the item code first or trusting the caller
+            # For now, we assume barcode is barcode.
+            # If we want to support item_code, we might need a separate service method
+            # or try to interpret the barcode.
+            pass
+
+        if not updated_item:
+            raise HTTPException(
+                status_code=404, detail=f"Item with barcode {barcode} not found in SQL Server"
+            )
+
+        updated_item["_id"] = str(updated_item["_id"])
+
+        # Invalidate cache
+        if cache_service:
+            if updated_item.get("barcode"):
+                await cache_service.delete_async("items", f"enhanced_{updated_item['barcode']}")
+            if updated_item.get("item_code"):
+                await cache_service.delete_async("items", f"enhanced_{updated_item['item_code']}")
+
+        return {
+            "success": True,
+            "message": "Quantity refreshed from SQL Server",
+            "item": serialize_item_document(updated_item),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        error_details = traceback.format_exc()
+        logger.error(f"Error refreshing SQL qty for {barcode}: {str(e)}\n{error_details}")
+        raise HTTPException(status_code=500, detail=f"Refresh failed: {str(e)}")
+
+
 def _calculate_variance(request: VerificationRequest, system_qty: float) -> Optional[float]:
     """Calculates the variance based on verified and damaged quantities."""
     if request.verified_qty is not None:
@@ -309,15 +373,27 @@ async def verify_item(
     Mark an item as verified/unverified with user tracking and timestamp
     """
     try:
-        # Get current item by barcode
-        item = await db.erp_items.find_one({"barcode": barcode})
+        item = None
+
+        # 1. Try to auto-refresh from SQL first (FR requirement)
+        if sql_sync_service:
+            try:
+                if sql_sync_service.sql_connector.test_connection():
+                    item = await sql_sync_service.sync_single_item_by_barcode(barcode)
+            except Exception as e:
+                logger.warning(f"Failed to auto-refresh item {barcode} from SQL: {e}")
+
+        # 2. If no item from SQL (or offline), get from MongoDB
         if not item:
-            # Fallback to item_code
-            item = await db.erp_items.find_one({"item_code": barcode})
+            # Get current item by barcode
+            item = await db.erp_items.find_one({"barcode": barcode})
             if not item:
-                raise HTTPException(
-                    status_code=404, detail=f"Item with barcode/code {barcode} not found"
-                )
+                # Fallback to item_code
+                item = await db.erp_items.find_one({"item_code": barcode})
+                if not item:
+                    raise HTTPException(
+                        status_code=404, detail=f"Item with barcode/code {barcode} not found"
+                    )
 
         actual_barcode = item.get("barcode")
         actual_item_code = item.get("item_code") or barcode

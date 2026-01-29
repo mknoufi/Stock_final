@@ -18,6 +18,11 @@ def get_pin_lookup_hash(pin: str) -> str:
     - CRITICAL: Salted hash prevents rainbow table attacks
     """
     # CRITICAL SECURITY FIX: Add salt to prevent rainbow table attacks
-    pin_salt = os.getenv("PIN_SALT") or "default-salt-change-in-production-2025"
+    pin_salt = os.getenv("PIN_SALT")
+    if not pin_salt:
+        raise ValueError(
+            "PIN_SALT environment variable must be set for production use. "
+            "Generate a secure random string and set it in your .env file."
+        )
     salted_pin = f"{pin_salt}{pin}"
     return hashlib.sha256(salted_pin.encode("utf-8")).hexdigest()

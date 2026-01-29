@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Query
 from backend.api.schemas_variance import VarianceThresholdConfig
 from backend.auth.permissions import Permission, require_permission
 from backend.db.runtime import get_db
+from backend.services.config_version_service import ConfigVersionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -59,6 +60,25 @@ async def get_variance_threshold(
     return {"success": True, "config": config}
 
 
+@router.get("/admin/variance-thresholds/{config_id}/history")
+async def get_variance_threshold_history(
+    config_id: str,
+    current_user: dict = require_permission(Permission.SETTINGS_MANAGE),
+):
+    """
+    Get audit history for a specific variance threshold configuration.
+    Rule G-06 compliance.
+    """
+    db = get_db()
+    version_service = ConfigVersionService(db)
+
+    history = await version_service.get_history(
+        config_type="variance_threshold", config_id=config_id
+    )
+
+    return {"success": True, "history": history}
+
+
 @router.post("/admin/variance-thresholds")
 async def create_variance_threshold(
     config_data: VarianceThresholdConfig,
@@ -85,6 +105,17 @@ async def create_variance_threshold(
 
     # Insert
     result = await db.variance_threshold_configs.insert_one(config_dict)
+    config_id = str(result.inserted_id)
+
+    # Rule G-06: Create version history
+    version_service = ConfigVersionService(db)
+    await version_service.create_version(
+        config_type="variance_threshold",
+        config_id=config_id,
+        data=config_dict,
+        changed_by=current_user.get("username", "system"),
+        change_type="CREATE",
+    )
 
     logger.info(
         f"Created variance threshold config: {config_data.name} by {current_user.get('username')}"
@@ -93,7 +124,7 @@ async def create_variance_threshold(
     return {
         "success": True,
         "message": "Configuration created successfully",
-        "config_id": str(result.inserted_id),
+        "config_id": config_id,
     }
 
 
@@ -129,6 +160,16 @@ async def update_variance_threshold(
 
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Configuration not found")
+
+    # Rule G-06: Create version history
+    version_service = ConfigVersionService(db)
+    await version_service.create_version(
+        config_type="variance_threshold",
+        config_id=config_id,
+        data=update_dict,
+        changed_by=current_user.get("username", "system"),
+        change_type="UPDATE",
+    )
 
     logger.info(f"Updated variance threshold config: {config_id} by {current_user.get('username')}")
 
@@ -166,6 +207,20 @@ async def delete_variance_threshold(
 
     # Delete
     try:
+        # Rule G-06: Create version history before deletion
+        version_service = ConfigVersionService(db)
+        # Convert ObjectId to str for serialized data
+        serializable_config = {
+            k: (str(v) if isinstance(v, ObjectId) else v) for k, v in config.items()
+        }
+        await version_service.create_version(
+            config_type="variance_threshold",
+            config_id=str(config["_id"]),
+            data=serializable_config,
+            changed_by=current_user.get("username", "system"),
+            change_type="DELETE",
+        )
+
         delete_result = await db.variance_threshold_configs.delete_one({"_id": config["_id"]})
         if delete_result.deleted_count == 0:
             raise HTTPException(status_code=500, detail="Failed to delete configuration")

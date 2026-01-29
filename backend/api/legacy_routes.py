@@ -652,32 +652,25 @@ async def refresh_token(request: Request) -> Result[dict[str, Any], Exception]:
     Request body should contain: {"refresh_token": "uuid-string"}
     """
     try:
-        print("DEBUG: Refresh endpoint called")
+        from backend.services.runtime import get_refresh_token_service
+
         body = await request.json()
-        print(f"DEBUG: Refresh body: {body}")
         refresh_token_value = body.get("refresh_token")
 
         if not refresh_token_value:
-            print("DEBUG: Missing refresh token")
             return Fail(ValidationError("Refresh token is required"))
 
-        print(f"DEBUG: Calling refresh_access_token with {refresh_token_value[:10]}...")
-        # Check if service is initialized
-        if refresh_token_service is None:
-            print("DEBUG: refresh_token_service is None!")
+        try:
+            token_service = get_refresh_token_service()
+        except RuntimeError:
+            return Fail(AuthenticationError("Authentication service not initialized"))
 
-        refreshed = await refresh_token_service.refresh_access_token(refresh_token_value)
+        refreshed = await token_service.refresh_access_token(refresh_token_value)
         if not refreshed:
-            print("DEBUG: refresh_access_token returned None")
             return Fail(AuthenticationError("Invalid or expired refresh token"))
 
-        print("DEBUG: Refresh successful")
         return Ok(refreshed)
     except Exception as e:
-        print(f"DEBUG: Refresh Exception: {e}")
-        import traceback
-
-        traceback.print_exc()
         logger.error(f"Token refresh error: {str(e)}")
         return Fail(e)
 

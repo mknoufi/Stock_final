@@ -172,7 +172,7 @@ export const DatabaseSyncStatus: React.FC<{
           <View style={styles.sectionHeader}>
             <Ionicons name="server" size={20} color={theme.colors.primary} />
             <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
-              SQL Server Connection
+              Source (SQL)
             </Text>
           </View>
 
@@ -274,7 +274,7 @@ export const DatabaseSyncStatus: React.FC<{
                 value={syncStatus.queuedOperations.toString()}
               />
               <InfoRow
-                label="Cache Size"
+                label="App Data Size"
                 value={`${(syncStatus.cacheSize / 1024).toFixed(2)} KB`}
               />
               {syncStatus.lastSync && (
