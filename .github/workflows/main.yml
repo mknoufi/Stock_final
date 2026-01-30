@@ -9,4 +9,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Say Hello
-        run: echo "CI Scanner Active"
+        run: echo "Sanity Check"
