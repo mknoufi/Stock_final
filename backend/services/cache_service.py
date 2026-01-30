@@ -6,7 +6,6 @@ Falls back to in-memory cache if Redis unavailable
 import asyncio
 import json
 import logging
-import threading
 import time
 from collections.abc import Callable
 from datetime import datetime

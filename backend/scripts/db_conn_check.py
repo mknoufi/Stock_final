@@ -107,6 +107,7 @@ async def test_backend_api():
     print("=" * 60)
 
     import requests
+
     backend_url = os.getenv("BACKEND_URL", "http://localhost:8001")
     print(f"   Target: {backend_url}")
 

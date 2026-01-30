@@ -1,5 +1,4 @@
 import pytest
-import json
 from fastapi.testclient import TestClient
 from backend.server import app
 from backend.tests.utils.in_memory_db import setup_server_with_in_memory_db

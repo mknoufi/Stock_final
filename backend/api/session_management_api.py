@@ -175,7 +175,6 @@ async def create_session(
 
     # Enforce Invariant E: Single Session per User
     # In a live production environment, opening a new session must invalidate old ones.
-    MAX_OPEN_SESSIONS = 1
 
     # Find any active sessions for this user across both collections
     open_sessions_filter = {

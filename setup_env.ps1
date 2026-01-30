@@ -1,6 +1,10 @@
 
-Copy-Item .env.example .env -Force
-Copy-Item frontend\.env.example frontend\.env -Force
+if (-not (Test-Path .env)) {
+    Copy-Item .env.example .env -Force
+}
+if (-not (Test-Path frontend\.env)) {
+    Copy-Item frontend\.env.example frontend\.env -Force
+}
 
 $content = Get-Content .env
 $newContent = @()

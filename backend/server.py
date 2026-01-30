@@ -222,7 +222,7 @@ app.add_middleware(
     allow_origins=_allowed_origins,
     # Allow local network IPs for development (Expo Go, LAN access)
     allow_origin_regex=(
-        r"https?://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
+        r"(https?|exp)://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
         r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?"
     ),
     allow_credentials=True,
@@ -261,8 +261,23 @@ else:
 api_router = APIRouter()
 
 # Register all routers with the app
-app.include_router(health_router, prefix="/api", tags=["health"])
+app.include_router(health_router, tags=["health"])  # Health endpoints at /health
+app.include_router(health_router, prefix="/api", tags=["health"])  # Also at /api/health
 app.include_router(info_router)  # Version check and info endpoints at /api/*
+
+
+# Add root endpoint
+@app.get("/", status_code=200)
+async def root():
+    """Root endpoint - basic service information"""
+    return {
+        "service": "stock-verify-backend",
+        "status": "running",
+        "version": "1.0.0",
+        "endpoints": {"health": "/health", "api": "/api", "docs": "/docs"},
+    }
+
+
 app.include_router(permissions_router, prefix="/api")  # Permissions management
 app.include_router(user_management_router, prefix="/api")  # User management CRUD
 app.include_router(mapping_router)  # Database mapping endpoints via mapping_api

@@ -5,8 +5,6 @@ Implements OWASP security headers recommendations
 
 import logging
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
 
 logger = logging.getLogger(__name__)
 

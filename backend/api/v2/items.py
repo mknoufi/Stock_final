@@ -355,7 +355,7 @@ async def get_item_details(
     """
     try:
         db = get_db()
-        
+
         # Get item from MongoDB
         item = await db.erp_items.find_one({"item_code": item_code})
         if not item:
@@ -363,7 +363,7 @@ async def get_item_details(
                 error_code="ITEM_NOT_FOUND",
                 error_message=f"Item with code {item_code} not found",
             )
-        
+
         # Trigger SQL verification if requested
         if verify_sql:
             try:
@@ -374,9 +374,10 @@ async def get_item_details(
             except Exception as e:
                 # Log error but don't fail the request
                 import logging
+
                 logger = logging.getLogger(__name__)
                 logger.warning(f"SQL verification failed for {item_code}: {str(e)}")
-        
+
         # Convert to response
         item_response = ItemResponse(
             id=str(item["_id"]),
@@ -390,18 +391,22 @@ async def get_item_details(
             warehouse=item.get("warehouse"),
             uom_name=item.get("uom_name"),
             sql_verified_qty=item.get("sql_verified_qty"),
-            last_sql_verified_at=item.get("last_sql_verified_at").isoformat() if item.get("last_sql_verified_at") else None,
+            last_sql_verified_at=(
+                item.get("last_sql_verified_at").isoformat()
+                if item.get("last_sql_verified_at")
+                else None
+            ),
             variance=item.get("variance"),
             mongo_cached_qty_previous=item.get("mongo_cached_qty_previous"),
             sql_qty_mismatch_flag=item.get("sql_qty_mismatch_flag"),
             sql_verification_status=item.get("sql_verification_status"),
         )
-        
+
         return ApiResponse.success_response(
             data=item_response,
             message=f"Retrieved item details for {item_code}",
         )
-        
+
     except Exception as e:
         return ApiResponse.error_response(
             error_code="INTERNAL_ERROR",

@@ -4,10 +4,7 @@ Performance Middleware - Track request performance and add caching headers
 
 import logging
 import time
-from collections.abc import Callable
 
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 try:

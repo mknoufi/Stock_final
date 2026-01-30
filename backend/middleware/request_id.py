@@ -13,7 +13,6 @@ import logging
 import uuid
 from typing import Optional
 
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
 # Context variables for correlation IDs (async-safe, accessible anywhere)

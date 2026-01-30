@@ -5,6 +5,34 @@ import * as offlineStorage from "../offline/offlineStorage";
 // Mock dependencies
 jest.mock("../api/api");
 jest.mock("../offline/offlineStorage");
+jest.mock("../connectionManager", () => ({
+  __esModule: true,
+  default: {
+    getInstance: jest.fn(() => ({
+      isHealthy: true,
+      backendUrl: "http://mock:8001",
+      backendPort: 8001,
+      backendIp: "mock",
+      lastChecked: new Date().toISOString(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      initialize: jest.fn().mockResolvedValue(undefined),
+    })),
+  },
+  ConnectionManager: {
+    getInstance: jest.fn(() => ({
+      isHealthy: true,
+      backendUrl: "http://mock:8001",
+      backendPort: 8001,
+      backendIp: "mock",
+      lastChecked: new Date().toISOString(),
+      addListener: jest.fn(),
+      removeListener: jest.fn(),
+      initialize: jest.fn().mockResolvedValue(undefined),
+    })),
+  },
+}));
+
 jest.mock("../../store/authStore", () => ({
   useAuthStore: {
     getState: () => ({

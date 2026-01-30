@@ -4,6 +4,7 @@ Environment Variable Validation Module
 Validates critical environment variables on application startup.
 Raises ValueError if required variables are missing or invalid.
 """
+
 import os
 import logging
 
@@ -42,9 +43,7 @@ def validate_environment() -> None:
     jwt_secret = os.getenv("JWT_SECRET")
     jwt_refresh_secret = os.getenv("JWT_REFRESH_SECRET")
     if jwt_secret and jwt_refresh_secret and jwt_secret == jwt_refresh_secret:
-        errors.append(
-            "JWT_SECRET and JWT_REFRESH_SECRET must be different values for security"
-        )
+        errors.append("JWT_SECRET and JWT_REFRESH_SECRET must be different values for security")
 
     # Validate numeric variables
     port = os.getenv("PORT")
@@ -88,7 +87,9 @@ def validate_environment() -> None:
 
     # Report errors
     if errors:
-        error_msg = "Environment variable validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
+        error_msg = "Environment variable validation failed:\n" + "\n".join(
+            f"  - {e}" for e in errors
+        )
         logger.error(error_msg)
         raise ValueError(error_msg)
 

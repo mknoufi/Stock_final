@@ -1,4 +1,5 @@
 """
+# ruff: noqa: E402
 # cSpell:ignore redef behaviour lavanya emart dotenv
 Application Configuration Management
 Type-safe configuration with validation using Pydantic
@@ -7,16 +8,18 @@ Type-safe configuration with validation using Pydantic
 import logging
 import os
 from typing import Optional
+from pathlib import Path
+from pydantic import Field, field_validator
 
 try:
-    from pydantic_settings import BaseSettings as PydanticBaseSettings  # type: ignore[no-redef]
-    from pydantic_settings import SettingsConfigDict
+    from pydantic_settings import BaseSettings as PydanticBaseSettings  # type: ignore[no-redef]  # noqa: E402
+    from pydantic_settings import SettingsConfigDict  # noqa: E402
 
     HAS_PYDANTIC_V2 = True
 except ImportError:
     HAS_PYDANTIC_V2 = False
     try:
-        from pydantic import BaseSettings as PydanticBaseSettingsFallback
+        from pydantic import BaseSettings as PydanticBaseSettingsFallback  # noqa: E402
     except (
         ImportError
     ) as exc:  # pragma: no cover - configuration import should succeed in production
@@ -26,9 +29,6 @@ except ImportError:
     SettingsConfigDict = dict  # type: ignore[assignment,misc]
     PydanticBaseSettings = PydanticBaseSettingsFallback  # type: ignore[assignment,misc]
 
-from pathlib import Path
-
-from pydantic import Field, field_validator
 
 ROOT_DIR = Path(__file__).parent
 
@@ -159,7 +159,9 @@ class Settings(PydanticBaseSettings):
         return v
 
     # SQL Server (Optional - app works without it)
-    SQL_SERVER_DRIVER: str = Field(default="SQL Server", description="ODBC driver name for SQL Server")
+    SQL_SERVER_DRIVER: str = Field(
+        default="SQL Server", description="ODBC driver name for SQL Server"
+    )
     SQL_SERVER_HOST: Optional[str] = Field(
         None,
         description="SQL Server host (optional)",
@@ -379,14 +381,14 @@ class Settings(PydanticBaseSettings):
 try:
     settings = Settings()  # type: ignore[call-arg]
 except Exception as e:
-    import warnings
+    import warnings  # noqa: E402
 
     warnings.warn(
         f"Configuration Error: {e}. Using environment variables with defaults.",
         stacklevel=2,
     )
     # Create a simple settings object from environment variables
-    from dotenv import load_dotenv
+    from dotenv import load_dotenv  # noqa: E402
 
     load_dotenv()
 

@@ -344,7 +344,7 @@ class TestSQLSyncService:
             assert sync_service.enabled is False
 
             # Enable
-            sync_service.enable()
+            await sync_service.enable()
             assert sync_service.enabled is True
             # Verify start() was called
             assert mock_start.called

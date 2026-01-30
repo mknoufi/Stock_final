@@ -59,25 +59,25 @@ class SQLServerConnector:
         self._query_lock = threading.Lock()
         # Asyncio semaphore to prevent concurrent async queries on single connection
         self._async_semaphore = None  # Created when async loop is available
-    
+
     async def connect(self) -> None:
         """Connect to SQL Server"""
         if self.connection:
             return
-        
+
         try:
             # Use connection builder to get connection string
             builder = SQLServerConnectionBuilder()
             connection_string = await builder.build_connection_string()
-            
+
             # Connect to database
             self.connection = pyodbc.connect(connection_string)
             logger.info("Connected to SQL Server successfully")
-            
+
         except Exception as e:
             logger.error(f"Failed to connect to SQL Server: {str(e)}")
             raise DatabaseConnectionError(f"Connection failed: {str(e)}")
-    
+
     async def disconnect(self) -> None:
         """Disconnect from SQL Server"""
         if self.connection:
@@ -126,30 +126,39 @@ class SQLServerConnector:
         return query
 
     async def execute_query(self, query: str) -> Any:
-        """Execute a SQL query and return results"""
+        """
+        Execute a SQL query and return results (READ-ONLY)
+
+        ARCHITECTURE ENFORCEMENT: SQL Server is READ-ONLY
+        Only SELECT queries are allowed. All writes go through MongoDB.
+        """
         if not self.connection:
             await self.connect()
-        
+
+        # CRITICAL: Enforce read-only access
+        query_upper = query.strip().upper()
+        if not query_upper.startswith("SELECT"):
+            error_msg = (
+                f"WRITE OPERATION BLOCKED: SQL Server is READ-ONLY. Query: {query_upper[:50]}"
+            )
+            logger.error(error_msg)
+            raise DatabaseQueryError(error_msg)
+
         try:
             cursor = self.connection.cursor()
             cursor.execute(query)
-            
-            # For SELECT queries, fetch results
-            if query.strip().upper().startswith('SELECT'):
-                columns = [column[0] for column in cursor.description]
-                results = []
-                for row in cursor.fetchall():
-                    results.append(dict(zip(columns, row)))
-                return results
-            else:
-                # For INSERT/UPDATE/DELETE, return affected rows
-                self.connection.commit()
-                return cursor.rowcount
-                
+
+            # Fetch SELECT query results
+            columns = [column[0] for column in cursor.description]
+            results = []
+            for row in cursor.fetchall():
+                results.append(dict(zip(columns, row)))
+            return results
+
         except Exception as e:
             logger.error(f"SQL query execution failed: {str(e)}")
             raise DatabaseQueryError(f"Query execution failed: {str(e)}")
-    
+
     def _reset_dynamic_metadata(self) -> None:
         """Reset cached optional select/join fragments."""
         self.optional_columns_clause = ""
@@ -931,7 +940,7 @@ class SQLServerConnector:
                         results[item_code] = stock_qty
 
                 cursor.close()
-            
+
             logger.debug(f"Retrieved quantities for {len(results)} item codes")
             return results
 

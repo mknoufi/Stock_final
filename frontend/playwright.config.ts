@@ -78,8 +78,8 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "npx expo start --web --port 8081",
-    url: "http://localhost:8081",
+    command: "npx expo start --web --port 8083",
+    url: "http://localhost:8083",
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000, // 2 minutes to start
     env: {

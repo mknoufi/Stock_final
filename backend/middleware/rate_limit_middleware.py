@@ -4,12 +4,10 @@ Rate Limit Middleware - Enforce rate limiting on API endpoints
 
 import logging
 import os
-from collections.abc import Callable
 from typing import Optional
 
-from fastapi import HTTPException, Request, status
+from fastapi import Request
 from jwt import decode as jwt_decode
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
 from backend.services.rate_limiter import RateLimiter

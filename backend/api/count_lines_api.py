@@ -383,6 +383,8 @@ async def create_count_line(
             "mrp_counted": line_data.mrp_counted,
             # Additional fields
             "split_section": line_data.split_section,
+            "category_correction": line_data.category_correction,
+            "subcategory_correction": line_data.subcategory_correction,
             "serial_numbers": (line_data.serial_numbers if line_data.serial_numbers else None),
             # Enhanced serial entries with per-serial attributes
             "serial_entries": (

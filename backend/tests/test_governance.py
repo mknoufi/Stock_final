@@ -11,7 +11,6 @@ import uuid
 import logging
 from pathlib import Path
 from motor.motor_asyncio import AsyncIOMotorClient
-from datetime import datetime
 
 # Add project root
 project_root = Path(__file__).parent.parent.parent

@@ -18,6 +18,17 @@ dependencies = [
     "fastapi>=0.115.8",
     "uvicorn[standard]>=0.34.1",
     "gunicorn>=23.0.0",
-    "motor>=3.7.0",
     "pydantic>=2.12.5",
 ]
+
+[tool.ruff]
+# Ignore E402 (module level import not at top of file) globally due to conditional import needs
+ignore = ["E402"]
+line-length = 100
+
+[tool.ruff.lint]
+ignore = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --ignore=tests/evaluation"

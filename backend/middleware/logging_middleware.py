@@ -8,7 +8,6 @@ import time
 from contextvars import ContextVar
 from typing import Any, Optional
 
-from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 
 logger = logging.getLogger(__name__)

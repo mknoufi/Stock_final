@@ -153,9 +153,11 @@ async def get_pi_status(current_user: Dict[str, Any] = Depends(get_current_user)
             response = await client.get(f"{PI_SERVER_URL}/models")
             return {
                 "active": response.status_code == 200,
-                "msg": "AI sidecar is online"
-                if response.status_code == 200
-                else "AI sidecar returned an error",
+                "msg": (
+                    "AI sidecar is online"
+                    if response.status_code == 200
+                    else "AI sidecar returned an error"
+                ),
             }
         except Exception:
             return {"active": False, "msg": "AI sidecar unreachable"}

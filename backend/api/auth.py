@@ -453,14 +453,17 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
             return Fail(AuthorizationError("Account is deactivated. Please contact support."))
 
         # Check for active session conflict (Phase 1 Governance)
-        # Modified to "Last Login Wins" strategy:
-        # Instead of blocking, we allow the login to proceed.
-        # The generate_auth_tokens -> store_refresh_token flow will automatically revoke old sessions.
+        # Strict Single Session Enforcement:
+        # Block second login attempt with 409 Conflict
         if getattr(settings, "AUTH_SINGLE_SESSION", True):
             session_check = await check_for_active_session(credentials.username)
             if session_check.is_ok and session_check.unwrap():
-                logger.info(
-                    f"Active session found for {credentials.username} - will be auto-revoked by new login."
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "User already has an active session",
+                        "message": "Please log out from the other session before logging in again",
+                    },
                 )
 
         # Generate tokens
@@ -480,6 +483,8 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
         logger.info("=== LOGIN SUCCESS ===")
         return Ok(_build_login_response(tokens, user))
 
+    except HTTPException:
+        raise  # Let HTTPException pass through with proper status code
     except Exception as e:
         logger.error("=== LOGIN EXCEPTION ===")
         logger.error(f"Exception type: {type(e).__name__}")
@@ -595,14 +600,17 @@ async def login_with_pin(
             return Fail(AuthorizationError("Account is deactivated. Please contact support."))
 
         # Check for active session conflict (Phase 1 Governance)
-        # Modified to "Last Login Wins" strategy:
-        # Instead of blocking, we allow the login to proceed.
-        # The generate_auth_tokens -> store_refresh_token flow will automatically revoke old sessions.
+        # Strict Single Session Enforcement:
+        # Block second login attempt with 409 Conflict
         if getattr(settings, "AUTH_SINGLE_SESSION", True):
             session_check = await check_for_active_session(found_user["username"])
             if session_check.is_ok and session_check.unwrap():
-                logger.info(
-                    f"Active session found for {found_user['username']} - will be auto-revoked by new login."
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "User already has an active session",
+                        "message": "Please log out from the other session before logging in again",
+                    },
                 )
 
         # Generate tokens
@@ -622,6 +630,8 @@ async def login_with_pin(
         logger.info("=== PIN LOGIN SUCCESS ===")
         return Ok(_build_login_response(tokens, found_user))
 
+    except HTTPException:
+        raise  # Let HTTPException pass through with proper status code
     except Exception as e:
         logger.error("=== PIN LOGIN EXCEPTION ===")
         logger.error(f"Exception type: {type(e).__name__}")

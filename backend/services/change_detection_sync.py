@@ -16,7 +16,7 @@ from motor.motor_asyncio import AsyncIOMotorDatabase
 from pymongo import UpdateMany
 
 from backend.sql_server_connector import SQLServerConnector
-from backend.utils.result import Fail, Ok, Result, result_function
+from backend.utils.result import Fail, Ok, Result
 
 from .errors import ConnectionError, DatabaseError, SyncConfigError, SyncError
 
@@ -167,10 +167,10 @@ class ChangeDetectionSyncService:
             return query_result  # type: ignore
 
         query = query_result.unwrap()
-        
+
         # Only pass params if query has a WHERE clause (contains '?')
         # This prevents parameter mismatch errors
-        params = [self._last_sync] if (self._last_sync and '?' in query) else None
+        params = [self._last_sync] if (self._last_sync and "?" in query) else None
 
         try:
             # Execute query - may be sync or async

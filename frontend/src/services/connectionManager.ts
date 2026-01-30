@@ -27,9 +27,11 @@ class ConnectionManager {
   private currentConnection: ConnectionInfo | null = null;
   private healthCheckTimer: NodeJS.Timeout | null = null;
   private listeners: ((connection: ConnectionInfo) => void)[] = [];
+  private isInitialized = false;
 
   private constructor() {
-    this.initializeConnection();
+    // ❌ NO side effects in constructor
+    // Moved to initialize() method
   }
 
   static getInstance(): ConnectionManager {
@@ -41,8 +43,13 @@ class ConnectionManager {
 
   /**
    * Initialize connection with fallback detection
+   * MOVED from constructor to prevent import-time execution
    */
-  private async initializeConnection(): Promise<void> {
+  async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
     try {
       // Try to load saved connection first
       const saved = await AsyncStorage.getItem(STORAGE_KEY);
@@ -56,10 +63,14 @@ class ConnectionManager {
 
       // Start health monitoring
       this.startHealthMonitoring();
+      
+      // Mark as initialized to prevent re-initialization
+      this.isInitialized = true;
     } catch (error) {
       log.error("Failed to initialize connection", error);
       // Set fallback connection
       this.setFallbackConnection();
+      this.isInitialized = true; // Mark even on failure to prevent retry loops
     }
   }
 

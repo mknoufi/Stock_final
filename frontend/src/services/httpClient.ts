@@ -28,6 +28,14 @@ const apiClient = axios.create({
  */
 const connectionManager = ConnectionManager.getInstance();
 
+// FIX 3: Explicit initialization (moved from constructor)
+if (!IS_TEST_ENV) {
+  // Only initialize in non-test environments
+  connectionManager.initialize().catch((error) => {
+    log.warn("Failed to initialize connection manager", error);
+  });
+}
+
 /**
  * Update the base URL of the API client.
  * Called after backend reachability probe succeeds.

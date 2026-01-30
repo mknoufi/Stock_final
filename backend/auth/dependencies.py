@@ -171,17 +171,17 @@ async def get_current_user(
         # Extract and validate token
         logger.debug(f"[get_current_user] Request URL: {request.url.path}")
         logger.debug(f"[get_current_user] Credentials provided: {credentials is not None}")
-        
+
         token = JWTValidator.extract_token(request, credentials)
         logger.debug(f"[get_current_user] Token extracted: {token[:30]}...")
-        
+
         payload = JWTValidator.decode_token(token)
         logger.debug(f"[get_current_user] Token decoded, payload keys: {list(payload.keys())}")
 
         # Retrieve user from database
         username = payload["sub"]
         logger.debug(f"[get_current_user] Username from token: {username}")
-        
+
         user = await UserRepository.get_user_by_username(username)
         logger.debug(f"[get_current_user] User found: {user is not None}")
 

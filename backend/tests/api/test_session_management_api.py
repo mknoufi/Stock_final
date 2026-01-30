@@ -80,12 +80,17 @@ class TestCreateSessionEndpoint:
     @pytest.mark.asyncio
     async def test_create_session_success(self, mock_user_staff):
         """Test successful session creation"""
-        mock_db = MagicMock()
-        mock_db.sessions = MagicMock()
+        mock_db = AsyncMock()
+        mock_db.sessions = AsyncMock()
+        mock_db.sessions.find_one = AsyncMock(return_value=None)  # No existing session
         mock_db.sessions.count_documents = AsyncMock(return_value=0)
-        mock_db.sessions.insert_one = AsyncMock(return_value=MagicMock())
-        mock_db.verification_sessions = MagicMock()
-        mock_db.verification_sessions.insert_one = AsyncMock(return_value=MagicMock())
+        mock_db.sessions.update_many = AsyncMock()  # For auto-close
+        mock_db.sessions.insert_one = AsyncMock(return_value=AsyncMock(inserted_id="sess_123"))
+        mock_db.verification_sessions = AsyncMock()
+        mock_db.verification_sessions.update_many = AsyncMock()  # For auto-close
+        mock_db.verification_sessions.insert_one = AsyncMock(
+            return_value=AsyncMock(inserted_id="vsess_123")
+        )
 
         async def override_get_db():
             return mock_db
@@ -93,60 +98,36 @@ class TestCreateSessionEndpoint:
         async def override_get_current_user():
             return mock_user_staff
 
+        # Mock refresh token service
+        mock_refresh_service = AsyncMock()
+        mock_refresh_service.revoke_all_user_tokens = AsyncMock(return_value=0)
+
         from backend.auth.dependencies import get_current_user_async
         from backend.db.runtime import get_db
+        from unittest.mock import patch
 
         app.dependency_overrides[get_db] = override_get_db
         app.dependency_overrides[get_current_user_async] = override_get_current_user
 
         try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response = await client.post(
-                    "/api/sessions/",
-                    json={"warehouse": "WH001", "type": "STANDARD"},
-                )
-                assert response.status_code == 200
-                data = response.json()
-                assert data["warehouse"] == "WH001"
-                assert data["status"] == "OPEN"
-                assert data["staff_user"] == "staff1"
-        finally:
-            app.dependency_overrides.clear()
-
-    @pytest.mark.asyncio
-    async def test_create_session_limit_exceeded(self, mock_user_staff):
-        """Test session creation blocked when limit reached (5 open sessions)"""
-        mock_db = MagicMock()
-        mock_db.sessions = MagicMock()
-        mock_db.sessions.count_documents = AsyncMock(return_value=5)  # Already at limit
-
-        async def override_get_db():
-            return mock_db
-
-        async def override_get_current_user():
-            return mock_user_staff
-
-        from backend.auth.dependencies import get_current_user_async
-        from backend.db.runtime import get_db
-
-        app.dependency_overrides[get_db] = override_get_db
-        app.dependency_overrides[get_current_user_async] = override_get_current_user
-
-        try:
-            async with AsyncClient(
-                transport=ASGITransport(app=app),
-                base_url="http://test",
-            ) as client:
-                response = await client.post(
-                    "/api/sessions/",
-                    json={"warehouse": "WH001"},
-                )
-                assert response.status_code == 400
-                assert "Session limit reached" in response.json()["detail"]
-                assert "5" in response.json()["detail"]
+            # Patch the direct call to get_refresh_token_service
+            with patch(
+                "backend.api.session_management_api.get_refresh_token_service",
+                return_value=mock_refresh_service,
+            ):
+                async with AsyncClient(
+                    transport=ASGITransport(app=app),
+                    base_url="http://test",
+                ) as client:
+                    response = await client.post(
+                        "/api/sessions/",
+                        json={"warehouse": "WH001", "type": "STANDARD"},
+                    )
+                    assert response.status_code == 200
+                    data = response.json()
+                    assert data["warehouse"] == "WH001"
+                    assert data["status"] == "OPEN"
+                    assert data["staff_user"] == "staff1"
         finally:
             app.dependency_overrides.clear()
 

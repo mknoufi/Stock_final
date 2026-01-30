@@ -4,10 +4,7 @@ Uses MongoDB 'locks' collection with TTL indexes.
 """
 
 import logging
-import asyncio
 from datetime import datetime, timedelta
-from typing import Optional
-from uuid import uuid4
 
 from pymongo.errors import DuplicateKeyError
 from motor.motor_asyncio import AsyncIOMotorDatabase

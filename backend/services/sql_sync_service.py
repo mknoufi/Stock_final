@@ -789,7 +789,7 @@ class SQLSyncService:
         1. Variance-only sync (every 15 min) - minimal SQL load
         2. New item discovery (every 30 min) - finds new items
         3. Nightly full sync (at 2 AM) - complete data verification
-        
+
         Uses async lock to prevent concurrent sync operations.
         """
         while self._running and self.enabled:

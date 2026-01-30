@@ -20,6 +20,18 @@ from backend.api.count_lines_api import (
 from backend.api.schemas import CountLineCreate
 
 
+@pytest.fixture(autouse=True)
+def reset_globals():
+    """Reset global services before each test"""
+    with (
+        patch("backend.api.count_lines_api._activity_log_service", None),
+        patch("backend.api.count_lines_api._lock_service", None),
+        patch("backend.api.count_lines_api._snapshot_service", None),
+        patch("backend.api.count_lines_api._variant_service", None),
+    ):
+        yield
+
+
 class TestCountLinesAPIHelpers:
     """Test helper functions"""
 
@@ -189,12 +201,19 @@ class TestCreateCountLine:
     @pytest.fixture
     def mock_db(self):
         """Create mock database"""
-        db = Mock()
+        db = AsyncMock()
         db.sessions.find_one = AsyncMock()
         db.erp_items.find_one = AsyncMock()
         db.count_lines.count_documents = AsyncMock(return_value=0)
+        db.count_lines.find_one = AsyncMock(return_value=None)
         db.count_lines.insert_one = AsyncMock()
         db.sessions.update_one = AsyncMock()
+        db.count_lines.aggregate = AsyncMock(
+            return_value=AsyncMock(to_list=AsyncMock(return_value=[]))
+        )
+        db.count_lines.update_one = AsyncMock()
+        db.count_lines.find = AsyncMock(return_value=AsyncMock(to_list=AsyncMock(return_value=[])))
+        db.count_lines.delete_one = AsyncMock()
         return db
 
     @pytest.fixture
@@ -204,6 +223,8 @@ class TestCreateCountLine:
             session_id="session123",
             item_code="ITEM001",
             counted_qty=50,
+            floor_no="F1",
+            rack_no="R1",
             variance_reason="test_reason",
         )
 
@@ -222,10 +243,14 @@ class TestCreateCountLine:
         """Test successful count line creation"""
         mock_db.sessions.find_one.return_value = {"id": "session123", "status": "OPEN"}
         mock_db.erp_items.find_one.return_value = erp_item
+        mock_db.count_lines.count_documents = AsyncMock(return_value=0)  # No duplicate
+        mock_db.count_lines.find_one = AsyncMock(return_value=None)  # No existing count
+        mock_db.count_lines.insert_one = AsyncMock()
+        mock_db.sessions.update_one = AsyncMock()
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
             result = await create_count_line(
-                request=Mock(),
+                request=AsyncMock(),
                 line_data=line_data,
                 current_user={"username": "testuser"},
             )
@@ -242,10 +267,10 @@ class TestCreateCountLine:
         """Test count line creation with non-existent session"""
         mock_db.sessions.find_one.return_value = None
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
             with pytest.raises(HTTPException) as exc_info:
                 await create_count_line(
-                    request=Mock(),
+                    request=AsyncMock(),
                     line_data=line_data,
                     current_user={"username": "testuser"},
                 )
@@ -258,10 +283,10 @@ class TestCreateCountLine:
         mock_db.sessions.find_one.return_value = {"id": "session123", "status": "OPEN"}
         mock_db.erp_items.find_one.return_value = None
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
             with pytest.raises(HTTPException) as exc_info:
                 await create_count_line(
-                    request=Mock(),
+                    request=AsyncMock(),
                     line_data=line_data,
                     current_user={"username": "testuser"},
                 )
@@ -276,10 +301,10 @@ class TestCreateCountLine:
         mock_db.sessions.find_one.return_value = {"id": "session123", "status": "OPEN"}
         mock_db.erp_items.find_one.return_value = erp_item
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
             with pytest.raises(HTTPException) as exc_info:
                 await create_count_line(
-                    request=Mock(),
+                    request=AsyncMock(),
                     line_data=line_data,
                     current_user={"username": "testuser"},
                 )
@@ -293,16 +318,18 @@ class TestCreateCountLine:
         mock_db.sessions.find_one.return_value = {"id": "session123", "status": "OPEN"}
         mock_db.erp_items.find_one.return_value = erp_item
         mock_db.count_lines.count_documents = AsyncMock(return_value=1)  # Duplicate exists
+        mock_db.count_lines.find_one = AsyncMock(return_value={"id": "existing"})  # Existing count
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
-            result = await create_count_line(
-                request=Mock(),
-                line_data=line_data,
-                current_user={"username": "testuser"},
-            )
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
+            with pytest.raises(HTTPException) as exc_info:
+                await create_count_line(
+                    request=AsyncMock(),
+                    line_data=line_data,
+                    current_user={"username": "testuser"},
+                )
 
-        assert "DUPLICATE_CORRECTION" in result["risk_flags"]
-        assert result["approval_status"] == "NEEDS_REVIEW"
+        assert exc_info.value.status_code == 409
+        assert "Duplicate Scan" in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     async def test_create_count_line_high_risk(self, mock_db, line_data, erp_item):
@@ -313,10 +340,12 @@ class TestCreateCountLine:
         erp_item["mrp"] = 500  # High value item
         mock_db.sessions.find_one.return_value = {"id": "session123", "status": "OPEN"}
         mock_db.erp_items.find_one.return_value = erp_item
+        mock_db.count_lines.count_documents = AsyncMock(return_value=0)  # No duplicate
+        mock_db.count_lines.find_one = AsyncMock(return_value=None)  # No existing count
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
             result = await create_count_line(
-                request=Mock(),
+                request=AsyncMock(),
                 line_data=line_data,
                 current_user={"username": "testuser"},
             )
@@ -331,14 +360,14 @@ class TestVerifyStock:
     @pytest.mark.asyncio
     async def test_verify_stock_success(self):
         """Test successful stock verification"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         mock_db.count_lines.update_one = AsyncMock(return_value=Mock(modified_count=1))
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
             result = await verify_stock(
                 line_id="line123",
                 current_user={"username": "supervisor", "role": "supervisor"},
-                request=Mock(),
+                request=AsyncMock(),
             )
 
         assert result["verified"] is True
@@ -347,15 +376,15 @@ class TestVerifyStock:
     @pytest.mark.asyncio
     async def test_verify_stock_not_found(self):
         """Test stock verification with non-existent line"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         mock_db.count_lines.update_one = AsyncMock(return_value=Mock(modified_count=0))
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
             with pytest.raises(HTTPException) as exc_info:
                 await verify_stock(
                     line_id="nonexistent",
                     current_user={"username": "supervisor", "role": "supervisor"},
-                    request=Mock(),
+                    request=AsyncMock(),
                 )
 
         assert exc_info.value.status_code == 404
@@ -367,7 +396,7 @@ class TestVerifyStock:
             await verify_stock(
                 line_id="line123",
                 current_user={"username": "staff", "role": "staff"},
-                request=Mock(),
+                request=AsyncMock(),
             )
 
         assert exc_info.value.status_code == 403
@@ -379,14 +408,14 @@ class TestUnverifyStock:
     @pytest.mark.asyncio
     async def test_unverify_stock_success(self):
         """Test successful stock unverification"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         mock_db.count_lines.update_one = AsyncMock(return_value=Mock(modified_count=1))
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
             result = await unverify_stock(
                 line_id="line123",
                 current_user={"username": "supervisor", "role": "supervisor"},
-                request=Mock(),
+                request=AsyncMock(),
             )
 
         assert result["verified"] is False
@@ -395,15 +424,15 @@ class TestUnverifyStock:
     @pytest.mark.asyncio
     async def test_unverify_stock_not_found(self):
         """Test stock unverification with non-existent line"""
-        mock_db = Mock()
+        mock_db = AsyncMock()
         mock_db.count_lines.update_one = AsyncMock(return_value=Mock(modified_count=0))
 
-        with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
+        with patch("backend.api.count_lines_api.get_db", return_value=mock_db):
             with pytest.raises(HTTPException) as exc_info:
                 await unverify_stock(
                     line_id="nonexistent",
                     current_user={"username": "supervisor", "role": "supervisor"},
-                    request=Mock(),
+                    request=AsyncMock(),
                 )
 
         assert exc_info.value.status_code == 404
@@ -508,6 +537,7 @@ class TestCountLinesAPIEdgeCases:
             "mrp": 100,
         }
         mock_db.count_lines.count_documents = AsyncMock(return_value=0)
+        mock_db.count_lines.find_one = AsyncMock(return_value=None)
         mock_db.count_lines.insert_one = AsyncMock()
         # Simulate error in session stats update
         mock_db.count_lines.aggregate = AsyncMock(side_effect=Exception("Database error"))
@@ -516,7 +546,7 @@ class TestCountLinesAPIEdgeCases:
         with patch("backend.api.count_lines_api._get_db_client", return_value=mock_db):
             # Should still succeed despite stats update error
             result = await create_count_line(
-                request=Mock(),
+                request=AsyncMock(),
                 line_data=CountLineCreate(
                     session_id="session123",
                     item_code="ITEM001",
