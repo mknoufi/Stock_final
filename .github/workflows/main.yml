@@ -1,0 +1,12 @@
+name: Minimal CI Verification
+
+on: [push, workflow_dispatch]
+
+jobs:
+  sanity-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Say Hello
+        run: echo "CI Scanner Active"
