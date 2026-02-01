@@ -10,11 +10,12 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  TouchableWithoutFeedback,
+  Pressable,
   Platform,
   KeyboardAvoidingView,
   ScrollView,
   ViewStyle,
+  GestureResponderEvent,
 } from "react-native";
 import Animated, {
   useSharedValue,
@@ -26,6 +27,8 @@ import Animated, {
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 import { BlurView } from "expo-blur";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export interface ModalProps {
   visible: boolean;
@@ -139,77 +142,79 @@ export const Modal: React.FC<ModalProps> = ({
       animationType={animationType}
       onRequestClose={onClose}
     >
-      <TouchableWithoutFeedback
+      <AnimatedPressable
         onPress={closeOnBackdropPress ? onClose : undefined}
+        style={[styles.backdrop, backdropAnimatedStyle]}
       >
-        <Animated.View style={[styles.backdrop, backdropAnimatedStyle]}>
-          {Platform.OS !== "web" ? (
-            <BlurView intensity={20} style={StyleSheet.absoluteFill} />
-          ) : (
-            <View
+        {Platform.OS !== "web" ? (
+          <BlurView intensity={20} style={StyleSheet.absoluteFill} />
+        ) : (
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: "rgba(0,0,0,0.5)" },
+            ]}
+          />
+        )}
+        <Pressable
+          onPress={(e: GestureResponderEvent) => e.stopPropagation()}
+          style={{ flex: 1, width: "100%", alignItems: "center", justifyContent: "center" }}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.container}
+          >
+            <Animated.View
               style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: "rgba(0,0,0,0.5)" },
+                styles.modal,
+                sizeStyles[size],
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+                modalAnimatedStyle,
               ]}
-            />
-          )}
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={styles.container}
             >
-              <Animated.View
-                style={[
-                  styles.modal,
-                  sizeStyles[size],
-                  {
-                    backgroundColor: theme.colors.card,
-                    borderColor: theme.colors.border,
-                  },
-                  modalAnimatedStyle,
-                ]}
-              >
-                {(title || showCloseButton) && (
-                  <View
-                    style={[
-                      styles.header,
-                      { borderBottomColor: theme.colors.border },
-                    ]}
-                  >
-                    {title && (
-                      <Text
-                        style={[styles.title, { color: theme.colors.text }]}
-                      >
-                        {title}
-                      </Text>
-                    )}
-                    {showCloseButton && (
-                      <TouchableOpacity
-                        onPress={onClose}
-                        style={styles.closeButton}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                      >
-                        <Ionicons
-                          name="close"
-                          size={24}
-                          color={theme.colors.textSecondary}
-                        />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                )}
-                <ScrollView
-                  style={styles.content}
-                  contentContainerStyle={styles.contentContainer}
-                  keyboardShouldPersistTaps="handled"
+              {(title || showCloseButton) && (
+                <View
+                  style={[
+                    styles.header,
+                    { borderBottomColor: theme.colors.border },
+                  ]}
                 >
-                  {children}
-                </ScrollView>
-              </Animated.View>
-            </KeyboardAvoidingView>
-          </TouchableWithoutFeedback>
-        </Animated.View>
-      </TouchableWithoutFeedback>
+                  {title && (
+                    <Text
+                      style={[styles.title, { color: theme.colors.text }]}
+                    >
+                      {title}
+                    </Text>
+                  )}
+                  {showCloseButton && (
+                    <TouchableOpacity
+                      onPress={onClose}
+                      style={styles.closeButton}
+                      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    >
+                      <Ionicons
+                        name="close"
+                        size={24}
+                        color={theme.colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+              <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.contentContainer}
+                keyboardShouldPersistTaps="handled"
+              >
+                {children}
+              </ScrollView>
+            </Animated.View>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </AnimatedPressable>
     </RNModal>
   );
 };

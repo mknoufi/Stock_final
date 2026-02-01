@@ -6,7 +6,7 @@ Provides health, readiness, and liveness checks for monitoring and Kubernetes
 import logging
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -60,7 +60,7 @@ async def _build_readiness_checks() -> dict[str, Any]:
     checks: dict[str, Any] = {
         "mongodb": False,
         "sql_server": False,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
     }
 
     # Run checks
@@ -130,7 +130,7 @@ async def _build_startup_checks() -> dict[str, Any]:
         "mongodb": False,
         "sql_server": False,
         "migrations": True,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
     }
 
     if not database_health_service:
@@ -234,7 +234,7 @@ async def get_version() -> dict[str, Any]:
             "environment": getattr(
                 settings, "ENVIRONMENT", os.getenv("ENVIRONMENT", "development")
             ),
-            "build_time": datetime.utcnow().isoformat(),
+            "build_time": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         }
 
         # Add port mapping info if available
@@ -277,7 +277,7 @@ async def health_check() -> dict[str, Any]:
     if not database_health_service:
         return {
             "status": "degraded",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "service": "stock-verify-api",
             "mongodb": {
                 "port": int(os.getenv("MONGO_PORT", 27017)),
@@ -294,7 +294,7 @@ async def health_check() -> dict[str, Any]:
 
     return {
         "status": "healthy" if mongo_status == "healthy" else "degraded",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "service": "stock-verify-api",
         "mongodb": {
             "port": mongo_port,
@@ -314,7 +314,7 @@ async def liveness_check() -> dict[str, Any]:
     Usage: k8s livenessProbe
     Failure action: Restart container
     """
-    return {"alive": True, "timestamp": datetime.utcnow().isoformat()}
+    return {"alive": True, "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}
 
 
 @health_router.get("/ready", status_code=status.HTTP_200_OK)
@@ -403,7 +403,7 @@ async def detailed_health_check() -> dict[str, Any]:
     health_data: dict[str, Any] = {
         **db_health,
         "service": "stock-verify-api",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "version": getattr(settings, "APP_VERSION", "1.0.0"),
         "resources": resources,
         "connection_pools": {"mongodb": mongo_pool_info},
@@ -502,7 +502,7 @@ async def check_version(
         result = _compare_versions(client_version, min_version, current_version)
 
         # Add timestamp and extra info
-        result["timestamp"] = datetime.utcnow().isoformat()
+        result["timestamp"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
         result["app_name"] = getattr(settings, "APP_NAME", "Stock Count")
 
         # Add release notes URL or changelog info if available
@@ -522,6 +522,6 @@ async def check_version(
             "minimum_version": "1.0.0",
             "current_version": "1.0.0",
             "force_update": False,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "error": str(e),
         }

@@ -6,7 +6,7 @@ This script fetches data from SQL Server and updates MongoDB items
 import asyncio
 import logging
 import sys
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 # Add parent directory to path
@@ -101,7 +101,7 @@ def _build_set_fields(sql_item):
         "uom_code": sql_item.get("uom_code", ""),
         "uom_name": sql_item.get("uom_name", ""),
         "data_version": 3,
-        "last_backfill": datetime.utcnow(),
+        "last_backfill": datetime.now(timezone.utc).replace(tzinfo=None),
     }
 
     for field in _NUMERIC_FIELDS:

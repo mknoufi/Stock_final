@@ -4,7 +4,7 @@ Data retention, GDPR compliance, and data lifecycle management
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -42,7 +42,7 @@ class DataSubjectRequest(BaseModel):
     subject_id: str  # User ID or email
     subject_email: Optional[str] = None
     status: str = "pending"  # pending, processing, completed, denied
-    requested_at: datetime = Field(default_factory=datetime.utcnow)
+    requested_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     completed_at: Optional[datetime] = None
     processed_by: Optional[str] = None
     notes: Optional[str] = None
@@ -151,7 +151,7 @@ class DataGovernanceService:
         async for policy_doc in self.policies_collection.find():
             policy = RetentionPolicy(**{k: v for k, v in policy_doc.items() if k != "_id"})
 
-            cutoff_date = datetime.utcnow() - timedelta(days=policy.retention_days)
+            cutoff_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=policy.retention_days)
             collection = self.db[policy.collection_name]
 
             try:
@@ -172,7 +172,7 @@ class DataGovernanceService:
                         archive_docs.append(
                             {
                                 "source_collection": policy.collection_name,
-                                "archived_at": datetime.utcnow(),
+                                "archived_at": datetime.now(timezone.utc).replace(tzinfo=None),
                                 "original_id": str(doc.pop("_id")),
                                 "data": doc,
                             }
@@ -280,7 +280,7 @@ class DataGovernanceService:
             {
                 "$set": {
                     "status": "completed",
-                    "completed_at": datetime.utcnow(),
+                    "completed_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "processed_by": processed_by,
                     "data_exported": {"collections_included": list(data.keys())},
                 }
@@ -321,7 +321,7 @@ class DataGovernanceService:
                     archive_docs.append(
                         {
                             "source_collection": collection_name,
-                            "archived_at": datetime.utcnow(),
+                            "archived_at": datetime.now(timezone.utc).replace(tzinfo=None),
                             "erasure_request_id": request_id,
                             "original_id": str(doc.pop("_id")),
                             "data": doc,
@@ -347,7 +347,7 @@ class DataGovernanceService:
                     "username": f"deleted_user_{subject_id[:8]}",
                     "email": None,
                     "full_name": "Deleted User",
-                    "deleted_at": datetime.utcnow(),
+                    "deleted_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "deletion_request_id": request_id,
                 }
             },
@@ -360,7 +360,7 @@ class DataGovernanceService:
             {
                 "$set": {
                     "status": "completed",
-                    "completed_at": datetime.utcnow(),
+                    "completed_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "processed_by": processed_by,
                     "data_exported": {"deleted_counts": results},
                 }
@@ -439,7 +439,7 @@ class DataGovernanceService:
         )
 
         return {
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "summary": {
                 "total_collections": total_collections,
                 "collections_with_retention_policy": collections_with_policies,

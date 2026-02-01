@@ -9,7 +9,7 @@ import re
 import traceback
 from collections import defaultdict, deque
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -66,7 +66,7 @@ class DiagnosisResult:
         self.auto_fixable = auto_fixable
         self.auto_fix = auto_fix
         self.confidence = confidence
-        self.timestamp = datetime.utcnow()
+        self.timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary"""
@@ -244,7 +244,7 @@ class AutoDiagnosisService:
         if error_key in self._diagnosis_cache:
             cached = self._diagnosis_cache[error_key]
             # Update timestamp
-            cached.timestamp = datetime.utcnow()
+            cached.timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
             return cached
 
         # Classify error
@@ -277,7 +277,7 @@ class AutoDiagnosisService:
         # Store in history
         self._error_history.append(
             {
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
                 "error": error,
                 "diagnosis": diagnosis.to_dict(),
                 "context": context,
@@ -601,7 +601,7 @@ class AutoDiagnosisService:
     async def get_error_statistics(self, time_window: Optional[timedelta] = None) -> dict[str, Any]:
         """Get error statistics for analysis"""
         time_window = time_window or timedelta(hours=24)
-        cutoff_time = datetime.utcnow() - time_window
+        cutoff_time = datetime.now(timezone.utc).replace(tzinfo=None) - time_window
 
         # Filter recent errors
         recent_errors = [e for e in self._error_history if e["timestamp"] >= cutoff_time]
@@ -646,14 +646,14 @@ class AutoDiagnosisService:
             "auto_fixable_rate": auto_fixable_count / total_errors,
             "auto_fixable_count": auto_fixable_count,
             "common_errors": [{"type": k, "count": v} for k, v in common_errors],
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         }
 
     async def health_check(self) -> dict[str, Any]:
         """Comprehensive health check with auto-diagnosis"""
         health_report: dict[str, Any] = {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "checks": {},
             "diagnoses": [],
             "recommendations": [],
@@ -691,7 +691,7 @@ class AutoDiagnosisService:
 
 async def run_nightly_diagnosis():
     """Run nightly diagnosis and health check"""
-    logger.info(f"Starting nightly diagnosis at {datetime.utcnow().isoformat()}")
+    logger.info(f"Starting nightly diagnosis at {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}")
     service = AutoDiagnosisService()
 
     # Add some basic health checks

@@ -2,7 +2,7 @@ import asyncio
 from motor.motor_asyncio import AsyncIOMotorClient
 import pyodbc
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -61,7 +61,7 @@ async def verify_item_sync(barcode):
     if mongo_qty != sql_qty:
         print(f"MISMATCH DETECTED: MongoDB({mongo_qty}) != SQL({sql_qty})")
         try:
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             result = await db.erp_items.update_one(
                 {"barcode": barcode},
                 {

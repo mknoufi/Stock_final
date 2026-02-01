@@ -32,6 +32,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="lavanyamart"/>
+        <data android:scheme="exp+lavanya-mart-stock-verify"/>
       </intent-filter>
     </activity>
   </application>

@@ -4,7 +4,7 @@ Allows supervisors to dynamically add custom fields to items with database mappi
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from bson import ObjectId
@@ -102,8 +102,8 @@ class DynamicFieldsService:
                 "in_reports": in_reports,
                 "order": order,
                 "created_by": created_by,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "enabled": True,
             }
 
@@ -142,7 +142,7 @@ class DynamicFieldsService:
     ) -> dict[str, Any]:
         """Update a field definition"""
         try:
-            updates["updated_at"] = datetime.utcnow()
+            updates["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             if updated_by:
                 updates["updated_by"] = updated_by
 
@@ -165,7 +165,7 @@ class DynamicFieldsService:
         try:
             result = await self.field_definitions.update_one(
                 {"_id": ObjectId(field_id)},
-                {"$set": {"enabled": False, "deleted_at": datetime.utcnow()}},
+                {"$set": {"enabled": False, "deleted_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
             )
 
             return result.modified_count > 0
@@ -211,13 +211,13 @@ class DynamicFieldsService:
                         "$set": {
                             "value": validated_value,
                             "updated_by": set_by,
-                            "updated_at": datetime.utcnow(),
+                            "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         },
                         "$push": {
                             "history": {
                                 "value": existing.get("value"),
                                 "updated_by": set_by,
-                                "updated_at": datetime.utcnow(),
+                                "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
                             }
                         },
                     },
@@ -232,8 +232,8 @@ class DynamicFieldsService:
                     "field_type": field_def["field_type"],
                     "value": validated_value,
                     "set_by": set_by,
-                    "created_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "history": [],
                 }
 

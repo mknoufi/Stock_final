@@ -9,7 +9,7 @@ import re
 import time
 import uuid
 from copy import deepcopy
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from bson import ObjectId
@@ -514,7 +514,7 @@ async def _process_session_op(
         session_doc["offline_id"] = offline_id
         id_mapping[str(offline_id)] = session.id
 
-    session_doc.update({"created_offline": True, "synced_at": datetime.utcnow()})
+    session_doc.update({"created_offline": True, "synced_at": datetime.now(timezone.utc).replace(tzinfo=None)})
     await db.sessions.insert_one(session_doc)
     return "Session synced"
 
@@ -533,8 +533,8 @@ async def _process_count_line_op(
             line_data["session_id"] = id_mapping[lookup_key]
 
     line_data.setdefault("counted_by", current_user.get("username"))
-    line_data.setdefault("counted_at", datetime.utcnow())
-    line_data.setdefault("synced_at", datetime.utcnow())
+    line_data.setdefault("counted_at", datetime.now(timezone.utc).replace(tzinfo=None))
+    line_data.setdefault("synced_at", datetime.now(timezone.utc).replace(tzinfo=None))
     await db.count_lines.insert_one(line_data)
     return "Count line synced"
 
@@ -553,8 +553,8 @@ async def _process_unknown_item_op(
             item_data["session_id"] = id_mapping[lookup_key]
 
     item_data.setdefault("reported_by", current_user.get("username"))
-    item_data.setdefault("reported_at", datetime.utcnow())
-    item_data.setdefault("synced_at", datetime.utcnow())
+    item_data.setdefault("reported_at", datetime.now(timezone.utc).replace(tzinfo=None))
+    item_data.setdefault("synced_at", datetime.now(timezone.utc).replace(tzinfo=None))
     await db.unknown_items.insert_one(item_data)
     return "Unknown item synced"
 

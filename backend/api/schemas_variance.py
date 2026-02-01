@@ -1,5 +1,5 @@
 # Variance Threshold Models
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -31,8 +31,8 @@ class VarianceThresholdConfig(BaseModel):
     apply_to_locations: Optional[list[str]] = Field(
         default=None, description="Locations this applies to (None = all)"
     )
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
 
 
 class VarianceData(BaseModel):

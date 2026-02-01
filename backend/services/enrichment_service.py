@@ -5,7 +5,7 @@ Manages serial numbers, MRP, HSN codes, and other missing data additions
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -165,7 +165,7 @@ class EnrichmentService:
             corrections = _process_enrichment_fields(enrichment_data, existing_item, update_fields)
 
             # Add enrichment metadata
-            update_fields["last_enriched_at"] = datetime.utcnow()
+            update_fields["last_enriched_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             update_fields["enriched_by"] = user_id
 
             # Calculate data completeness
@@ -175,7 +175,7 @@ class EnrichmentService:
 
             # Build enrichment history entry
             history_entry = {
-                "updated_at": datetime.utcnow(),
+                "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "updated_by": user_id,
                 "username": username,
                 "fields_updated": list(corrections.keys()),
@@ -194,7 +194,7 @@ class EnrichmentService:
                 "corrections": corrections,
                 "enriched_by": user_id,
                 "username": username,
-                "enriched_at": datetime.utcnow(),
+                "enriched_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "fields_count": len(corrections),
                 "data_complete": completeness["is_complete"],
             }

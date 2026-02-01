@@ -4,7 +4,7 @@ Uses MongoDB 'locks' collection with TTL indexes.
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from pymongo.errors import DuplicateKeyError
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -46,7 +46,7 @@ class LockService:
         Acquire a lock for a given key.
         Raises ResourceLockedError if lock is already held by another owner.
         """
-        expires_at = datetime.utcnow() + timedelta(seconds=ttl_seconds)
+        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=ttl_seconds)
 
         try:
             # Try to insert lock
@@ -55,7 +55,7 @@ class LockService:
                 {
                     "_id": key,
                     "owner": owner,
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "expires_at": expires_at,
                 }
             )
@@ -70,7 +70,7 @@ class LockService:
 
             if existing_lock:
                 # Check for explicit expiration logic just in case
-                if existing_lock["expires_at"] < datetime.utcnow():
+                if existing_lock["expires_at"] < datetime.now(timezone.utc).replace(tzinfo=None):
                     # It's stale, try to delete and re-acquire (optimistic concurrency)
                     await self.collection.delete_one(
                         {"_id": key, "expires_at": existing_lock["expires_at"]}

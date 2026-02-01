@@ -136,6 +136,25 @@ async def update_system_parameters(
         # Save to database
         await db.system_settings.replace_one({"_id": "parameters"}, params_dict, upsert=True)
 
+        # GOVERNANCE: Config Immutability
+        # Create a new version snapshot
+        import hashlib
+        import json
+        from backend.core.schemas.config_version import ConfigVersion
+
+        # Sort keys to ensure consistent hash
+        payload_str = json.dumps(params_dict, sort_keys=True, default=str)
+        version_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+
+        config_version = ConfigVersion(
+            version_hash=version_hash,
+            payload=params_dict,
+            created_by=current_user.get("username", "admin"),
+            description="Manual update via Admin API",
+        )
+
+        await db.config_versions.insert_one(config_version.model_dump())
+
         # Log the change
         await db.audit_logs.insert_one(
             {
@@ -143,6 +162,7 @@ async def update_system_parameters(
                 "user": current_user.get("username", "admin"),
                 "timestamp": datetime.now().isoformat(),
                 "changes": params_dict,
+                "config_version_id": config_version.id,
             }
         )
 

@@ -5,12 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from typing import Any, Dict
 from backend.auth.dependencies import get_current_user
 from backend.db.runtime import get_db
+from backend.config import settings
 
 logger = logging.getLogger("stock-verify")
 router = APIRouter(prefix="/api/pi", tags=["AI Assistant"])
-
-# Configuration for the pi-server sidecar
-PI_SERVER_URL = "http://localhost:3000/v1"
 
 
 async def get_system_stats_context(db: Any) -> str:
@@ -80,9 +78,12 @@ async def chat_with_pi(request: Request, current_user: Dict[str, Any] = Depends(
     async with httpx.AsyncClient(timeout=60.0) as client:
         try:
             response = await client.post(
-                f"{PI_SERVER_URL}/chat/completions",
+                f"{settings.PI_SERVER_URL}/chat/completions",
                 json=body,
-                headers={"Content-Type": "application/json"},
+                headers={
+                    "Content-Type": "application/json",
+                    "Authorization": "Bearer sk-antigravity",
+                },
             )
 
             if response.status_code != 200:
@@ -150,7 +151,7 @@ async def get_pi_status(current_user: Dict[str, Any] = Depends(get_current_user)
     """Check if the pi-server sidecar is reachable."""
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
-            response = await client.get(f"{PI_SERVER_URL}/models")
+            response = await client.get(f"{settings.PI_SERVER_URL}/models")
             return {
                 "active": response.status_code == 200,
                 "msg": (

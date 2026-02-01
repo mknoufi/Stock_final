@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import jwt
 
@@ -26,7 +26,7 @@ def test_access_token_claims():
     assert "exp" in payload
 
     # Verify expiration is in the future
-    assert payload["exp"] > datetime.utcnow().timestamp()
+    assert payload["exp"] > datetime.now(timezone.utc).replace(tzinfo=None).timestamp()
 
 
 if __name__ == "__main__":

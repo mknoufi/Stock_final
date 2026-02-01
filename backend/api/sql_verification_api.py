@@ -37,28 +37,18 @@ async def verify_item_quantity(
                 data=result, message=f"Item {item_code} verified successfully"
             )
         else:
-            # Check for connection errors in the service result
-            error_msg = result.get("error", "").lower()
-            if any(
-                term in error_msg for term in ["connection", "sql server", "timeout", "reconnect"]
-            ):
-                raise HTTPException(
-                    status_code=503,
-                    detail={
-                        "code": "SQL_CONNECTION_ERROR",
-                        "message": "ERP system is temporarily unavailable. Please try again later.",
-                        "remediation": "Check local network and SQL Server status.",
-                    },
-                )
-
-            raise HTTPException(
-                status_code=500,
-                detail={
-                    "code": "VERIFICATION_ERROR",
-                    "message": result.get("error", "Verification failed"),
-                    "remediation": "Please check if the item exists and SQL Server is accessible",
-                },
-            )
+            status_code = result.get("status_code", 500)
+            detail = {
+                "code": result.get("error_code", "VERIFICATION_ERROR"),
+                "message": result.get("message", result.get("error", "Verification failed")),
+            }
+            if result.get("context"):
+                detail["context"] = result["context"]
+            if result.get("status"):
+                detail["status"] = result["status"]
+            if result.get("box_status"):
+                detail["box_status"] = result["box_status"]
+            raise HTTPException(status_code=status_code, detail=detail)
 
     except HTTPException:
         raise

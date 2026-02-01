@@ -216,7 +216,7 @@ async def refresh_snapshot(
 @router.get("/snapshots/{snapshot_id}/export")
 async def export_snapshot(
     snapshot_id: str,
-    format: str = Query("csv", regex="^(csv|xlsx|json)$"),
+    format: str = Query("csv", pattern="^(csv|xlsx|json)$"),
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> Response:
     """

@@ -4,7 +4,7 @@ Handles multiple batches of same item and condition tracking
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -222,7 +222,7 @@ class BatchManager:
             "photos": batch_data.get("photos", []),
             # Metadata
             "counted_by": batch_data.get("counted_by", ""),
-            "counted_at": datetime.utcnow(),
+            "counted_at": datetime.now(timezone.utc).replace(tzinfo=None),
             "verified": batch_data.get("verified", False),
             "verified_by": batch_data.get("verified_by"),
         }

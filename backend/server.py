@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional, TypeVar, cast
 
@@ -23,6 +23,11 @@ from fastapi import APIRouter, Depends, FastAPI, HTTPException  # noqa: E402
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer  # noqa: E402
 from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 from starlette.requests import Request  # noqa: E402
+
+import sentry_sdk  # noqa: E402
+from sentry_sdk.integrations.fastapi import FastApiIntegration  # noqa: E402
+from sentry_sdk.integrations.starlette import StarletteIntegration  # noqa: E402
+
 
 from backend.api import supervisor_pin  # noqa: E402
 from backend.api.admin_control_api import admin_control_router  # noqa: E402
@@ -62,6 +67,7 @@ from backend.api.pi_api import router as pi_router  # noqa: E402
 
 # Phase 1-3: New Upgrade APIs
 from backend.api.sync_batch_api import router as sync_batch_router  # noqa: E402
+from backend.api.unknown_items_api import router as unknown_items_router  # noqa: E402
 
 # New feature services
 from backend.api.sync_conflicts_api import sync_conflicts_router  # noqa: E402
@@ -173,6 +179,28 @@ SECRET_KEY: str = cast(str, settings.JWT_SECRET)
 ALGORITHM = settings.JWT_ALGORITHM
 security = HTTPBearer(auto_error=False)
 
+# Initialize Sentry if DSN is provided
+sentry_dsn = getattr(settings, "SENTRY_DSN", None)
+if sentry_dsn:
+    try:
+        sentry_sdk.init(
+            dsn=sentry_dsn,
+            integrations=[
+                StarletteIntegration(transaction_style="endpoint"),
+                FastApiIntegration(transaction_style="endpoint"),
+            ],
+            traces_sample_rate=getattr(settings, "SENTRY_TRACES_SAMPLE_RATE", 0.1),
+            profiles_sample_rate=getattr(settings, "SENTRY_PROFILES_SAMPLE_RATE", 0.1),
+            environment=(
+                getattr(settings, "SENTRY_ENVIRONMENT", None)
+                or getattr(settings, "ENVIRONMENT", "development")
+            ),
+        )
+        logger.info("Sentry SDK initialized")
+    except Exception as e:
+        logger.warning(f"Failed to initialize Sentry SDK: {e}")
+else:
+    logger.info("Sentry DSN not found, skipping Sentry initialization")
 # Create FastAPI app with lifespan
 app = FastAPI(
     title=getattr(settings, "APP_NAME", "Stock Count API"),
@@ -308,6 +336,7 @@ app.include_router(analytics_router, prefix="/api")  # Analytics and Heatmaps
 
 # Phase 1-3: New Upgrade Routers
 app.include_router(sync_batch_router)  # Batch sync API (has prefix /api/sync)
+app.include_router(unknown_items_router)  # Unknown items management
 app.include_router(rack_router)  # Rack management (has prefix /api/racks)
 app.include_router(session_mgmt_router)  # Session management (has prefix /api/sessions)
 app.include_router(user_settings_router)  # User settings (has prefix /api/user)
@@ -381,11 +410,60 @@ if pin_auth_router:
 # Include routes defined on api_router
 app.include_router(api_router, prefix="/api")
 
+
 if reconciliation_router:
     try:
         app.include_router(reconciliation_router)
     except Exception as _e:
         logger.warning(f"Reconciliation router registration failed: {_e}")
+
+# ============================================================================
+# Frontend Static Files Serving (Single Executable Mode)
+# ============================================================================
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+
+# Path to frontend build artifacts
+FRONTEND_DIST = ROOT_DIR.parent / "frontend" / "dist"
+
+if FRONTEND_DIST.exists():
+    logger.info(f"Serving frontend from {FRONTEND_DIST}")
+
+    # Mount static assets (js, css, media)
+    # Expo web build puts assets in dist/assets and other root files
+    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
+
+    # Check for other common Expo web folders if they exist
+    for folder in ["static", "fonts", "images"]:
+        if (FRONTEND_DIST / folder).exists():
+            app.mount(f"/{folder}", StaticFiles(directory=str(FRONTEND_DIST / folder)), name=folder)
+
+    # Catch-all route for SPA (must be last)
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Allow API requests to pass through (though they should be caught above)
+        if (
+            full_path.startswith("api/")
+            or full_path.startswith("docs")
+            or full_path.startswith("openapi.json")
+        ):
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        # Prevent path traversal
+        if ".." in full_path:
+            raise HTTPException(status_code=404, detail="Not Found")
+
+        # Check if specific file exists in dist (e.g., favicon.ico, manifest.json)
+        file_path = FRONTEND_DIST / full_path
+        if file_path.exists() and file_path.is_file():
+            return FileResponse(file_path)
+
+        # Default to index.html for SPA routing
+        return FileResponse(FRONTEND_DIST / "index.html")
+else:
+    logger.warning(
+        f"Frontend dist not found at {FRONTEND_DIST}. Run 'npm run build:web' in frontend/."
+    )
 
 
 # Pydantic Models
@@ -421,7 +499,7 @@ async def init_default_users():
                     "role": "staff",
                     "is_active": True,
                     "permissions": [],
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
             logger.info("Default user created: staff1/staff123")
@@ -437,7 +515,7 @@ async def init_default_users():
                     "role": "supervisor",
                     "is_active": True,
                     "permissions": [],
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
             logger.info("Default user created: supervisor/super123")
@@ -453,7 +531,7 @@ async def init_default_users():
                     "role": "admin",
                     "is_active": True,
                     "permissions": [],
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
             logger.info("Default user created: admin/admin123")
@@ -475,6 +553,7 @@ async def init_mock_erp_data():
                 "mrp": 1200.0,
                 "category": "Food",
                 "warehouse": "Main",
+                "image_url": "https://images.unsplash.com/photo-1586201375761-83865001e31c?auto=format&fit=crop&q=80&w=200",
             },
             {
                 "item_code": "ITEM002",
@@ -650,7 +729,7 @@ async def generate_auth_tokens(
         # Generate refresh token using service
         refresh_payload = {"sub": user["username"], "role": user.get("role", "staff")}
         refresh_token = refresh_token_service.create_refresh_token(refresh_payload)
-        refresh_token_expires = datetime.utcnow() + timedelta(
+        refresh_token_expires = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
             days=getattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS", 30)
         )
 
@@ -686,7 +765,7 @@ async def log_failed_login_attempt(
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "success": False,
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
                 "error": error,
             }
         )
@@ -704,13 +783,13 @@ async def log_successful_login(user: dict[str, Any], ip_address: str, request: R
                 "ip_address": ip_address,
                 "user_agent": request.headers.get("user-agent"),
                 "success": True,
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         )
 
         # Update last login timestamp
         await db.users.update_one(
-            {"_id": user["_id"]}, {"$set": {"last_login_at": datetime.utcnow()}}
+            {"_id": user["_id"]}, {"$set": {"last_login_at": datetime.now(timezone.utc).replace(tzinfo=None)}}
         )
 
         # Log to monitoring
@@ -794,7 +873,7 @@ async def bulk_close_sessions(
             try:
                 result = await db.sessions.update_one(
                     {"id": session_id},
-                    {"$set": {"status": "closed", "ended_at": datetime.utcnow()}},
+                    {"$set": {"status": "closed", "ended_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
                 )
                 if result.modified_count > 0:
                     updated_count += 1
@@ -842,7 +921,7 @@ async def bulk_reconcile_sessions(
                     {
                         "$set": {
                             "status": "reconciled",
-                            "reconciled_at": datetime.utcnow(),
+                            "reconciled_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         }
                     },
                 )
@@ -1197,7 +1276,7 @@ async def create_count_line(
         "financial_impact": financial_impact,
         # User and timestamp
         "counted_by": current_user["username"],
-        "counted_at": datetime.utcnow(),
+        "counted_at": datetime.now(timezone.utc).replace(tzinfo=None),
         # MRP tracking
         "mrp_erp": erp_item["mrp"],
         "mrp_counted": line_data.mrp_counted,
@@ -1305,7 +1384,7 @@ async def verify_stock(
             "$set": {
                 "verified": True,
                 "verified_by": current_user["username"],
-                "verified_at": datetime.utcnow(),
+                "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         },
     )

@@ -1,9 +1,4 @@
-// ==========================================
-// Root Layout for Stock Verify App
-// ==========================================
-
 import React from "react";
-import { scan } from "react-scan"; // Import react-scan
 import { Platform, View, Text, ActivityIndicator } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -48,13 +43,6 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 
-// Initialize react-scan in development
-if (__DEV__) {
-  scan({
-    enabled: true,
-    log: true,
-  });
-}
 
 // keep the splash screen visible while complete fetching resources
 // On web, wrap in try-catch to prevent blocking
@@ -124,10 +112,25 @@ export default function RootLayout() {
   }, []);
 
   React.useEffect(() => {
-    // Initialize Sentry (non-blocking, only in production)
-    initSentry();
-    // Initialize Reactotron in dev if enabled (non-blocking)
-    initReactotron();
+    // Initialize dev tools safely
+    if (__DEV__) {
+      // Initialize Reactotron (non-blocking)
+      try {
+        initReactotron();
+      } catch (e) {
+        console.warn("Reactotron init failed", e);
+      }
+
+      // Initialize react-scan only on Web
+      if (Platform.OS === "web") {
+        try {
+          const { scan } = require("react-scan");
+          scan({ enabled: true, log: true });
+        } catch (e) {
+          console.warn("React Scan init failed", e);
+        }
+      }
+    }
 
     // Web-specific safety: Force hide splash screen after 2s to prevent white screen
     if (Platform.OS === "web") {
@@ -375,7 +378,7 @@ export default function RootLayout() {
 
   // Show loading state to prevent blank screen (both web and mobile)
   if (!isInitialized || isLoading) {
-    return (
+    const loadingView = (
       <View
         style={{
           flex: 1,
@@ -433,6 +436,14 @@ export default function RootLayout() {
           </View>
         )}
       </View>
+    );
+
+    // CRITICAL: Wrap loading state in providers so child hooks (like useTheme in index.tsx)
+    // don't fail if the router evaluates them during the boot sequence.
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>{loadingView}</ThemeProvider>
+      </QueryClientProvider>
     );
   }
 

@@ -3,7 +3,7 @@ Count line submission endpoint with variance threshold checking
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -95,7 +95,7 @@ async def submit_count_line(
         "variance_data": variance_data,
         "violated_thresholds": violated_thresholds,
         "requires_supervisor_approval": requires_approval,
-        "submitted_at": datetime.utcnow(),
+        "submitted_at": datetime.now(timezone.utc).replace(tzinfo=None),
         "submitted_by": current_user["username"],
     }
 
@@ -132,7 +132,7 @@ async def submit_count_line(
                 "violated_thresholds": violated_thresholds,
                 "item_code": count_line["item_code"],
             },
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
         }
     )
 

@@ -9,7 +9,7 @@ import logging
 import time
 import uuid
 from contextvars import ContextVar
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -37,7 +37,7 @@ class LogLevel(str, Enum):
 class StructuredLogEntry(BaseModel):
     """Structured log entry for enterprise logging"""
 
-    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
     level: str
     message: str
 
@@ -193,7 +193,7 @@ class Span:
         self.events.append(
             {
                 "name": name,
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                 "attributes": attributes or {},
             }
         )

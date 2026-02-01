@@ -73,7 +73,6 @@ class UserInDB(UserBase):
     model_config = ConfigDict(
         populate_by_name=True,
         arbitrary_types_allowed=True,
-        json_encoders={ObjectId: str},
     )
 
 
@@ -86,5 +85,4 @@ class UserResponse(UserBase):
 
     model_config = ConfigDict(
         populate_by_name=True,
-        json_encoders={ObjectId: str},
     )

@@ -4,7 +4,7 @@ Tests all implementations including stock verification, activity logs, error log
 """
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -172,7 +172,7 @@ async def test_activity_logging(mock_db, mock_supervisor):
                 "_id": "log-1",
                 "user": "supervisor",
                 "action": "verify_stock",
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         ]
     )
@@ -215,7 +215,7 @@ async def test_error_logging(mock_db, mock_supervisor):
                 "error_type": "ValueError",
                 "error_message": "Test error",
                 "severity": "error",
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         ]
     )

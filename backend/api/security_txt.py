@@ -5,7 +5,7 @@ Implements RFC 9116 security.txt for responsible vulnerability disclosure.
 https://www.rfc-editor.org/rfc/rfc9116
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter
 from fastapi.responses import PlainTextResponse
@@ -13,7 +13,7 @@ from fastapi.responses import PlainTextResponse
 security_txt_router = APIRouter(tags=["security"])
 
 # Calculate expiry date (1 year from now)
-EXPIRES_DATE = (datetime.utcnow() + timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+EXPIRES_DATE = (datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=365)).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 SECURITY_TXT_CONTENT = f"""# Stock Verification System Security Policy
 # See https://securitytxt.org/ for format specification

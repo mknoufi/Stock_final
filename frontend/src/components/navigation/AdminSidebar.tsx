@@ -13,6 +13,7 @@ import {
   Platform,
   useWindowDimensions,
   ViewStyle,
+  Linking,
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { useRouter, useSegments } from "expo-router";
@@ -119,6 +120,12 @@ const ADMIN_GROUPS: SidebarGroup[] = [
         route: "/admin/metrics",
       },
       {
+        key: "unknown-items",
+        label: "Unknown Items",
+        icon: "help-circle-outline",
+        route: "/admin/unknown-items",
+      },
+      {
         key: "sql-config",
         label: "SQL Config",
         icon: "server",
@@ -213,6 +220,10 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   };
 
   const handleItemPress = (item: SidebarItem) => {
+    if (item.route.startsWith("http")) {
+      Linking.openURL(item.route);
+      return;
+    }
     router.push(item.route as any);
   };
 

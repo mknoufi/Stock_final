@@ -541,6 +541,79 @@ export const getSessionsAnalytics = async () => {
   }
 };
 
+// --- Unknown Items Management (Admin) ---
+
+/**
+ * List reported unknown items
+ */
+export const getUnknownItems = async (params: {
+  session_id?: string;
+  reported_by?: string;
+  limit?: number;
+  skip?: number;
+}) => {
+  try {
+    const response = await api.get("/api/admin/unknown-items", { params });
+    return response.data;
+  } catch (error: any) {
+    log.error("Error fetching unknown items", error);
+    throw error;
+  }
+};
+
+/**
+ * Map an unknown item to an existing SKU
+ */
+export const mapUnknownToSku = async (itemId: string, itemCode: string, notes?: string) => {
+  try {
+    const response = await api.post(`/api/admin/unknown-items/${itemId}/map`, {
+      item_code: itemCode,
+      resolve_notes: notes,
+    });
+    return response.data;
+  } catch (error: any) {
+    log.error(`Error mapping unknown item ${itemId}`, error);
+    throw error;
+  }
+};
+
+/**
+ * Create a new SKU from an unknown item report
+ */
+export const createSkuFromUnknown = async (
+  itemId: string,
+  data: {
+    item_code: string;
+    item_name: string;
+    category: string;
+    subcategory?: string;
+    mrp: number;
+    uom_code: string;
+    resolve_notes?: string;
+  }
+) => {
+  try {
+    const response = await api.post(`/api/admin/unknown-items/${itemId}/create-sku`, data);
+    return response.data;
+  } catch (error: any) {
+    log.error(`Error creating SKU from unknown item ${itemId}`, error);
+    throw error;
+  }
+};
+
+/**
+ * Delete/Dismiss an unknown item report
+ */
+export const deleteUnknownItem = async (itemId: string) => {
+  try {
+    const response = await api.delete(`/api/admin/unknown-items/${itemId}`);
+    return response.data;
+  } catch (error: any) {
+    log.error(`Error deleting unknown item ${itemId}`, error);
+    throw error;
+  }
+};
+
 // Get item by barcode (with offline support, retry, and auto recovery)
 /**
  * Lookup an item by barcode with validation, retry and cache fallback.

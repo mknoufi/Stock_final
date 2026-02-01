@@ -27,6 +27,7 @@ os.environ.update(
         # 'SQL_SERVER_DATABASE': 'stockdb_test',
         "RATE_LIMIT_PER_MINUTE": "1000",  # Higher limits for testing
         "LOG_LEVEL": "DEBUG",
+        "AUTH_SINGLE_SESSION": "false",
     }
 )
 

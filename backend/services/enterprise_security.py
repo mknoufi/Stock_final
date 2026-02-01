@@ -9,7 +9,7 @@ Advanced security features for enterprise deployments
 
 import hashlib
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -37,7 +37,7 @@ class IPListType(str, Enum):
 class SecurityEvent(BaseModel):
     """Security event for monitoring"""
 
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     event_type: str
     ip_address: str
     username: Optional[str] = None
@@ -172,7 +172,7 @@ class EnterpriseSecurityService:
                         "list_type": list_type.value,
                         "reason": reason,
                         "added_by": added_by,
-                        "added_at": datetime.utcnow(),
+                        "added_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         "expires_at": expires_at,
                     }
                 },
@@ -243,7 +243,7 @@ class EnterpriseSecurityService:
         Returns:
             Dict with lockout status and remaining attempts
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Get current lockout status
         lockout = await self.lockout_collection.find_one(
@@ -343,7 +343,7 @@ class EnterpriseSecurityService:
 
     async def get_locked_accounts(self) -> list[dict[str, Any]]:
         """Get all currently locked accounts"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         accounts = []
 
         async for doc in self.lockout_collection.find({"expires_at": {"$gt": now}}):
@@ -372,7 +372,7 @@ class EnterpriseSecurityService:
         device_info: dict[str, Optional[Any]] = None,
     ) -> str:
         """Create a new session and enforce session limits"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Generate session ID
         session_id = hashlib.sha256(f"{user_id}{now.isoformat()}{ip_address}".encode()).hexdigest()[
@@ -412,7 +412,7 @@ class EnterpriseSecurityService:
 
     async def validate_session(self, session_id: str) -> Optional[dict[str, Optional[Any]]]:
         """Validate and refresh session"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         session = await self.session_collection.find_one_and_update(
             {"session_id": session_id, "expires_at": {"$gt": now}},
@@ -449,7 +449,7 @@ class EnterpriseSecurityService:
 
     async def get_user_sessions(self, user_id: str) -> list[dict[str, Any]]:
         """Get all active sessions for a user"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         sessions = []
 
         async for doc in self.session_collection.find(
@@ -483,7 +483,7 @@ class EnterpriseSecurityService:
         try:
             await self.events_collection.insert_one(
                 {
-                    "timestamp": datetime.utcnow(),
+                    "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
                     "event_type": event_type,
                     "ip_address": ip_address,
                     "username": username,
@@ -519,7 +519,7 @@ class EnterpriseSecurityService:
 
     async def get_security_summary(self) -> dict[str, Any]:
         """Get security status summary"""
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         last_24h = now - timedelta(hours=24)
 
         return {

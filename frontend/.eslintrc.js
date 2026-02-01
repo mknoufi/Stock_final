@@ -14,5 +14,13 @@ module.exports = {
   rules: {
     // Ensure imports are resolved correctly
     "import/no-unresolved": "error",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        caughtErrorsIgnorePattern: "^_",
+      },
+    ],
   },
 };

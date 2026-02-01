@@ -7,7 +7,7 @@ import csv
 import io
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -283,7 +283,7 @@ class AdvancedReportService:
     @trace_report_generation("verified_items")
     async def generate_verified_items_report(self, config: ReportConfig) -> dict[str, Any]:
         """Generate report of verified items with full details."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).replace(tzinfo=None)
         filters = config.filters or ReportFilters()
 
         # Build query using helpers
@@ -360,7 +360,7 @@ class AdvancedReportService:
                     aggregations = agg_result[0]
                     aggregations.pop("_id", None)
 
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc).replace(tzinfo=None)
         generation_time_ms = (end_time - start_time).total_seconds() * 1000
 
         # Build response
@@ -392,7 +392,7 @@ class AdvancedReportService:
     @trace_report_generation("session_summary")
     async def generate_session_summary_report(self, config: ReportConfig) -> dict[str, Any]:
         """Generate session summary report with aggregated data."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).replace(tzinfo=None)
         filters = config.filters or ReportFilters()
 
         query: dict[str, Any] = {}
@@ -486,7 +486,7 @@ class AdvancedReportService:
 
         data = await self.db.sessions.aggregate(pipeline).to_list(config.page_size)
 
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc).replace(tzinfo=None)
         generation_time_ms = (end_time - start_time).total_seconds() * 1000
 
         columns = config.columns or self.get_column_config("session_summary")
@@ -517,7 +517,7 @@ class AdvancedReportService:
     @trace_report_generation("variance_analysis")
     async def generate_variance_analysis_report(self, config: ReportConfig) -> dict[str, Any]:
         """Generate variance analysis report with risk levels."""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).replace(tzinfo=None)
         filters = config.filters or ReportFilters()
 
         # Only include items with non-zero variance
@@ -674,7 +674,7 @@ class AdvancedReportService:
                 aggregations = agg_result[0]
                 aggregations.pop("_id", None)
 
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc).replace(tzinfo=None)
         generation_time_ms = (end_time - start_time).total_seconds() * 1000
 
         columns = config.columns or self.get_column_config("variance_analysis")

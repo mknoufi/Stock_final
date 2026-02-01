@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -133,7 +133,7 @@ async def generate_auth_tokens(
         # Generate refresh token using service
         refresh_payload = {"sub": user["username"], "role": user.get("role", "staff")}
         refresh_token = refresh_token_service.create_refresh_token(refresh_payload)
-        refresh_token_expires = datetime.utcnow() + timedelta(
+        refresh_token_expires = datetime.now(timezone.utc) + timedelta(
             days=getattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS", 30)
         )
 
@@ -170,7 +170,7 @@ async def check_for_active_session(username: str) -> Result[bool, Exception]:
             {
                 "username": username,
                 "revoked": False,
-                "expires_at": {"$gt": datetime.utcnow()},
+                "expires_at": {"$gt": datetime.now(timezone.utc)},
             }
         )
         return Ok(bool(active_token))
@@ -192,7 +192,7 @@ async def log_failed_login_attempt(
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "success": False,
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc),
                 "error": error,
             }
         )
@@ -226,13 +226,13 @@ async def log_successful_login(user: dict[str, Any], ip_address: str, request: R
                 "ip_address": ip_address,
                 "user_agent": request.headers.get("user-agent"),
                 "success": True,
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc),
             }
         )
 
         # Update last login timestamp
         await db.users.update_one(
-            {"_id": user["_id"]}, {"$set": {"last_login_at": datetime.utcnow()}}
+            {"_id": user["_id"]}, {"$set": {"last_login_at": datetime.now(timezone.utc)}}
         )
     except Exception as e:
         logger.error(f"Failed to log successful login: {str(e)}")
@@ -287,7 +287,7 @@ async def register(user: UserRegister):
             "phone": user.phone,
             "is_active": True,
             "permissions": [],
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
         }
 
         insert_result = await auth_deps.db.users.insert_one(user_dict)
@@ -313,7 +313,7 @@ async def register(user: UserRegister):
         logger.info("Tokens generated successfully")
 
         # Store refresh token in database
-        expires_at = datetime.utcnow() + timedelta(days=30)
+        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
         await refresh_token_service.store_refresh_token(refresh_token, user.username, expires_at)
 
         return {
@@ -668,7 +668,7 @@ async def pin_setup(
                 "$set": {
                     "pin_hash": hashed_pin,
                     "pin_lookup_hash": lookup_hash,
-                    "updated_at": datetime.utcnow(),
+                    "updated_at": datetime.now(timezone.utc),
                 }
             },
         )
@@ -1144,7 +1144,7 @@ async def password_reset_confirm(data: PasswordResetConfirm):
 
         await db.users.update_one(
             {"_id": ObjectId(user_id)},
-            {"$set": {"hashed_password": hashed_password, "updated_at": datetime.utcnow()}},
+            {"$set": {"hashed_password": hashed_password, "updated_at": datetime.now(timezone.utc)}},
         )
 
         # Optional: Send confirmation

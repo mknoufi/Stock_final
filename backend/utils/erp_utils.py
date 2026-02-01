@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Optional, Sequence
 
 from fastapi import HTTPException
@@ -343,16 +343,16 @@ async def refresh_stock_from_erp(
             # Add sync metadata
             item_data.update(
                 {
-                    "synced_at": datetime.utcnow(),
+                    "synced_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "synced_from_erp": True,
-                    "last_erp_update": datetime.utcnow(),
+                    "last_erp_update": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
 
             # Update MongoDB
             await db.erp_items.update_one(
                 {"item_code": item_code},
-                {"$set": item_data, "$setOnInsert": {"created_at": datetime.utcnow()}},
+                {"$set": item_data, "$setOnInsert": {"created_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
                 upsert=True,
             )
 

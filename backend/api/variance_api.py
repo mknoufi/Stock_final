@@ -1,3 +1,4 @@
+from datetime import timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends
@@ -32,14 +33,14 @@ async def get_variance_trend(
     current_user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
     """Get variance trend data for the last N days"""
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
 
     from backend.db.runtime import get_db
 
     db = get_db()
 
     # Calculate start date
-    start_date = datetime.utcnow() - timedelta(days=days)
+    start_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
     # Aggregate variances by date
     pipeline: list[dict[str, Any]] = [

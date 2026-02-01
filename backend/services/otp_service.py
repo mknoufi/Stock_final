@@ -5,7 +5,7 @@ OTP Service - Manages generation, storage, and verification of one-time password
 import logging
 import secrets
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -49,13 +49,13 @@ class OTPService:
         await self.otp_collection.delete_many({"user_id": user_id})
 
         otp_code = self.generate_otp_code()
-        expires_at = datetime.utcnow() + timedelta(minutes=self.otp_expiry_minutes)
+        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=self.otp_expiry_minutes)
 
         await self.otp_collection.insert_one(
             {
                 "user_id": user_id,
                 "code": otp_code,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "expires_at": expires_at,
                 "attempts": 0,
             }
@@ -91,13 +91,13 @@ class OTPService:
         This is returned after successful OTP verification.
         """
         token = secrets.token_urlsafe(32)
-        expires_at = datetime.utcnow() + timedelta(minutes=self.token_expiry_minutes)
+        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=self.token_expiry_minutes)
 
         await self.reset_tokens_collection.insert_one(
             {
                 "user_id": user_id,
                 "token": token,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "expires_at": expires_at,
             }
         )

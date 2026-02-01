@@ -3,7 +3,7 @@ Admin API for managing variance threshold configurations
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -99,8 +99,8 @@ async def create_variance_threshold(
 
     # Prepare document
     config_dict = config_data.model_dump()
-    config_dict["created_at"] = datetime.utcnow()
-    config_dict["updated_at"] = datetime.utcnow()
+    config_dict["created_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
+    config_dict["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
     config_dict["created_by"] = current_user.get("username")
 
     # Insert
@@ -144,7 +144,7 @@ async def update_variance_threshold(
 
     # Prepare update data
     update_dict = config_data.model_dump(exclude={"created_at"})
-    update_dict["updated_at"] = datetime.utcnow()
+    update_dict["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
     update_dict["updated_by"] = current_user.get("username")
 
     # Update

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Generic, Optional, TypeVar, Union
 
@@ -257,13 +257,18 @@ class Session(BaseModel):
     staff_name: str
     status: str = "OPEN"  # OPEN, ACTIVE, CLOSED
     type: str = "STANDARD"  # STANDARD, BLIND, STRICT
-    started_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     closed_at: Optional[datetime] = None
     reconciled_at: Optional[datetime] = None
     total_items: int = 0
     total_variance: float = 0
     notes: Optional[str] = None
     barcode: Optional[str] = None
+
+    # Governance Fields
+    config_version_id: Optional[str] = None
+    snapshot_hash: Optional[str] = None
+    snapshot_items_ref: Optional[str] = None  # Reference to external storage if too large
 
     @field_validator("status", mode="before")
     @classmethod
@@ -304,7 +309,7 @@ class UnknownItem(BaseModel):
     photo_base64: Optional[str] = None
     remark: Optional[str] = None
     reported_by: str
-    reported_at: datetime = Field(default_factory=datetime.utcnow)
+    reported_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     item_name: Optional[str] = None
     mrp: Optional[float] = None
     stock: Optional[float] = None

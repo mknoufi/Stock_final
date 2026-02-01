@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from bson import ObjectId
@@ -197,7 +197,7 @@ async def resolve_error(
         {
             "$set": {
                 "resolved": True,
-                "resolved_at": datetime.utcnow(),
+                "resolved_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "resolved_by": current_user.get("username"),
                 "resolution_note": resolution_note,
             }

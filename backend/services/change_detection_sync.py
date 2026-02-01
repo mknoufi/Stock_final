@@ -9,7 +9,7 @@ explicit and handle them in a functional way.
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -136,7 +136,7 @@ class ChangeDetectionSyncService:
                     "item_name": change.get("item_name"),
                     "barcode": change.get("barcode"),  # AutoBarcode (6-digit)
                     "mrp": change.get("mrp"),
-                    "last_updated": datetime.utcnow(),
+                    "last_updated": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
 
                 # Remove None values
@@ -235,7 +235,7 @@ class ChangeDetectionSyncService:
             return Fail(ConnectionError("SQL Server connection not established"))
 
         logger.info("Starting change detection sync...")
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).replace(tzinfo=None)
 
         try:
             # Step 1: Fetch changed products
@@ -276,7 +276,7 @@ class ChangeDetectionSyncService:
         self, start_time: datetime, items_checked: int, items_updated: int
     ) -> SyncResult:
         """Update sync statistics and return results."""
-        end_time = datetime.utcnow()
+        end_time = datetime.now(timezone.utc).replace(tzinfo=None)
         duration_ms = int((end_time - start_time).total_seconds() * 1000)
 
         # Update statistics
@@ -317,7 +317,7 @@ class ChangeDetectionSyncService:
             items_processed: Number of items processed in this sync.
             error: Error message if the sync failed.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         self._sync_stats["total_syncs"] += 1
 
         if success:
@@ -361,7 +361,7 @@ class ChangeDetectionSyncService:
             self._running = True
             self._task = asyncio.create_task(self._run())
             logger.info("Change detection sync service started")
-            return Ok({"status": "started", "timestamp": datetime.utcnow().isoformat()})
+            return Ok({"status": "started", "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()})
 
         except Exception as e:
             self._running = False
@@ -394,7 +394,7 @@ class ChangeDetectionSyncService:
                 return Fail(error)
 
         logger.info("Change detection sync service stopped")
-        return Ok({"status": "stopped", "timestamp": datetime.utcnow().isoformat()})
+        return Ok({"status": "stopped", "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()})
 
     async def _run(self) -> None:
         """Background loop for the sync service."""
@@ -421,7 +421,7 @@ class ChangeDetectionSyncService:
         if not self._running or not self._last_sync:
             return None
 
-        elapsed = (datetime.utcnow() - self._last_sync).total_seconds()
+        elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - self._last_sync).total_seconds()
         next_in = max(0, int(self.sync_interval - elapsed))
         return next_in
 

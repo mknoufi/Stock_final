@@ -2,7 +2,7 @@ import json
 import logging
 import sys
 import time
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import requests
@@ -82,7 +82,7 @@ def run_sync_loop():
 
             # Transform to ERPItem schema structure
             batch_payload = []
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
 
             for row in rows:
                 try:

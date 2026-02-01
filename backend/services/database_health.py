@@ -5,7 +5,7 @@ Monitors database connections and provides health checks
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, Optional
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -52,7 +52,7 @@ class DatabaseHealthService:
                 "error": None,
             },
             "overall": "unknown",
-            "uptime_start": datetime.utcnow(),
+            "uptime_start": datetime.now(timezone.utc),
         }
         self._running = False
         self._task: asyncio.Task = None
@@ -85,15 +85,15 @@ class DatabaseHealthService:
 
     async def check_mongo_health(self, retry: bool = False) -> dict[str, Any]:
         """Check MongoDB connection health"""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         try:
             # Simple ping operation
             await self.mongo_db.command("ping")
-            response_time = (datetime.utcnow() - start_time).total_seconds()
+            response_time = (datetime.now(timezone.utc) - start_time).total_seconds()
 
             self._health_status["mongo"] = {
                 "status": "healthy",
-                "last_check": datetime.utcnow().isoformat(),
+                "last_check": datetime.now(timezone.utc).isoformat(),
                 "response_time": response_time,
                 "error": None,
             }
@@ -109,7 +109,7 @@ class DatabaseHealthService:
             error_msg = str(e)
             self._health_status["mongo"] = {
                 "status": "unhealthy",
-                "last_check": datetime.utcnow().isoformat(),
+                "last_check": datetime.now(timezone.utc).isoformat(),
                 "response_time": None,
                 "error": error_msg,
             }
@@ -119,7 +119,7 @@ class DatabaseHealthService:
             error_msg = str(e)
             self._health_status["mongo"] = {
                 "status": "unhealthy",
-                "last_check": datetime.utcnow().isoformat(),
+                "last_check": datetime.now(timezone.utc).isoformat(),
                 "response_time": None,
                 "error": error_msg,
             }
@@ -129,7 +129,7 @@ class DatabaseHealthService:
 
     async def check_sql_server_health(self) -> dict[str, Any]:
         """Check SQL Server connection health with MongoDB fallback"""
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc)
         try:
             # Try direct connection first
             is_available = False
@@ -170,10 +170,10 @@ class DatabaseHealthService:
                     is_available = False
 
             if is_available:
-                response_time = (datetime.utcnow() - start_time).total_seconds()
+                response_time = (datetime.now(timezone.utc) - start_time).total_seconds()
                 status_data = {
                     "status": "healthy",
-                    "last_check": datetime.utcnow().isoformat(),
+                    "last_check": datetime.now(timezone.utc).isoformat(),
                     "response_time": response_time,
                     "error": None,
                     "source": "sql_server",
@@ -186,10 +186,10 @@ class DatabaseHealthService:
             try:
                 item_count = await self.mongo_db.erp_items.count_documents({})
                 if item_count > 0:
-                    response_time = (datetime.utcnow() - start_time).total_seconds()
+                    response_time = (datetime.now(timezone.utc) - start_time).total_seconds()
                     status_data = {
                         "status": "healthy",
-                        "last_check": datetime.utcnow().isoformat(),
+                        "last_check": datetime.now(timezone.utc).isoformat(),
                         "response_time": response_time,
                         "error": error_detail,
                         "note": f"SQL Server offline, using {item_count} cached items",
@@ -207,7 +207,7 @@ class DatabaseHealthService:
             error_msg = error_detail or "SQL Server connection failed and no cached items found"
             status_data = {
                 "status": "unhealthy",
-                "last_check": datetime.utcnow().isoformat(),
+                "last_check": datetime.now(timezone.utc).isoformat(),
                 "response_time": None,
                 "error": error_msg,
             }
@@ -218,7 +218,7 @@ class DatabaseHealthService:
             error_msg = str(e)
             self._health_status["sql_server"] = {
                 "status": "unhealthy",
-                "last_check": datetime.utcnow().isoformat(),
+                "last_check": datetime.now(timezone.utc).isoformat(),
                 "response_time": None,
                 "error": error_msg,
             }
@@ -244,7 +244,7 @@ class DatabaseHealthService:
             "overall": overall_status,
             "mongo": mongo_result,
             "sql_server": sql_result,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
 
     async def _health_check_loop(self):
@@ -285,7 +285,7 @@ class DatabaseHealthService:
 
     def get_status(self) -> dict[str, Any]:
         """Get current health status"""
-        uptime = (datetime.utcnow() - self._health_status["uptime_start"]).total_seconds()
+        uptime = (datetime.now(timezone.utc) - self._health_status["uptime_start"]).total_seconds()
 
         return {
             **self._health_status,

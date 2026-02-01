@@ -9,7 +9,7 @@ Supports:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
@@ -76,7 +76,7 @@ class NotificationService:
             "action_url": action_url,
             "metadata": metadata or {},
             "read": False,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
             "read_at": None,
         }
 
@@ -173,7 +173,7 @@ class NotificationService:
 
         result = await self.db.notifications.update_one(
             {"_id": ObjectId(notification_id), "user_id": user_id},
-            {"$set": {"read": True, "read_at": datetime.utcnow()}},
+            {"$set": {"read": True, "read_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
         )
 
         return result.modified_count > 0
@@ -182,7 +182,7 @@ class NotificationService:
         """Mark all notifications as read for a user"""
         result = await self.db.notifications.update_many(
             {"user_id": user_id, "read": False},
-            {"$set": {"read": True, "read_at": datetime.utcnow()}},
+            {"$set": {"read": True, "read_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
         )
 
         return result.modified_count

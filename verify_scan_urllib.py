@@ -1,8 +1,7 @@
 import urllib.request
 import urllib.parse
 import json
-import sys
-import traceback
+
 
 BASE_URL = "http://localhost:8002"
 USERNAME = "staff2"
@@ -44,7 +43,7 @@ def get_token():
         if hasattr(e, "read"):
             try:
                 log(f"Error Body: {e.read().decode('utf-8')}")
-            except:
+            except Exception:
                 pass
         return None
 

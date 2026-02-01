@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
@@ -18,7 +18,7 @@ class AnalyticsEvent(BaseModel):
         "system_alert",
     ]
     payload: dict[str, Any]
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     target_roles: list[str] = Field(default_factory=list)
 
 
@@ -44,5 +44,5 @@ class VarianceAnalytics(BaseModel):
     accuracy_change: float = 0.0
 
     session_ids: list[str] = Field(default_factory=list)
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     generated_by: str

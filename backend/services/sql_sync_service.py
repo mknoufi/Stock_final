@@ -5,7 +5,7 @@ CRITICAL: Preserves all enriched data (serial numbers, MRP, HSN codes, etc.)
 
 import asyncio
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -305,7 +305,7 @@ class SQLSyncService:
 
             raise SQLServerConnectionError("SQL Server connection not available")
 
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).replace(tzinfo=None)
         stats = {
             "items_checked": 0,
             "qty_updated": 0,
@@ -330,7 +330,7 @@ class SQLSyncService:
 
             if not mongo_items:
                 logger.info("No items in MongoDB to sync")
-                stats["duration"] = (datetime.utcnow() - start_time).total_seconds()
+                stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
                 return stats
 
             stats["items_checked"] = len(mongo_items)
@@ -358,7 +358,7 @@ class SQLSyncService:
                             # Variance found - update MongoDB
                             stats["variances_found"] += 1
                             stats["qty_changes_detected"] += 1  # Backwards-compatible
-                            now = datetime.utcnow()
+                            now = datetime.now(timezone.utc).replace(tzinfo=None)
 
                             await self.mongo_db.erp_items.update_one(
                                 {"item_code": item_code},
@@ -384,7 +384,7 @@ class SQLSyncService:
                     logger.error(f"Error syncing batch starting at index {i}: {e}")
                     stats["errors"] += 1
 
-            stats["duration"] = (datetime.utcnow() - start_time).total_seconds()
+            stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
             self._finalize_sync_stats(stats)
 
             logger.info(
@@ -419,7 +419,7 @@ class SQLSyncService:
             logger.warning("SQL Server not connected, skipping new item discovery")
             return {"items_discovered": 0, "error": "SQL Server not connected"}
 
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).replace(tzinfo=None)
         stats = {
             "items_discovered": 0,
             "items_checked": 0,
@@ -455,14 +455,14 @@ class SQLSyncService:
 
             if not new_items:
                 logger.info("No new items found in SQL Server")
-                stats["duration"] = (datetime.utcnow() - start_time).total_seconds()
-                self._last_new_item_check = datetime.utcnow()
+                stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+                self._last_new_item_check = datetime.now(timezone.utc).replace(tzinfo=None)
                 return stats
 
             logger.info(f"Found {len(new_items)} new items to create")
 
             # Step 4: Create new items in MongoDB
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc).replace(tzinfo=None)
             for sql_item in new_items:
                 try:
                     sql_qty = float(sql_item.get("stock_qty", 0.0))
@@ -474,8 +474,8 @@ class SQLSyncService:
                     logger.error(f"Error creating item {sql_item.get('item_code')}: {e}")
                     stats["errors"] += 1
 
-            stats["duration"] = (datetime.utcnow() - start_time).total_seconds()
-            self._last_new_item_check = datetime.utcnow()
+            stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+            self._last_new_item_check = datetime.now(timezone.utc).replace(tzinfo=None)
             self._sync_stats["new_items_discovered"] += stats["items_discovered"]
 
             logger.info(
@@ -494,7 +494,7 @@ class SQLSyncService:
         """Check if it's time to discover new items (every 30 minutes)."""
         if self._last_new_item_check is None:
             return True
-        elapsed = (datetime.utcnow() - self._last_new_item_check).total_seconds()
+        elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - self._last_new_item_check).total_seconds()
         return elapsed >= self._new_item_check_interval
 
     def should_run_nightly_sync(self) -> bool:
@@ -502,7 +502,7 @@ class SQLSyncService:
         Check if it's time for nightly full sync.
         Runs once per day at the configured hour (default 2 AM).
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Check if we're in the nightly sync hour
         if now.hour != self.nightly_sync_hour:
@@ -529,7 +529,7 @@ class SQLSyncService:
             logger.warning("SQL Server not connected, skipping nightly sync")
             return {"error": "SQL Server not connected", "items_synced": 0}
 
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).replace(tzinfo=None)
         stats = {
             "items_checked": 0,
             "qty_updated": 0,
@@ -568,8 +568,8 @@ class SQLSyncService:
                         logger.error(f"Error syncing item {sql_item.get('item_code')}: {e}")
                         stats["errors"] += 1
 
-            stats["duration"] = (datetime.utcnow() - start_time).total_seconds()
-            self._last_nightly_sync = datetime.utcnow()
+            stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+            self._last_nightly_sync = datetime.now(timezone.utc).replace(tzinfo=None)
             self._sync_stats["last_nightly_sync"] = self._last_nightly_sync.isoformat()
 
             logger.info(
@@ -600,7 +600,7 @@ class SQLSyncService:
 
             raise SQLServerConnectionError("SQL Server connection not available")
 
-        start_time = datetime.utcnow()
+        start_time = datetime.now(timezone.utc).replace(tzinfo=None)
         stats = {
             "items_checked": 0,
             "qty_updated": 0,
@@ -627,7 +627,7 @@ class SQLSyncService:
                         logger.error(f"Error syncing item {sql_item.get('item_code')}: {str(e)}")
                         stats["errors"] += 1
 
-            stats["duration"] = (datetime.utcnow() - start_time).total_seconds()
+            stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
             self._finalize_sync_stats(stats)
 
             logger.info(
@@ -649,7 +649,7 @@ class SQLSyncService:
     async def _sync_single_item(self, sql_item: dict[str, Any], stats: dict[str, Any]) -> None:
         """Process a single item from SQL Server for sync."""
         sql_qty = float(sql_item.get("stock_qty", 0.0))
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Get current MongoDB record
         item_code = sql_item.get("item_code", "")
@@ -677,7 +677,7 @@ class SQLSyncService:
     ) -> None:
         """Update an existing MongoDB item with SQL data."""
         mongo_qty = float(mongo_item.get("stock_qty", 0.0))
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Prepare backfill for optional metadata
         metadata_candidates = _build_metadata_candidates(sql_item)
@@ -686,7 +686,9 @@ class SQLSyncService:
         update_fields: dict[str, Any] = {
             "last_synced": now,
             "updated_at": now,
-            "last_verified_at": now,
+            "sql_sync_status": "MATCH",
+            "sql_last_checked_at": now,
+            # "last_verified_at": now, # Removed to distinguish Sync from Verification
         }
 
         if sql_qty != mongo_qty:
@@ -694,7 +696,10 @@ class SQLSyncService:
                 {
                     "stock_qty": sql_qty,
                     "sql_server_qty": sql_qty,
-                    "sql_verified_qty": sql_qty,
+                    # GOVERNANCE FIX: Do NOT update sql_verified_qty blindly (Rule 2)
+                    # "sql_verified_qty": sql_qty,  <-- REMOVED
+                    "sql_sync_status": "MISMATCH",
+                    "sql_last_checked_at": now,
                     "qty_changed_at": now,
                     "qty_change_delta": sql_qty - mongo_qty,
                 }
@@ -726,7 +731,7 @@ class SQLSyncService:
             created = stats.get("items_created", 0)
             stats["items_unchanged"] = max(0, checked - updated - created)
 
-        self._last_sync = datetime.utcnow()
+        self._last_sync = datetime.now(timezone.utc).replace(tzinfo=None)
         self._sync_stats["successful_syncs"] += 1
         self._sync_stats["items_synced"] = stats["items_checked"]
         self._sync_stats["qty_changes_detected"] = stats["qty_changes_detected"]
@@ -743,7 +748,7 @@ class SQLSyncService:
                         "$set": {
                             "last_sync": self._last_sync,
                             "stats": stats,
-                            "updated_at": datetime.utcnow(),
+                            "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         },
                         "$inc": {"total_syncs": 1},
                     },
@@ -761,27 +766,67 @@ class SQLSyncService:
 
     async def check_item_qty_realtime(self, item_code: str) -> dict[str, Any]:
         """
-        Get quantity from MongoDB (primary source).
-        SQL Server is only used for periodic syncs, not real-time reads.
-
-        Args:
-            item_code: Item code to check
-
-        Returns:
-            Dictionary with qty info from MongoDB cache
+        Get quantity from SQL Server in real-time and update MongoDB cache.
+        Falls back to MongoDB cache if SQL Server is unavailable.
         """
-        # Get item from MongoDB (primary source)
+        # Try SQL Server first
+        try:
+            is_connected = await asyncio.to_thread(self.sql_connector.test_connection)
+            if is_connected:
+                sql_item = await asyncio.to_thread(self.sql_connector.get_item_by_code, item_code)
+                if sql_item:
+                    sql_qty = float(sql_item.get("stock_qty", 0.0))
+
+                    # Get current MongoDB record
+                    mongo_item = await self.mongo_db.erp_items.find_one({"item_code": item_code})
+                    mongo_qty = float(mongo_item.get("stock_qty", 0.0)) if mongo_item else 0.0
+
+                    updated = False
+                    if sql_qty != mongo_qty:
+                        # Update MongoDB cache
+                        now = datetime.now(timezone.utc).replace(tzinfo=None)
+                        await self.mongo_db.erp_items.update_one(
+                            {"item_code": item_code},
+                            {
+                                "$set": {
+                                    "stock_qty": sql_qty,
+                                    "sql_server_qty": sql_qty,
+                                    "last_synced": now,
+                                    "qty_changed_at": now,
+                                    "updated_at": now,
+                                }
+                            },
+                            upsert=True,
+                        )
+                        updated = True
+
+                    return {
+                        "item_code": item_code,
+                        "stock_qty": sql_qty,
+                        "sql_qty": sql_qty,
+                        "previous_qty": mongo_qty,
+                        "delta": sql_qty - mongo_qty,
+                        "updated": updated,
+                        "source": "sql_server",
+                        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                    }
+        except Exception as e:
+            logger.warning(f"Real-time SQL check failed for {item_code}: {e}")
+
+        # Fallback to MongoDB cache
         mongo_item = await self.mongo_db.erp_items.find_one({"item_code": item_code})
         if mongo_item:
             return {
                 "item_code": item_code,
+                "stock_qty": mongo_item.get("stock_qty"),
                 "sql_qty": mongo_item.get("stock_qty"),
                 "updated": False,
                 "source": "mongodb_cache",
-                "message": "Using MongoDB cache (SQL Server only for periodic syncs)",
+                "message": "Using cached value (SQL Server unavailable)",
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             }
         else:
-            raise ValueError(f"Item {item_code} not found")
+            raise ValueError(f"Item {item_code} not found in SQL or Cache")
 
     async def _sync_loop(self):
         """

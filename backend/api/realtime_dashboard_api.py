@@ -6,7 +6,7 @@ Server-Sent Events (SSE) and WebSocket endpoints for live data updates
 import asyncio
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -307,7 +307,7 @@ async def get_dashboard_stats(
                         {
                             "$match": {
                                 "counted_at": {
-                                    "$gte": datetime.utcnow().replace(hour=0, minute=0, second=0)
+                                    "$gte": datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0)
                                 }
                             }
                         },
@@ -358,7 +358,7 @@ async def get_dashboard_stats(
             {"status": item["_id"] or "Unknown", "count": item["count"]}
             for item in stats.get("by_status", [])
         ],
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
     }
 
 
@@ -423,7 +423,7 @@ async def dashboard_stream(
                     {
                         "type": "data",
                         "payload": result,
-                        "timestamp": datetime.utcnow().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                     }
                 )
                 yield f"data: {data}\n\n"
@@ -439,7 +439,7 @@ async def dashboard_stream(
                     {
                         "type": "error",
                         "message": str(e),
-                        "timestamp": datetime.utcnow().isoformat(),
+                        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                     }
                 )
                 yield f"data: {error_data}\n\n"

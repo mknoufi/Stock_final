@@ -1,6 +1,6 @@
 import hashlib
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -41,7 +41,7 @@ class SnapshotService:
             return None
 
         # 3. Create new snapshot
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         erp_qty = float(erp_item.get("stock_qty", 0.0))
 
         import uuid

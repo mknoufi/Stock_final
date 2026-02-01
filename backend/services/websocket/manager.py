@@ -1,6 +1,6 @@
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import WebSocket
@@ -32,8 +32,8 @@ class WebSocketManager:
             websocket=websocket,
             user_id=user_id,
             role=role,
-            connected_at=datetime.utcnow(),
-            last_ping=datetime.utcnow(),
+            connected_at=datetime.now(timezone.utc).replace(tzinfo=None),
+            last_ping=datetime.now(timezone.utc).replace(tzinfo=None),
             device_id=device_id,
         )
         self.active_connections.append(connection)

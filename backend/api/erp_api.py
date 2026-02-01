@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -256,7 +256,7 @@ async def get_erp_config(current_user: dict = Depends(get_current_user)):
         "host": config.get("host"),
         "database": config.get("database"),
         "port": config.get("port"),
-        "last_check": datetime.utcnow().isoformat(),
+        "last_check": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         "error": error_msg,
     }
 

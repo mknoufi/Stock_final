@@ -5,7 +5,7 @@ Endpoints for managing user-specific settings like theme, font size, colors.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -122,7 +122,7 @@ async def update_user_settings(
         changed_fields = list(update_data.keys())
 
         # Add metadata
-        update_data["updated_at"] = datetime.utcnow()
+        update_data["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
 
         if existing:
             # Update existing settings
@@ -136,7 +136,7 @@ async def update_user_settings(
                 "user_id": user_id,
                 **DEFAULT_SETTINGS,
                 **update_data,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
             await db.user_settings.insert_one(new_settings)
 

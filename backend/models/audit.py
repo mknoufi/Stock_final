@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from .user import PyObjectId
 
@@ -36,7 +36,7 @@ class AuditLogStatus(str, Enum):
 
 class AuditLog(BaseModel):
     id: Optional[PyObjectId] = Field(alias="_id", default=None)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     event_type: AuditEventType
     actor_id: Optional[str] = None
     actor_username: Optional[str] = None
@@ -45,6 +45,4 @@ class AuditLog(BaseModel):
     details: Dict[str, Any] = Field(default_factory=dict)
     status: AuditLogStatus = Field(default=AuditLogStatus.SUCCESS)
 
-    class Config:
-        populate_by_name = True
-        json_encoders = {datetime: lambda v: v.isoformat()}
+    model_config = ConfigDict(populate_by_name=True)

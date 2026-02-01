@@ -9,7 +9,7 @@ Provides comprehensive dashboard KPIs for admin/supervisor monitoring:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -182,7 +182,7 @@ async def calculate_dashboard_overview(
             completion_percentage=round(value_completion, 2),
             variance_value=round(variance_value, 2),
         ),
-        last_updated=datetime.utcnow(),
+        last_updated=datetime.now(timezone.utc).replace(tzinfo=None),
         active_sessions=len(active_sessions),
         total_users=total_users,
         pending_approvals=pending_approvals,
@@ -512,7 +512,7 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
     breakdown = []
 
     for days_ago in range(7):
-        date = datetime.utcnow() - timedelta(days=days_ago)
+        date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days_ago)
         start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_of_day = date.replace(hour=23, minute=59, second=59, microsecond=999999)
 

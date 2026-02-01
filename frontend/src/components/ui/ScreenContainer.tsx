@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
-  TouchableWithoutFeedback,
+  Pressable,
   Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -94,25 +94,25 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   const Container = resolvedScrollable ? ScrollView : View;
   const containerProps = resolvedScrollable
     ? {
-        contentContainerStyle: [
-          styles.scrollContent,
-          !noPadding && { paddingBottom: theme.layout?.safeArea?.bottom || 34 },
-          contentContainerStyle,
-        ],
-        refreshControl: onRefresh ? (
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={theme.colors.accent}
-            colors={[theme.colors.accent]} // Android
-            progressBackgroundColor={theme.colors.surfaceElevated}
-          />
-        ) : undefined,
-        keyboardShouldPersistTaps: "handled",
-      }
+      contentContainerStyle: [
+        styles.scrollContent,
+        !noPadding && { paddingBottom: theme.layout?.safeArea?.bottom || 34 },
+        contentContainerStyle,
+      ],
+      refreshControl: onRefresh ? (
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={theme.colors.accent}
+          colors={[theme.colors.accent]} // Android
+          progressBackgroundColor={theme.colors.surfaceElevated}
+        />
+      ) : undefined,
+      keyboardShouldPersistTaps: "handled",
+    }
     : {
-        style: [styles.content, style],
-      };
+      style: [styles.content, style],
+    };
 
   const renderContent = () => (
     <>
@@ -156,12 +156,16 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
           {children}
         </Container>
       ) : (
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <Pressable
+          onPress={Keyboard.dismiss}
+          accessible={false}
+          style={styles.flex}
+        >
           {/* @ts-ignore */}
           <Container style={[styles.flex, style]} {...containerProps}>
             {children}
           </Container>
-        </TouchableWithoutFeedback>
+        </Pressable>
       )}
       {overlay ? (
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>

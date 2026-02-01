@@ -5,7 +5,7 @@ Tracks and stores application errors, exceptions, and system issues for monitori
 
 import logging
 import traceback
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -148,7 +148,7 @@ class ErrorLogService:
 
             # Create log entry
             log_entry = {
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
                 "error_type": error_type,
                 "error_message": error_message,
                 "error_code": error_code,
@@ -328,7 +328,7 @@ class ErrorLogService:
                 {
                     "$set": {
                         "resolved": True,
-                        "resolved_at": datetime.utcnow(),
+                        "resolved_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         "resolved_by": resolved_by,
                         "resolution_note": resolution_note,
                     }
@@ -400,7 +400,7 @@ class ErrorLogService:
             top_endpoints = await self.collection.aggregate(pipeline).to_list(10)
 
             # Recent errors (last 24 hours)
-            last_24h = datetime.utcnow() - timedelta(hours=24)
+            last_24h = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=24)
             recent_filter = {**filter_query, "timestamp": {"$gte": last_24h}}
             if filter_query.get("timestamp"):
                 recent_filter["timestamp"]["$gte"] = max(

@@ -6,7 +6,7 @@ Includes input sanitization, rate limiting helpers, and filter validation
 import logging
 import re
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
@@ -166,7 +166,7 @@ class LoginRateLimiter:
         Returns:
             Tuple of (allowed, info_dict)
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Clean up old attempts
         self.attempts[ip_address] = [t for t in self.attempts[ip_address] if now - t < self.window]
@@ -216,7 +216,7 @@ class BatchRateLimiter:
         """
         Check if batch request is allowed for this user.
         """
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Clean up old requests
         self.requests[user_id] = [t for t in self.requests[user_id] if now - t < self.window]

@@ -7,7 +7,7 @@ approval is required.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -237,8 +237,8 @@ class VarianceService:
                 ],
                 "apply_to_categories": None,
                 "apply_to_locations": None,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
 
             result = await self.db.variance_threshold_configs.insert_one(default_config)

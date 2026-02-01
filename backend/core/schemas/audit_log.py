@@ -4,7 +4,7 @@ Audit Log Schema
 Pydantic models for audit logging of user actions.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -87,7 +87,7 @@ class AuditLog(AuditLogCreate):
 
     id: str = Field(description="Audit log entry ID")
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow, description="Timestamp of the action"
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None), description="Timestamp of the action"
     )
 
     model_config = ConfigDict(

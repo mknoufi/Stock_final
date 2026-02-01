@@ -97,7 +97,7 @@ def _find_log_file(*candidates: Path) -> Optional[Path]:
 @service_logs_router.get("/backend")
 async def get_backend_logs(
     lines: int = Query(100, ge=1, le=1000),
-    level: Optional[str] = Query(None, regex="^(INFO|WARN|ERROR|DEBUG)$"),
+    level: Optional[str] = Query(None, pattern="^(INFO|WARN|ERROR|DEBUG)$"),
     current_user: dict = Depends(require_admin),
 ):
     """Get backend server logs"""
@@ -134,7 +134,7 @@ async def get_backend_logs(
 @service_logs_router.get("/frontend")
 async def get_frontend_logs(
     lines: int = Query(100, ge=1, le=1000),
-    level: Optional[str] = Query(None, regex="^(INFO|WARN|ERROR|DEBUG)$"),
+    level: Optional[str] = Query(None, pattern="^(INFO|WARN|ERROR|DEBUG)$"),
     current_user: dict = Depends(require_admin),
 ):
     """Get frontend/Expo logs"""
@@ -167,7 +167,7 @@ async def get_frontend_logs(
 @service_logs_router.get("/mongodb")
 async def get_mongodb_logs(
     lines: int = Query(100, ge=1, le=1000),
-    level: Optional[str] = Query(None, regex="^(INFO|WARN|ERROR|DEBUG)$"),
+    level: Optional[str] = Query(None, pattern="^(INFO|WARN|ERROR|DEBUG)$"),
     current_user: dict = Depends(require_admin),
 ):
     """Get MongoDB logs"""
@@ -215,7 +215,7 @@ async def get_mongodb_logs(
 @service_logs_router.get("/system")
 async def get_system_logs(
     lines: int = Query(100, ge=1, le=1000),
-    level: Optional[str] = Query(None, regex="^(INFO|WARN|ERROR|DEBUG)$"),
+    level: Optional[str] = Query(None, pattern="^(INFO|WARN|ERROR|DEBUG)$"),
     current_user: dict = Depends(require_admin),
 ):
     """Get system/application logs"""
@@ -242,7 +242,7 @@ async def get_system_logs(
 
 @service_logs_router.post("/clear")
 async def clear_logs(
-    service: str = Query(..., regex="^(backend|frontend|mongodb|system|all)$"),
+    service: str = Query(..., pattern="^(backend|frontend|mongodb|system|all)$"),
     current_user: dict = Depends(require_admin),
 ):
     """Clear logs for a service"""

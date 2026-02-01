@@ -6,7 +6,7 @@ Adds default settings fields to existing users who don't have them.
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -77,8 +77,8 @@ async def migrate_user_settings(db: AsyncIOMotorDatabase) -> dict:
                     settings_doc = {
                         "user_id": user_id,
                         **DEFAULT_USER_SETTINGS,
-                        "updated_at": datetime.utcnow(),
-                        "created_at": datetime.utcnow(),
+                        "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                        "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     }
 
                     await settings_collection.insert_one(settings_doc)

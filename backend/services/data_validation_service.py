@@ -4,7 +4,7 @@ Data Validation Service - Ensures data integrity across all database operations
 
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -197,7 +197,7 @@ class DataValidationService:
             if isinstance(self.validation_stats["failed_validations"], int):
                 self.validation_stats["failed_validations"] += 1
 
-        self.validation_stats["last_validation"] = datetime.utcnow()
+        self.validation_stats["last_validation"] = datetime.now(timezone.utc).replace(tzinfo=None)
 
         return is_valid, errors
 
@@ -206,7 +206,7 @@ class DataValidationService:
         Validate existing database data and clean up issues
         """
         validation_report: dict[str, Any] = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "collections_checked": 0,
             "total_documents": 0,
             "validation_errors": [],

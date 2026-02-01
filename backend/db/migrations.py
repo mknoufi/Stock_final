@@ -4,7 +4,7 @@ Handles database schema updates and indexing
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Union
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -299,6 +299,6 @@ class MigrationManager:
         await self.db[self.migrations_collection].insert_one(
             {
                 "name": migration_name,
-                "completed_at": datetime.utcnow(),
+                "completed_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         )

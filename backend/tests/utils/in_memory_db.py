@@ -9,7 +9,7 @@ import copy
 import os
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from backend.services.activity_log import ActivityLogService
@@ -176,6 +176,17 @@ class InMemoryCursor:
     async def to_list(self, length: int) -> list[dict[str, Any]]:
         return [copy.deepcopy(doc) for doc in self._documents[:length]]
 
+    def __aiter__(self):
+        self._iter_index = 0
+        return self
+
+    async def __anext__(self):
+        if self._iter_index < len(self._documents):
+            doc = self._documents[self._iter_index]
+            self._iter_index += 1
+            return copy.deepcopy(doc)
+        raise StopAsyncIteration
+
 
 class InMemoryCollection:
     def __init__(self):
@@ -185,9 +196,22 @@ class InMemoryCollection:
         # Use 24-char hex string to mimic ObjectId
         document.setdefault("_id", os.urandom(12).hex())
 
-    async def find_one(self, filter: dict[str, Any], *args, **kwargs) -> dict[str, Optional[Any]]:
-        for doc in self._documents:
-            if _match_filter(doc, filter):
+    async def find_one(
+        self, filter: Optional[dict[str, Any]] = None, *args, **kwargs
+    ) -> dict[str, Optional[Any]]:
+        # Handle case where filter is None (Motor allows this)
+        filter_query = filter or {}
+
+        # Handle sort being passed in kwargs (Motor style)
+        documents = self._documents
+        if "sort" in kwargs and kwargs["sort"]:
+            sort_key, direction = kwargs["sort"][0]
+            reverse = direction < 0
+            # Need a stable sort, and handle missing keys
+            documents = sorted(documents, key=lambda doc: doc.get(sort_key, ""), reverse=reverse)
+
+        for doc in documents:
+            if _match_filter(doc, filter_query):
                 return copy.deepcopy(doc)
         return None
 
@@ -206,11 +230,48 @@ class InMemoryCollection:
             ids.append(doc_copy["_id"])
         return ids
 
+    async def replace_one(
+        self,
+        filter_query: dict[str, Optional[Any]],
+        replacement: dict[str, Any],
+        upsert: bool = False,
+    ) -> UpdateResult:
+        """
+        Replaces a single document matching the filter.
+        """
+        for i, doc in enumerate(self._documents):
+            if _match_filter(doc, filter_query):
+                # Preserve _id from original doc unless replacement has it (usually replacement shouldn't have _id)
+                original_id = doc.get("_id")
+                new_doc = copy.deepcopy(replacement)
+                if "_id" not in new_doc and original_id:
+                    new_doc["_id"] = original_id
+
+                self._documents[i] = new_doc
+                return UpdateResult(matched_count=1, modified_count=1)
+
+        if upsert:
+            new_doc = copy.deepcopy(replacement)
+            # Apply filter keys to new doc if they fit (simple equality)
+            if filter_query:
+                for key, value in filter_query.items():
+                    if not key.startswith("$") and key not in new_doc:
+                        new_doc[key] = value
+
+            self._ensure_id(new_doc)
+            self._documents.append(new_doc)
+            return UpdateResult(matched_count=0, modified_count=1, upserted_id=new_doc["_id"])
+
+        return UpdateResult(matched_count=0, modified_count=0)
+
     async def update_one(
         self,
         filter_query: dict[str, Optional[Any]],
         update: dict[str, Any],
         upsert: bool = False,
+        array_filters: Optional[
+            list[dict]
+        ] = None,  # Added array_filters to signature to match generic usage
     ) -> UpdateResult:
         for doc in self._documents:
             if _match_filter(doc, filter_query):
@@ -320,10 +381,18 @@ class InMemoryDatabase:
         self.items = InMemoryCollection()
         self.variances = InMemoryCollection()
         self.sync_conflicts = InMemoryCollection()
+        self.verification_conflicts = InMemoryCollection()
         self.user_settings = InMemoryCollection()
         self.audit_logs = InMemoryCollection()
         self.system_events = InMemoryCollection()
         self.item_serials = InMemoryCollection()
+
+        # Governance Collections
+        self.system_settings = InMemoryCollection()
+        self.config_versions = InMemoryCollection()
+        self.session_snapshots = InMemoryCollection()
+        self.conflict_forks = InMemoryCollection()
+        self.governance_events = InMemoryCollection()
 
     async def command(self, *_args, **_kwargs):
         """Simulate db.command('ping')."""
@@ -369,7 +438,7 @@ def setup_server_with_in_memory_db(monkeypatch) -> InMemoryDatabase:
     fake_redis_service = _setup_cache_and_redis(monkeypatch, server_module)
 
     monkeypatch.setenv("RATE_LIMIT_ENABLED", "false")
-    monkeypatch.setattr(settings, "AUTH_SINGLE_SESSION", True)
+    monkeypatch.setattr(settings, "AUTH_SINGLE_SESSION", False)
     # Initialize APIs
     _initialize_apis(monkeypatch, fake_db, server_module, fake_redis_service)
 
@@ -549,7 +618,7 @@ def _setup_auth_and_seed_users(monkeypatch, fake_db, server_module) -> None:
                 "role": role,
                 "is_active": True,
                 "permissions": [],
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
             }
         )
         return user_id
@@ -577,7 +646,7 @@ def _setup_auth_and_seed_users(monkeypatch, fake_db, server_module) -> None:
             "_id": os.urandom(12).hex(),
             "user_id": staff_id,
             "pin_hash": hashed_pin,
-            "created_at": datetime.utcnow(),
+            "created_at": datetime.now(timezone.utc),
             "enabled": True,
             "failed_attempts": 0,
             "locked_until": None,

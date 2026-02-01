@@ -42,5 +42,7 @@
     "codex-project-manager.milestoneCellsMigrationCompleted": true,
     "codex-project-manager.paratextReorderMigrationCompleted": true,
     "codex-project-manager.globalReferencesMigrationCompleted": true,
-    "codex-project-manager.cellIdsToUuidMigrationCompleted": true
+    "codex-project-manager.cellIdsToUuidMigrationCompleted": true,
+    "java.configuration.updateBuildConfiguration": "interactive",
+    "java.compile.nullAnalysis.mode": "automatic"
 }

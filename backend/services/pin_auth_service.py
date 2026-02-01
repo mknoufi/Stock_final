@@ -4,7 +4,7 @@ Handles PIN-based login for staff/quick access
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -55,7 +55,7 @@ class PINAuthService:
                 {
                     "$set": {
                         "pin_hash": hashed_pin,
-                        "created_at": datetime.utcnow(),
+                        "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         "enabled": True,
                         "failed_attempts": 0,
                     }
@@ -88,7 +88,7 @@ class PINAuthService:
 
             # Check if account is locked
             if pin_record.get("locked_until"):
-                if datetime.utcnow() < pin_record["locked_until"]:
+                if datetime.now(timezone.utc).replace(tzinfo=None) < pin_record["locked_until"]:
                     logger.warning(f"PIN login attempt for locked account: {user_id}")
                     return False
                 else:
@@ -110,7 +110,7 @@ class PINAuthService:
                     {"user_id": user_id},
                     {
                         "$set": {
-                            "last_used": datetime.utcnow(),
+                            "last_used": datetime.now(timezone.utc).replace(tzinfo=None),
                             "failed_attempts": 0,
                         }
                     },
@@ -125,7 +125,7 @@ class PINAuthService:
 
                 # Lock account after max attempts
                 if failed_attempts >= self.max_attempts:
-                    locked_until = datetime.utcnow() + timedelta(minutes=self.lockout_duration)
+                    locked_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=self.lockout_duration)
                     update_data["$set"]["locked_until"] = locked_until
                     logger.warning(f"PIN account locked due to failed attempts: {user_id}")
 
@@ -158,7 +158,7 @@ class PINAuthService:
                 return {"enabled": False, "status": "not_set"}
 
             is_locked = (
-                pin_record.get("locked_until") and datetime.utcnow() < pin_record["locked_until"]
+                pin_record.get("locked_until") and datetime.now(timezone.utc).replace(tzinfo=None) < pin_record["locked_until"]
             )
 
             return {

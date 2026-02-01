@@ -3,6 +3,7 @@ import respx
 from fastapi.testclient import TestClient
 from backend.server import app
 from backend.auth.dependencies import get_current_user
+from backend.config import settings
 
 
 # Mock user for testing
@@ -22,7 +23,7 @@ client = TestClient(app)
 async def test_pi_status_online():
     """Test the status endpoint when pi-server is reachable."""
     app.dependency_overrides[get_current_user] = get_mock_admin
-    respx.get("http://localhost:3000/v1/models").respond(status_code=200, json={"models": []})
+    respx.get(f"{settings.PI_SERVER_URL}/models").respond(status_code=200, json={"models": []})
 
     response = client.get("/api/pi/status")
     assert response.status_code == 200
@@ -35,7 +36,7 @@ async def test_pi_status_online():
 async def test_pi_status_offline():
     """Test the status endpoint when pi-server is unreachable."""
     app.dependency_overrides[get_current_user] = get_mock_admin
-    respx.get("http://localhost:3000/v1/models").mock(side_effect=Exception("Connection error"))
+    respx.get(f"{settings.PI_SERVER_URL}/models").mock(side_effect=Exception("Connection error"))
 
     response = client.get("/api/pi/status")
     assert response.status_code == 200
@@ -58,7 +59,7 @@ async def test_pi_chat_permission_denied():
 async def test_pi_chat_success():
     """Test successful proxying of chat requests."""
     app.dependency_overrides[get_current_user] = get_mock_admin
-    respx.post("http://localhost:3000/v1/chat/completions").respond(
+    respx.post(f"{settings.PI_SERVER_URL}/chat/completions").respond(
         status_code=200, json={"choices": [{"message": {"content": "Hello world"}}]}
     )
 

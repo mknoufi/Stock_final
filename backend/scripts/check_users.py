@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -48,14 +48,14 @@ async def check_users():
                     "password": pwd_context.hash("staff123"),
                     "full_name": "Staff Member",
                     "role": "staff",
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 },
                 {
                     "username": "supervisor",
                     "password": pwd_context.hash("super123"),
                     "full_name": "Supervisor",
                     "role": "supervisor",
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 },
             ]
         )

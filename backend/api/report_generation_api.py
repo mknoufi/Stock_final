@@ -7,7 +7,7 @@ import csv
 import io
 import json
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -465,7 +465,7 @@ async def generate_report(
 
     summary = ReportSummary(
         total_records=len(data),
-        generated_at=datetime.utcnow().isoformat(),
+        generated_at=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         filters_applied=filters_applied,
         report_type=request.report_type,
         report_name=REPORT_TYPES[request.report_type]["name"],

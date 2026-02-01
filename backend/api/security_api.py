@@ -4,7 +4,7 @@ Provides endpoints for security monitoring, failed login tracking, and audit log
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -39,7 +39,7 @@ async def get_failed_logins(
         # Build query
         query = {
             "success": False,
-            "timestamp": {"$gte": datetime.utcnow() - timedelta(hours=hours)},
+            "timestamp": {"$gte": datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)},
         }
 
         if username:
@@ -110,7 +110,7 @@ async def get_suspicious_activity(
     try:
         db = get_db()
 
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
 
         # Multiple failed logins from same IP
         ip_pipeline = [
@@ -186,7 +186,7 @@ async def get_security_sessions(
         # Get refresh tokens (active sessions)
         query = {"revoked": False}
         if active_only:
-            query["expires_at"] = {"$gt": datetime.utcnow()}
+            query["expires_at"] = {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)}
 
         cursor = db.refresh_tokens.find(query).sort("created_at", -1).limit(limit)
         tokens = await cursor.to_list(limit)
@@ -206,17 +206,17 @@ async def get_security_sessions(
                             "ip_address": token.get("ip_address", "unknown"),
                             "user_agent": token.get("user_agent", "unknown"),
                             "created_at": (
-                                token.get("created_at", datetime.utcnow()).isoformat()
+                                token.get("created_at", datetime.now(timezone.utc).replace(tzinfo=None)).isoformat()
                                 if isinstance(token.get("created_at"), datetime)
                                 else str(token.get("created_at", ""))
                             ),
                             "expires_at": (
-                                token.get("expires_at", datetime.utcnow()).isoformat()
+                                token.get("expires_at", datetime.now(timezone.utc).replace(tzinfo=None)).isoformat()
                                 if isinstance(token.get("expires_at"), datetime)
                                 else str(token.get("expires_at", ""))
                             ),
                             "last_used": (
-                                token.get("last_used", datetime.utcnow()).isoformat()
+                                token.get("last_used", datetime.now(timezone.utc).replace(tzinfo=None)).isoformat()
                                 if isinstance(token.get("last_used"), datetime)
                                 else str(token.get("last_used", ""))
                             ),
@@ -226,7 +226,7 @@ async def get_security_sessions(
         # Get statistics
         total_sessions = await db.refresh_tokens.count_documents({"revoked": False})
         active_sessions = await db.refresh_tokens.count_documents(
-            {"revoked": False, "expires_at": {"$gt": datetime.utcnow()}}
+            {"revoked": False, "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)}}
         )
 
         return {
@@ -261,7 +261,7 @@ async def get_audit_log(
         db = get_db()
 
         # Build query
-        query = {"timestamp": {"$gte": datetime.utcnow() - timedelta(hours=hours)}}
+        query = {"timestamp": {"$gte": datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)}}
 
         # Security-related actions
         security_actions = [
@@ -325,7 +325,7 @@ async def get_ip_tracking(
     try:
         db = get_db()
 
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
 
         # Aggregate IP data from login attempts
         ip_pipeline = [
@@ -390,7 +390,7 @@ async def get_security_summary(
     try:
         db = get_db()
 
-        cutoff_time = datetime.utcnow() - timedelta(hours=hours)
+        cutoff_time = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
 
         # Failed logins count
         failed_count = await db.login_attempts.count_documents(
@@ -404,7 +404,7 @@ async def get_security_summary(
 
         # Active sessions
         active_sessions = await db.refresh_tokens.count_documents(
-            {"revoked": False, "expires_at": {"$gt": datetime.utcnow()}}
+            {"revoked": False, "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)}}
         )
 
         # Suspicious IPs (5+ failed attempts)

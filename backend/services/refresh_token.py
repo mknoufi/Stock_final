@@ -5,7 +5,7 @@ Implements JWT refresh tokens with automatic rotation for enhanced security
 
 import hashlib
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -32,14 +32,14 @@ class RefreshTokenService:
 
     def create_access_token(self, data: dict[str, Any]) -> str:
         """Create a short-lived access token"""
-        expire = datetime.utcnow() + self.access_token_expiry
+        expire = datetime.now(timezone.utc) + self.access_token_expiry
         to_encode = data.copy()
         to_encode.update({"exp": expire, "type": "access"})
         return jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
 
     def create_refresh_token(self, data: dict[str, Any]) -> str:
         """Create a long-lived refresh token"""
-        expire = datetime.utcnow() + self.refresh_token_expiry
+        expire = datetime.now(timezone.utc) + self.refresh_token_expiry
         to_encode = data.copy()
         to_encode.update({"exp": expire, "type": "refresh"})
         token = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
@@ -84,7 +84,7 @@ class RefreshTokenService:
             document: dict[str, Any] = {
                 "token_hash": token_hash,
                 "username": username,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc),
                 "expires_at": expires_at,
                 "revoked": False,
             }
@@ -104,7 +104,7 @@ class RefreshTokenService:
         """Remove expired and revoked tokens"""
         try:
             result = await self.db.refresh_tokens.delete_many(
-                {"$or": [{"expires_at": {"$lt": datetime.utcnow()}}, {"revoked": True}]}
+                {"$or": [{"expires_at": {"$lt": datetime.now(timezone.utc)}}, {"revoked": True}]}
             )
             if result.deleted_count > 0:
                 logger.info(f"Cleaned up {result.deleted_count} expired/revoked tokens")
@@ -135,11 +135,11 @@ class RefreshTokenService:
                         {
                             "$or": [
                                 {"revoked": False},
-                                {"grace_until": {"$gt": datetime.utcnow()}},
+                                {"grace_until": {"$gt": datetime.now(timezone.utc)}},
                             ]
                         },
                     ],
-                    "expires_at": {"$gt": datetime.utcnow()},
+                    "expires_at": {"$gt": datetime.now(timezone.utc)},
                 }
             )
 
@@ -171,7 +171,7 @@ class RefreshTokenService:
             token_hash = _hash_token(token)
             result = await self.db.refresh_tokens.update_one(
                 {"$or": [{"token_hash": token_hash}, {"token": token}]},
-                {"$set": {"revoked": True, "revoked_at": datetime.utcnow()}},
+                {"$set": {"revoked": True, "revoked_at": datetime.now(timezone.utc)}},
             )
             return result.modified_count > 0
         except Exception as e:
@@ -181,9 +181,9 @@ class RefreshTokenService:
     async def revoke_all_user_tokens(self, username: str, grace_period_seconds: int = 0) -> int:
         """Revoke all refresh tokens for a user"""
         try:
-            update_data = {"revoked": True, "revoked_at": datetime.utcnow()}
+            update_data = {"revoked": True, "revoked_at": datetime.now(timezone.utc)}
             if grace_period_seconds > 0:
-                update_data["grace_until"] = datetime.utcnow() + timedelta(
+                update_data["grace_until"] = datetime.now(timezone.utc) + timedelta(
                     seconds=grace_period_seconds
                 )
 
@@ -218,7 +218,7 @@ class RefreshTokenService:
 
         # Rotate refresh token (issue new one, store it, revoke old one)
         new_refresh_token = self.create_refresh_token({"sub": username, "role": role})
-        new_refresh_expires_at = datetime.utcnow() + self.refresh_token_expiry
+        new_refresh_expires_at = datetime.now(timezone.utc) + self.refresh_token_expiry
         if username:
             await self.store_refresh_token(
                 new_refresh_token,

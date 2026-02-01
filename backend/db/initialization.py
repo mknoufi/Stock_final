@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from backend.services.pin_auth_service import PINAuthService
 from backend.utils.auth_utils import get_password_hash
@@ -30,7 +30,7 @@ async def init_default_users(db):
                     "role": "staff",
                     "is_active": True,
                     "permissions": [],
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
             pin_service = PINAuthService(db)
@@ -58,7 +58,7 @@ async def init_default_users(db):
                     "role": "supervisor",
                     "is_active": True,
                     "permissions": [],
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
             pin_service = PINAuthService(db)
@@ -86,7 +86,7 @@ async def init_default_users(db):
                     "role": "admin",
                     "is_active": True,
                     "permissions": ["all"],
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
             pin_service = PINAuthService(db)

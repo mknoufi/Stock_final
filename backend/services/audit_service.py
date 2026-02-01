@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -32,7 +32,7 @@ class AuditService:
             ip_address=ip_address,
             resource_id=resource_id,
             details=details or {},
-            timestamp=datetime.utcnow(),
+            timestamp=datetime.now(timezone.utc),
         )
 
         result = await self.collection.insert_one(

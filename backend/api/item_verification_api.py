@@ -7,7 +7,7 @@ import csv
 import io
 import logging
 from copy import deepcopy
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 import traceback
 
@@ -168,7 +168,7 @@ async def update_item_master(
         update_doc = {
             "$set": {
                 "last_updated_by": current_user["username"],
-                "last_updated_at": datetime.utcnow(),
+                "last_updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         }
 
@@ -200,7 +200,7 @@ async def update_item_master(
                 "barcode": actual_barcode or barcode,
                 "changes": request.model_dump(exclude_none=True),
                 "user": current_user["username"],
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         )
 
@@ -289,8 +289,8 @@ def _build_item_update_doc(
     update_fields = {
         "verified": request.verified,
         "verified_by": current_user["username"],
-        "verified_at": datetime.utcnow(),
-        "last_scanned_at": datetime.utcnow(),
+        "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
+        "last_scanned_at": datetime.now(timezone.utc).replace(tzinfo=None),
     }
 
     if request.verified_qty is not None:
@@ -349,7 +349,7 @@ def _build_verification_log_doc(
         "non_returnable_damaged_qty": request.non_returnable_damaged_qty,
         "variance": variance,
         "verified_by": current_user["username"],
-        "verified_at": datetime.utcnow(),
+        "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
         "category": item.get("category", ""),
         "subcategory": item.get("subcategory", ""),
         "floor": request.floor or item.get("floor", ""),
@@ -406,10 +406,66 @@ async def verify_item(
         else:
             update_filter = {"barcode": barcode}
 
+        # GOVERNANCE FIX: Optimistic Locking (Rule 3)
+        # We MUST ensure stock_qty hasn't changed since we read it
+        expected_stock_qty = item.get("stock_qty")
+        if expected_stock_qty is not None:
+            update_filter["stock_qty"] = expected_stock_qty
+
+        # ... (Conflict Forking Logic remains here) ...
+        # GOVERNANCE: Conflict Forking Engine
+        # Check if item is already approved
+        if item.get("verified") is True:
+            # Check for material differences in the verification request
+            existing_qty = item.get("verified_qty")
+            # Calculate variance for new request
+            # new_variance = _calculate_variance(request, item.get("stock_qty", 0.0))
+
+            # Simple conflict check: if quantity differs or condition differs
+            is_conflict = False
+            if request.verified_qty is not None and request.verified_qty != existing_qty:
+                is_conflict = True
+
+            if is_conflict:
+                from backend.core.schemas.conflict import ConflictFork
+
+                # Create Fork
+                fork = ConflictFork(
+                    original_item_id=str(item.get("_id")),
+                    session_id=request.session_id or "unknown",
+                    user_id=current_user["username"],
+                    conflicting_payload=request.model_dump(exclude_none=True),
+                    reason=f"Attempted to overwrite APPROVED qty {existing_qty} with {request.verified_qty}",
+                )
+
+                await db.conflict_forks.insert_one(fork.model_dump())
+
+                logger.warning(f"Conflict detected for {barcode}. Fork created: {fork.fork_id}")
+
+                return {
+                    "success": True,
+                    "item": serialize_item_document(item),  # Return ORIGINAL item
+                    "variance": item.get("variance"),
+                    "message": f"Conflict detected! Original verification preserved. Fork ID: {fork.fork_id}",
+                    "fork_id": fork.fork_id,
+                }
+
         variance = _calculate_variance(request, item.get("stock_qty", 0.0))
         update_doc = _build_item_update_doc(request, current_user, item)
 
-        await db.erp_items.update_one(update_filter, update_doc)
+        result = await db.erp_items.update_one(update_filter, update_doc)
+
+        if result.matched_count == 0:
+            # Optimistic Lock Failure
+            # We assume the item exists because we read it, so valid match_count=0 means predicates failed
+            # i.e. stock_qty changed
+            logger.warning(
+                f"Optimistic Lock Failed for {barcode}. Expected qty: {expected_stock_qty}"
+            )
+            raise HTTPException(
+                status_code=409,
+                detail="Data changed during verification (Optimistic Lock). Please refresh and try again.",
+            )
 
         # Invalidate cache for this item
         if cache_service:
@@ -628,7 +684,7 @@ async def export_items_csv(
                 output.truncate(0)  # Clear the buffer for the next row
                 count += 1
 
-        filename = f"items_export_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+        filename = f"items_export_{datetime.now(timezone.utc).replace(tzinfo=None).strftime('%Y%m%d_%H%M%S')}.csv"
 
         return StreamingResponse(
             generate_csv_rows(),
@@ -709,7 +765,7 @@ async def get_live_users(current_user: dict = Depends(get_current_user)):
     Get list of currently active users (users who have verified items in last hour)
     """
     try:
-        one_hour_ago = datetime.utcnow() - timedelta(hours=1)
+        one_hour_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
 
         # Get distinct users who verified items in last hour
         pipeline = [

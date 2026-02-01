@@ -6,7 +6,7 @@ Extends existing session API with rack-based workflow support
 import logging
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -19,6 +19,7 @@ from backend.auth.dependencies import get_current_user_async as get_current_user
 from backend.core.websocket_manager import manager
 from backend.db.runtime import get_db
 from backend.services.lock_manager import get_lock_manager
+from backend.services.session_state_machine import SessionStateMachine
 from backend.services.redis_service import get_redis
 from backend.services.runtime import get_refresh_token_service
 
@@ -149,7 +150,7 @@ async def create_session(
 ) -> Session:
     """Create a new session"""
     import uuid
-    from datetime import datetime
+    from datetime import datetime, timezone
 
     # Input validation
     warehouse = session_data.warehouse.strip()
@@ -185,7 +186,7 @@ async def create_session(
     # Auto-close strategy to satisfy "Single Session" mandate
     # We close them with a special status to indicate system intervention
     now_ts = time.time()
-    now_dt = datetime.utcnow()
+    now_dt = datetime.now(timezone.utc)
 
     # 1. Close in main sessions collection
     await db.sessions.update_many(
@@ -224,8 +225,62 @@ async def create_session(
         staff_name=current_user.get("full_name", current_user["username"]),
         type=session_data.type or "STANDARD",
         status="OPEN",
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
     )
+
+    # GOVERNANCE: Snapshot & Config Enforcement
+    import hashlib
+    import json
+    from backend.core.schemas.snapshot import SessionSnapshot, SnapshotItem
+
+    # 1. Get latest config version
+    latest_config = await db.config_versions.find_one(sort=[("created_at", -1)])
+    config_version_id = latest_config["id"] if latest_config else "LEGACY_NO_VERSION"
+    session.config_version_id = config_version_id
+
+    # 2. Fetch items for snapshot
+    # Find items in this warehouse
+    items_cursor = db.erp_items.find(
+        {"warehouse": {"$regex": f"^{re.escape(warehouse)}$", "$options": "i"}}
+    )
+    snapshot_items = []
+
+    async for item in items_cursor:
+        # Convert ObjectId to string for serialization
+        if "_id" in item:
+            item["_id"] = str(item["_id"])
+
+        snapshot_items.append(
+            SnapshotItem(
+                item_code=item.get("item_code", ""),
+                stock_qty=float(item.get("stock_qty", 0.0)),
+                warehouse=item.get("warehouse", ""),
+                source_data=item,
+            )
+        )
+
+    # 3. Create Hash
+    # Sort by item code to ensure deterministic hash
+    snapshot_items.sort(key=lambda x: x.item_code)
+    items_payload = [item.model_dump(mode="json") for item in snapshot_items]
+    payload_str = json.dumps(items_payload, sort_keys=True, default=str)
+    snapshot_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+
+    session.snapshot_hash = snapshot_hash
+
+    # 4. Save Snapshot
+    snapshot = SessionSnapshot(
+        session_id=session.id,
+        warehouse=warehouse,
+        snapshot_hash=snapshot_hash,
+        items=snapshot_items,
+        item_count=len(snapshot_items),
+        config_version_id=config_version_id,
+    )
+
+    # Store snapshot in separate collection
+    await db.session_snapshots.insert_one(snapshot.model_dump())
+    session.snapshot_items_ref = snapshot.id
 
     # Insert into db.sessions
     session_doc = session.model_dump()
@@ -496,9 +551,17 @@ async def update_session_status(
     if current_user["role"] != "supervisor" and session["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not your session")
 
+    if not SessionStateMachine.can_transition(session.get("status", ""), status):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Invalid session transition: {session.get('status')} -> {status}",
+        )
+
+    normalized_status = status.upper()
+
     # Update status
     await db.verification_sessions.update_one(
-        {"session_id": session_id}, {"$set": {"status": status}}
+        {"session_id": session_id}, {"$set": {"status": normalized_status}}
     )
 
     # Broadcast update
@@ -507,11 +570,11 @@ async def update_session_status(
             "type": "session_update",
             "payload": {
                 "session_id": session_id,
-                "status": status,
-                "updated_by": user_id,
-                "updated_at": time.time(),
+                    "status": normalized_status,
+                    "updated_by": user_id,
+                    "updated_at": time.time(),
+                },
             },
-        },
         session_id=session_id,
     )
 
@@ -523,14 +586,14 @@ async def update_session_status(
                 "type": "session_update",
                 "payload": {
                     "session_id": session_id,
-                    "status": status,
+                    "status": normalized_status,
                     "reason": "Supervisor update",
                 },
             },
             user_id=session["user_id"],
         )
 
-    return {"success": True, "id": session_id, "status": status}
+    return {"success": True, "id": session_id, "status": normalized_status}
 
 
 @router.post("/{session_id}/complete")
@@ -555,6 +618,12 @@ async def complete_session(
     # Verify ownership
     if session["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not your session")
+
+    if not SessionStateMachine.can_transition(session.get("status", ""), "CLOSED"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Invalid session transition: {session.get('status')} -> CLOSED",
+        )
 
     # Release rack lock if exists
     if session.get("rack_id"):
@@ -719,7 +788,7 @@ async def logout_all_sessions(
     # Update sessions collection
     sess_result = await db.sessions.update_many(
         {"staff_user": username, "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]}},
-        {"$set": {"status": "CLOSED", "completed_at": datetime.utcnow()}},
+        {"$set": {"status": "CLOSED", "completed_at": datetime.now(timezone.utc)}},
     )
 
     # Update verification_sessions collection

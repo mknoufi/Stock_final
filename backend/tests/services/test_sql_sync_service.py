@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -38,10 +38,10 @@ async def test_should_check_new_items_respects_interval() -> None:
     service = _make_service()
     service._new_item_check_interval = 1800
 
-    service._last_new_item_check = datetime.utcnow() - timedelta(seconds=60)
+    service._last_new_item_check = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=60)
     assert service.should_check_new_items() is False
 
-    service._last_new_item_check = datetime.utcnow() - timedelta(seconds=1800)
+    service._last_new_item_check = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=1800)
     assert service.should_check_new_items() is True
 
 
@@ -57,6 +57,12 @@ async def test_should_run_nightly_sync_hour_and_once_per_day(
     class FixedDateTime(datetime):
         @classmethod
         def utcnow(cls):  # type: ignore[override]
+            return fixed_now
+
+        @classmethod
+        def now(cls, tz=None):  # type: ignore[override]
+            if tz is not None:
+                return fixed_now.replace(tzinfo=tz)
             return fixed_now
 
     monkeypatch.setattr(sql_sync_service, "datetime", FixedDateTime)

@@ -7,7 +7,7 @@ import os
 import re
 import sys
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional, TypeVar, cast
 
@@ -246,7 +246,7 @@ api_router = APIRouter()
 def create_access_token(data: dict[str, Any]) -> str:
     """Create a JWT access token from user data"""
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=15)
+    expire = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=15)
     to_encode.update({"exp": expire, "type": "access"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
@@ -339,7 +339,7 @@ async def init_default_users():
                     "role": "staff",
                     "is_active": True,
                     "permissions": [],
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
             logger.info("Default user created: staff1/staff123")
@@ -355,7 +355,7 @@ async def init_default_users():
                     "role": "supervisor",
                     "is_active": True,
                     "permissions": [],
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
             logger.info("Default user created: supervisor/super123")
@@ -371,7 +371,7 @@ async def init_default_users():
                     "role": "admin",
                     "is_active": True,
                     "permissions": [],
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
             logger.info("Default user created: admin/admin123")
@@ -568,7 +568,7 @@ async def generate_auth_tokens(
         # Generate refresh token using service
         refresh_payload = {"sub": user["username"], "role": user.get("role", "staff")}
         refresh_token = refresh_token_service.create_refresh_token(refresh_payload)
-        refresh_token_expires = datetime.utcnow() + timedelta(
+        refresh_token_expires = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
             days=getattr(settings, "REFRESH_TOKEN_EXPIRE_DAYS", 30)
         )
 
@@ -604,7 +604,7 @@ async def log_failed_login_attempt(
                 "ip_address": ip_address,
                 "user_agent": user_agent,
                 "success": False,
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
                 "error": error,
             }
         )
@@ -622,13 +622,13 @@ async def log_successful_login(user: dict[str, Any], ip_address: str, request: R
                 "ip_address": ip_address,
                 "user_agent": request.headers.get("user-agent"),
                 "success": True,
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         )
 
         # Update last login timestamp
         await db.users.update_one(
-            {"_id": user["_id"]}, {"$set": {"last_login_at": datetime.utcnow()}}
+            {"_id": user["_id"]}, {"$set": {"last_login_at": datetime.now(timezone.utc).replace(tzinfo=None)}}
         )
 
         # Log to monitoring
@@ -843,7 +843,7 @@ async def bulk_close_sessions(
             try:
                 result = await db.sessions.update_one(
                     {"id": session_id},
-                    {"$set": {"status": "CLOSED", "closed_at": datetime.utcnow()}},
+                    {"$set": {"status": "CLOSED", "closed_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
                 )
                 if result.modified_count > 0:
                     updated_count += 1
@@ -891,7 +891,7 @@ async def bulk_reconcile_sessions(
                     {
                         "$set": {
                             "status": "ACTIVE",
-                            "reconciled_at": datetime.utcnow(),
+                            "reconciled_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         }
                     },
                 )
@@ -1260,7 +1260,7 @@ async def create_count_line(
         "financial_impact": financial_impact,
         # User and timestamp
         "counted_by": current_user["username"],
-        "counted_at": datetime.utcnow(),
+        "counted_at": datetime.now(timezone.utc).replace(tzinfo=None),
         # MRP tracking
         "mrp_erp": erp_item["mrp"],
         "mrp_counted": line_data.mrp_counted,
@@ -1355,7 +1355,7 @@ async def verify_stock(
             "$set": {
                 "verified": True,
                 "verified_by": current_user["username"],
-                "verified_at": datetime.utcnow(),
+                "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         },
     )
@@ -1464,10 +1464,10 @@ async def approve_count_line(
                     "status": "APPROVED",
                     "approval_status": "approved",
                     "approved_by": current_user["username"],
-                    "approved_at": datetime.utcnow(),
+                    "approved_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "verified": True,
                     "verified_by": current_user["username"],
-                    "verified_at": datetime.utcnow(),
+                    "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             },
         )
@@ -1498,7 +1498,7 @@ async def reject_count_line(
                     "status": "REJECTED",
                     "approval_status": "rejected",
                     "rejected_by": current_user["username"],
-                    "rejected_at": datetime.utcnow(),
+                    "rejected_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "verified": False,
                 }
             },

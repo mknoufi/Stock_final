@@ -7,7 +7,7 @@ import asyncio
 import logging
 import re
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -88,7 +88,7 @@ class ItemResponse:
         self.item_data = item_data
         self.source = source  # 'mongodb', 'cache'
         self.response_time_ms = response_time_ms
-        self.timestamp = datetime.utcnow().isoformat()
+        self.timestamp = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
 
 
 @enhanced_item_router.get("/barcode/{barcode}/enhanced")
@@ -176,7 +176,7 @@ async def get_item_by_barcode_enhanced(
                 {
                     "source": source,
                     "response_time_ms": response_time,
-                    "timestamp": datetime.utcnow().isoformat(),
+                    "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
                     "barcode_searched": normalized_barcode,
                     "user": current_user["username"],
                 }
@@ -707,7 +707,7 @@ async def trigger_realtime_sync(
     return {
         "sync_type": "disabled",
         "message": "Real-time sync is disabled because the ERP connection is not configured.",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
     }
 
 
@@ -752,7 +752,7 @@ async def optimize_database_performance(current_user: dict = Depends(get_current
         return {
             "optimization_completed": True,
             "results": optimization_results,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         }
 
     except Exception as e:

@@ -4,7 +4,7 @@ Tracks and stores user activities and application events for audit purposes
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -103,7 +103,7 @@ class ActivityLogService:
         """
         try:
             log_entry = {
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
                 "user": user,
                 "role": role,
                 "action": action,

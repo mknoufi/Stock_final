@@ -73,8 +73,9 @@ def test_sql_verification_logic_enforcement(client, fake_environment, monkeypatc
     headers = {"Authorization": f"Bearer {token}"}
 
     item_code = "ITEM001"
-    fake_environment.items._documents.append(
+    fake_environment.erp_items._documents.append(
         {
+            "_id": "item001",
             "item_code": item_code,
             "item_name": "Test Item",
             "stock_qty": 10.0,
@@ -89,7 +90,9 @@ def test_sql_verification_logic_enforcement(client, fake_environment, monkeypatc
     resp = client.post(f"/api/v2/verification/items/{item_code}/verify-qty", headers=headers)
     assert resp.status_code == 200
 
-    updated_item = next(i for i in fake_environment.items._documents if i["item_code"] == item_code)
+    updated_item = next(
+        i for i in fake_environment.erp_items._documents if i["item_code"] == item_code
+    )
     assert updated_item["sql_verified_qty"] == 15.0
 
 
@@ -111,8 +114,8 @@ def test_sql_down_behavior_blocked(client, fake_environment, monkeypatch):
     headers = {"Authorization": f"Bearer {token}"}
 
     item_code = "ITEM001"
-    fake_environment.items._documents.append(
-        {"item_code": item_code, "item_name": "Test Item", "stock_qty": 10.0}
+    fake_environment.erp_items._documents.append(
+        {"_id": "item001", "item_code": item_code, "item_name": "Test Item", "stock_qty": 10.0}
     )
 
     from backend.services.sql_verification_service import sql_verification_service

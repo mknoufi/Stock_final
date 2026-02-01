@@ -22,11 +22,10 @@ dependencies = [
 ]
 
 [tool.ruff]
-# Ignore E402 (module level import not at top of file) globally due to conditional import needs
-ignore = ["E402"]
 line-length = 100
 
 [tool.ruff.lint]
+# Ignore E402 (module level import not at top of file) globally due to conditional import needs
 ignore = ["E402"]
 
 [tool.pytest.ini_options]

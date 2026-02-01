@@ -14,6 +14,7 @@ from backend.auth.dependencies import get_current_user_async as get_current_user
 from backend.db.runtime import get_db
 from backend.services.lock_manager import get_lock_manager
 from backend.services.pubsub_service import get_pubsub_service
+from backend.services.session_state_machine import SessionStateMachine
 from backend.services.redis_service import get_redis
 
 logger = logging.getLogger(__name__)
@@ -335,11 +336,22 @@ async def release_rack(
 
     # Update session status
     if rack["session_id"]:
+        session = await db.verification_sessions.find_one({"session_id": rack["session_id"]})
+        if session and not SessionStateMachine.can_transition(
+            session.get("status", ""), "completed"
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Invalid session transition: "
+                    f"{session.get('status')} -> completed"
+                ),
+            )
         await db.verification_sessions.update_one(
             {"session_id": rack["session_id"]},
             {
                 "$set": {
-                    "status": "completed",
+                    "status": "COMPLETED",
                     "completed_at": time.time(),
                 }
             },
@@ -389,8 +401,14 @@ async def pause_rack(
 
     # Update session
     if rack["session_id"]:
+        session = await db.verification_sessions.find_one({"session_id": rack["session_id"]})
+        if session and not SessionStateMachine.can_transition(session.get("status", ""), "paused"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Invalid session transition: {session.get('status')} -> paused",
+            )
         await db.verification_sessions.update_one(
-            {"session_id": rack["session_id"]}, {"$set": {"status": "paused"}}
+            {"session_id": rack["session_id"]}, {"$set": {"status": "PAUSED"}}
         )
 
     # Broadcast update
@@ -442,11 +460,17 @@ async def resume_rack(
 
     # Update session
     if rack["session_id"]:
+        session = await db.verification_sessions.find_one({"session_id": rack["session_id"]})
+        if session and not SessionStateMachine.can_transition(session.get("status", ""), "active"):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Invalid session transition: {session.get('status')} -> active",
+            )
         await db.verification_sessions.update_one(
             {"session_id": rack["session_id"]},
             {
                 "$set": {
-                    "status": "active",
+                    "status": "ACTIVE",
                     "last_heartbeat": time.time(),
                 }
             },

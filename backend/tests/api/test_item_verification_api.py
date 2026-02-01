@@ -39,7 +39,7 @@ async def test_update_item_master_success(setup_mocks):
     # Verify DB update
     mock_db.erp_items.update_one.assert_called_once()
     call_args = mock_db.erp_items.update_one.call_args
-    assert call_args[0][0] == {"item_code": item_code}
+    assert call_args[0][0]["item_code"] == item_code
     update_doc = call_args[0][1]["$set"]
     assert update_doc["mrp"] == 150.0
     assert update_doc["sales_price"] == 120.0
@@ -96,7 +96,7 @@ async def test_verify_item_success(setup_mocks):
     # Verify DB update
     mock_db.erp_items.update_one.assert_called_once()
     call_args = mock_db.erp_items.update_one.call_args
-    assert call_args[0][0] == {"item_code": item_code}
+    assert call_args[0][0]["item_code"] == item_code
     update_doc = call_args[0][1]["$set"]
     assert update_doc["verified"] is True
     assert update_doc["verified_qty"] == 8.0

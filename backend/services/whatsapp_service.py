@@ -4,7 +4,7 @@ Initial implementation as a logging mock for development and testing.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class WhatsAppService:
             f"TO: {phone_number}\n"
             f"MESSAGE: {message}\n"
             f"PROVIDER: {self.provider}\n"
-            f"TIMESTAMP: {datetime.utcnow().isoformat()}\n"
+            f"TIMESTAMP: {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}\n"
             f"-----------------------\n"
         )
 

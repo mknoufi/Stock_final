@@ -4,7 +4,7 @@ Target: Achieve 80%+ coverage
 """
 
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -36,7 +36,7 @@ def sample_session_data():
         "staff_name": "Staff User",
         "status": "OPEN",
         "type": "STANDARD",
-        "started_at": datetime.utcnow(),
+        "started_at": datetime.now(timezone.utc).replace(tzinfo=None),
     }
 
 
@@ -91,6 +91,25 @@ class TestCreateSessionEndpoint:
         mock_db.verification_sessions.insert_one = AsyncMock(
             return_value=AsyncMock(inserted_id="vsess_123")
         )
+
+        # Mock Governance collections
+        mock_db.config_versions = AsyncMock()
+        mock_db.config_versions.find_one = AsyncMock(
+            return_value={"id": "v1", "created_at": datetime.now(timezone.utc).replace(tzinfo=None)}
+        )
+
+        mock_db.erp_items = AsyncMock()
+
+        # Create an async generator for the cursor
+        async def mock_items_gen(*args, **kwargs):
+            yield {"item_code": "ITEM-001", "stock_qty": 50, "warehouse": "WH001", "_id": "item_1"}
+
+        mock_cursor = MagicMock()
+        mock_cursor.__aiter__ = mock_items_gen
+        mock_db.erp_items.find = MagicMock(return_value=mock_cursor)
+
+        mock_db.session_snapshots = AsyncMock()
+        mock_db.session_snapshots.insert_one = AsyncMock()
 
         async def override_get_db():
             return mock_db
@@ -218,7 +237,7 @@ class TestGetSessionsEndpoint:
                 "staff_name": "Staff 1",
                 "status": "OPEN",
                 "type": "STANDARD",
-                "started_at": datetime.utcnow(),
+                "started_at": datetime.now(timezone.utc).replace(tzinfo=None),
             },
             {
                 "id": "2",
@@ -227,7 +246,7 @@ class TestGetSessionsEndpoint:
                 "staff_name": "Staff 2",
                 "status": "ACTIVE",
                 "type": "STANDARD",
-                "started_at": datetime.utcnow(),
+                "started_at": datetime.now(timezone.utc).replace(tzinfo=None),
             },
         ]
 

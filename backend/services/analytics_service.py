@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -13,7 +13,7 @@ class AnalyticsService:
 
     async def get_verification_stats(self, days: int = 7) -> dict[str, Any]:
         """Get verification statistics for the last N days"""
-        start_date = datetime.utcnow() - timedelta(days=days)
+        start_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
 
         # Total items vs verified items
         total_items = await self.db.erp_items.count_documents({})

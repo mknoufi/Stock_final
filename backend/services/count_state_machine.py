@@ -16,7 +16,7 @@ State Transitions:
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, Optional
 
@@ -254,27 +254,27 @@ class CountLineStateMachine:
         # Prepare update data
         update_data = {
             "status": next_state,
-            "updated_at": datetime.utcnow(),
+            "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
             "updated_by": user_id,
         }
 
         # Add state-specific fields
         if next_state == CountLineState.SUBMITTED.value:
-            update_data["submitted_at"] = datetime.utcnow()
+            update_data["submitted_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             update_data["submitted_by"] = user_id
 
         elif next_state == CountLineState.APPROVED.value:
-            update_data["approved_at"] = datetime.utcnow()
+            update_data["approved_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             update_data["approved_by"] = user_id
             update_data["approval_reason"] = reason
 
         elif next_state == CountLineState.REJECTED.value:
-            update_data["rejected_at"] = datetime.utcnow()
+            update_data["rejected_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             update_data["rejected_by"] = user_id
             update_data["rejection_reason"] = reason
 
         elif next_state == CountLineState.LOCKED.value:
-            update_data["locked_at"] = datetime.utcnow()
+            update_data["locked_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             update_data["locked_by"] = user_id
 
         # Add metadata if provided
@@ -333,7 +333,7 @@ class CountLineStateMachine:
                     "reason": reason,
                     "additional_metadata": metadata,
                 },
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         )
 

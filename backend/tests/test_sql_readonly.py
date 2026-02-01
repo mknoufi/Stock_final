@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from backend.sql_server_connector import ERPQueryParameterError, ERPReadOnlyViolation, SQLServerConnector
+
 
 def test_sql_server_connector_readonly():
     """Verify SQL Server connector only has read operations"""
@@ -97,3 +99,28 @@ def test_all_sql_queries_select_only():
                 write_queries.append(query[:100])  # First 100 chars
 
     assert len(write_queries) == 0, f"Found non-SELECT queries: {write_queries}"
+
+
+def test_runtime_readonly_guard_blocks_writes_and_multi_statement():
+    connector = SQLServerConnector()
+
+    with pytest.raises(ERPReadOnlyViolation):
+        connector._assert_read_only_query("SELECT 1; DELETE FROM dbo.Products")
+
+    with pytest.raises(ERPReadOnlyViolation):
+        connector._assert_read_only_query("UPDATE dbo.Products SET ProductName = 'X'")
+
+
+def test_parameterization_required_for_bound_params():
+    connector = SQLServerConnector()
+
+    with pytest.raises(ERPQueryParameterError):
+        connector._validate_params("SELECT * FROM dbo.Products", params=["ITEM001"])
+
+
+def test_get_item_quantity_template_is_parameterized():
+    from backend.db_mapping_config import SQL_TEMPLATES
+
+    template = SQL_TEMPLATES["get_item_quantity"]
+    assert "?" in template
+    assert "{barcode}" not in template

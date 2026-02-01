@@ -23,8 +23,7 @@ export const colors = {
   // Secondary colors
   secondary: defaultTheme.colors.info?.main || defaultTheme.colors.accent,
   secondaryDark: defaultTheme.colors.accentDark,
-  secondaryLight:
-    defaultTheme.colors.info?.light || defaultTheme.colors.accentLight,
+  secondaryLight: defaultTheme.colors.info?.light || defaultTheme.colors.accentLight,
 
   // Background colors
   backgroundDark: defaultTheme.colors.background.default,
@@ -195,25 +194,40 @@ export const borderRadius = {
 // Shadows (for iOS)
 export const shadows = {
   small: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
+    ...Platform.select({
+      web: { boxShadow: "0px 2px 4px rgba(0, 0, 0, 0.2)" },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.2,
+        shadowRadius: 4,
+        elevation: 2,
+      },
+    }),
   },
   medium: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    ...Platform.select({
+      web: { boxShadow: "0px 4px 8px rgba(0, 0, 0, 0.3)" },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+      },
+    }),
   },
   large: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
+    ...Platform.select({
+      web: { boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.4)" },
+      default: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 8,
+      },
+    }),
   },
 };
 

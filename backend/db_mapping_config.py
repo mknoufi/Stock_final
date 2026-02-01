@@ -373,10 +373,10 @@ SQL_TEMPLATES = {
     """,
     "get_item_quantity": """
         SELECT 
-            COALESCE(SUM(PB.Stock), 0) as quantity
+            COALESCE(SUM(PB.Stock), 0) as verified_qty
         FROM dbo.Products P
         LEFT JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID
-        WHERE P.ProductCode = '{barcode}'
+        WHERE P.ProductCode = ?
             AND P.IsActive = 1
             AND PB.AutoBarcode IS NOT NULL
     """,

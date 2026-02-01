@@ -8,7 +8,7 @@ import logging
 import time
 from collections.abc import Callable, Coroutine
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from typing import Any, Optional, TypeVar, Union
 
@@ -123,11 +123,11 @@ class AsyncExecutor:
         if state["failures"] >= self._circuit_breaker_threshold:
             # Check if timeout has passed
             if (
-                datetime.utcnow() - state["opened_at"]
+                datetime.now(timezone.utc).replace(tzinfo=None) - state["opened_at"]
             ).total_seconds() > self._circuit_breaker_timeout:
                 # Half-open: reset failures but keep monitoring
                 state["failures"] = self._circuit_breaker_threshold // 2
-                state["opened_at"] = datetime.utcnow()
+                state["opened_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
                 return False
             return True
 
@@ -145,7 +145,7 @@ class AsyncExecutor:
         state["failures"] += 1
 
         if state["failures"] >= self._circuit_breaker_threshold:
-            state["opened_at"] = datetime.utcnow()
+            state["opened_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             logger.error(
                 f"Circuit breaker opened for {operation_name} after {state['failures']} failures"
             )

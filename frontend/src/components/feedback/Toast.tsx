@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Text, StyleSheet } from "react-native";
+import { Text, StyleSheet, Platform } from "react-native";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -141,12 +141,19 @@ const styles = StyleSheet.create({
     borderLeftWidth: 4,
     flexDirection: "row",
     alignItems: "center",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
     zIndex: 1000,
+    ...Platform.select({
+      web: {
+        boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.15)",
+      },
+      default: {
+        elevation: 5,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+      },
+    }),
   },
   message: {
     marginLeft: 12,

@@ -6,7 +6,7 @@ Quick script to add test items for development/testing
 
 import asyncio
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -30,9 +30,9 @@ async def add_test_items():
                 "mrp": 50.0,
                 "category": "Test",
                 "warehouse": "Main",
-                "synced_at": datetime.utcnow(),
+                "synced_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "synced_from_erp": False,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
             },
             {
                 "item_code": "ITEM002",
@@ -42,9 +42,9 @@ async def add_test_items():
                 "mrp": 75.0,
                 "category": "Test",
                 "warehouse": "Main",
-                "synced_at": datetime.utcnow(),
+                "synced_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "synced_from_erp": False,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
             },
             {
                 "item_code": "ITEM003",
@@ -54,9 +54,9 @@ async def add_test_items():
                 "mrp": 60.0,
                 "category": "Test",
                 "warehouse": "Main",
-                "synced_at": datetime.utcnow(),
+                "synced_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "synced_from_erp": False,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
             },
             {
                 "item_code": "ITEM52000",
@@ -66,9 +66,9 @@ async def add_test_items():
                 "mrp": 120.0,
                 "category": "Test",
                 "warehouse": "Main",
-                "synced_at": datetime.utcnow(),
+                "synced_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "synced_from_erp": False,
-                "created_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
             },
         ]
 

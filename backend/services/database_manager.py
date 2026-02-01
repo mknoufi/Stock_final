@@ -4,7 +4,7 @@ Comprehensive Database Manager - Handles all database operations with enhanced f
 
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorDatabase
@@ -74,7 +74,7 @@ class DatabaseManager:
 
         health_report = {
             "overall_status": overall_status,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "check_duration": (time.time() - health_start) * 1000,
             "mongodb": mongo_health,
             "sql_server": sql_health,
@@ -85,7 +85,7 @@ class DatabaseManager:
         # Update health stats
         self._health_stats.update(
             {
-                "last_health_check": datetime.utcnow(),
+                "last_health_check": datetime.now(timezone.utc).replace(tzinfo=None),
                 "mongo_health": mongo_health["status"],
                 "sql_health": sql_health["status"],
                 "mongo_response_time": mongo_health["response_time_ms"],
@@ -211,7 +211,7 @@ class DatabaseManager:
                 "sql_server_items": sql_count,
                 "difference": difference,
                 "consistency_percent": consistency_percent,
-                "last_checked": datetime.utcnow().isoformat(),
+                "last_checked": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             }
 
         except Exception as e:
@@ -383,7 +383,7 @@ class DatabaseManager:
     async def get_database_insights(self) -> dict[str, Any]:
         """Get insights about database usage and optimization opportunities"""
         insights = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "recommendations": [],
             "statistics": {},
             "health_summary": await self.check_database_health(),
@@ -464,7 +464,7 @@ class DatabaseManager:
     async def verify_data_flow(self) -> dict[str, Any]:
         """Verify complete data flow from SQL Server to Frontend"""
         flow_test = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "steps": {},
             "overall_status": "unknown",
         }

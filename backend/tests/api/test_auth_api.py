@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from httpx import AsyncClient
@@ -51,7 +51,7 @@ async def auth_headers(test_db):
         "full_name": "Test Auth User",
         "role": "staff",
         "is_active": True,
-        "created_at": datetime.utcnow(),
+        "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
     }
 
     # Insert user if not exists

@@ -2,7 +2,7 @@
 Test Stock Verification Feature
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -109,7 +109,7 @@ async def test_unverify_stock_removes_verification(mock_db, mock_current_user):
         "id": "test-line-id",
         "verified": True,
         "verified_by": "supervisor",
-        "verified_at": datetime.utcnow(),
+        "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
     }
 
     mock_db.count_lines.find_one = AsyncMock(return_value=verified_line)

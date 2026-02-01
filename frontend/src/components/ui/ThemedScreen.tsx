@@ -12,8 +12,9 @@ import {
   ViewStyle,
   Text,
   TextStyle,
-  TouchableWithoutFeedback,
+  Pressable,
   Keyboard,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeContext } from "../../context/ThemeContext";
@@ -74,7 +75,11 @@ export const ThemedScreen: React.FC<ThemedScreenProps> = ({
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+    <Pressable
+      onPress={Keyboard.dismiss}
+      accessible={false}
+      style={{ flex: 1 }}
+    >
       <View style={[containerStyle, style]}>
         {/* Pattern Background */}
         {showPattern && pattern !== "none" && (
@@ -100,7 +105,7 @@ export const ThemedScreen: React.FC<ThemedScreenProps> = ({
         {/* Content */}
         <View style={contentStyle}>{children}</View>
       </View>
-    </TouchableWithoutFeedback>
+    </Pressable>
   );
 };
 
@@ -152,13 +157,20 @@ export const ThemedCard: React.FC<ThemedCardProps> = ({
         return {
           ...base,
           backgroundColor: theme.colors.surface,
-          shadowColor: isDark
-            ? unifiedColors.black
-            : unifiedColors.neutral[500],
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: isDark ? 0.3 : 0.1,
-          shadowRadius: 12,
-          elevation: 8,
+          ...Platform.select({
+            web: {
+              boxShadow: `0 4px 12px ${isDark ? "rgba(0,0,0,0.3)" : "rgba(100,116,139,0.1)"}`,
+            },
+            default: {
+              shadowColor: isDark
+                ? unifiedColors.black
+                : unifiedColors.neutral[500],
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: isDark ? 0.3 : 0.1,
+              shadowRadius: 12,
+              elevation: 8,
+            },
+          }),
         };
       case "outlined":
         return {

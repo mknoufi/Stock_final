@@ -3,7 +3,7 @@ Scheduled Exports API
 Endpoints for managing scheduled exports
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -298,7 +298,7 @@ async def download_export_result(
     file_content = result.get("file_content", "")
     file_extension = result.get("file_extension", "csv")
     schedule_name = result.get("schedule_name", "export")
-    created_at = result.get("created_at", datetime.utcnow())
+    created_at = result.get("created_at", datetime.now(timezone.utc).replace(tzinfo=None))
 
     # Create filename
     timestamp = created_at.strftime("%Y%m%d_%H%M%S")

@@ -4,7 +4,7 @@ Exposes enterprise-grade features via REST API
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -129,7 +129,7 @@ async def get_compliance_report(
     if not audit_service:
         raise HTTPException(503, "Audit service not available")
 
-    end_date = datetime.utcnow()
+    end_date = datetime.now(timezone.utc).replace(tzinfo=None)
     start_date = end_date - timedelta(days=days)
 
     return await audit_service.generate_compliance_report(start_date, end_date)
@@ -177,7 +177,7 @@ async def add_to_ip_list(
 
     list_type = IPListType.WHITELIST if entry.list_type == "whitelist" else IPListType.BLACKLIST
     expires_at = (
-        datetime.utcnow() + timedelta(hours=entry.expires_hours) if entry.expires_hours else None
+        datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=entry.expires_hours) if entry.expires_hours else None
     )
 
     success = await security_service.add_to_ip_list(

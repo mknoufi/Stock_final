@@ -7,7 +7,7 @@ handling, logging, and type annotations.
 
 import asyncio
 import logging
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -124,7 +124,7 @@ async def sync() -> None:
             try:
                 # Convert row to dictionary with proper type conversion
                 item: Dict[str, Any] = dict(zip(cols, [conv(v) for v in row]))
-                item["synced_at"] = datetime.utcnow().isoformat()
+                item["synced_at"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
                 item["synced_from_erp"] = True
 
                 # Upsert item to MongoDB

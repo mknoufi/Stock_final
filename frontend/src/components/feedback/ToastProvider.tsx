@@ -1,26 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { View, StyleSheet } from "react-native";
 import { Toast } from "./Toast";
-import { toastService } from "../../services/utils/toastService";
+import { ToastData, toastService } from "../../services/utils/toastService";
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [toasts, setToasts] = useState<
-    {
-      id: string;
-      message: string;
-      type: "success" | "error" | "info" | "warning";
-      duration?: number;
-    }[]
-  >([]);
+  const [toasts, setToasts] = useState<ToastData[]>([]);
 
   useEffect(() => {
-    const handleShow = (toast: any) => {
+    const handleShow = (toast: ToastData) => {
       setToasts((prev) => [...prev, toast]);
     };
 
-    const handleHide = (data: { id?: string }) => {
+    const handleHide = (data: ToastData) => {
       if (data.id) {
         setToasts((prev) => prev.filter((t) => t.id !== data.id));
       }
@@ -51,7 +44,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
               visible={true}
               message={toast.message}
               type={toast.type as "success" | "error" | "info" | "warning"}
-              onHide={() => toastService.hide(toast.id)}
+              onHide={() => toast.id && toastService.hide(toast.id)}
             />
           </View>
         ))}

@@ -346,6 +346,9 @@ class Settings(PydanticBaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = Field(8001, ge=1, le=65535)
     WORKERS: int = Field(1, ge=1)
+    PI_SERVER_URL: str = Field(
+        default="http://localhost:8045/v1", description="URL for the pi-server sidecar"
+    )
 
     @field_validator("PORT")
     @classmethod
@@ -454,6 +457,7 @@ except Exception as e:
             self.APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
             # Normalize MIN_CLIENT_VERSION: use default when env var is missing or empty, and strip whitespace
             self.MIN_CLIENT_VERSION = (os.getenv("MIN_CLIENT_VERSION") or "1.0.0").strip()
+            self.PI_SERVER_URL = os.getenv("PI_SERVER_URL", "http://localhost:8045/v1")
 
     settings = FallbackSettings()  # type: ignore[assignment]
 

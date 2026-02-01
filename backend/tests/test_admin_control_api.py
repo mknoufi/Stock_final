@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
@@ -227,8 +227,8 @@ def test_get_login_devices(test_db, admin_user):
             "user": "user1",
             "device_info": {"platform": "iOS", "device": "iPhone 12"},
             "ip_address": "192.168.1.10",
-            "last_activity": datetime.utcnow(),
-            "created_at": datetime.utcnow(),
+            "last_activity": datetime.now(timezone.utc).replace(tzinfo=None),
+            "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
         }
     )
 

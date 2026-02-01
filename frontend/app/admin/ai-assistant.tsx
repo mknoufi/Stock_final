@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { Stack } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { auroraTheme } from "@/theme/auroraTheme";
-import { spacing, typography, layout } from "@/styles/globalStyles";
+import { auroraTheme as _auroraTheme } from "@/theme/auroraTheme";
+import { spacing, typography, layout as _layout } from "@/styles/globalStyles";
 import { useTheme } from "@/hooks/useTheme";
 import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
@@ -27,7 +27,7 @@ interface Message {
 
 export default function AIAssistantScreen() {
     const theme = useTheme();
-    const { user } = useAuthStore();
+    const { user: _user } = useAuthStore();
     const [messages, setMessages] = useState<Message[]>([
         {
             id: "1",
@@ -49,7 +49,7 @@ export default function AIAssistantScreen() {
         try {
             const response = await axios.get("/api/pi/status");
             setStatus(response.data.active ? "online" : "offline");
-        } catch (error) {
+        } catch (_error) {
             setStatus("offline");
         }
     };
@@ -88,7 +88,7 @@ export default function AIAssistantScreen() {
             };
 
             setMessages((prev) => [...prev, assistantMessage]);
-        } catch (error) {
+        } catch (_error) {
             setMessages((prev) => [
                 ...prev,
                 {

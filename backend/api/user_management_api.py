@@ -4,7 +4,7 @@ Full CRUD endpoints for managing users - Admin only
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -344,7 +344,7 @@ async def create_user(
             )
 
     # Create user document
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     user_doc = {
         "username": request.username,
         "email": request.email,
@@ -421,7 +421,7 @@ async def update_user(
         )
 
     # Build update
-    update: dict[str, Any] = {"updated_at": datetime.utcnow()}
+    update: dict[str, Any] = {"updated_at": datetime.now(timezone.utc).replace(tzinfo=None)}
 
     if request.email is not None:
         # Check for duplicate email
@@ -762,7 +762,7 @@ async def reset_user_password(
         {
             "$set": {
                 "hashed_password": get_password_hash(new_password),
-                "updated_at": datetime.utcnow(),
+                "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         },
     )
@@ -822,7 +822,7 @@ async def reset_user_pin(
         {
             "$set": {
                 "pin_hash": get_password_hash(new_pin),
-                "updated_at": datetime.utcnow(),
+                "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         },
     )

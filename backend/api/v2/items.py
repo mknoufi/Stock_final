@@ -356,8 +356,10 @@ async def get_item_details(
     try:
         db = get_db()
 
-        # Get item from MongoDB
-        item = await db.erp_items.find_one({"item_code": item_code})
+        # Get item from MongoDB (search by item_code OR barcode)
+        item = await db.erp_items.find_one(
+            {"$or": [{"item_code": item_code}, {"barcode": item_code}]}
+        )
         if not item:
             return ApiResponse.error_response(
                 error_code="ITEM_NOT_FOUND",

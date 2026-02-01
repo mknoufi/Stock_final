@@ -6,7 +6,7 @@ PC-based web dashboard endpoints for administrators
 import logging
 import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 import psutil
@@ -145,7 +145,7 @@ async def count_active_sessions(db) -> int:
 async def count_active_users(db) -> int:
     """Count users with recent activity (last 30 minutes)."""
     try:
-        cutoff = datetime.utcnow() - timedelta(minutes=30)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=30)
         return await db.user_presence.count_documents({"last_seen": {"$gte": cutoff}})
     except Exception as e:
         logger.error(f"Error counting active users: {e}")
@@ -166,7 +166,7 @@ async def count_pending_variances(db) -> int:
 async def count_items_verified_today(db) -> int:
     """Count items verified today."""
     try:
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
         return await db.verification_records.count_documents(
             {"created_at": {"$gte": today_start}, "status": "verified"}
         )
@@ -238,7 +238,7 @@ async def get_dashboard_kpis(current_user: dict = Depends(require_admin)):
         active_users=await count_active_users(db),
         pending_variances=await count_pending_variances(db),
         items_verified_today=await count_items_verified_today(db),
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
     )
 
 
@@ -285,7 +285,7 @@ async def get_system_status(current_user: dict = Depends(require_admin)):
         memory_usage_mb=get_memory_usage(),
         cpu_usage_percent=get_cpu_usage(),
         uptime_seconds=get_uptime(),
-        timestamp=datetime.utcnow().isoformat(),
+        timestamp=datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
     )
 
 
@@ -296,7 +296,7 @@ async def get_active_users(current_user: dict = Depends(require_admin)):
     """
     db = get_db()
 
-    cutoff = datetime.utcnow() - timedelta(minutes=30)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=30)
 
     try:
         # Get recent user presence records
@@ -318,8 +318,8 @@ async def get_active_users(current_user: dict = Depends(require_admin)):
                 )
 
                 # Determine online status
-                last_seen = record.get("last_seen", datetime.utcnow())
-                minutes_ago = (datetime.utcnow() - last_seen).total_seconds() / 60
+                last_seen = record.get("last_seen", datetime.now(timezone.utc).replace(tzinfo=None))
+                minutes_ago = (datetime.now(timezone.utc).replace(tzinfo=None) - last_seen).total_seconds() / 60
                 user_status = "online" if minutes_ago < 5 else "idle"
 
                 active_users.append(
@@ -346,7 +346,7 @@ async def get_active_users(current_user: dict = Depends(require_admin)):
 @admin_dashboard_router.get("/error-logs", response_model=list[ErrorLogEntry])
 async def get_error_logs(
     limit: int = Query(default=100, le=500),
-    level: Optional[str] = Query(default=None, regex="^(error|warning|critical)$"),
+    level: Optional[str] = Query(default=None, pattern="^(error|warning|critical)$"),
     hours: int = Query(default=24, le=168),
     current_user: dict = Depends(require_admin),
 ):
@@ -355,7 +355,7 @@ async def get_error_logs(
     """
     db = get_db()
 
-    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
 
     query: dict[str, Any] = {"timestamp": {"$gte": cutoff}}
     if level:
@@ -368,7 +368,7 @@ async def get_error_logs(
         return [
             ErrorLogEntry(
                 id=str(log.get("_id", "")),
-                timestamp=log.get("timestamp", datetime.utcnow()).isoformat(),
+                timestamp=log.get("timestamp", datetime.now(timezone.utc).replace(tzinfo=None)).isoformat(),
                 level=log.get("level", "ERROR"),
                 message=log.get("message", "Unknown error"),
                 endpoint=log.get("endpoint"),
@@ -398,7 +398,7 @@ async def get_performance_metrics(
     """
     db = get_db()
 
-    cutoff = datetime.utcnow() - timedelta(hours=hours)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
 
     try:
         # Aggregate metrics by time bucket
@@ -433,7 +433,7 @@ async def get_performance_metrics(
             metrics.append(
                 PerformanceMetric(
                     timestamp=(
-                        bucket_time.isoformat() if bucket_time else datetime.utcnow().isoformat()
+                        bucket_time.isoformat() if bucket_time else datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
                     ),
                     latency_ms=round(r.get("avg_latency", 0), 2),
                     throughput_rps=round(throughput, 3),
@@ -463,7 +463,7 @@ async def get_dashboard_summary(current_user: dict = Depends(require_admin)):
     active_users = await get_active_users(current_user)
 
     # Get recent error count
-    cutoff = datetime.utcnow() - timedelta(hours=1)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
     recent_errors = await db.error_logs.count_documents(
         {"timestamp": {"$gte": cutoff}, "level": {"$in": ["ERROR", "CRITICAL"]}}
     )
@@ -473,5 +473,5 @@ async def get_dashboard_summary(current_user: dict = Depends(require_admin)):
         "system_status": system_status.model_dump(),
         "active_users": [u.model_dump() for u in active_users[:10]],
         "recent_errors_1h": recent_errors,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
     }

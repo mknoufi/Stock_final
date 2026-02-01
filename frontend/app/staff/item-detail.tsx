@@ -24,6 +24,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useDebounce } from "use-debounce";
+import { Image } from "expo-image";
 
 import { useScanSessionStore } from "@/store/scanSessionStore";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -111,6 +112,10 @@ export default function ItemDetailScreen() {
   const [showZeroStock, setShowZeroStock] = useState(false);
   const [batchLoading, setBatchLoading] = useState(false);
   const [batchError, setBatchError] = useState<string | null>(null);
+
+  // Split Count State
+  const [splitCounts, setSplitCounts] = useState<string[]>([]);
+  const [isSplitMode, setIsSplitMode] = useState(false);
 
   const sameNameVariants = useMemo(() => {
     if (!rawVariants.length || !item?.item_code) return [];
@@ -257,14 +262,16 @@ export default function ItemDetailScreen() {
     setIsRefreshing(true);
     try {
       const targetBarcode = item?.barcode || barcode;
-      const response = await apiClient.post(
-        `/api/v2/erp/items/${targetBarcode}/refresh-sql-qty`
+      // Use V2 GET endpoint with verify_sql=true to trigger SQL refresh
+      // Path definition in backend/api/v2/__init__.py confirms /api/v2/items prefix
+      const response = await apiClient.get(
+        `/api/v2/items/${targetBarcode}?verify_sql=true`
       );
 
-      if (response.data.success && response.data.item) {
+      if (response.data.success && response.data.data) {
         setItem((prev: any) => ({
           ...prev,
-          ...response.data.item,
+          ...response.data.data,
           _source: "sql", // Updates source indicator to SQL
         }));
         toastService.show("Stock refreshed from SQL", { type: "success" });
@@ -371,39 +378,61 @@ export default function ItemDetailScreen() {
     currentRack,
   ]);
 
-  // Check if item uses weight-based UOM (kg) - allows fractional quantities
-  const isWeightBasedUOM = useMemo(() => {
+  // UOM Information - Precision and Behavior mapping
+  const uomInfo = useMemo(() => {
     const uom = (
       item?.uom ||
       item?.uom_name ||
       item?.uom_code ||
       ""
     ).toLowerCase();
-    return (
+
+    // Weight based - 3 decimal places (kg/g)
+    if (
       uom.includes("kg") ||
       uom.includes("gram") ||
       uom.includes("gm") ||
+      uom.includes("kilogram")
+    ) {
+      return { precision: 3, label: "Weight", step: 0.05, unit: "kg" };
+    }
+
+    // Volume based - 2 decimal places (Liter/ML)
+    if (
       uom.includes("liter") ||
       uom.includes("litre") ||
-      uom.includes("ml")
-    );
+      uom.includes("ml") ||
+      uom.includes("mtr")
+    ) {
+      return { precision: 2, label: "Volume", step: 0.1, unit: "L" };
+    }
+
+    // Length/Area based - 2 decimal places
+    if (uom.includes("meter") || uom.includes("mtr") || uom.includes("sqft")) {
+      return { precision: 2, label: "Measurement", step: 0.1, unit: uom };
+    }
+
+    // Default: Integer count (Pcs, Box, Set)
+    return { precision: 0, label: "Count", step: 1, unit: uom || "Pcs" };
   }, [item]);
 
-  // Format quantity based on UOM - 2 decimals for kg, integers for units
+  const isWeightBasedUOM = uomInfo.precision > 0;
+
+  // Format quantity based on UOM precision
   const formatQuantity = useCallback(
-    (value: string): string => {
-      const num = parseFloat(value);
+    (value: string | number): string => {
+      const num = typeof value === "string" ? parseFloat(value) : value;
       if (isNaN(num)) return "0";
 
-      if (isWeightBasedUOM) {
-        // Allow up to 2 decimal places for weight-based items
-        return num.toFixed(2).replace(/\.?0+$/, "") || "0";
+      if (uomInfo.precision > 0) {
+        // Use mapped precision for decimal items
+        return num.toFixed(uomInfo.precision).replace(/\.?0+$/, "") || "0";
       } else {
         // Integer only for unit-based items
         return Math.floor(num).toString();
       }
     },
-    [isWeightBasedUOM],
+    [uomInfo.precision],
   );
 
   // Handle quantity change with UOM validation
@@ -415,10 +444,10 @@ export default function ItemDetailScreen() {
         return;
       }
 
-      // Validate input format based on UOM
-      if (isWeightBasedUOM) {
-        // Allow decimals up to 2 places
-        const regex = /^\d*\.?\d{0,2}$/;
+      // Validate input format based on UOM precision
+      if (uomInfo.precision > 0) {
+        // Allow decimals up to the specified precision
+        const regex = new RegExp(`^\\d*\\.?\\d{0,${uomInfo.precision}}$`);
         if (regex.test(value)) {
           setQuantity(value);
         }
@@ -430,13 +459,24 @@ export default function ItemDetailScreen() {
         }
       }
     },
-    [isWeightBasedUOM],
+    [uomInfo.precision],
   );
 
   // Get quantity step for +/- buttons
   const getQuantityStep = useCallback((): number => {
-    return isWeightBasedUOM ? 0.1 : 1;
-  }, [isWeightBasedUOM]);
+    return uomInfo.step;
+  }, [uomInfo.step]);
+
+  // Handle Split Count summation
+  useEffect(() => {
+    if (isSplitMode && splitCounts.length > 0) {
+      const sum = splitCounts.reduce(
+        (acc, curr) => acc + (parseFloat(curr) || 0),
+        0,
+      );
+      setQuantity(formatQuantity(sum));
+    }
+  }, [splitCounts, isSplitMode, formatQuantity]);
 
   const formatBatchDate = useCallback((value?: string | null): string => {
     if (!value) return "-";
@@ -1139,11 +1179,20 @@ export default function ItemDetailScreen() {
             <ModernCard style={styles.itemCard}>
               <View style={styles.itemHeader}>
                 <View style={styles.iconContainer}>
-                  <Ionicons
-                    name="cube-outline"
-                    size={24}
-                    color={colors.primary[600]}
-                  />
+                  {item.image_url ? (
+                    <Image
+                      source={{ uri: item.image_url }}
+                      style={{ width: "100%", height: "100%", borderRadius: 8 }}
+                      contentFit="cover"
+                      transition={300}
+                    />
+                  ) : (
+                    <Ionicons
+                      name="cube-outline"
+                      size={24}
+                      color={colors.primary[600]}
+                    />
+                  )}
                 </View>
 
                 <View style={styles.itemInfo}>
@@ -1398,33 +1447,85 @@ export default function ItemDetailScreen() {
                   </View>
                 )}
 
-                <View style={styles.sectionHeader}>
-                  <Text
-                    style={[
-                      styles.sectionTitle,
-                      { color: semanticColors.text.primary, marginBottom: 0 },
-                    ]}
-                  >
-                    Count
-                  </Text>
-                  {(item?.uom || item?.uom_name || isWeightBasedUOM) && (
+                <View style={[styles.sectionHeader, { alignItems: 'center' }]}>
+                  <View style={{ flex: 1 }}>
                     <Text
                       style={[
-                        styles.sectionMeta,
-                        { color: semanticColors.text.secondary },
+                        styles.sectionTitle,
+                        { color: semanticColors.text.primary, marginBottom: 2 },
                       ]}
                     >
-                      Unit: {item?.uom_name || item?.uom || "kg"}
+                      Count
                     </Text>
-                  )}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{
+                        backgroundColor: colors.primary[50],
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 4,
+                        borderWidth: 1,
+                        borderColor: colors.primary[100]
+                      }}>
+                        <Text style={{
+                          fontSize: 10,
+                          fontWeight: 'bold',
+                          color: colors.primary[700],
+                          textTransform: 'uppercase'
+                        }}>
+                          {uomInfo.label} Mode
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.sectionMeta,
+                          { color: semanticColors.text.secondary, fontSize: 12 },
+                        ]}
+                      >
+                        Unit: {uomInfo.unit}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      setIsSplitMode(!isSplitMode);
+                      if (!isSplitMode && splitCounts.length === 0) {
+                        setSplitCounts([quantity !== "0" ? quantity : ""]);
+                      }
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    }}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: isSplitMode ? colors.primary[600] : colors.neutral[100],
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 20,
+                    }}
+                  >
+                    <Ionicons
+                      name={isSplitMode ? "grid" : "grid-outline"}
+                      size={14}
+                      color={isSplitMode ? colors.white : colors.primary[600]}
+                    />
+                    <Text style={{
+                      color: isSplitMode ? colors.white : colors.primary[600],
+                      fontSize: 12,
+                      fontWeight: 'bold'
+                    }}>
+                      {isSplitMode ? "Piece Count" : "Split Count"}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
                 <View style={styles.quantityContainer}>
                   <TouchableOpacity
                     style={[
                       styles.qtyButton,
-                      { backgroundColor: colors.neutral[200] },
+                      { backgroundColor: isSplitMode ? colors.neutral[100] : colors.neutral[200] },
                     ]}
                     onPress={() => {
+                      if (isSplitMode) return;
                       const val = parseFloat(quantity) || 0;
                       const step = getQuantityStep();
                       if (val > step) {
@@ -1436,12 +1537,13 @@ export default function ItemDetailScreen() {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }
                     }}
+                    disabled={isSplitMode}
                     activeOpacity={0.7}
                   >
                     <Ionicons
                       name="remove"
                       size={28}
-                      color={semanticColors.text.primary}
+                      color={isSplitMode ? colors.neutral[300] : semanticColors.text.primary}
                     />
                   </TouchableOpacity>
 
@@ -1457,10 +1559,11 @@ export default function ItemDetailScreen() {
                     <TextInput
                       style={[
                         styles.qtyText,
-                        { color: semanticColors.text.primary },
+                        { color: isSplitMode ? colors.primary[700] : semanticColors.text.primary },
                       ]}
                       value={quantity}
                       onChangeText={handleQuantityChange}
+                      editable={!isSplitMode}
                       onBlur={() => {
                         if (quantity && quantity !== "." && quantity !== "0.") {
                           setQuantity(formatQuantity(quantity));
@@ -1480,20 +1583,132 @@ export default function ItemDetailScreen() {
                   <TouchableOpacity
                     style={[
                       styles.qtyButton,
-                      { backgroundColor: colors.primary[600] },
+                      { backgroundColor: isSplitMode ? colors.neutral[100] : colors.primary[600] },
                     ]}
                     onPress={() => {
+                      if (isSplitMode) return;
                       const val = parseFloat(quantity) || 0;
                       const step = getQuantityStep();
                       const newVal = val + step;
                       setQuantity(formatQuantity(String(newVal)));
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     }}
+                    disabled={isSplitMode}
                     activeOpacity={0.7}
                   >
-                    <Ionicons name="add" size={28} color={colors.white} />
+                    <Ionicons name="add" size={28} color={isSplitMode ? colors.neutral[300] : colors.white} />
                   </TouchableOpacity>
                 </View>
+
+                {isSplitMode && (
+                  <View style={styles.splitCountContainer}>
+                    <Text style={{
+                      fontSize: 12,
+                      color: semanticColors.text.secondary,
+                      marginBottom: spacing.sm,
+                      fontWeight: '500'
+                    }}>
+                      Enter individual pieces below. They will be summed automatically.
+                    </Text>
+                    {splitCounts.map((val, idx) => (
+                      <View key={idx} style={styles.splitRow}>
+                        <View style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 16,
+                          backgroundColor: colors.neutral[100],
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.neutral[600] }}>
+                            #{idx + 1}
+                          </Text>
+                        </View>
+                        <TextInput
+                          style={styles.splitInput}
+                          value={val}
+                          onChangeText={(newVal) => {
+                            const regex = uomInfo.precision > 0
+                              ? new RegExp(`^\\d*\\.?\\d{0,${uomInfo.precision}}$`)
+                              : /^\d*$/;
+
+                            if (newVal === "" || newVal === "." || regex.test(newVal)) {
+                              const updated = [...splitCounts];
+                              updated[idx] = newVal;
+                              setSplitCounts(updated);
+                            }
+                          }}
+                          onBlur={() => {
+                            const updated = [...splitCounts];
+                            if (val === "" || val === ".") {
+                              updated[idx] = "0";
+                            } else {
+                              updated[idx] = formatQuantity(val);
+                            }
+                            setSplitCounts(updated);
+                          }}
+                          keyboardType={uomInfo.precision > 0 ? "decimal-pad" : "number-pad"}
+                          placeholder="0"
+                          selectTextOnFocus
+                        />
+                        <TouchableOpacity
+                          onPress={() => {
+                            setSplitCounts(splitCounts.filter((_, i) => i !== idx));
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                          }}
+                          style={{ padding: 8 }}
+                        >
+                          <Ionicons name="remove-circle" size={24} color={colors.error[400]} />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
+                      <TouchableOpacity
+                        style={[styles.addSplitButton, { flex: 1, height: 44 }]}
+                        onPress={() => {
+                          setSplitCounts([...splitCounts, ""]);
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        }}
+                      >
+                        <Ionicons name="add-circle" size={20} color={colors.white} />
+                        <Text style={{ color: colors.white, fontWeight: 'bold' }}>Add Piece</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: borderRadius.md,
+                          backgroundColor: colors.neutral[100],
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderWidth: 1,
+                          borderColor: colors.neutral[200]
+                        }}
+                        onPress={() => {
+                          Alert.alert(
+                            "Clear Split Counts?",
+                            "This will reset all individual pieces.",
+                            [
+                              { text: "Cancel", style: "cancel" },
+                              {
+                                text: "Clear",
+                                style: "destructive",
+                                onPress: () => {
+                                  setSplitCounts([]);
+                                  setIsSplitMode(false);
+                                  setQuantity("0");
+                                }
+                              }
+                            ]
+                          );
+                        }}
+                      >
+                        <Ionicons name="trash-outline" size={20} color={colors.error[500]} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
 
               {/* Batches */}
@@ -2612,13 +2827,14 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
+    width: 64,
+    height: 64,
     borderRadius: borderRadius.md,
     backgroundColor: colors.primary[50],
     alignItems: "center",
     justifyContent: "center",
     marginRight: spacing.md,
+    overflow: "hidden",
   },
   itemInfo: {
     flex: 1,
@@ -3276,13 +3492,48 @@ const styles = StyleSheet.create({
     color: colors.neutral[900],
   },
   modalClose: {
-    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
     alignItems: "center",
-    padding: spacing.sm,
   },
   modalCloseText: {
     color: colors.primary[600],
-    fontWeight: fontWeight.semiBold,
+    fontWeight: fontWeight.bold,
+  },
+  // Split Count Styles
+  splitCountContainer: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.neutral[50],
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.neutral[200],
+  },
+  splitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+  },
+  splitInput: {
+    flex: 1,
+    height: 48,
+    borderWidth: 1,
+    borderColor: colors.neutral[300],
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    fontSize: fontSize.md,
+    backgroundColor: colors.white,
+    color: colors.neutral[900],
+  },
+  addSplitButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.primary[600],
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.xs,
+    gap: spacing.xs,
   },
   misplacedBadge: {
     backgroundColor: colors.error[500],

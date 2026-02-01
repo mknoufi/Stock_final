@@ -4,7 +4,7 @@ Handles error notifications for both users and admins
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -47,7 +47,7 @@ class ErrorNotification(BaseModel):
 
     def __init__(self, **data):
         if data.get("timestamp") is None:
-            data["timestamp"] = datetime.utcnow()
+            data["timestamp"] = datetime.now(timezone.utc).replace(tzinfo=None)
         super().__init__(**data)
 
 
@@ -201,7 +201,7 @@ class ErrorNotificationService:
                     "$set": {
                         "admin_acknowledged": True,
                         "acknowledged_by": admin_id,
-                        "acknowledged_at": datetime.utcnow(),
+                        "acknowledged_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     }
                 },
             )
@@ -218,7 +218,7 @@ class ErrorNotificationService:
                 {
                     "$set": {
                         "resolved": True,
-                        "resolved_at": datetime.utcnow(),
+                        "resolved_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         "resolution": resolution,
                     }
                 },
@@ -246,7 +246,7 @@ class ErrorNotificationService:
             return {
                 "total_unresolved": sum(s["count"] for s in stats),
                 "by_level": {s["_id"]: s["count"] for s in stats},
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         except Exception as e:
             logger.error(f"Error getting statistics: {e}")

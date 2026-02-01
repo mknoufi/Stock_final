@@ -17,6 +17,7 @@ import {
   StyleSheet,
   Platform,
   useWindowDimensions,
+  AccessibilityInfo,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
@@ -85,6 +86,15 @@ export function PinKeypad({
     [pin, maxLength, onPinChange, onComplete, disabled],
   );
 
+  // Accessibility: Announce pin entry progress
+  React.useEffect(() => {
+    if (pin.length > 0 && pin.length <= maxLength) {
+      AccessibilityInfo.announceForAccessibility(
+        `PIN digit entered, ${pin.length} of ${maxLength}`
+      );
+    }
+  }, [pin.length, maxLength]);
+
   // Trigger shake animation on error
   React.useEffect(() => {
     if (error) {
@@ -106,7 +116,11 @@ export function PinKeypad({
   }));
 
   const renderIndicators = () => (
-    <Animated.View style={[styles.indicators, indicatorStyle]}>
+    <Animated.View
+      style={[styles.indicators, indicatorStyle]}
+      accessibilityLiveRegion="polite"
+      accessibilityLabel={`PIN entry: ${pin.length} of ${maxLength} digits entered`}
+    >
       {Array.from({ length: maxLength }).map((_, index) => (
         <View
           key={index}

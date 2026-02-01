@@ -4,7 +4,7 @@ Handles error logging, monitoring, and admin notifications
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -94,7 +94,7 @@ async def report_error(
     try:
         # Add timestamp if not provided
         if not error.timestamp:
-            error.timestamp = datetime.utcnow()
+            error.timestamp = datetime.now(timezone.utc).replace(tzinfo=None)
 
         # Add user ID if available
         if current_user and isinstance(current_user, dict) and "id" in current_user:
@@ -202,7 +202,7 @@ async def get_error_dashboard(
         stats = error_store["stats"]
 
         # Get recent errors (last 24 hours)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
         recent = []
         for error in errors:
             error_time = datetime.fromisoformat(error["timestamp"].replace("Z", "+00:00"))
@@ -277,7 +277,7 @@ async def get_error_detail(
 @router.patch("/errors/{error_id}/status")
 async def update_error_status(
     error_id: str,
-    status: str = Query(..., regex="^(new|acknowledged|resolved)$"),
+    status: str = Query(..., pattern="^(new|acknowledged|resolved)$"),
     current_user: dict = Depends(get_current_user),
 ) -> JSONResponse:
     """
@@ -412,7 +412,7 @@ async def notify_admin_critical_error(error: ErrorReport):
                 "message": error.message,
                 "severity": error.severity,
                 "user_id": error.user_id,
-                "timestamp": error.timestamp or datetime.utcnow(),
+                "timestamp": error.timestamp or datetime.now(timezone.utc).replace(tzinfo=None),
                 "context": safe_context,
             }
         )

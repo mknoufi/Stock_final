@@ -1,7 +1,7 @@
 import inspect
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from bson import ObjectId
@@ -377,7 +377,7 @@ async def create_count_line(
             # User and timestamp
             "created_by": current_user["username"],  # Legacy field
             "counted_by": current_user["username"],
-            "counted_at": datetime.utcnow(),
+            "counted_at": datetime.now(timezone.utc).replace(tzinfo=None),
             # MRP tracking
             "mrp_erp": erp_item["mrp"],
             "mrp_counted": line_data.mrp_counted,
@@ -457,7 +457,10 @@ async def create_count_line(
                 }
             },
         ]
-        stats = await db.count_lines.aggregate(pipeline).to_list(1)
+        cursor = db.count_lines.aggregate(pipeline)
+        if hasattr(cursor, "__await__"):
+            cursor = await cursor
+        stats = await cursor.to_list(1)
         if stats:
             await db.sessions.update_one(
                 {"id": line_data.session_id},
@@ -543,7 +546,7 @@ async def verify_stock(
             "$set": {
                 "verified": True,
                 "verified_by": current_user["username"],
-                "verified_at": datetime.utcnow(),
+                "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         },
     )
@@ -701,8 +704,8 @@ async def approve_count_line(
                     "status": "APPROVED",
                     "approval_status": "APPROVED",
                     "approved_by": current_user["username"],
-                    "approved_at": datetime.utcnow(),
-                    "verified_at": datetime.utcnow(),
+                    "approved_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             },
         )
@@ -754,7 +757,7 @@ async def reject_count_line(
                     "status": "REJECTED",
                     "approval_status": "REJECTED",
                     "rejected_by": current_user["username"],
-                    "rejected_at": datetime.utcnow(),
+                    "rejected_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "verified": False,
                 }
             },
@@ -957,10 +960,10 @@ async def bulk_approve_count_lines(
                     "status": "APPROVED",
                     "approval_status": "APPROVED",
                     "approved_by": current_user["username"],
-                    "approved_at": datetime.utcnow(),
+                    "approved_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "verified": True,
                     "verified_by": current_user["username"],
-                    "verified_at": datetime.utcnow(),
+                    "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "approval_note": update_data.notes,
                 }
             },
@@ -1001,7 +1004,7 @@ async def bulk_reject_count_lines(
                     "status": "REJECTED",
                     "approval_status": "REJECTED",
                     "rejected_by": current_user["username"],
-                    "rejected_at": datetime.utcnow(),
+                    "rejected_at": datetime.now(timezone.utc).replace(tzinfo=None),
                     "verified": False,
                     "rejection_reason": update_data.notes,
                 }

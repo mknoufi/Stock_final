@@ -4,7 +4,7 @@ Dynamic feature toggling for gradual rollouts and A/B testing
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Optional
 
@@ -39,8 +39,8 @@ class FeatureFlag(BaseModel):
     allowed_roles: list[str] = Field(default_factory=list)
 
     # Metadata
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
 
@@ -91,13 +91,13 @@ class FeatureFlagService:
                 self._cache[flag.key] = flag
             except Exception as e:
                 logger.error(f"Failed to load feature flag: {e}")
-        self._cache_time = datetime.utcnow()
+        self._cache_time = datetime.now(timezone.utc).replace(tzinfo=None)
 
     def _is_cache_valid(self) -> bool:
         """Check if cache is still valid"""
         if not self._cache_time:
             return False
-        elapsed = (datetime.utcnow() - self._cache_time).total_seconds()
+        elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - self._cache_time).total_seconds()
         return elapsed < self.cache_ttl
 
     async def is_enabled(
@@ -176,7 +176,7 @@ class FeatureFlagService:
         self, key: str, updated_by: Optional[str] = None, **updates
     ) -> Optional[FeatureFlag]:
         """Update a feature flag"""
-        updates["updated_at"] = datetime.utcnow()
+        updates["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
         updates["updated_by"] = updated_by
 
         result = await self.collection.find_one_and_update(

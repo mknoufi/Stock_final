@@ -7,7 +7,7 @@ Immutable audit trail with tamper detection
 import hashlib
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any, Optional
 
@@ -123,7 +123,7 @@ class AuditEntry(BaseModel):
     """Immutable audit log entry"""
 
     id: Optional[str] = None
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
     event_type: AuditEventType
     severity: AuditSeverity = AuditSeverity.INFO
 
@@ -241,7 +241,7 @@ class EnterpriseAuditService:
         """
         try:
             entry = {
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None),
                 "event_type": event_type.value,
                 "severity": severity.value,
                 "actor_id": actor_id,
@@ -372,7 +372,7 @@ class EnterpriseAuditService:
             "total_verified": valid_count + len(invalid_entries),
             "valid_entries": valid_count,
             "invalid_entries": invalid_entries,
-            "verified_at": datetime.utcnow().isoformat(),
+            "verified_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         }
 
     async def generate_compliance_report(
@@ -432,7 +432,7 @@ class EnterpriseAuditService:
         return {
             "report_type": report_type,
             "period": {"start": start_date.isoformat(), "end": end_date.isoformat()},
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "summary": {
                 "total_events": sum(s["total"] for s in stats.values()),
                 "security_events": security_events,
@@ -445,7 +445,7 @@ class EnterpriseAuditService:
 
     async def apply_retention_policy(self) -> dict[str, int]:
         """Delete audit logs older than retention period"""
-        cutoff_date = datetime.utcnow() - timedelta(days=self.retention_days)
+        cutoff_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=self.retention_days)
 
         # Archive before deletion (optional)
         # ... archival logic here ...

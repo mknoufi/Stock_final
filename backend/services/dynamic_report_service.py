@@ -6,7 +6,7 @@ Generate custom reports with user-defined fields and filters
 import io
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 import pandas as pd
@@ -68,8 +68,8 @@ class DynamicReportService:
                 "aggregations": aggregations or {},
                 "format": format,
                 "created_by": created_by,
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
+                "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "enabled": True,
                 "usage_count": 0,
             }
@@ -168,7 +168,7 @@ class DynamicReportService:
                 "mime_type": mime_type,
                 "format": template.get("format", "excel"),
                 "generated_by": generated_by,
-                "generated_at": datetime.utcnow(),
+                "generated_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 "download_count": 0,
             }
 
@@ -180,7 +180,7 @@ class DynamicReportService:
                 {
                     "report_id": report_id,
                     "file_data": file_data,
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                 }
             )
 
@@ -450,7 +450,7 @@ class DynamicReportService:
     ) -> tuple:
         """Generate report file in specified format"""
         try:
-            timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+            timestamp = datetime.now(timezone.utc).replace(tzinfo=None).strftime("%Y%m%d_%H%M%S")
 
             if format == "excel":
                 return self._generate_excel(data, template_name, timestamp, fields)

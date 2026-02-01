@@ -2,6 +2,7 @@
 API v2 Metrics Endpoints
 Connection pool and system metrics monitoring
 """
+from datetime import timezone
 
 from typing import Any
 
@@ -75,7 +76,7 @@ async def get_system_metrics(current_user: dict = Depends(get_current_user)):
         )
 
         metrics: dict[str, Any] = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "services": {},
         }
 

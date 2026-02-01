@@ -32,9 +32,9 @@ const hexToRgba = (hex: string, alpha: number): string => {
   const expanded =
     normalized.length === 3
       ? normalized
-          .split("")
-          .map((c) => c + c)
-          .join("")
+        .split("")
+        .map((c) => c + c)
+        .join("")
       : normalized;
 
   const r = parseInt(expanded.slice(0, 2), 16);
@@ -111,7 +111,7 @@ interface ThemeContextType {
       placeholder: string;
       disabled: string;
     };
-    gradients: AppTheme["gradients"];
+    gradients: Record<string, any>;
     spacing: {
       xs: number;
       sm: number;
@@ -129,10 +129,10 @@ interface ThemeContextType {
       xl: number;
       round: number;
     };
-    shadows: AppTheme["shadows"];
-    animations: AppTheme["animations"];
-    componentSizes: AppTheme["componentSizes"];
-    layout: AppTheme["layout"];
+    shadows: Record<string, string>;
+    animations: Record<string, any>;
+    componentSizes: Record<string, any>;
+    layout: Record<string, any>;
   };
   themeKey: ThemeKey;
   themeMode: ThemeMode;
@@ -209,13 +209,13 @@ const LAYOUT_METADATA: {
   name: string;
   icon: string;
 }[] = [
-  { key: "default", name: "Default", icon: "apps-outline" },
-  { key: "compact", name: "Compact", icon: "contract-outline" },
-  { key: "spacious", name: "Spacious", icon: "expand-outline" },
-  { key: "cards", name: "Cards", icon: "albums-outline" },
-  { key: "list", name: "List", icon: "list-outline" },
-  { key: "grid", name: "Grid", icon: "grid-outline" },
-];
+    { key: "default", name: "Default", icon: "apps-outline" },
+    { key: "compact", name: "Compact", icon: "contract-outline" },
+    { key: "spacious", name: "Spacious", icon: "expand-outline" },
+    { key: "cards", name: "Cards", icon: "albums-outline" },
+    { key: "list", name: "List", icon: "list-outline" },
+    { key: "grid", name: "Grid", icon: "grid-outline" },
+  ];
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -517,7 +517,69 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 export const useThemeContext = (): ThemeContextType => {
   const context = useContext(ThemeContext);
   if (!context) {
-    throw new Error("useThemeContext must be used within a ThemeProvider");
+    console.warn("useThemeContext called outside ThemeProvider - returning default theme");
+    return {
+      theme: themes.light!,
+      themeLegacy: {
+        theme: "light",
+        isDark: false,
+        colors: {
+          primary: "#6366F1",
+          secondary: "#6B7280",
+          muted: "#9CA3AF",
+          background: "#FAFBFC",
+          surface: "#FFFFFF",
+          surfaceElevated: "#F9FAFB",
+          surfaceDark: "#F3F4F6",
+          text: "#111827",
+          textTokens: { primary: "#111827", secondary: "#6B7280", muted: "#9CA3AF" },
+          textPrimary: "#111827",
+          textSecondary: "#6B7280",
+          textTertiary: "#9CA3AF",
+          border: "#E5E7EB",
+          borderLight: "#F3F4F6",
+          error: "#EF4444",
+          success: "#10B981",
+          warning: "#F59E0B",
+          info: "#3B82F6",
+          danger: "#DC2626",
+          overlay: "rgba(0, 0, 0, 0.5)",
+          overlayPrimary: "rgba(99, 102, 241, 0.12)",
+          accent: "#6366F1",
+          accentLight: "#818CF8",
+          accentDark: "#4F46E5",
+          glass: "rgba(255, 255, 255, 0.1)",
+          card: "#FFFFFF",
+          placeholder: "#9CA3AF",
+          disabled: "#9CA3AF",
+        },
+        gradients: { primary: ["#6366F1", "#8B5CF6"], secondary: ["#10B981", "#059669"] },
+        spacing: { xs: 4, sm: 8, md: 16, base: 16, lg: 24, xl: 32, xxl: 48 },
+        typography: { fontSize: { xs: 12, sm: 14, md: 16, lg: 18, xl: 20, xxl: 24 } },
+        borderRadius: { sm: 4, md: 8, lg: 12, xl: 16, round: 50 },
+        shadows: { sm: "0 1px 2px 0 rgba(0, 0, 0, 0.05)", md: "0 4px 6px -1px rgba(0, 0, 0, 0.1)", lg: "0 10px 15px -3px rgba(0, 0, 0, 0.1)", xl: "0 20px 25px -5px rgba(0, 0, 0, 0.1)" },
+        animations: { duration: 300, easing: "ease-in-out" },
+        componentSizes: { button: 48, input: 48, card: 16 },
+        layout: { padding: 16, margin: 16 },
+      },
+      themeKey: "light",
+      themeMode: "light",
+      isDark: false,
+      pattern: "none",
+      layout: "default",
+      fontSize: 16,
+      primaryColor: "#6366F1",
+      setThemeKey: () => { },
+      setThemeMode: () => { },
+      setPattern: () => { },
+      setLayout: () => { },
+      toggleDarkMode: () => { },
+      getThemeColor: (colorPath: string) => "#6366F1",
+      getFontSize: (scale?: number | "xs" | "sm" | "md" | "lg" | "xl" | "xxl") => 16,
+      availableThemes: THEME_METADATA,
+      availablePatterns: PATTERN_METADATA,
+      availableLayouts: LAYOUT_METADATA,
+    };
   }
   return context;
 };

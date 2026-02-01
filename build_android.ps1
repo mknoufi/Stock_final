@@ -6,5 +6,5 @@ Write-Host "Using Java: $($env:JAVA_HOME)"
 java -version
 
 Write-Host "Building Android App (Native Development Build)..."
-cd frontend
+Set-Location frontend
 npx expo run:android
