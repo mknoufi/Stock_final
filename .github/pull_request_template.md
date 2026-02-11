@@ -1,86 +1,47 @@
 # Pull Request
 
-## Description
-<!-- Provide a brief description of the changes -->
+## Summary
+Describe the business and technical change in 3-6 lines.
 
 ## Type of Change
-<!-- Mark the relevant option with an 'x' -->
-
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📝 Documentation update
-- [ ] 🔒 Security fix
-- [ ] ♻️ Code refactoring
-- [ ] ⚡ Performance improvement
-- [ ] ✅ Test addition/update
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Refactor
+- [ ] Security fix
+- [ ] Documentation update
 
 ## Related Issues
-<!-- Link to related issues -->
 Fixes #(issue number)
 
-## Changes Made
-<!-- List the main changes -->
+## Governance Impact
+- [ ] This PR changes route/API/role/state/offline/sync/audit behavior
+- [ ] This PR does not change governance-controlled behavior
 
--
--
--
+If governance behavior changed, complete all relevant checks below.
 
-## Testing
-<!-- Describe the tests you ran -->
+## Governance Evidence Checklist
+- [ ] `docs/CODE_DERIVED_USER_WORKFLOW_DIAGRAMS.md` updated for route/API/role flow changes
+- [ ] `docs/GOVERNANCE_ACCEPTANCE_CRITERIA.md` updated with Given/When/Then for changed behavior
+- [ ] `docs/GOVERNANCE_STATE_MACHINES.md` updated for state/transition changes
+- [ ] Transition tests updated for state changes
+- [ ] `docs/GOVERNANCE_ROLE_AUTHORITY_MATRIX.md` updated for auth/permission changes
+- [ ] `docs/GOVERNANCE_OFFLINE_SYNC_INVARIANTS.md` updated for offline/sync changes
+- [ ] `docs/GOVERNANCE_FAILURE_PATHS.md` updated for new failure handling
+- [ ] `docs/GOVERNANCE_API_DB_ENFORCEMENT_MAP.md` updated for guard/constraint changes
+- [ ] `docs/GOVERNANCE_AUDIT_TRACEABILITY.md` updated for critical action logging changes
+- [ ] `docs/GOVERNANCE_SQL_ERP_SURFACES.md` updated for SQL/ERP integration changes
+- [ ] `docs/GOVERNANCE_RELEASE_CHECKLIST.md` reviewed before merge
 
-- [ ] Unit tests added/updated
-- [ ] Integration tests added/updated
-- [ ] Manual testing performed
-- [ ] All tests passing locally
+## Tests and Validation
+List exact commands and outcomes.
 
-## Security Checklist
-<!-- Verify security requirements -->
+## Risk and Rollback
+- Risk level: Low / Medium / High
+- Rollback plan:
 
-- [ ] No secrets or credentials committed
-- [ ] No `.env` files committed
-- [ ] Environment variables documented in `.env.example`
-- [ ] Pre-commit hooks passing
-- [ ] No new security vulnerabilities introduced
-
-## Code Quality Checklist
-<!-- Verify code quality -->
-
-- [ ] Code follows project style guidelines
-- [ ] Self-review performed
-- [ ] Comments added for complex logic
-- [ ] Documentation updated (if needed)
-- [ ] No console.log or print statements in production code
-- [ ] TypeScript types added (no 'any' types)
-- [ ] Proper error handling implemented
-
-## Test Coverage
-<!-- Verify test coverage -->
-
-- [ ] New code has test coverage
-- [ ] Coverage percentage maintained or improved
-- [ ] Edge cases tested
-- [ ] Error scenarios tested
-
-## Screenshots (if applicable)
-<!-- Add screenshots for UI changes -->
-
-## Deployment Notes
-<!-- Any special deployment considerations -->
-
-- [ ] Database migrations required
-- [ ] Environment variables need updating
-- [ ] Dependencies need updating
-- [ ] Breaking changes documented
-
-## Reviewer Checklist
-<!-- For reviewers -->
-
-- [ ] Code review completed
-- [ ] Tests verified
-- [ ] Security review completed
-- [ ] Documentation reviewed
-- [ ] Performance impact considered
-
-## Additional Notes
-<!-- Any additional information -->
+## Security and Data Integrity
+- [ ] No secrets committed
+- [ ] No unauthorized privilege expansion
+- [ ] Data mutation paths are idempotent or guarded where required
+- [ ] Audit-critical actions remain actor-attributed and timestamped

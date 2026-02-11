@@ -5,7 +5,7 @@ name: PR Checks
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, my-fix-branch]
 
 jobs:
   quick-checks:
@@ -33,6 +33,13 @@ jobs:
           pip install ruff
           ruff check backend/ --output-format=github
         continue-on-error: true
+
+      - name: Governance gate
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python tools/governance/governance_gate.py --base "$GITHUB_BASE_SHA" --head "$GITHUB_HEAD_SHA"
 
       - name: Check commit messages
         run: |
