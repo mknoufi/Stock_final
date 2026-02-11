@@ -42,6 +42,8 @@ def _run_git(args: list[str]) -> str:
     result = subprocess.run(
         ["git", *args],
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
         check=False,
     )
@@ -293,4 +295,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
