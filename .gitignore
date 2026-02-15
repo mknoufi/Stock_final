@@ -46,3 +46,12 @@ copilot-messages.log
 # System files
 .DS_Store
 .project/attachments/files/**
+
+# Dependencies
+node_modules/
+__pycache__/
+*.log
+.env
+dist/
+.expo/
+.cloudflared/
