@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Staff Item: Tunnel &amp; Breakdown Error</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom styles for specific gradient texts if needed */
+        .text-tunnel-gradient {
+            background: linear-gradient(90deg, #A78BFA 0%, #60A5FA 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .bg-tunnel-gradient {
+            background: linear-gradient(90deg, #7c3aed 0%, #2563eb 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white min-h-screen flex flex-col overflow-x-hidden antialiased selection:bg-primary/30">
+<!-- Header -->
+<header class="sticky top-0 z-50 flex items-center justify-between px-4 py-3 bg-background-light/80 dark:bg-background-dark/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<button class="flex items-center justify-center p-2 -ml-2 text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-white transition-colors rounded-full active:bg-slate-200 dark:active:bg-slate-800">
+<span class="material-symbols-outlined text-[24px]">arrow_back</span>
+</button>
+<h1 class="text-base font-semibold tracking-tight text-center truncate px-2">SKU-102938 Detail</h1>
+<button class="flex items-center justify-center p-2 -mr-2 text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-white transition-colors rounded-full active:bg-slate-200 dark:active:bg-slate-800">
+<span class="material-symbols-outlined text-[24px]">more_vert</span>
+</button>
+</header>
+<main class="flex-1 flex flex-col gap-6 p-4 pb-24 w-full max-w-md mx-auto">
+<!-- Governance Bar -->
+<section class="grid grid-cols-2 gap-3">
+<!-- Tunnel Status -->
+<div class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 shadow-sm relative overflow-hidden group">
+<div class="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-blue-500/10 opacity-50"></div>
+<span class="material-symbols-outlined text-[28px] text-tunnel-gradient">vpn_lock</span>
+<div class="flex flex-col items-center">
+<span class="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">Connectivity</span>
+<span class="text-base font-bold text-tunnel-gradient">TUNNEL</span>
+</div>
+</div>
+<!-- SQL Status -->
+<div class="flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 shadow-sm relative overflow-hidden">
+<div class="absolute inset-0 bg-emerald-500/5 dark:bg-emerald-500/10"></div>
+<span class="material-symbols-outlined text-[28px] text-emerald-600 dark:text-emerald-400">database</span>
+<div class="flex flex-col items-center">
+<span class="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-400">SQL Status</span>
+<span class="text-base font-bold text-emerald-600 dark:text-emerald-400">MATCH</span>
+</div>
+</div>
+</section>
+<!-- Main Staff Count Card -->
+<section class="flex items-stretch gap-4 p-4 rounded-xl bg-white dark:bg-[#1c2127] border border-slate-200 dark:border-slate-800 shadow-sm">
+<div class="flex-1 flex flex-col justify-center">
+<h2 class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Official Record</h2>
+<div class="flex items-baseline gap-2">
+<span class="text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">40</span>
+<span class="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">items</span>
+</div>
+<p class="text-xs text-slate-400 mt-2">Last synced 2m ago</p>
+</div>
+<!-- Item Image -->
+<div class="w-24 bg-slate-100 dark:bg-slate-800 rounded-lg overflow-hidden flex-shrink-0 relative border border-slate-100 dark:border-slate-700">
+<div class="absolute inset-0 bg-center bg-cover bg-no-repeat" data-alt="Industrial warehouse shelves with boxes" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBy7PIE6_pTNXRgw3xPLqf22Uocuxc9ZfbNUmQMhvn6bNoupRCzEtfhvETy0rWRP9i4Tstr-lTRkvqEflD9EHx2ZNbQ_C676q10qv_8i4PdQ1GDRPFOGPratlSKBMooDM9qc7vrnHjPtjFz0t4ueh1Ua5gKmrX-0-gZAXUAvCcMK4J_-K9XGHf8dZn_hS1I7kljn6wDRmzZjh-z9oXvzidWyvP6AEmzyHJMqXhZZTGMWWBh1VXe-A-u0Kz105mTrMTmM_xXRAYyOBY3');"></div>
+</div>
+</section>
+<!-- Location Breakdown & Error -->
+<section class="space-y-4">
+<div class="flex items-center justify-between px-1">
+<h3 class="text-base font-bold text-slate-900 dark:text-white">Location Breakdown</h3>
+<span class="text-xs font-medium text-red-500 flex items-center gap-1 bg-red-500/10 px-2 py-1 rounded">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+                    Mismatch
+                </span>
+</div>
+<!-- Breakdown Card -->
+<div class="rounded-xl overflow-hidden bg-white dark:bg-[#1c2127] border border-red-200 dark:border-red-900/30 shadow-sm">
+<div class="p-4 space-y-3">
+<!-- Floor A -->
+<div class="flex justify-between items-center py-1">
+<div class="flex items-center gap-3">
+<div class="p-1.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
+<span class="material-symbols-outlined text-[18px]">layers</span>
+</div>
+<span class="text-sm font-medium text-slate-600 dark:text-slate-300">Floor A</span>
+</div>
+<span class="text-base font-semibold text-slate-900 dark:text-white tabular-nums">20</span>
+</div>
+<!-- Floor B -->
+<div class="flex justify-between items-center py-1">
+<div class="flex items-center gap-3">
+<div class="p-1.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
+<span class="material-symbols-outlined text-[18px]">layers</span>
+</div>
+<span class="text-sm font-medium text-slate-600 dark:text-slate-300">Floor B</span>
+</div>
+<span class="text-base font-semibold text-slate-900 dark:text-white tabular-nums">15</span>
+</div>
+<!-- Divider -->
+<div class="h-px w-full bg-slate-100 dark:bg-slate-700 my-2"></div>
+<!-- Total Overlay -->
+<div class="flex justify-between items-center">
+<span class="text-sm font-semibold text-slate-500 dark:text-slate-400">Total Overlay</span>
+<div class="flex items-center gap-2">
+<span class="text-xs text-red-500 font-medium bg-red-50 dark:bg-red-950/30 px-1.5 py-0.5 rounded border border-red-100 dark:border-red-900/50">≠ 40</span>
+<span class="text-xl font-bold text-red-500 dark:text-red-400 tabular-nums">35</span>
+</div>
+</div>
+</div>
+<!-- Warning Banner -->
+<div class="bg-red-50 dark:bg-red-950/20 px-4 py-3 border-t border-red-100 dark:border-red-900/30 flex gap-3 items-start">
+<span class="material-symbols-outlined text-red-500 dark:text-red-400 text-[20px] shrink-0 mt-0.5">error</span>
+<p class="text-sm text-red-800 dark:text-red-200 leading-snug">
+                        Sum of locations <span class="font-bold">(35)</span> does not match Staff Count <span class="font-bold">(40)</span>. Please update location breakdown.
+                    </p>
+</div>
+</div>
+</section>
+</main>
+<!-- Bottom Action Bar -->
+<div class="fixed bottom-0 left-0 right-0 p-4 bg-background-light dark:bg-background-dark border-t border-slate-200 dark:border-slate-800 z-50">
+<div class="w-full max-w-md mx-auto">
+<button class="w-full h-12 flex items-center justify-center gap-2 bg-primary hover:bg-blue-600 active:bg-blue-700 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/20 transition-all transform active:scale-[0.98]">
+<span class="material-symbols-outlined text-[20px]">build</span>
+                Fix Breakdown
+            </button>
+<!-- iOS Home Indicator Spacing -->
+<div class="h-5"></div>
+</div>
+</div>
+</body></html>

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Secure Portal Login - Stock Verify 2026</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#256af4",
+                        "background-light": "#f5f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .floating-label-group {
+            position: relative;
+        }
+        .floating-label-group input:focus ~ label,
+        .floating-label-group input:not(:placeholder-shown) ~ label {
+            top: -0.5rem;
+            left: 0.75rem;
+            font-size: 0.75rem;
+            color: #256af4;
+            background-color: white;
+            padding: 0 0.25rem;
+        }
+        .floating-label-group label {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            color: #64748b;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display bg-background-light dark:bg-background-dark min-h-screen flex items-center justify-center">
+<!-- Main Container -->
+<div class="w-full min-h-screen lg:min-h-0 lg:max-w-5xl lg:flex lg:shadow-2xl lg:rounded-xl overflow-hidden bg-white dark:bg-background-dark">
+<!-- Left Side: Hero Image (Visible on Desktop) -->
+<div class="hidden lg:flex lg:w-1/2 relative">
+<img alt="Warehouse Logistics" class="absolute inset-0 w-full h-full object-cover" data-alt="Modern high-tech warehouse with blue ambient lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXvx0E7BlRyJOBzI-MQBIgvgrsvxPiX5NCodV6F_GsIcgUJTfkSSFRBeCFzrqiiMw3ZA1Cu3iLcqysQ9zJq5FagCHWi8tH_M0wPA8WB3R_l6xIWMQT9Fnb8kMdMRTsjHBYWNoqf1nOoVnXPtmStXZCqtyStJrCtL5Oz2Qu3QYTKKj4u-jvpNPfD_ZKzpT6IbClPRaahtWbbpuKYRGIsG_sy21uagCRQPMBDbGzrzgCbJs4TMBFZkw7wN7d_h8w7HlYooKp-lfhC0Q"/>
+<div class="absolute inset-0 bg-primary/40 mix-blend-multiply"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark/90 to-transparent"></div>
+<div class="relative z-10 p-12 flex flex-col justify-between h-full text-white">
+<div>
+<div class="flex items-center gap-3 mb-8">
+<div class="bg-white/10 backdrop-blur-md p-3 rounded-lg border border-white/20">
+<span class="material-icons-round text-3xl">inventory_2</span>
+</div>
+<h1 class="text-2xl font-bold tracking-tight">Stock Verify 2026</h1>
+</div>
+<h2 class="text-4xl font-bold leading-tight">Advanced Inventory <br/>Management System</h2>
+<p class="mt-4 text-white/80 text-lg max-w-md">Secure access to your global supply chain monitoring and real-time verification tools.</p>
+</div>
+<div class="flex items-center gap-4 text-sm text-white/60">
+<div class="flex items-center gap-2">
+<span class="material-icons-round text-sm">verified_user</span>
+<span>Enterprise Grade Security</span>
+</div>
+<div class="w-1 h-1 bg-white/30 rounded-full"></div>
+<span>v4.2.0</span>
+</div>
+</div>
+</div>
+<!-- Right Side: Login Form -->
+<div class="w-full lg:w-1/2 flex flex-col justify-center p-8 sm:p-12 lg:p-16 bg-white dark:bg-background-dark">
+<!-- Mobile Header Logo -->
+<div class="lg:hidden flex flex-col items-center mb-10">
+<div class="bg-primary/10 p-4 rounded-xl mb-4">
+<span class="material-icons-round text-primary text-4xl">inventory_2</span>
+</div>
+<h1 class="text-2xl font-bold text-gray-900 dark:text-white">Stock Verify 2026</h1>
+<p class="text-gray-500 dark:text-gray-400">Secure Portal Login</p>
+</div>
+<div class="max-w-md mx-auto w-full">
+<div class="hidden lg:block mb-10">
+<h2 class="text-3xl font-bold text-gray-900 dark:text-white">Welcome Back</h2>
+<p class="text-gray-500 dark:text-gray-400 mt-2">Please enter your credentials to access the portal.</p>
+</div>
+<form class="space-y-6">
+<!-- Email Field -->
+<div class="floating-label-group">
+<div class="relative flex items-center">
+<span class="material-icons-round absolute left-4 text-gray-400 pointer-events-none">mail_outline</span>
+<input class="w-full pl-12 pr-4 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all dark:text-white" id="email" placeholder=" " type="email"/>
+<label class="ml-8 bg-transparent" for="email">Email Address</label>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-2">
+<div class="floating-label-group">
+<div class="relative flex items-center">
+<span class="material-icons-round absolute left-4 text-gray-400 pointer-events-none">lock_open</span>
+<input class="w-full pl-12 pr-12 py-4 bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all dark:text-white" id="password" placeholder=" " type="password"/>
+<label class="ml-8" for="password">Password</label>
+<button class="absolute right-4 text-gray-400 hover:text-primary" type="button">
+<span class="material-icons-round">visibility</span>
+</button>
+</div>
+</div>
+<div class="flex justify-end">
+<a class="text-sm font-medium text-primary hover:underline" href="#">Forgot Password?</a>
+</div>
+</div>
+<!-- Remember Me -->
+<div class="flex items-center">
+<input class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded" id="remember-me" name="remember-me" type="checkbox"/>
+<label class="ml-2 block text-sm text-gray-700 dark:text-gray-300" for="remember-me">
+                            Keep me signed in for 30 days
+                        </label>
+</div>
+<!-- Sign In Button -->
+<button class="w-full bg-gradient-to-r from-primary to-[#1e4db7] hover:from-[#1e4db7] hover:to-[#173a8a] text-white font-bold py-4 rounded-lg shadow-lg shadow-primary/30 transition-all transform hover:scale-[1.01] active:scale-[0.98] flex items-center justify-center gap-2" type="submit">
+<span>Sign In to Portal</span>
+<span class="material-icons-round text-xl">login</span>
+</button>
+</form>
+<!-- Divider -->
+<div class="relative my-10">
+<div class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-gray-200 dark:border-gray-700"></div>
+</div>
+<div class="relative flex justify-center text-sm">
+<span class="px-2 bg-white dark:bg-background-dark text-gray-500">Security Verification</span>
+</div>
+</div>
+<!-- Bio Auth / Alternative (Mobile UX) -->
+<div class="flex justify-center gap-4 mb-10">
+<button class="p-3 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-primary transition-colors">
+<span class="material-icons-round text-gray-600 dark:text-gray-300">fingerprint</span>
+</button>
+<button class="p-3 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 hover:border-primary transition-colors">
+<span class="material-icons-round text-gray-600 dark:text-gray-300">face</span>
+</button>
+</div>
+<!-- Footer Links -->
+<div class="text-center">
+<p class="text-gray-600 dark:text-gray-400">
+                        Don't have an account? 
+                        <a class="text-primary font-bold hover:underline ml-1" href="#">Register Now</a>
+</p>
+</div>
+<div class="mt-12 flex items-center justify-center gap-2 text-xs text-gray-400 uppercase tracking-widest">
+<span class="material-icons-round text-sm">verified</span>
+<span>Secure Encrypted Connection</span>
+</div>
+</div>
+</div>
+</div>
+</body></html>

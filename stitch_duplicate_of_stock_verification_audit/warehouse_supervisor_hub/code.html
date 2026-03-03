@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Warehouse Supervisor Hub</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#2b7cee",
+                "background-light": "#f6f7f8",
+                "background-dark": "#101822",
+              },
+              fontFamily: {
+                "display": ["Inter", "sans-serif"]
+              },
+              borderRadius: {"DEFAULT": "0.5rem", "lg": "1rem", "xl": "1.5rem", "full": "9999px"},
+            },
+          },
+        }
+      </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .circular-progress {
+            background: radial-gradient(closest-side, white 79%, transparent 80% 100%),
+                        conic-gradient(#ffffff 74%, rgba(255, 255, 255, 0.2) 0);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .safe-top {
+            padding-top: env(safe-area-inset-top);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-800 dark:text-slate-100 min-h-screen">
+<!-- Status Bar Spacer (iOS Style) -->
+<div class="h-12 safe-top"></div>
+<!-- Header Section -->
+<header class="px-6 flex justify-between items-center mb-6">
+<div>
+<h1 class="text-2xl font-bold tracking-tight">Hub</h1>
+<p class="text-sm text-slate-500 dark:text-slate-400 font-medium">Supervisor Dashboard</p>
+</div>
+<div class="flex gap-3">
+<button class="w-10 h-10 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shadow-sm relative">
+<span class="material-icons text-slate-600 dark:text-slate-300">notifications</span>
+<span class="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-800"></span>
+</button>
+<div class="w-10 h-10 rounded-full overflow-hidden border-2 border-primary/20">
+<img alt="Supervisor" class="w-full h-full object-cover" data-alt="Profile photo of the warehouse supervisor" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBb-WneYpH6jiHzsJnuv-SzDvJUh-Jf5_e4XOVnj5Xorn5ZblA9X3avjngPGZwyo9O92EoxWUSdIU85VKUUi-7fIq11n198K49q6EshJXeX84py5mAHu1OAD41CaF0j46l-zGkG3KMOzBX0hUMdCl_TRDL3HZ6ecLIG3RmgUmH_7u5l277YXSiPQDIbCTvPy3wTnqCjJaFICGOzvtQGzJT0fftR2A9QXmXzaRpZijyLIDLAnY1u4-ZIkFL1GUZjRMm4bq1jihR0x80"/>
+</div>
+</div>
+</header>
+<main class="px-5 pb-32">
+<!-- Active Session Card -->
+<section class="mb-8">
+<div class="bg-gradient-to-br from-primary to-[#00d2ff] rounded-xl p-6 text-white shadow-lg shadow-primary/25 relative overflow-hidden">
+<!-- Abstract Background Pattern -->
+<div class="absolute top-0 right-0 -mr-10 -mt-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+<div class="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 bg-black/5 rounded-full blur-2xl"></div>
+<div class="relative z-10 flex justify-between items-center">
+<div class="flex-1">
+<span class="text-xs font-semibold uppercase tracking-wider bg-white/20 px-2 py-1 rounded-md">Live Session</span>
+<h2 class="text-xl font-bold mt-2">Warehouse A - Zone 1</h2>
+<div class="flex items-center mt-4 space-x-4">
+<div>
+<p class="text-xs text-white/80">Stock Count</p>
+<p class="text-lg font-semibold">1,842 items</p>
+</div>
+<div class="w-px h-8 bg-white/20"></div>
+<div>
+<p class="text-xs text-white/80">Time Elapsed</p>
+<p class="text-lg font-semibold">03:45:12</p>
+</div>
+</div>
+</div>
+<!-- Circular Progress -->
+<div class="relative w-20 h-20 flex items-center justify-center">
+<div class="w-full h-full rounded-full circular-progress flex items-center justify-center">
+<span class="text-sm font-bold text-primary">74%</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Daily Stats Row -->
+<section class="mb-8">
+<h3 class="text-sm font-semibold text-slate-500 uppercase tracking-widest px-1 mb-4">Daily Performance</h3>
+<div class="grid grid-cols-3 gap-3">
+<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-center shadow-sm">
+<p class="text-[10px] font-bold text-slate-400 uppercase">Scanned</p>
+<p class="text-lg font-bold text-slate-800 dark:text-white mt-1">1,240</p>
+</div>
+<div class="bg-white dark:bg-slate-800 border-2 border-amber-100 dark:border-amber-900/30 rounded-lg p-3 text-center shadow-sm">
+<p class="text-[10px] font-bold text-amber-500 uppercase">Variances</p>
+<p class="text-lg font-bold text-amber-600 mt-1">12</p>
+</div>
+<div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3 text-center shadow-sm">
+<p class="text-[10px] font-bold text-slate-400 uppercase">Pending</p>
+<p class="text-lg font-bold text-slate-800 dark:text-white mt-1">45</p>
+</div>
+</div>
+</section>
+<!-- Quick Action Grid -->
+<section class="mb-8">
+<h3 class="text-sm font-semibold text-slate-500 uppercase tracking-widest px-1 mb-4">Quick Actions</h3>
+<div class="grid grid-cols-2 gap-4">
+<!-- New Session -->
+<button class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col items-center text-center space-y-3 active:scale-95 transition-transform">
+<div class="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+<span class="material-icons text-emerald-500 text-3xl">add_circle</span>
+</div>
+<div>
+<p class="font-bold text-slate-800 dark:text-white text-sm">New Session</p>
+<p class="text-[11px] text-slate-400">Initialize stock count</p>
+</div>
+</button>
+<!-- Review Variances -->
+<button class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col items-center text-center space-y-3 active:scale-95 transition-transform">
+<div class="w-14 h-14 rounded-full bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+<span class="material-icons text-amber-500 text-3xl">error_outline</span>
+</div>
+<div>
+<p class="font-bold text-slate-800 dark:text-white text-sm">Variances</p>
+<p class="text-[11px] text-slate-400">Review discrepancies</p>
+</div>
+</button>
+<!-- System Logs -->
+<button class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col items-center text-center space-y-3 active:scale-95 transition-transform">
+<div class="w-14 h-14 rounded-full bg-primary/10 dark:bg-primary/20 flex items-center justify-center">
+<span class="material-icons text-primary text-3xl">assignment</span>
+</div>
+<div>
+<p class="font-bold text-slate-800 dark:text-white text-sm">System Logs</p>
+<p class="text-[11px] text-slate-400">Activity &amp; history</p>
+</div>
+</button>
+<!-- Assign Tasks -->
+<button class="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm flex flex-col items-center text-center space-y-3 active:scale-95 transition-transform">
+<div class="w-14 h-14 rounded-full bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
+<span class="material-icons text-purple-500 text-3xl">groups</span>
+</div>
+<div>
+<p class="font-bold text-slate-800 dark:text-white text-sm">Assign Tasks</p>
+<p class="text-[11px] text-slate-400">Manage floor staff</p>
+</div>
+</button>
+</div>
+</section>
+<!-- Location Status (Placeholder for context) -->
+<section class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-12 h-12 bg-slate-100 dark:bg-slate-700 rounded flex items-center justify-center overflow-hidden">
+<span class="material-icons text-slate-400">map</span>
+</div>
+<div>
+<p class="text-xs font-semibold text-slate-400 uppercase">Current Node</p>
+<p class="font-bold text-slate-800 dark:text-white">Distribution Center #42</p>
+</div>
+</div>
+<div class="flex items-center text-emerald-500 font-semibold text-sm">
+<span class="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span>
+                Online
+            </div>
+</section>
+</main>
+<!-- Fixed Bottom Navigation -->
+<nav class="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 safe-bottom">
+<div class="flex justify-around items-center h-16 max-w-lg mx-auto">
+<a class="flex flex-col items-center justify-center space-y-1 text-primary" href="#">
+<span class="material-icons">dashboard</span>
+<span class="text-[10px] font-semibold">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center space-y-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-icons">inventory</span>
+<span class="text-[10px] font-semibold">Inventory</span>
+</a>
+<a class="flex flex-col items-center justify-center space-y-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-icons">history</span>
+<span class="text-[10px] font-semibold">Sessions</span>
+</a>
+<a class="flex flex-col items-center justify-center space-y-1 text-slate-400 dark:text-slate-500" href="#">
+<span class="material-icons">tune</span>
+<span class="text-[10px] font-semibold">Settings</span>
+</a>
+</div>
+</nav>
+</body></html>

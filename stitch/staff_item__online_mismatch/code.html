@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Staff Item: Online Mismatch</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#1c2630",
+                        "surface-lighter": "#28323e",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased min-h-screen flex flex-col overflow-x-hidden">
+<!-- Top App Bar -->
+<div class="flex items-center px-4 py-3 justify-between bg-surface-dark sticky top-0 z-10 border-b border-surface-lighter">
+<div class="text-white flex size-10 shrink-0 items-center justify-center cursor-pointer rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</div>
+<div class="flex-1 px-4">
+<h2 class="text-white text-base font-bold leading-tight truncate">SKU-12345: Blue Widget</h2>
+<p class="text-gray-400 text-xs mt-0.5">Inventory #8920</p>
+</div>
+<div class="flex items-center justify-end">
+<button class="flex items-center justify-center rounded-lg h-10 w-10 text-white hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined">battery_5_bar</span>
+</button>
+</div>
+</div>
+<main class="flex-1 flex flex-col p-4 gap-6 pb-24">
+<!-- Governance Bar -->
+<div class="flex gap-4">
+<div class="flex flex-1 flex-col gap-1 rounded-xl p-4 bg-surface-dark border border-amber-500/30 relative overflow-hidden group">
+<div class="absolute right-0 top-0 p-2 opacity-10">
+<span class="material-symbols-outlined text-amber-500 text-5xl">warning</span>
+</div>
+<div class="flex items-center gap-2 mb-1">
+<p class="text-gray-400 text-xs font-medium uppercase tracking-wider">SQL Status</p>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-amber-500 text-xl">database</span>
+<p class="text-amber-500 text-xl font-bold leading-none tracking-tight">MISMATCH</p>
+</div>
+<div class="mt-1 flex items-center gap-1.5">
+<span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+<p class="text-emerald-500 text-xs font-medium">Online</p>
+</div>
+</div>
+<div class="flex w-24 flex-col gap-1 justify-center items-center rounded-xl p-4 bg-surface-dark border border-surface-lighter">
+<p class="text-gray-400 text-xs font-medium uppercase tracking-wider">Version</p>
+<p class="text-white text-2xl font-bold leading-none">v14</p>
+</div>
+</div>
+<!-- Truth Matrix -->
+<div class="flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h1 class="text-white text-xl font-bold">Truth Matrix</h1>
+<button class="text-primary text-sm font-semibold hover:text-primary/80 transition-colors flex items-center gap-1">
+                    Why variance?
+                    <span class="material-symbols-outlined text-sm">open_in_new</span>
+</button>
+</div>
+<div class="bg-surface-dark rounded-xl p-5 border border-surface-lighter shadow-lg">
+<div class="grid grid-cols-2 gap-8 relative">
+<!-- Divider -->
+<div class="absolute left-1/2 top-0 bottom-0 w-px bg-surface-lighter"></div>
+<div class="flex flex-col gap-1">
+<p class="text-gray-400 text-sm font-medium">ERP Observed</p>
+<p class="text-white text-3xl font-black tracking-tight">120</p>
+</div>
+<div class="flex flex-col gap-1 pl-4">
+<p class="text-gray-400 text-sm font-medium">Verified Total</p>
+<p class="text-white text-3xl font-black tracking-tight">105</p>
+</div>
+</div>
+<div class="mt-6 pt-5 border-t border-surface-lighter flex items-center justify-between">
+<div>
+<p class="text-gray-400 text-sm font-medium">Variance</p>
+<div class="flex items-baseline gap-2">
+<span class="text-red-400 text-2xl font-bold">-15</span>
+</div>
+</div>
+<div class="bg-red-500/10 px-4 py-2 rounded-lg border border-red-500/20">
+<span class="text-red-400 text-lg font-bold">-12.5%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Gate & Count Input -->
+<div class="flex flex-col gap-4">
+<!-- Warning Banner -->
+<div class="flex items-start gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+<span class="material-symbols-outlined text-red-400 shrink-0">info</span>
+<p class="text-red-200 text-sm leading-tight pt-0.5">Remark required: Variance exceeds 5% threshold.</p>
+</div>
+<!-- Count Input -->
+<div class="bg-surface-dark rounded-xl p-5 border border-surface-lighter">
+<label class="block text-gray-400 text-sm font-medium mb-3">Staff Count Input</label>
+<div class="flex items-center gap-3">
+<button class="size-12 rounded-lg bg-surface-lighter text-white flex items-center justify-center hover:bg-surface-lighter/80 active:scale-95 transition-all">
+<span class="material-symbols-outlined">remove</span>
+</button>
+<input class="flex-1 bg-background-dark border-2 border-primary rounded-lg text-white text-center text-2xl font-bold h-12 focus:ring-0 focus:outline-none" type="number" value="105"/>
+<button class="size-12 rounded-lg bg-surface-lighter text-white flex items-center justify-center hover:bg-surface-lighter/80 active:scale-95 transition-all">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Remark Field -->
+<div class="flex flex-col gap-3">
+<label class="text-white text-base font-semibold">Remark</label>
+<textarea class="w-full bg-surface-dark border border-surface-lighter rounded-xl p-4 text-white placeholder:text-gray-500 focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all resize-none h-28" placeholder="Reason for discrepancy (e.g. damaged stock found)..."></textarea>
+<div class="flex flex-wrap gap-2">
+<button class="px-3 py-1.5 rounded-full bg-surface-lighter border border-gray-700 text-gray-300 text-xs font-medium hover:bg-primary/20 hover:text-primary hover:border-primary/30 transition-colors">
+                    Damaged stock
+                </button>
+<button class="px-3 py-1.5 rounded-full bg-surface-lighter border border-gray-700 text-gray-300 text-xs font-medium hover:bg-primary/20 hover:text-primary hover:border-primary/30 transition-colors">
+                    Missed in count
+                </button>
+<button class="px-3 py-1.5 rounded-full bg-surface-lighter border border-gray-700 text-gray-300 text-xs font-medium hover:bg-primary/20 hover:text-primary hover:border-primary/30 transition-colors">
+                    Wrong label
+                </button>
+</div>
+</div>
+</main>
+<!-- Sticky Bottom Actions -->
+<div class="fixed bottom-0 left-0 w-full bg-background-dark/95 backdrop-blur-md border-t border-surface-lighter p-4 pb-8 z-20">
+<div class="flex gap-3">
+<button class="flex-1 bg-surface-lighter text-gray-400 font-bold h-12 rounded-xl text-base disabled:opacity-50">
+                Cancel
+            </button>
+<button class="flex-[2] bg-primary text-white font-bold h-12 rounded-xl text-base shadow-lg shadow-primary/20 hover:bg-primary/90 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+<span>Submit Count</span>
+<span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+</div>
+</body></html>

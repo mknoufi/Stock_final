@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Item Detail: Online Mismatch</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#1a2632",
+                        "surface-darker": "#15202b",
+                        "warning": "#fa6238",
+                        "success": "#34d399",
+                        "danger": "#ef4444",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151; 
+            border-radius: 3px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen flex flex-col overflow-hidden selection:bg-primary selection:text-white">
+<!-- Sticky Top Navigation -->
+<header class="sticky top-0 z-50 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center justify-between p-4 pb-2">
+<button class="text-slate-900 dark:text-white flex items-center justify-center p-2 -ml-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<div class="flex-1 px-3 text-center">
+<h2 class="text-sm font-semibold tracking-wide uppercase text-slate-500 dark:text-slate-400">Stock Verify</h2>
+</div>
+<button class="text-slate-900 dark:text-white flex items-center justify-center p-2 -mr-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+<!-- Status Bar -->
+<div class="px-4 pb-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-warning" style="font-variation-settings: 'FILL' 1">database</span>
+<h1 class="text-warning text-lg font-bold tracking-tight">SQL MISMATCH</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-success"></span>
+</span>
+<span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">v14 • Online (Tunnel)</span>
+</div>
+</div>
+</div>
+</header>
+<!-- Scrollable Content Area -->
+<main class="flex-1 overflow-y-auto pb-32"> <!-- Padding bottom for sticky footer -->
+<div class="px-4 py-6 flex flex-col gap-6">
+<!-- Item Info Header -->
+<div>
+<h2 class="text-2xl font-bold leading-tight">Pipe - 4 inch PVC</h2>
+<p class="text-slate-400 text-sm mt-1">SKU: PP-400-PVC-IND • Loc: Warehouse A</p>
+</div>
+<!-- Truth Matrix -->
+<section class="flex flex-col gap-3">
+<h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">Truth Matrix</h3>
+<div class="grid grid-cols-2 gap-3">
+<!-- ERP Count -->
+<div class="bg-white dark:bg-surface-dark p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+<span class="material-symbols-outlined text-4xl">dns</span>
+</div>
+<p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">ERP Observed</p>
+<p class="text-3xl font-black tracking-tight text-slate-900 dark:text-white">120</p>
+<p class="text-[10px] text-warning font-medium mt-1">SQL Mismatch</p>
+</div>
+<!-- Verified Count -->
+<div class="bg-primary/10 dark:bg-primary/20 p-4 rounded-xl border border-primary/20 shadow-sm relative overflow-hidden">
+<div class="absolute top-0 right-0 p-2 opacity-10">
+<span class="material-symbols-outlined text-primary text-4xl">verified</span>
+</div>
+<p class="text-xs font-semibold text-primary uppercase mb-1">Verified</p>
+<p class="text-3xl font-black tracking-tight text-primary">105</p>
+</div>
+<!-- Staff Count -->
+<div class="bg-white dark:bg-surface-dark p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<p class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase mb-1">Staff</p>
+<p class="text-2xl font-bold text-slate-900 dark:text-white">105</p>
+</div>
+<!-- Variance (Highlight) -->
+<div class="bg-warning/10 dark:bg-warning/10 p-4 rounded-xl border border-warning/30 shadow-sm col-span-1">
+<p class="text-xs font-semibold text-warning uppercase mb-1">Variance</p>
+<div class="flex items-baseline gap-2">
+<p class="text-2xl font-bold text-warning">-15</p>
+<span class="text-xs font-bold text-warning bg-warning/20 px-1.5 py-0.5 rounded">-12.5%</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Location Breakdown -->
+<section class="flex flex-col gap-3">
+<div class="flex items-center justify-between px-1">
+<h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Location Breakdown</h3>
+<span class="text-xs font-medium text-slate-400 bg-surface-darker px-2 py-0.5 rounded-full border border-slate-700">Sum: 105</span>
+</div>
+<div class="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden divide-y divide-slate-200 dark:divide-slate-800">
+<div class="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-surface-darker/50 transition-colors">
+<div class="flex items-center gap-3">
+<div class="bg-primary/10 p-2 rounded-lg text-primary">
+<span class="material-symbols-outlined text-[20px]">shelves</span>
+</div>
+<div>
+<p class="text-sm font-semibold text-slate-900 dark:text-white">Warehouse A - Rack 3</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Primary Pick Location</p>
+</div>
+</div>
+<span class="text-lg font-bold text-slate-900 dark:text-white">50</span>
+</div>
+<div class="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-surface-darker/50 transition-colors">
+<div class="flex items-center gap-3">
+<div class="bg-primary/10 p-2 rounded-lg text-primary">
+<span class="material-symbols-outlined text-[20px]">pallet</span>
+</div>
+<div>
+<p class="text-sm font-semibold text-slate-900 dark:text-white">Warehouse A - Floor</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Overflow Storage</p>
+</div>
+</div>
+<span class="text-lg font-bold text-slate-900 dark:text-white">55</span>
+</div>
+</div>
+</section>
+<!-- Evidence Panel -->
+<section class="flex flex-col gap-3">
+<h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 px-1">Evidence &amp; Remarks</h3>
+<div class="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-slate-800 p-4 flex flex-col gap-4">
+<div class="flex gap-4 items-start">
+<div class="relative shrink-0 group cursor-pointer">
+<div class="h-20 w-20 rounded-lg overflow-hidden border border-slate-700 bg-slate-800">
+<img alt="Close up of stacked industrial PVC pipes in a warehouse" class="h-full w-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="Close up of stacked industrial PVC pipes in a warehouse" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD97THMuw9tuiAjBm57sFdLMzDqysDeaAinCx_9d0-CAqdxxF-zQ62cJpi1ZENNj7wrPWkUdi5jF6Bs3KJifvdXThExS0vHHZdZTJN349ARbjIMrSBqjrB0yGnepFpaV9fOShsfRlkJdFeYMYRDyLEw6vAZyIKArZd5wQLqv4zP-r9CU379AraX5Wu4JT8cN3dMh3B2M_WrsZxrFrYsDfO6yIylYQ_Q4gZQGsmm6qLYR7cQmZBNVi0jcWR35wtuSJv3MT741vKyKOAT"/>
+</div>
+<div class="absolute -bottom-2 -right-2 bg-slate-900 text-white p-1 rounded-full border border-slate-600 shadow-sm flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">zoom_in</span>
+</div>
+</div>
+<div class="flex-1">
+<label class="text-[10px] uppercase font-bold text-slate-500 mb-1 block">Staff Remark</label>
+<p class="text-sm text-slate-900 dark:text-white leading-relaxed">"15 units missing from floor; probable shipment error on last Tuesday's intake."</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Action Gate Panel -->
+<div class="bg-surface-darker/50 rounded-lg border border-success/30 p-3 flex items-center gap-3">
+<div class="bg-success/10 rounded-full p-1.5 shrink-0">
+<span class="material-symbols-outlined text-success text-[18px]">check_circle</span>
+</div>
+<div>
+<p class="text-sm font-medium text-success">Action Requirements Met</p>
+<p class="text-xs text-slate-400">High variance evidence provided.</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Sticky Bottom Actions -->
+<div class="fixed bottom-0 left-0 right-0 p-4 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 z-40">
+<button class="w-full h-14 bg-primary hover:bg-blue-600 active:bg-blue-700 text-white text-base font-bold rounded-xl shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-all transform active:scale-[0.99]">
+<span>Submit Count</span>
+<span class="text-blue-200 text-sm font-normal">(idemp_912)</span>
+<span class="material-symbols-outlined text-[20px]">send</span>
+</button>
+</div>
+</body></html>

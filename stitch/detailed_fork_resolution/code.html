@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Detailed Fork Resolution</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+            extend: {
+                colors: {
+                "primary": "#137fec",
+                "background-light": "#f6f7f8",
+                "background-dark": "#101922",
+                },
+                fontFamily: {
+                "display": ["Inter"]
+                },
+                borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased text-slate-900 dark:text-white">
+<div class="relative flex h-full min-h-screen w-full flex-col overflow-x-hidden max-w-md mx-auto border-x border-slate-800/50 shadow-2xl">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-20 flex items-center justify-between bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-4">
+<button class="flex items-center justify-center text-slate-900 dark:text-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<h1 class="text-lg font-bold leading-tight tracking-tight">Resolve Fork: SP-900</h1>
+</div>
+<button class="flex items-center justify-center text-slate-900 dark:text-white hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-2xl">more_vert</span>
+</button>
+</header>
+<!-- Main Content Scroll Area -->
+<main class="flex-1 overflow-y-auto pb-32">
+<!-- Item Identity -->
+<div class="px-4 pt-6 pb-2">
+<h2 class="text-2xl font-bold leading-tight mb-3">Industrial Steel Pipe</h2>
+<div class="flex flex-wrap gap-2">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-500 border border-red-500/20">
+<span class="material-symbols-outlined text-sm font-bold">warning</span>
+<span class="text-xs font-bold tracking-wide uppercase">FRAGILE</span>
+</span>
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+<span class="material-symbols-outlined text-sm">layers</span>
+<span class="text-xs font-bold tracking-wide uppercase">LOCATION-OVERLAY</span>
+</span>
+</div>
+</div>
+<!-- Comparison Matrix -->
+<div class="px-4 py-4">
+<h3 class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider">Count Conflict</h3>
+<div class="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory no-scrollbar">
+<!-- Original -->
+<div class="snap-center min-w-[140px] flex-1 flex flex-col justify-between rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4">
+<div>
+<p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">SQL Observer</p>
+<p class="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Original Baseline</p>
+</div>
+<div class="mt-4">
+<p class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">100</p>
+</div>
+</div>
+<!-- Staff B -->
+<div class="snap-center min-w-[140px] flex-1 flex flex-col justify-between rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 p-4">
+<div>
+<div class="flex items-center gap-1">
+<p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase">Staff B</p>
+<span class="bg-slate-700 text-[10px] px-1.5 rounded text-slate-300">v13</span>
+</div>
+<p class="text-xs text-green-400 mt-0.5 flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">sync</span> 2m ago
+                            </p>
+</div>
+<div class="mt-4">
+<p class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">110</p>
+</div>
+</div>
+<!-- Staff A (Selected Highlight) -->
+<div class="snap-center min-w-[140px] flex-1 flex flex-col justify-between rounded-xl bg-primary/10 border border-primary/50 p-4 relative overflow-hidden">
+<div class="absolute -right-3 -top-3 w-12 h-12 bg-primary/20 rounded-full blur-xl"></div>
+<div>
+<div class="flex items-center gap-1">
+<p class="text-xs font-bold text-primary uppercase">Staff A</p>
+<span class="bg-primary text-[10px] px-1.5 rounded text-white font-bold">v12</span>
+</div>
+<p class="text-xs text-primary/80 mt-0.5 flex items-center gap-1">
+<span class="material-symbols-outlined text-[10px]">draft</span> Local Draft
+                            </p>
+</div>
+<div class="mt-4">
+<p class="text-3xl font-bold tracking-tight text-primary">105</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Evidence Section -->
+<div class="px-4 py-2">
+<div class="flex items-center justify-between mb-3">
+<h3 class="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Evidence (Staff A)</h3>
+<button class="text-xs text-primary font-medium hover:text-primary/80">View All</button>
+</div>
+<div class="flex gap-3 overflow-x-auto pb-4 snap-x no-scrollbar">
+<div class="snap-start shrink-0 relative w-32 h-32 rounded-lg overflow-hidden border border-slate-700 group">
+<img alt="Close up of steel pipe texture" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="Close up of rusty industrial steel pipes" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD4htCONDqNIhG97Hv-PR6-FAV0_s6ogrloJuKInpWapRhGitHdbypdmDZrSXdo2sBUCUoK1Wnxc1jDWZGpOJlgTJNlDsv0sS6EB7GSLTqxay2Ye8y9gvpTXieMXCC7FyGlN7hAfMsn3lly0eF9gkXHkS3kmzYx5EsUizieRGI4qu0pRNbh2dpxqwEy973WFjKVLRbqIGKfbG9_V0VYcxL7RT7bSvnDhVSz__cFMn-h6FcNhQiFCyrSTzPMxGpu0_QqXZ1Wzaai5erq"/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
+<span class="text-xs text-white font-medium truncate">Damage.jpg</span>
+</div>
+</div>
+<div class="snap-start shrink-0 relative w-32 h-32 rounded-lg overflow-hidden border border-slate-700 group">
+<img alt="Warehouse interior shelf view" class="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" data-alt="Dimly lit warehouse shelving unit" src=""/>
+<div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex items-end p-2">
+<span class="text-xs text-white font-medium truncate">Shelf_B2.jpg</span>
+</div>
+</div>
+<div class="snap-start shrink-0 relative w-32 h-32 rounded-lg overflow-hidden border border-slate-700 group bg-slate-800 flex items-center justify-center">
+<span class="material-symbols-outlined text-slate-500">add_a_photo</span>
+</div>
+</div>
+</div>
+<div class="h-px w-full bg-slate-800 my-2"></div>
+<!-- Resolution Form -->
+<div class="px-4 pt-4">
+<h3 class="text-sm font-medium text-slate-500 dark:text-slate-400 mb-4 uppercase tracking-wider">Decision</h3>
+<div class="space-y-3">
+<!-- Option 1 -->
+<label class="relative flex items-center p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:ring-1 has-[:checked]:ring-primary/50">
+<input checked="" class="peer h-5 w-5 border-slate-300 text-primary focus:ring-primary bg-transparent" name="resolution" type="radio" value="staff_a"/>
+<div class="ml-3 flex-1 flex justify-between items-center">
+<div>
+<span class="block text-sm font-semibold text-slate-900 dark:text-white">Accept Staff A (v12)</span>
+<span class="block text-xs text-slate-500 dark:text-slate-400">Updates count to 105</span>
+</div>
+<span class="text-xs font-bold px-2 py-1 rounded bg-primary/20 text-primary">Recommended</span>
+</div>
+</label>
+<!-- Option 2 -->
+<label class="relative flex items-center p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:ring-1 has-[:checked]:ring-primary/50">
+<input class="peer h-5 w-5 border-slate-300 text-primary focus:ring-primary bg-transparent" name="resolution" type="radio" value="staff_b"/>
+<div class="ml-3 flex-1 flex justify-between items-center">
+<div>
+<span class="block text-sm font-semibold text-slate-900 dark:text-white">Accept Staff B (v13)</span>
+<span class="block text-xs text-slate-500 dark:text-slate-400">Keeps count at 110</span>
+</div>
+</div>
+</label>
+<!-- Option 3 -->
+<label class="relative flex items-center p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/30 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all has-[:checked]:border-primary has-[:checked]:bg-primary/5 has-[:checked]:ring-1 has-[:checked]:ring-primary/50">
+<input class="peer h-5 w-5 border-slate-300 text-primary focus:ring-primary bg-transparent" name="resolution" type="radio" value="manual"/>
+<div class="ml-3">
+<span class="block text-sm font-semibold text-slate-900 dark:text-white">Manual Adjustment</span>
+<span class="block text-xs text-slate-500 dark:text-slate-400">Enter a new value</span>
+</div>
+</label>
+</div>
+<!-- Remark Field -->
+<div class="mt-6">
+<label class="block text-sm font-medium text-slate-300 mb-2" for="remark">
+                        Supervisor Remark <span class="text-red-400">*</span>
+</label>
+<textarea class="w-full rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:border-primary focus:ring-primary sm:text-sm p-3 resize-none" id="remark" placeholder="Justification for decision..." rows="3"></textarea>
+</div>
+</div>
+</main>
+<!-- Sticky Footer Action Bar -->
+<div class="fixed bottom-0 left-0 right-0 max-w-md mx-auto z-20 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 p-4 pb-8 space-y-3">
+<button class="w-full flex items-center justify-center gap-2 rounded-lg bg-primary py-3.5 px-4 text-sm font-bold text-white shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-slate-900 transition-all">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+                Finalize &amp; Update Mongo SoT
+            </button>
+<button class="w-full flex items-center justify-center gap-2 rounded-lg bg-transparent border border-slate-200 dark:border-slate-700 py-3 px-4 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-lg">restart_alt</span>
+                Request Re-count
+            </button>
+</div>
+</div>
+</body></html>

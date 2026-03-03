@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login: Backend Unstable</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white antialiased min-h-screen flex flex-col">
+<!-- Top Status Bar (Simulated iOS Safe Area & App Header) -->
+<div class="sticky top-0 z-10 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 pb-2">
+<!-- iOS Status Bar Placeholder -->
+<div class="h-12 w-full flex justify-between items-end px-6 pb-2 text-xs font-semibold dark:text-white">
+<span>9:41</span>
+<div class="flex gap-1 items-center">
+<span class="material-symbols-outlined text-[16px]">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-[16px]">wifi</span>
+<span class="material-symbols-outlined text-[16px] -rotate-90">battery_full</span>
+</div>
+</div>
+<!-- System Status Header -->
+<div class="px-4 pt-2">
+<div class="flex items-center justify-between mb-3">
+<div class="text-slate-900 dark:text-white flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+<span class="material-symbols-outlined">arrow_back</span>
+</div>
+<h2 class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">System Status</h2>
+<div class="size-10"></div> <!-- Spacer for centering -->
+</div>
+<!-- Badges -->
+<div class="flex gap-3 justify-center flex-wrap">
+<!-- Amber Badge -->
+<div class="flex h-7 items-center justify-center gap-x-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 px-3">
+<span class="material-symbols-outlined text-amber-500 text-[18px]">wifi_tethering</span>
+<p class="text-amber-500 text-xs font-bold tracking-wide">TUNNEL: AMBER</p>
+</div>
+<!-- Yellow Badge -->
+<div class="flex h-7 items-center justify-center gap-x-1.5 rounded-full bg-yellow-500/10 border border-yellow-500/30 px-3">
+<span class="material-symbols-outlined text-yellow-500 text-[18px]">dns</span>
+<p class="text-yellow-500 text-xs font-bold tracking-wide">BACKEND: UNSTABLE</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col px-6 pt-4 pb-8 max-w-md mx-auto w-full">
+<!-- Performance Warning Alert -->
+<div class="mb-8 animate-pulse-slow">
+<div class="flex flex-col gap-3 rounded-xl border border-yellow-600/50 bg-yellow-900/10 p-4">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-yellow-500 shrink-0 mt-0.5">warning</span>
+<div class="flex flex-col gap-1">
+<p class="text-yellow-500 text-sm font-bold leading-tight">Performance Degradation</p>
+<p class="text-yellow-200/80 text-sm font-normal leading-relaxed">
+                            Mongo SoT is responding slowly. Login may take longer than usual. SQL Observer is currently unavailable.
+                        </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Branding -->
+<div class="flex flex-col items-center mb-10">
+<div class="size-16 rounded-2xl bg-gradient-to-br from-blue-600 to-primary flex items-center justify-center shadow-lg shadow-primary/20 mb-6">
+<span class="material-symbols-outlined text-white text-3xl">inventory_2</span>
+</div>
+<h1 class="text-slate-900 dark:text-white tracking-tight text-3xl font-bold leading-tight text-center">Stock Verify</h1>
+<p class="text-slate-500 dark:text-slate-400 text-base font-medium leading-normal text-center mt-2">Secure Device Login</p>
+</div>
+<!-- Login Form -->
+<form class="flex flex-col gap-5 w-full">
+<!-- Email Input -->
+<div class="space-y-1.5">
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300" for="email">Employee ID / Email</label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-400 group-focus-within:text-primary transition-colors">person</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-3 rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all sm:text-sm" id="email" placeholder="Enter your ID" type="text" value="emp_89221"/>
+</div>
+</div>
+<!-- Password Input -->
+<div class="space-y-1.5">
+<label class="block text-sm font-medium text-slate-700 dark:text-slate-300" for="password">Password</label>
+<div class="relative group">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-400 group-focus-within:text-primary transition-colors">lock</span>
+</div>
+<input class="block w-full pl-10 pr-10 py-3 rounded-lg border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800/50 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all sm:text-sm" id="password" placeholder="••••••••••••" type="password" value="password123"/>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer">
+<span class="material-symbols-outlined text-slate-400 hover:text-slate-200">visibility</span>
+</div>
+</div>
+</div>
+<!-- Remember Me & Forgot Password -->
+<div class="flex items-center justify-between">
+<label class="relative flex cursor-pointer items-center gap-2">
+<input checked="" class="peer sr-only" type="checkbox"/>
+<div class="h-4 w-4 rounded border border-slate-300 dark:border-slate-600 bg-transparent peer-checked:bg-primary peer-checked:border-primary transition-all flex items-center justify-center">
+<span class="material-symbols-outlined text-white text-[12px] opacity-0 peer-checked:opacity-100">check</span>
+</div>
+<span class="text-sm text-slate-600 dark:text-slate-400 select-none">Remember device</span>
+</label>
+<a class="text-sm font-medium text-primary hover:text-primary/80 transition-colors" href="#">Forgot password?</a>
+</div>
+<!-- Login Button with Loading State -->
+<button class="mt-4 w-full flex items-center justify-center gap-3 rounded-xl bg-primary px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary transition-all active:scale-[0.98] cursor-wait opacity-90" type="button">
+<span class="material-symbols-outlined animate-spin text-[20px]">progress_activity</span>
+                Logging In...
+            </button>
+</form>
+<!-- Spacer -->
+<div class="flex-1"></div>
+<!-- Footer Info -->
+<div class="mt-8 flex flex-col items-center gap-4">
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+<span class="material-symbols-outlined text-slate-400 text-[16px]">phonelink_lock</span>
+<p class="text-xs font-mono text-slate-500 dark:text-slate-400">Device ID: 8A-F1-00-22</p>
+</div>
+<a class="text-sm text-slate-500 dark:text-slate-400 hover:text-white transition-colors flex items-center gap-1" href="#">
+                Contact IT Support
+                <span class="material-symbols-outlined text-[16px]">open_in_new</span>
+</a>
+</div>
+</main>
+</body></html>

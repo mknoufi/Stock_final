@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Access Restricted | Stock Verify 2026</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#f20d0d",
+                        "background-light": "#f8f5f5",
+                        "background-dark": "#120808",
+                        "surface-dark": "#1c0d0d",
+                        "border-dark": "#321616",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.05); }
+        }
+        .animate-pulse-slow {
+            animation: pulse-red 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen flex items-center justify-center selection:bg-primary selection:text-white">
+<!-- Main Container -->
+<div class="relative w-full max-w-2xl px-6 py-12 flex flex-col items-center">
+<!-- Background Glow Effect -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-primary/10 rounded-full blur-[120px] pointer-events-none"></div>
+<!-- App Branding -->
+<div class="mb-12 flex items-center gap-2 opacity-60">
+<span class="material-symbols-outlined text-xl">shield_with_heart</span>
+<span class="text-sm font-bold tracking-widest uppercase">Stock Verify 2026</span>
+</div>
+<!-- Alert Icon -->
+<div class="relative mb-8">
+<div class="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse-slow"></div>
+<div class="relative bg-primary/10 border border-primary/30 p-6 rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-6xl leading-none">lock_person</span>
+</div>
+</div>
+<!-- Error Message -->
+<div class="text-center space-y-4 mb-12">
+<h1 class="text-4xl md:text-5xl font-bold tracking-tighter text-white uppercase">
+                Access <span class="text-primary">Blocked</span>
+</h1>
+<p class="text-slate-400 max-w-md mx-auto leading-relaxed">
+                Cloudflare Zero Trust Policy Enforcement: Your device or network is not authorized for write access to this environment.
+            </p>
+</div>
+<!-- Diagnostics Panel -->
+<div class="w-full bg-surface-dark/50 border border-border-dark rounded-xl p-6 mb-10 backdrop-blur-sm">
+<div class="flex items-center gap-2 mb-6 border-b border-border-dark pb-3">
+<span class="material-symbols-outlined text-slate-500 text-sm">settings_input_component</span>
+<span class="text-xs font-bold uppercase tracking-widest text-slate-500">Diagnostics</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- CF-Ray -->
+<div class="flex flex-col gap-1">
+<span class="text-[10px] uppercase font-bold text-slate-500 tracking-tighter">CF-Ray</span>
+<span class="text-sm font-mono text-white">8723-XY</span>
+</div>
+<!-- Edge -->
+<div class="flex flex-col gap-1">
+<span class="text-[10px] uppercase font-bold text-slate-500 tracking-tighter">Edge</span>
+<div class="flex items-center gap-1.5">
+<div class="h-1.5 w-1.5 rounded-full bg-emerald-500"></div>
+<span class="text-sm font-medium text-emerald-400">Reachable</span>
+</div>
+</div>
+<!-- Backend -->
+<div class="flex flex-col gap-1">
+<span class="text-[10px] uppercase font-bold text-slate-500 tracking-tighter">Backend</span>
+<div class="flex items-center gap-1.5">
+<div class="h-1.5 w-1.5 rounded-full bg-primary"></div>
+<span class="text-sm font-medium text-primary">Blocked</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Actions -->
+<div class="flex flex-col items-center gap-6 w-full max-w-sm">
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 px-8 rounded-lg transition-all active:scale-[0.98] shadow-lg shadow-primary/20">
+                Request Access
+            </button>
+<a class="text-sm text-slate-500 hover:text-white transition-colors flex items-center gap-2 group" href="#">
+<span class="material-symbols-outlined text-lg group-hover:text-primary transition-colors">visibility</span>
+                Continue in Read-Only Mode
+            </a>
+</div>
+<!-- Footer Footer (Minimalist) -->
+<div class="mt-24 text-[10px] text-slate-600 uppercase tracking-[0.2em] font-medium text-center">
+            Cloudflare Gateway • Policy ID: SVC-2026-SEC
+        </div>
+</div>
+</body></html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Branded Serial Duplicate Hard-Block UI - Lavanya eMart</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#256af4",
+                        "background-light": "#f5f6f8",
+                        "background-dark": "#101622",
+                        "charcoal": "#1A1A1A",
+                        "alert": "#EF4444"
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .scanner-viewport {
+            position: relative;
+            overflow: hidden;
+        }
+        .scanner-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: rgba(37, 106, 244, 0.5);
+            box-shadow: 0 0 15px rgba(37, 106, 244, 0.8);
+            top: 50%;
+            animation: none; /* Frozen due to hard-block */
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-display">
+<!-- Top Navigation & StatusRail -->
+<header class="w-full bg-background-dark border-b border-slate-800/60 z-50">
+<div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+<!-- Brand Logo -->
+<div class="flex items-center gap-3">
+<div class="bg-primary p-1.5 rounded-lg flex items-center justify-center">
+<svg class="w-6 h-6 text-white" fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M47.2426 24L24 47.2426L0.757355 24L24 0.757355L47.2426 24ZM12.2426 21H35.7574L24 9.24264L12.2426 21Z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+<h1 class="text-xl font-bold tracking-tight text-white">Lavanya <span class="text-primary">eMart</span></h1>
+</div>
+<!-- StatusRail (Cloudflare Zero Trust Status) -->
+<div class="flex items-center gap-3">
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
+<span class="flex h-2 w-2 rounded-full bg-primary"></span>
+<span class="text-xs font-semibold text-primary uppercase tracking-wider">Access: Allowed</span>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800 border border-slate-700">
+<span class="material-symbols-outlined text-[14px] text-slate-400">verified_user</span>
+<span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Device Bound</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center overflow-hidden ml-2">
+<img alt="Staff Portrait" data-alt="Small circular avatar for staff member" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBu12BGDkahbYfTRKRtcam8JSDOKw7SQDkHBpN5kdL0qr2-mkWUZTsRaYOj0VSh1C7KlVBQrsZh1yLQEopn6mJzgsdV0nmth5kpqBdGc6hTe8eRJp8nBhQuJwrUc4a72lGQlY9lUSSk1YYqeqEiOOMLldbiIT92svBThg-OQbvv39Diq_tkF49YbWOZ0YnAdoc2aOEXuiQaWdMUIq5vMRseln_yp3Vt2A0zSWzayKkBvxhacBoEwxS-Yvpi5T4FYf4aof2ZKWEhhstG"/>
+</div>
+</div>
+</div>
+</header>
+<!-- Main Content Area: Scanning Interface -->
+<main class="flex-grow flex items-center justify-center p-6 relative overflow-hidden">
+<!-- Simulated Background Scanning Viewport (Desktop Mockup) -->
+<div class="relative w-full max-w-md aspect-[9/16] bg-black rounded-3xl border-[12px] border-slate-800 shadow-2xl overflow-hidden flex flex-col">
+<!-- Scanner Header -->
+<div class="absolute top-0 left-0 w-full p-6 z-10 bg-gradient-to-b from-black/80 to-transparent">
+<p class="text-slate-400 text-xs font-medium uppercase tracking-[0.2em]">Scan Engine v4.2</p>
+<p class="text-white text-sm font-semibold mt-1 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm">sensors</span>
+                    Live Feed: Active
+                </p>
+</div>
+<!-- Background Feed (Blurred due to error) -->
+<div class="absolute inset-0 bg-slate-900 scanner-viewport opacity-40 blur-sm">
+<div class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&amp;w=2070&amp;auto=format&amp;fit=crop')] bg-cover bg-center" data-alt="Warehouse shelving with boxes and barcodes"></div>
+<div class="scanner-line"></div>
+<!-- Overlay Grids -->
+<div class="absolute inset-0 grid grid-cols-4 grid-rows-6 pointer-events-none">
+<div class="border-[0.5px] border-white/5"></div>
+<div class="border-[0.5px] border-white/5"></div>
+<div class="border-[0.5px] border-white/5"></div>
+<div class="border-[0.5px] border-white/5"></div>
+<div class="border-[0.5px] border-white/5"></div>
+<div class="border-[0.5px] border-white/5"></div>
+</div>
+</div>
+<!-- HARD-BLOCK MODAL OVERLAY -->
+<div class="absolute inset-0 z-40 bg-black/60 backdrop-blur-md flex items-center justify-center p-6">
+<div class="w-full bg-charcoal border-2 border-alert rounded-2xl shadow-[0_0_50px_rgba(239,68,68,0.3)] overflow-hidden flex flex-col">
+<!-- Alert Header -->
+<div class="bg-alert/10 px-5 py-6 text-center border-b border-alert/20">
+<span class="material-symbols-outlined text-alert text-5xl mb-3 block" style="font-variation-settings: 'FILL' 1;">warning</span>
+<h2 class="text-alert text-xl font-extrabold leading-tight tracking-tight uppercase">
+                            Duplicate Serial<br/>Detected
+                        </h2>
+</div>
+<!-- Conflict Metadata -->
+<div class="p-6 space-y-4">
+<div class="space-y-3">
+<div class="flex justify-between items-center py-2 border-b border-slate-800">
+<span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Serial Number</span>
+<span class="text-white font-mono font-bold text-sm">#SN-9821</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-slate-800">
+<span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Verified In</span>
+<span class="text-slate-300 font-semibold text-sm">Session #XJ92</span>
+</div>
+<div class="flex justify-between items-center py-2 border-b border-slate-800">
+<span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Scanned By</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[14px] text-slate-400">person</span>
+<span class="text-slate-300 font-semibold text-sm">Staff_01</span>
+</div>
+</div>
+<div class="flex justify-between items-center py-2">
+<span class="text-slate-500 text-xs font-medium uppercase tracking-wider">Timestamp</span>
+<span class="text-slate-300 font-semibold text-sm">10:45 AM</span>
+</div>
+</div>
+<!-- System Warning Text -->
+<div class="bg-slate-900/50 rounded-lg p-3 border border-slate-800">
+<p class="text-[10px] text-slate-400 leading-relaxed italic text-center">
+                                Governance Policy: Hard-block enforced. Duplicates must be resolved before current session can proceed.
+                            </p>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="px-6 pb-6 flex flex-col gap-3">
+<button class="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-alert text-white font-bold text-sm tracking-wide shadow-lg shadow-alert/20 hover:bg-alert/90 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+                            ACKNOWLEDGE &amp; CLOSE
+                        </button>
+<button class="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-transparent border border-primary/40 text-primary font-bold text-sm tracking-wide hover:bg-primary/5 transition-all">
+<span class="material-symbols-outlined text-[18px]">history</span>
+                            VIEW CONFLICT
+                        </button>
+</div>
+</div>
+</div>
+<!-- Mobile Home Indicator Mockup -->
+<div class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-slate-700 rounded-full"></div>
+</div>
+<!-- Background Ambient Elements -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] -z-10"></div>
+</main>
+<!-- Footer Security Message -->
+<footer class="w-full py-4 px-6 border-t border-slate-800/40 text-center">
+<div class="flex items-center justify-center gap-6 text-[11px] text-slate-500 uppercase tracking-[0.1em] font-medium">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-green-500">lock</span>
+                Secure Cloudflare Tunnel Active
+            </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px] text-primary">hub</span>
+                Node: LVM-EAST-04
+            </div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[14px]">terminal</span>
+                Engine: 4.2.0-PROD
+            </div>
+</div>
+</footer>
+</body></html>

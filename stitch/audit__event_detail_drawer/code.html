@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Audit: Event Detail Drawer</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for code blocks */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-white overflow-hidden h-screen w-screen flex flex-col relative">
+<!-- Main Content (Dimmed Background) -->
+<div class="flex-1 flex flex-col overflow-y-auto opacity-30 pointer-events-none blur-[2px] transition-all duration-300">
+<!-- Top App Bar -->
+<div class="flex items-center bg-[#111418] p-4 pb-2 justify-between sticky top-0 z-10 border-b border-[#283039]">
+<div class="text-white flex size-12 shrink-0 items-center">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</div>
+<h2 class="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1">Audit Log</h2>
+<div class="flex w-12 items-center justify-end">
+<button class="flex items-center justify-center text-white h-12 w-12">
+<span class="material-symbols-outlined text-2xl">filter_list</span>
+</button>
+</div>
+</div>
+<!-- Search Bar -->
+<div class="px-4 py-3 bg-[#111418]">
+<label class="flex flex-col min-w-40 h-12 w-full">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full bg-[#283039]">
+<div class="text-[#9dabb9] flex items-center justify-center pl-4 pr-2">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="flex w-full min-w-0 flex-1 bg-transparent text-white placeholder:text-[#9dabb9] focus:outline-0 px-2 text-base font-normal leading-normal" placeholder="Search audit trails..." value=""/>
+</div>
+</label>
+</div>
+<!-- Audit List Items (Dimmed context) -->
+<div class="flex flex-col">
+<!-- Item 1 -->
+<div class="flex items-center gap-4 bg-[#111418] px-4 min-h-[72px] py-3 border-b border-[#283039]">
+<div class="text-white flex items-center justify-center rounded-lg bg-[#283039] shrink-0 size-12">
+<span class="material-symbols-outlined text-primary">genetics</span>
+</div>
+<div class="flex flex-col justify-center flex-1">
+<div class="flex justify-between items-center mb-1">
+<p class="text-white text-base font-medium leading-normal">COUNT_SUBMIT</p>
+<span class="text-xs font-mono text-primary bg-primary/20 px-1.5 py-0.5 rounded">ID:882a</span>
+</div>
+<p class="text-[#9dabb9] text-sm font-normal leading-normal line-clamp-1">Staff A • Zebra-01</p>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="flex items-center gap-4 bg-[#111418] px-4 min-h-[72px] py-3 border-b border-[#283039]">
+<div class="text-white flex items-center justify-center rounded-lg bg-[#283039] shrink-0 size-12">
+<span class="material-symbols-outlined">qr_code_scanner</span>
+</div>
+<div class="flex flex-col justify-center flex-1">
+<p class="text-white text-base font-medium leading-normal">SCAN_ITEM</p>
+<p class="text-[#9dabb9] text-sm font-normal leading-normal">Staff A • Zebra-01 • 10:42 AM</p>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="flex items-center gap-4 bg-[#111418] px-4 min-h-[72px] py-3 border-b border-[#283039]">
+<div class="text-white flex items-center justify-center rounded-lg bg-[#283039] shrink-0 size-12">
+<span class="material-symbols-outlined">login</span>
+</div>
+<div class="flex flex-col justify-center flex-1">
+<p class="text-white text-base font-medium leading-normal">SESSION_START</p>
+<p class="text-[#9dabb9] text-sm font-normal leading-normal">Staff A • Zebra-01 • 08:00 AM</p>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="flex items-center gap-4 bg-[#111418] px-4 min-h-[72px] py-3 border-b border-[#283039]">
+<div class="text-white flex items-center justify-center rounded-lg bg-[#283039] shrink-0 size-12">
+<span class="material-symbols-outlined">logout</span>
+</div>
+<div class="flex flex-col justify-center flex-1">
+<p class="text-white text-base font-medium leading-normal">SESSION_END</p>
+<p class="text-[#9dabb9] text-sm font-normal leading-normal">Staff B • Zebra-02 • 07:55 AM</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Drawer Overlay -->
+<div class="absolute inset-0 z-50 flex flex-col justify-end">
+<!-- Backdrop click area -->
+<div class="flex-1 w-full bg-black/60 backdrop-blur-sm" onclick="/* Close logic would go here */"></div>
+<!-- Drawer Content -->
+<div class="bg-[#1e252b] w-full max-h-[90vh] rounded-t-2xl shadow-2xl flex flex-col overflow-hidden animate-slide-up border-t border-[#343e49]">
+<!-- Handle -->
+<div class="w-full flex items-center justify-center pt-3 pb-2 shrink-0 cursor-grab active:cursor-grabbing">
+<div class="w-12 h-1.5 bg-[#404c59] rounded-full"></div>
+</div>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto px-5 pb-8 pt-2">
+<!-- Header -->
+<div class="flex flex-col gap-1 mb-6">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded text-xs font-bold bg-primary text-white tracking-wide">COUNT_SUBMIT</span>
+<span class="text-[#9dabb9] text-xs font-mono">10:45:22 AM UTC</span>
+</div>
+<button class="text-[#9dabb9] hover:text-white">
+<span class="material-symbols-outlined text-[20px]">ios_share</span>
+</button>
+</div>
+<div class="flex items-center gap-2 mt-2">
+<h1 class="text-2xl font-bold text-white tracking-tight">Event Detail</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[#9dabb9] text-sm">Key:</span>
+<code class="text-sm font-mono text-white bg-[#283039] px-1.5 py-0.5 rounded border border-[#343e49]">idemp_882a...99z</code>
+<button class="text-[#9dabb9] hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[16px]">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Actor Card -->
+<div class="bg-[#283039]/50 rounded-xl p-4 border border-[#343e49] mb-6">
+<h3 class="text-xs font-bold text-[#9dabb9] uppercase tracking-wider mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">badge</span> Actor &amp; Route
+                    </h3>
+<div class="flex flex-col gap-3">
+<div class="flex items-start gap-3">
+<div class="mt-0.5 bg-[#1e252b] p-1.5 rounded-lg border border-[#343e49]">
+<span class="material-symbols-outlined text-[#9dabb9] text-sm">person</span>
+</div>
+<div>
+<p class="text-sm text-white font-medium">Staff A (Warehouse Ops)</p>
+<p class="text-xs text-[#9dabb9]">User ID: USR-1002</p>
+</div>
+</div>
+<div class="h-px bg-[#343e49] w-full"></div>
+<div class="flex items-start gap-3">
+<div class="mt-0.5 bg-[#1e252b] p-1.5 rounded-lg border border-[#343e49]">
+<span class="material-symbols-outlined text-[#9dabb9] text-sm">devices</span>
+</div>
+<div>
+<p class="text-sm text-white font-medium">Zebra-01 Handheld</p>
+<p class="text-xs text-[#9dabb9]">IP: 10.0.4.22 • v2.4.1 App</p>
+</div>
+</div>
+<div class="h-px bg-[#343e49] w-full"></div>
+<div class="flex items-start gap-3">
+<div class="mt-0.5 bg-[#1e252b] p-1.5 rounded-lg border border-[#343e49]">
+<span class="material-symbols-outlined text-[#9dabb9] text-sm">vpn_lock</span>
+</div>
+<div>
+<p class="text-sm text-white font-medium">Cloudflare TUNNEL</p>
+<p class="text-xs text-[#9dabb9]">Secure Gateway • us-east-1</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Payload Section -->
+<div class="mb-6">
+<h3 class="text-xs font-bold text-[#9dabb9] uppercase tracking-wider mb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">data_object</span> Payload Summary
+                    </h3>
+<div class="bg-[#111418] rounded-xl border border-[#343e49] overflow-hidden">
+<div class="flex items-center justify-between px-3 py-2 bg-[#1e252b] border-b border-[#343e49]">
+<span class="text-[10px] font-mono text-[#9dabb9]">application/json</span>
+<span class="text-[10px] font-mono text-primary cursor-pointer hover:underline">RAW VIEW</span>
+</div>
+<div class="p-4 font-mono text-sm overflow-x-auto">
+<div class="text-[#a5b3ce]"><span class="text-[#9dabb9]">{</span></div>
+<div class="pl-4 text-[#a5b3ce]">
+<span class="text-[#65aeff]">"Item"</span>: <span class="text-[#90e0ef]">"SP-900"</span>,
+                            </div>
+<div class="pl-4 text-[#a5b3ce]">
+<span class="text-[#65aeff]">"Qty"</span>: <span class="text-[#e2e8f0]">105</span>,
+                            </div>
+<div class="pl-4 text-[#a5b3ce]">
+<span class="text-[#65aeff]">"Mode"</span>: <span class="text-[#90e0ef]">"SERIAL"</span>,
+                            </div>
+<div class="pl-4 text-[#a5b3ce]">
+<span class="text-[#65aeff]">"BatchID"</span>: <span class="text-[#90e0ef]">"BATCH-2023-X"</span>
+</div>
+<div class="text-[#9dabb9]">}</div>
+</div>
+</div>
+</div>
+<!-- Lineage -->
+<div class="mb-6">
+<h3 class="text-xs font-bold text-[#9dabb9] uppercase tracking-wider mb-3 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">account_tree</span> Lineage
+                    </h3>
+<div class="flex items-center gap-4 bg-[#283039]/30 p-4 rounded-xl border border-[#343e49]">
+<div class="flex items-center gap-2">
+<div class="flex flex-col items-center gap-1">
+<div class="size-3 rounded-full bg-[#404c59]"></div>
+<span class="text-[10px] text-[#9dabb9] font-mono">v11</span>
+</div>
+<div class="h-0.5 w-12 bg-[#404c59]"></div>
+<div class="flex flex-col items-center gap-1">
+<div class="size-3 rounded-full bg-primary ring-4 ring-primary/20"></div>
+<span class="text-[10px] text-white font-mono font-bold">v12</span>
+</div>
+</div>
+<div class="flex flex-col ml-auto text-right">
+<span class="text-xs text-[#9dabb9]">Forked from</span>
+<span class="text-xs font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">conflict_fork_09</span>
+</div>
+</div>
+</div>
+<!-- Timeline -->
+<div class="mb-8">
+<h3 class="text-xs font-bold text-[#9dabb9] uppercase tracking-wider mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">history</span> Session Timeline
+                    </h3>
+<div class="pl-2">
+<!-- Step 1 -->
+<div class="flex gap-4 relative pb-6 group">
+<!-- Line -->
+<div class="absolute left-[5px] top-2 bottom-0 w-0.5 bg-[#343e49] group-last:hidden"></div>
+<div class="relative z-10 size-3 rounded-full bg-[#404c59] mt-1.5 ring-4 ring-[#1e252b]"></div>
+<div class="flex-1">
+<p class="text-xs text-[#9dabb9] font-mono mb-0.5">08:00 AM</p>
+<p class="text-sm text-[#9dabb9]">Session Open</p>
+</div>
+</div>
+<!-- Step 2 -->
+<div class="flex gap-4 relative pb-6 group">
+<!-- Line -->
+<div class="absolute left-[5px] top-2 bottom-0 w-0.5 bg-[#343e49] group-last:hidden"></div>
+<div class="relative z-10 size-3 rounded-full bg-[#404c59] mt-1.5 ring-4 ring-[#1e252b]"></div>
+<div class="flex-1">
+<p class="text-xs text-[#9dabb9] font-mono mb-0.5">10:00 AM</p>
+<p class="text-sm text-[#9dabb9]">Scan <span class="text-[#556372] text-xs ml-1">(Item SP-900)</span></p>
+</div>
+</div>
+<!-- Step 3 (Active) -->
+<div class="flex gap-4 relative group">
+<div class="relative z-10 size-3 rounded-full bg-primary mt-1.5 ring-4 ring-[#1e252b] shadow-[0_0_10px_rgba(19,127,236,0.5)]"></div>
+<div class="flex-1">
+<p class="text-xs text-primary font-mono font-bold mb-0.5">10:45 AM</p>
+<p class="text-sm text-white font-medium">Submit Count</p>
+<p class="text-xs text-[#556372] mt-1">Current Event</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Actions -->
+<div class="grid grid-cols-2 gap-3 mt-auto pt-4 border-t border-[#343e49]">
+<button class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-[#343e49] bg-[#283039]/50 hover:bg-[#343e49] active:scale-95 transition-all text-sm font-medium text-white group">
+<span class="material-symbols-outlined text-lg text-[#9dabb9] group-hover:text-white transition-colors">description</span>
+                        View Session
+                    </button>
+<button class="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border border-[#343e49] bg-[#283039]/50 hover:bg-[#343e49] active:scale-95 transition-all text-sm font-medium text-white group">
+<span class="material-symbols-outlined text-lg text-[#9dabb9] group-hover:text-white transition-colors">inventory_2</span>
+                        View Item
+                    </button>
+</div>
+<!-- Extra padding for bottom safe area on mobile -->
+<div class="h-6"></div>
+</div>
+</div>
+</div>
+</body></html>

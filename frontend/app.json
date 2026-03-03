@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "Lavanya Mart Stock Verify",
+    "slug": "lavanya-mart-stock-verify",
+    "version": "1.0.0",
+    "scheme": "lavanyamart",
+    "userInterfaceStyle": "automatic",
+    "description": "Modern stock verification system for Lavanya Mart inventory management",
+    "primaryColor": "#3B82F6",
+    "backgroundColor": "#FFFFFF",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "bundleIdentifier": "com.lavanyamart.stockverify",
+      "supportsTablet": true,
+      "userInterfaceStyle": "automatic",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ],
+        "NSLocalNetworkUsageDescription": "Lavanya Mart Stock Verify needs access to devices and services on your local network to connect to the backend.",
+        "NSBonjourServices": [
+          "_http._tcp.",
+          "_https._tcp."
+        ],
+        "NSCameraUsageDescription": "Lavanya Mart Stock Verify needs access to your camera to scan barcodes and serial numbers.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoadsInLocalNetwork": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.lavanyamart.stockverify",
+      "userInterfaceStyle": "automatic",
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.WAKE_LOCK",
+        "android.permission.CAMERA"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-background-fetch",
+        {
+          "isHeadless": true
+        }
+      ],
+      "./plugins/withQuotedReactNativeBundlePhase",
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera."
+        }
+      ]
+    ],
+    "web": {
+      "bundler": "metro"
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "5de080fe-7f2b-441d-a678-12a01debea9f"
+      }
+    }
+  }
+}

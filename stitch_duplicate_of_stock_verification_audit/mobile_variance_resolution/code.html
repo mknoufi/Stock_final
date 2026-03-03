@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Mobile Variance Resolution</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#25d1f4",
+                        "background-light": "#f5f8f8",
+                        "background-dark": "#101f22",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .ios-status-bar {
+            height: 44px;
+        }
+        .safe-area-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-display">
+<!-- iOS Status Bar Placeholder -->
+<div class="ios-status-bar w-full flex justify-between items-center px-6 pt-2">
+<span class="text-xs font-bold">9:41</span>
+<div class="flex gap-1.5 items-center">
+<span class="material-icons-round text-sm">signal_cellular_alt</span>
+<span class="material-icons-round text-sm">wifi</span>
+<span class="material-icons-round text-sm">battery_full</span>
+</div>
+</div>
+<!-- Header Section -->
+<header class="px-5 py-4 sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md">
+<div class="flex justify-between items-end">
+<div>
+<p class="text-primary text-xs font-bold uppercase tracking-widest mb-1">Warehouse Hub</p>
+<h1 class="text-2xl font-bold tracking-tight">Variance Management</h1>
+</div>
+<div class="bg-primary/20 border border-primary/30 px-3 py-1 rounded-full">
+<span class="text-primary text-sm font-bold">14 Discrepancies</span>
+</div>
+</div>
+<!-- Filter Tabs -->
+<div class="flex gap-4 mt-6 overflow-x-auto no-scrollbar">
+<button class="text-primary border-b-2 border-primary pb-2 text-sm font-bold whitespace-nowrap">All Issues</button>
+<button class="text-slate-500 pb-2 text-sm font-medium whitespace-nowrap">High Priority</button>
+<button class="text-slate-500 pb-2 text-sm font-medium whitespace-nowrap">Electronics</button>
+<button class="text-slate-500 pb-2 text-sm font-medium whitespace-nowrap">Perishables</button>
+</div>
+</header>
+<!-- Main Content: Scrollable List -->
+<main class="flex-1 px-5 py-4 space-y-4 pb-32">
+<!-- Variance Card 1 -->
+<div class="glass-card rounded-xl overflow-hidden p-4">
+<div class="flex gap-4 mb-4">
+<div class="w-16 h-16 rounded-lg bg-slate-800 flex-shrink-0 relative overflow-hidden">
+<img alt="Product" class="w-full h-full object-cover opacity-80" data-alt="Modern wrist watch product thumbnail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDC6exFT7fBk6NVWO5wjkG4BCBGSBaHL3eGcwmqgn8kluPsKHkRCgZGoV-AwxmcHBvMFgaHWHprB3F5jp1LKV3wfnhKN0fowLgcsPfH-nHoR1U5Rmn0YhTA18q326y3bHfzyi75pqYcrJvbzvKegxc-9dBpFHfkfZLjBHB3rKW26nwe3TbURzZxegxI3mLjKWZcAn08wkL5ookI5ehVuOzLWi36vU_TjtdFAndDKyMEJgTNbdHGwiYc5rgQqTuH0f1xwD0ylM31vhI"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h3 class="font-bold text-lg leading-tight">Quantum X1 Watch</h3>
+<span class="material-icons-round text-red-500 text-xl">priority_high</span>
+</div>
+<p class="text-slate-500 text-sm font-mono tracking-tighter">SKU: WH-8922-LX</p>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2 mb-5 py-3 border-y border-white/5">
+<div class="text-center">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Expected</p>
+<p class="text-xl font-bold">150</p>
+</div>
+<div class="text-center border-x border-white/5">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Scanned</p>
+<p class="text-xl font-bold">142</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Variance</p>
+<p class="text-xl font-bold text-red-500">-8</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<button class="py-3 px-4 rounded-lg border border-slate-700 text-slate-300 font-bold text-sm flex items-center justify-center gap-2 hover:bg-white/5 transition-colors">
+<span class="material-icons-round text-sm">history</span>
+                    Request Recount
+                </button>
+<button class="py-3 px-4 rounded-lg bg-primary text-background-dark font-bold text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(37,209,244,0.3)]">
+<span class="material-icons-round text-sm">check_circle</span>
+                    Accept
+                </button>
+</div>
+</div>
+<!-- Variance Card 2 -->
+<div class="glass-card rounded-xl overflow-hidden p-4">
+<div class="flex gap-4 mb-4">
+<div class="w-16 h-16 rounded-lg bg-slate-800 flex-shrink-0 relative overflow-hidden">
+<img alt="Product" class="w-full h-full object-cover opacity-80" data-alt="Professional studio headphones on black background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRWvHm9Dk2MXptxAJrPnOU4af22Knc_lJyYulrPTSjxLBJyyEwmHZpe1uMSNkJQcFUhj7rbMSSwzmoN6Wxey56BBWW6a1oScj4WYGNpDqqUDs-T-y9LASjLDEoS4DW7LAHM3VakkT_977k7s_bJhCXsVdT977LDi_rV4wLqDdKIcKDG33dwuueUvhiuFgv9BMP59SU9GWL_nzyTpMsqGIb_ikz3Au21CgVfP3RXEzn7YFW0ATnvMAuV9IbA5U-jsIjpvb4gGcoVOI"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h3 class="font-bold text-lg leading-tight">Pro-Audio Headphones</h3>
+<span class="material-icons-round text-orange-400 text-xl">report_problem</span>
+</div>
+<p class="text-slate-500 text-sm font-mono tracking-tighter">SKU: WH-4412-PH</p>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2 mb-5 py-3 border-y border-white/5">
+<div class="text-center">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Expected</p>
+<p class="text-xl font-bold">45</p>
+</div>
+<div class="text-center border-x border-white/5">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Scanned</p>
+<p class="text-xl font-bold">47</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Variance</p>
+<p class="text-xl font-bold text-orange-400">+2</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<button class="py-3 px-4 rounded-lg border border-slate-700 text-slate-300 font-bold text-sm flex items-center justify-center gap-2">
+<span class="material-icons-round text-sm">history</span>
+                    Request Recount
+                </button>
+<button class="py-3 px-4 rounded-lg bg-primary text-background-dark font-bold text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(37,209,244,0.3)]">
+<span class="material-icons-round text-sm">check_circle</span>
+                    Accept
+                </button>
+</div>
+</div>
+<!-- Variance Card 3 -->
+<div class="glass-card rounded-xl overflow-hidden p-4">
+<div class="flex gap-4 mb-4">
+<div class="w-16 h-16 rounded-lg bg-slate-800 flex-shrink-0 relative overflow-hidden">
+<img alt="Product" class="w-full h-full object-cover opacity-80" data-alt="Luxury box packaging in dark lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8BP66G1WkjutQUO0dGTOLVJ8_NhgUj_Mc9ltD8b2aXGTlSTL4Ph6L8GdT5a_T9h6zaUhIGGG3TiIdBcSosBff1Crs7kwyM0J4iIuEENyC5NBaWkFXLTvepK2iLPbGaJ4hiD62mBrZVWZF-sFth1lSLuQOkp0TR9zwx_Pswl_9gR37IJJymQ9iOisDR4kRVBkr9bsK4priJ6xeZF3VXgf53ozpmg_ZnIP2oA4YzdMgsKQN3lsRq-_BuYAmY1oEy814ye4Pxn9fCRc"/>
+</div>
+<div class="flex-1">
+<div class="flex justify-between items-start">
+<h3 class="font-bold text-lg leading-tight">Gift Box Premium</h3>
+<span class="material-icons-round text-red-500 text-xl">priority_high</span>
+</div>
+<p class="text-slate-500 text-sm font-mono tracking-tighter">SKU: WH-1105-BX</p>
+</div>
+</div>
+<div class="grid grid-cols-3 gap-2 mb-5 py-3 border-y border-white/5">
+<div class="text-center">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Expected</p>
+<p class="text-xl font-bold">200</p>
+</div>
+<div class="text-center border-x border-white/5">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Scanned</p>
+<p class="text-xl font-bold">185</p>
+</div>
+<div class="text-center">
+<p class="text-[10px] uppercase text-slate-500 font-bold mb-1">Variance</p>
+<p class="text-xl font-bold text-red-500">-15</p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-3">
+<button class="py-3 px-4 rounded-lg border border-slate-700 text-slate-300 font-bold text-sm flex items-center justify-center gap-2">
+<span class="material-icons-round text-sm">history</span>
+                    Request Recount
+                </button>
+<button class="py-3 px-4 rounded-lg bg-primary text-background-dark font-bold text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(37,209,244,0.3)]">
+<span class="material-icons-round text-sm">check_circle</span>
+                    Accept
+                </button>
+</div>
+</div>
+</main>
+<!-- Scanning FAB -->
+<button class="fixed bottom-24 right-6 w-14 h-14 bg-primary rounded-full shadow-lg shadow-primary/40 flex items-center justify-center z-50 text-background-dark">
+<span class="material-icons-round text-3xl">qr_code_scanner</span>
+</button>
+<!-- Bottom Navigation Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-background-light/90 dark:bg-background-dark/95 backdrop-blur-xl border-t border-white/5 safe-area-bottom z-40">
+<div class="flex justify-around items-center h-16">
+<button class="flex flex-col items-center justify-center text-primary">
+<span class="material-icons-round">warning</span>
+<span class="text-[10px] font-bold mt-1">Variances</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500">
+<span class="material-icons-round">task_alt</span>
+<span class="text-[10px] font-bold mt-1">Resolved</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500">
+<span class="material-icons-round">analytics</span>
+<span class="text-[10px] font-bold mt-1">Reports</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500">
+<span class="material-icons-round">person</span>
+<span class="text-[10px] font-bold mt-1">Profile</span>
+</button>
+</div>
+<!-- iOS Home Indicator -->
+<div class="flex justify-center pb-2">
+<div class="w-32 h-1.5 bg-slate-800 rounded-full"></div>
+</div>
+</nav>
+</body></html>

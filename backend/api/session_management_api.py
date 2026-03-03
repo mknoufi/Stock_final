@@ -1,0 +1,810 @@
+"""
+Session Management API - Enhanced session tracking with heartbeat
+Extends existing session API with rack-based workflow support
+"""
+
+import logging
+import re
+import time
+from datetime import datetime, timezone
+from typing import Any, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from motor.motor_asyncio import AsyncIOMotorDatabase
+from pydantic import BaseModel
+
+from backend.api.response_models import PaginatedResponse
+from backend.api.schemas import Session, SessionCreate
+from backend.auth.dependencies import get_current_user_async as get_current_user
+from backend.core.websocket_manager import manager
+from backend.db.runtime import get_db
+from backend.services.lock_manager import get_lock_manager
+from backend.services.session_state_machine import SessionStateMachine
+from backend.services.redis_service import get_redis
+from backend.services.runtime import get_refresh_token_service
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/sessions", tags=["Session Management"])
+
+
+# Models
+
+
+class SessionDetail(BaseModel):
+    """Detailed session information"""
+
+    id: str
+    user_id: str
+    rack_id: Optional[str] = None
+    floor: Optional[str] = None
+    status: str  # active, paused, completed
+    started_at: float
+    last_heartbeat: float
+    completed_at: Optional[float] = None
+    item_count: int = 0
+    verified_count: int = 0
+
+
+class SessionStats(BaseModel):
+    """Session statistics"""
+
+    id: str
+    total_items: int
+    verified_items: int
+    damage_items: int
+    pending_items: int
+    duration_seconds: float
+    items_per_minute: float
+
+
+class HeartbeatResponse(BaseModel):
+    """Heartbeat response"""
+
+    success: bool
+    id: str
+    rack_lock_renewed: bool
+    user_presence_updated: bool
+    lock_ttl_remaining: int
+    message: str
+
+
+class SessionIntegrityResponse(BaseModel):
+    """Session integrity check response (FR-M-34)"""
+
+    valid: bool
+    last_sync: Optional[float] = None
+    session_start: float
+    updates_detected: bool
+    affected_items: int
+    message: str
+
+
+# Endpoints
+
+
+@router.get("/", response_model=PaginatedResponse[Session])
+@router.get("", response_model=PaginatedResponse[Session])
+async def get_sessions(
+    page: int = Query(1, ge=1, description="Page number"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    user_id: Optional[str] = Query(None, description="Filter by user"),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> PaginatedResponse[Session]:
+    """
+    Get all sessions with pagination
+    """
+    # Build query
+    query = {}
+    if status:
+        query["status"] = status
+
+    if user_id:
+        # Only supervisors can view other users' sessions
+        if current_user["role"] != "supervisor" and user_id != current_user["username"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        query["staff_user"] = user_id
+    elif current_user["role"] != "supervisor":
+        # Regular users only see their own sessions
+        query["staff_user"] = current_user["username"]
+
+    # Get total count
+    total = await db.sessions.count_documents(query)
+
+    # Get paginated sessions
+    skip = (page - 1) * page_size
+    sessions_cursor = db.sessions.find(query).sort("started_at", -1).skip(skip).limit(page_size)
+    sessions = await sessions_cursor.to_list(length=page_size)
+
+    # DEBUG LOGGING
+    logger.info(f"SESSION QUERY: {query}")
+    logger.info(f"SESSIONS FOUND: {len(sessions)} (Total: {total})")
+    # END DEBUG LOGGING
+
+    # Convert to response models
+    result = []
+    for session in sessions:
+        # Preserve identity: use string version of '_id' if 'id' is missing
+        if "_id" in session:
+            if "id" not in session:
+                session["id"] = str(session["_id"])
+            del session["_id"]
+        result.append(Session(**session))
+
+    return PaginatedResponse.create(
+        items=result,
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.post("/", response_model=Session)
+@router.post("", response_model=Session)
+async def create_session(
+    session_data: SessionCreate,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> Session:
+    """Create a new session"""
+    import uuid
+    from datetime import datetime, timezone
+
+    # Input validation
+    warehouse = session_data.warehouse.strip()
+    if not warehouse:
+        raise HTTPException(status_code=400, detail="Warehouse name cannot be empty")
+
+    existing_session = await db.sessions.find_one(
+        {
+            "staff_user": current_user["username"],
+            "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]},
+            "warehouse": {"$regex": f"^{re.escape(warehouse)}$", "$options": "i"},
+        }
+    )
+    if existing_session:
+        if "_id" in existing_session and "id" not in existing_session:
+            existing_session["id"] = str(existing_session["_id"])
+            del existing_session["_id"]
+        logger.info(
+            "Existing open session found for warehouse; returning existing session",
+            extra={"warehouse": warehouse, "session_id": existing_session.get("id")},
+        )
+        return Session(**existing_session)
+
+    # Enforce Invariant E: Single Session per User
+    # In a live production environment, opening a new session must invalidate old ones.
+
+    # Find any active sessions for this user across both collections
+    open_sessions_filter = {
+        "staff_user": current_user["username"],
+        "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]},
+    }
+
+    # Auto-close strategy to satisfy "Single Session" mandate
+    # We close them with a special status to indicate system intervention
+    now_ts = time.time()
+    now_dt = datetime.now(timezone.utc)
+
+    # 1. Close in main sessions collection
+    await db.sessions.update_many(
+        open_sessions_filter,
+        {
+            "$set": {
+                "status": "CLOSED",
+                "completed_at": now_dt,
+                "close_reason": "SYSTEM_AUTO_CLOSE_NEW_SESSION",
+            }
+        },
+    )
+
+    # 2. Close in verification_sessions
+    await db.verification_sessions.update_many(
+        {"user_id": current_user["username"], "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]}},
+        {
+            "$set": {
+                "status": "CLOSED",
+                "completed_at": now_ts,
+                "close_reason": "SYSTEM_AUTO_CLOSE_NEW_SESSION",
+            }
+        },
+    )
+
+    # 3. Revoke previous refresh tokens to ensure session is strictly bound
+    refresh_token_service = get_refresh_token_service()
+    if refresh_token_service:
+        await refresh_token_service.revoke_all_user_tokens(current_user["username"])
+
+    # Create Session object
+    session = Session(
+        id=str(uuid.uuid4()),
+        warehouse=warehouse,
+        staff_user=current_user["username"],
+        staff_name=current_user.get("full_name", current_user["username"]),
+        type=session_data.type or "STANDARD",
+        status="OPEN",
+        started_at=datetime.now(timezone.utc),
+    )
+
+    # GOVERNANCE: Snapshot & Config Enforcement
+    import hashlib
+    import json
+    from backend.core.schemas.snapshot import SessionSnapshot, SnapshotItem
+
+    # 1. Get latest config version
+    latest_config = await db.config_versions.find_one(sort=[("created_at", -1)])
+    config_version_id = latest_config["id"] if latest_config else "LEGACY_NO_VERSION"
+    session.config_version_id = config_version_id
+
+    # 2. Fetch items for snapshot
+    # Find items in this warehouse
+    items_cursor = db.erp_items.find(
+        {"warehouse": {"$regex": f"^{re.escape(warehouse)}$", "$options": "i"}}
+    )
+    snapshot_items = []
+
+    async for item in items_cursor:
+        # Convert ObjectId to string for serialization
+        if "_id" in item:
+            item["_id"] = str(item["_id"])
+
+        snapshot_items.append(
+            SnapshotItem(
+                item_code=item.get("item_code", ""),
+                stock_qty=float(item.get("stock_qty", 0.0)),
+                warehouse=item.get("warehouse", ""),
+                source_data=item,
+            )
+        )
+
+    # 3. Create Hash
+    # Sort by item code to ensure deterministic hash
+    snapshot_items.sort(key=lambda x: x.item_code)
+    items_payload = [item.model_dump(mode="json") for item in snapshot_items]
+    payload_str = json.dumps(items_payload, sort_keys=True, default=str)
+    snapshot_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+
+    session.snapshot_hash = snapshot_hash
+
+    # 4. Save Snapshot
+    snapshot = SessionSnapshot(
+        session_id=session.id,
+        warehouse=warehouse,
+        snapshot_hash=snapshot_hash,
+        items=snapshot_items,
+        item_count=len(snapshot_items),
+        config_version_id=config_version_id,
+    )
+
+    # Store snapshot in separate collection
+    await db.session_snapshots.insert_one(snapshot.model_dump())
+    session.snapshot_items_ref = snapshot.id
+
+    # Insert into db.sessions
+    session_doc = session.model_dump()
+    session_doc["session_id"] = session.id
+    await db.sessions.insert_one(session_doc)
+
+    # Also create entry in verification_sessions for compatibility with new features
+    verification_session = {
+        "session_id": session.id,
+        "user_id": current_user["username"],
+        "status": "ACTIVE",
+        "started_at": time.time(),
+        "last_heartbeat": time.time(),
+        "rack_id": None,
+        "floor": None,
+    }
+    await db.verification_sessions.insert_one(verification_session)
+
+    return session
+
+
+@router.get("/active", response_model=list[SessionDetail])
+async def get_active_sessions(
+    user_id: Optional[str] = Query(None, description="Filter by user"),
+    rack_id: Optional[str] = Query(None, description="Filter by rack"),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> list[SessionDetail]:
+    """
+    Get all active sessions
+
+    Filters:
+    - user_id: Filter by specific user
+    - rack_id: Filter by specific rack
+    """
+    # Build query
+    query: dict[str, Any] = {"status": {"$in": ["ACTIVE", "OPEN"]}}
+
+    if user_id:
+        # Only supervisors can view other users' sessions
+        if current_user["role"] != "supervisor" and user_id != current_user["username"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        query["user_id"] = user_id
+
+    if rack_id:
+        query["rack_id"] = rack_id
+
+    # Get sessions
+    sessions_cursor = db.verification_sessions.find(query).sort("started_at", -1)
+    sessions = await sessions_cursor.to_list(length=100)
+
+    # Get item counts for each session
+    result = []
+    for session in sessions:
+        # Count items in session
+        item_count = await db.verification_records.count_documents(
+            {"session_id": session["session_id"]}
+        )
+
+        verified_count = await db.verification_records.count_documents(
+            {"session_id": session["session_id"], "status": "finalized"}
+        )
+
+        result.append(
+            SessionDetail(
+                id=session["session_id"],
+                user_id=session["user_id"],
+                rack_id=session.get("rack_id"),
+                floor=session.get("floor"),
+                status=session["status"],
+                started_at=session["started_at"],
+                last_heartbeat=session["last_heartbeat"],
+                completed_at=session.get("completed_at"),
+                item_count=item_count,
+                verified_count=verified_count,
+            )
+        )
+
+    return result
+
+
+@router.get("/{session_id}", response_model=SessionDetail)
+async def get_session_detail(
+    session_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> SessionDetail:
+    """Get detailed session information"""
+    session = await db.verification_sessions.find_one({"session_id": session_id})
+
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    # Check access
+    if current_user["role"] != "supervisor" and session["user_id"] != current_user["username"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get counts
+    item_count = await db.verification_records.count_documents({"session_id": session_id})
+
+    verified_count = await db.verification_records.count_documents(
+        {"session_id": session_id, "status": "finalized"}
+    )
+
+    return SessionDetail(
+        id=session["session_id"],
+        user_id=session["user_id"],
+        rack_id=session.get("rack_id"),
+        floor=session.get("floor"),
+        status=session["status"],
+        started_at=session["started_at"],
+        last_heartbeat=session["last_heartbeat"],
+        completed_at=session.get("completed_at"),
+        item_count=item_count,
+        verified_count=verified_count,
+    )
+
+
+@router.get("/{session_id}/stats", response_model=SessionStats)
+async def get_session_stats(
+    session_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> SessionStats:
+    """Get session statistics"""
+    if session_id.startswith("offline_"):
+        return SessionStats(
+            id=session_id,
+            total_items=0,
+            verified_items=0,
+            damage_items=0,
+            pending_items=0,
+            duration_seconds=0,
+            items_per_minute=0,
+        )
+
+    session = await db.verification_sessions.find_one({"session_id": session_id})
+
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    # Check access
+    if current_user["role"] != "supervisor" and session["user_id"] != current_user["username"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # Get item statistics
+    pipeline: list[dict[str, Any]] = [
+        {"$match": {"session_id": session_id}},
+        {
+            "$group": {
+                "_id": None,
+                "total": {"$sum": 1},
+                "verified": {"$sum": {"$cond": [{"$eq": ["$status", "finalized"]}, 1, 0]}},
+                "damage": {"$sum": "$damage_qty"},
+            }
+        },
+    ]
+
+    stats_result = await db.verification_records.aggregate(pipeline).to_list(1)
+
+    if stats_result:
+        stats = stats_result[0]
+        total_items = stats.get("total", 0)
+        verified_items = stats.get("verified", 0)
+        damage_items = int(stats.get("damage", 0))
+    else:
+        total_items = verified_items = damage_items = 0
+
+    pending_items = total_items - verified_items
+
+    # Calculate duration and rate
+    duration = time.time() - session["started_at"]
+    items_per_minute = (verified_items / duration * 60) if duration > 0 else 0
+
+    return SessionStats(
+        id=session_id,
+        total_items=total_items,
+        verified_items=verified_items,
+        damage_items=damage_items,
+        pending_items=pending_items,
+        duration_seconds=duration,
+        items_per_minute=round(items_per_minute, 2),
+    )
+
+
+@router.post("/{session_id}/heartbeat", response_model=HeartbeatResponse)
+async def session_heartbeat(
+    session_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    redis_service=Depends(get_redis),
+) -> HeartbeatResponse:
+    """
+    Session heartbeat - maintain locks and presence
+
+    Should be called every 20-30 seconds by active clients
+
+    Actions:
+    1. Update user heartbeat in Redis
+    2. Renew rack lock if session has rack
+    3. Update session last_heartbeat in MongoDB
+    """
+    user_id = current_user["username"]
+    lock_manager = get_lock_manager(redis_service)
+
+    # Get session
+    session = await db.verification_sessions.find_one({"session_id": session_id})
+
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    # Verify ownership
+    if session["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not your session")
+
+    # Update user heartbeat
+    await lock_manager.update_user_heartbeat(user_id, ttl=90)
+
+    # Renew rack lock if exists
+    rack_lock_renewed = False
+    lock_ttl_remaining = 0
+
+    if session.get("rack_id"):
+        rack_id = session["rack_id"]
+        rack_lock_renewed = await lock_manager.renew_rack_lock(rack_id, user_id, ttl=60)
+
+        if rack_lock_renewed:
+            lock_ttl_remaining = await lock_manager.get_rack_lock_ttl(rack_id)
+
+    # Update session last_heartbeat
+    await db.verification_sessions.update_one(
+        {"session_id": session_id}, {"$set": {"last_heartbeat": time.time()}}
+    )
+
+    logger.debug(
+        f"Heartbeat: session={session_id}, user={user_id}, rack_renewed={rack_lock_renewed}"
+    )
+
+    return HeartbeatResponse(
+        success=True,
+        id=session_id,
+        rack_lock_renewed=rack_lock_renewed,
+        user_presence_updated=True,
+        lock_ttl_remaining=max(0, lock_ttl_remaining),
+        message="Heartbeat received",
+    )
+
+
+@router.put("/{session_id}/status")
+async def update_session_status(
+    session_id: str,
+    status: str = Query(..., description="New status"),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """
+    Update session status (e.g. to RECONCILE)
+    """
+    user_id = current_user["username"]
+
+    # Get session
+    session = await db.verification_sessions.find_one({"session_id": session_id})
+
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    # Verify ownership or supervisor
+    if current_user["role"] != "supervisor" and session["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not your session")
+
+    if not SessionStateMachine.can_transition(session.get("status", ""), status):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Invalid session transition: {session.get('status')} -> {status}",
+        )
+
+    normalized_status = status.upper()
+
+    # Update status
+    await db.verification_sessions.update_one(
+        {"session_id": session_id}, {"$set": {"status": normalized_status}}
+    )
+
+    # Broadcast update
+    await manager.broadcast_to_session(
+        message={
+            "type": "session_update",
+            "payload": {
+                "session_id": session_id,
+                    "status": normalized_status,
+                    "updated_by": user_id,
+                    "updated_at": time.time(),
+                },
+            },
+        session_id=session_id,
+    )
+
+    # Also notify the user personally in case they are not subscribed to the session channel yet
+    # or to ensure they get the message on their user channel
+    if session["user_id"] != user_id:  # If supervisor updated it
+        await manager.send_personal_message(
+            message={
+                "type": "session_update",
+                "payload": {
+                    "session_id": session_id,
+                    "status": normalized_status,
+                    "reason": "Supervisor update",
+                },
+            },
+            user_id=session["user_id"],
+        )
+
+    return {"success": True, "id": session_id, "status": normalized_status}
+
+
+@router.post("/{session_id}/complete")
+async def complete_session(
+    session_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    redis_service=Depends(get_redis),
+) -> dict[str, Any]:
+    """
+    Complete session and release rack
+    """
+    user_id = current_user["username"]
+    lock_manager = get_lock_manager(redis_service)
+
+    # Get session
+    session = await db.verification_sessions.find_one({"session_id": session_id})
+
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    # Verify ownership
+    if session["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Not your session")
+
+    if not SessionStateMachine.can_transition(session.get("status", ""), "CLOSED"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Invalid session transition: {session.get('status')} -> CLOSED",
+        )
+
+    # Release rack lock if exists
+    if session.get("rack_id"):
+        await lock_manager.release_rack_lock(session["rack_id"], user_id)
+
+        # Update rack status
+        await db.rack_registry.update_one(
+            {"rack_id": session["rack_id"]},
+            {
+                "$set": {
+                    "status": "completed",
+                    "updated_at": time.time(),
+                }
+            },
+        )
+
+    # Update session
+    await db.verification_sessions.update_one(
+        {"session_id": session_id},
+        {
+            "$set": {
+                "status": "CLOSED",
+                "completed_at": time.time(),
+            }
+        },
+    )
+
+    # Delete session lock from Redis
+    await lock_manager.delete_session(session_id)
+
+    logger.info(f"Session {session_id} completed by {user_id}")
+
+    # Broadcast completion
+    await manager.broadcast_to_session(
+        message={
+            "type": "session_completed",
+            "payload": {
+                "session_id": session_id,
+                "completed_by": user_id,
+                "completed_at": time.time(),
+            },
+        },
+        session_id=session_id,
+    )
+
+    return {
+        "success": True,
+        "id": session_id,
+        "status": "CLOSED",
+        "message": "Session completed successfully",
+    }
+
+
+@router.get("/user/history")
+async def get_user_session_history(
+    limit: int = Query(10, ge=1, le=100),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> list[SessionDetail]:
+    """Get user's session history (completed sessions)"""
+    user_id = current_user["username"]
+
+    sessions_cursor = (
+        db.verification_sessions.find({"user_id": user_id, "status": "CLOSED"})
+        .sort("completed_at", -1)
+        .limit(limit)
+    )
+
+    sessions = await sessions_cursor.to_list(length=limit)
+
+    result = []
+    for session in sessions:
+        item_count = await db.verification_records.count_documents(
+            {"session_id": session["session_id"]}
+        )
+
+        verified_count = await db.verification_records.count_documents(
+            {"session_id": session["session_id"], "status": "finalized"}
+        )
+
+        result.append(
+            SessionDetail(
+                id=session["session_id"],
+                user_id=session["user_id"],
+                rack_id=session.get("rack_id"),
+                floor=session.get("floor"),
+                status=session["status"],
+                started_at=session["started_at"],
+                last_heartbeat=session["last_heartbeat"],
+                completed_at=session.get("completed_at"),
+                item_count=item_count,
+                verified_count=verified_count,
+            )
+        )
+
+    return result
+
+
+@router.get("/{session_id}/integrity", response_model=SessionIntegrityResponse)
+async def check_session_integrity(
+    session_id: str,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> SessionIntegrityResponse:
+    """Check if master data has changed since session start (FR-M-34)"""
+    session = await db.verification_sessions.find_one({"session_id": session_id})
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    start_time = session.get("started_at")
+    # Handle datetime vs float mismatch
+    if isinstance(start_time, datetime):
+        start_ts = start_time.timestamp()
+        start_dt = start_time
+    else:
+        start_ts = float(start_time)
+        start_dt = datetime.fromtimestamp(start_ts)
+
+    # Check for items updated after session start
+    affected_count = await db.erp_items.count_documents({"updated_at": {"$gt": start_dt}})
+
+    # Get last sync time
+    sync_meta = await db.sync_metadata.find_one({"_id": "sql_qty_sync"})
+    last_sync_ts = None
+    if sync_meta and "last_sync" in sync_meta:
+        ls = sync_meta["last_sync"]
+        last_sync_ts = ls.timestamp() if isinstance(ls, datetime) else float(ls)
+
+    valid = affected_count == 0
+
+    msg = "Session integrity verified."
+    if not valid:
+        msg = f"Warning: {affected_count} items updated in master data since session start."
+
+    return SessionIntegrityResponse(
+        valid=valid,
+        last_sync=last_sync_ts,
+        session_start=start_ts,
+        updates_detected=not valid,
+        affected_items=affected_count,
+        message=msg,
+    )
+
+
+@router.post("/logout-all")
+async def logout_all_sessions(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    refresh_token_service=Depends(get_refresh_token_service),
+) -> dict[str, Any]:
+    """
+    Logout all active sessions for the current user (Phase 1 Governance)
+    Mandatory endpoint to resolve AUTH_SESSION_CONFLICT
+    """
+    username = current_user["username"]
+    logger.info(f"Revoking all sessions for user: {username}")
+
+    # 1. Revoke all refresh tokens
+    revoked_tokens = await refresh_token_service.revoke_all_user_tokens(username)
+
+    # 2. Close all active session records
+    # Update sessions collection
+    sess_result = await db.sessions.update_many(
+        {"staff_user": username, "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]}},
+        {"$set": {"status": "CLOSED", "completed_at": datetime.now(timezone.utc)}},
+    )
+
+    # Update verification_sessions collection
+    v_sess_result = await db.verification_sessions.update_many(
+        {"user_id": username, "status": {"$in": ["OPEN", "ACTIVE", "RECONCILE"]}},
+        {"$set": {"status": "CLOSED", "completed_at": time.time()}},
+    )
+
+    # 3. Release any rack locks (if any)
+    # This might require iterating or a more complex query if we had many,
+    # but for now we rely on the session heartbeat timeout to clean up Redis.
+
+    return {
+        "success": True,
+        "username": username,
+        "revoked_tokens": revoked_tokens,
+        "closed_sessions": sess_result.modified_count + v_sess_result.modified_count,
+        "message": "All active sessions have been logged out.",
+    }

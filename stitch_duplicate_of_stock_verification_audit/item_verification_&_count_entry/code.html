@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Item Verification &amp; Count Entry</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#258cf4",
+              "background-light": "#f5f7f8",
+              "background-dark": "#101922",
+              "surface-dark": "#1a2632",
+              "surface-dark-light": "#243444",
+            },
+            fontFamily: {
+              "display": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen flex flex-col font-display">
+<!-- Header Section -->
+<header class="p-6 pt-12 pb-4 bg-background-light dark:bg-background-dark sticky top-0 z-10">
+<div class="flex items-center justify-between mb-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-200 dark:bg-surface-dark-light">
+<span class="material-icons">arrow_back</span>
+</button>
+<span class="text-xs font-bold uppercase tracking-widest text-primary">Verification Mode</span>
+<button class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-200 dark:bg-surface-dark-light">
+<span class="material-icons">more_vert</span>
+</button>
+</div>
+<h1 class="text-2xl font-bold mt-4">Industrial Gearbox - Model X</h1>
+<div class="flex items-center gap-2 mt-1">
+<span class="text-sm font-medium text-slate-500 dark:text-slate-400">SKU-990-21</span>
+<span class="px-2 py-0.5 rounded-full bg-primary/20 text-primary text-[10px] font-bold">ACTIVE</span>
+</div>
+</header>
+<main class="flex-1 px-6 pb-32">
+<!-- Summary Card -->
+<div class="bg-white dark:bg-surface-dark p-5 rounded-2xl mb-6 shadow-sm border border-slate-100 dark:border-white/5">
+<div class="grid grid-cols-2 gap-4 mb-4">
+<div class="flex flex-col">
+<span class="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold">System Stock</span>
+<span class="text-xl font-bold">50 <span class="text-sm font-normal text-slate-400">pcs</span></span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs text-slate-500 dark:text-slate-400 uppercase font-semibold">Verified</span>
+<span class="text-xl font-bold text-primary">48 <span class="text-sm font-normal text-slate-400">pcs</span></span>
+</div>
+</div>
+<div class="flex items-center gap-2 pt-4 border-t border-slate-100 dark:border-white/5">
+<span class="material-icons text-primary text-sm">place</span>
+<span class="text-sm font-medium">Floor A / Rack 12</span>
+</div>
+</div>
+<!-- Main Quantity Stepper -->
+<div class="flex flex-col items-center justify-center py-8 mb-6">
+<span class="text-xs uppercase font-bold text-slate-500 mb-4 tracking-tighter">Enter Recorded Quantity</span>
+<div class="flex items-center gap-8">
+<button class="w-16 h-16 flex items-center justify-center rounded-full bg-slate-200 dark:bg-surface-dark-light active:scale-95 transition-transform">
+<span class="material-icons text-2xl">remove</span>
+</button>
+<div class="flex flex-col items-center">
+<span class="text-7xl font-bold">48</span>
+<span class="text-xs font-medium text-slate-400 mt-2">UNIT OF MEASURE: EA</span>
+</div>
+<button class="w-16 h-16 flex items-center justify-center rounded-full bg-primary active:scale-95 transition-transform text-white shadow-lg shadow-primary/30">
+<span class="material-icons text-2xl">add</span>
+</button>
+</div>
+</div>
+<!-- Toggles Section -->
+<div class="space-y-3 mb-8">
+<div class="flex items-center justify-between p-4 bg-white dark:bg-surface-dark rounded-2xl">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
+<span class="material-icons text-red-500">report_problem</span>
+</div>
+<span class="font-bold">Damaged Items</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-300 dark:bg-surface-dark-light peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+<!-- Conditional Input (Visible when Damaged is on) -->
+<div class="p-4 bg-white dark:bg-surface-dark rounded-2xl flex items-center justify-between border-2 border-primary/20">
+<span class="text-sm font-bold text-slate-500">Damaged Qty</span>
+<div class="flex items-center gap-4">
+<button class="w-8 h-8 rounded-full bg-slate-100 dark:bg-surface-dark-light flex items-center justify-center">
+<span class="material-icons text-sm">remove</span>
+</button>
+<span class="text-lg font-bold">02</span>
+<button class="w-8 h-8 rounded-full bg-slate-100 dark:bg-surface-dark-light flex items-center justify-center">
+<span class="material-icons text-sm">add</span>
+</button>
+</div>
+</div>
+<div class="flex items-center justify-between p-4 bg-white dark:bg-surface-dark rounded-2xl">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+<span class="material-icons text-primary text-sm">visibility</span>
+</div>
+<span class="font-bold">Display Unit</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-300 dark:bg-surface-dark-light peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+<!-- Serials List -->
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-sm font-bold uppercase tracking-wider text-slate-500">Scanned Serials</h3>
+<button class="text-xs font-bold text-primary flex items-center gap-1">
+<span class="material-icons text-xs">qr_code_scanner</span>
+                SCAN NEW
+            </button>
+</div>
+<div class="flex flex-wrap gap-2 mb-8">
+<div class="flex items-center gap-2 px-3 py-2 bg-slate-200 dark:bg-surface-dark-light rounded-full border border-slate-300 dark:border-white/10">
+<span class="text-xs font-mono font-bold">SN-20394</span>
+<button class="w-4 h-4 flex items-center justify-center rounded-full bg-slate-400 dark:bg-slate-500 text-white">
+<span class="material-icons text-[10px]">close</span>
+</button>
+</div>
+<div class="flex items-center gap-2 px-3 py-2 bg-slate-200 dark:bg-surface-dark-light rounded-full border border-slate-300 dark:border-white/10">
+<span class="text-xs font-mono font-bold">SN-20395</span>
+<button class="w-4 h-4 flex items-center justify-center rounded-full bg-slate-400 dark:bg-slate-500 text-white">
+<span class="material-icons text-[10px]">close</span>
+</button>
+</div>
+<div class="flex items-center gap-2 px-3 py-2 bg-slate-200 dark:bg-surface-dark-light rounded-full border border-slate-300 dark:border-white/10">
+<span class="text-xs font-mono font-bold">SN-20398</span>
+<button class="w-4 h-4 flex items-center justify-center rounded-full bg-slate-400 dark:bg-slate-500 text-white">
+<span class="material-icons text-[10px]">close</span>
+</button>
+</div>
+<div class="flex items-center gap-2 px-3 py-2 bg-slate-200 dark:bg-surface-dark-light rounded-full border border-slate-300 dark:border-white/10">
+<span class="text-xs font-mono font-bold text-slate-400">+ 45 more</span>
+</div>
+</div>
+</main>
+<!-- Footer Actions -->
+<footer class="fixed bottom-0 left-0 right-0 p-6 bg-white/80 dark:bg-background-dark/80 backdrop-blur-xl border-t border-slate-100 dark:border-white/5">
+<div class="flex gap-4 max-w-md mx-auto">
+<button class="flex-1 py-4 px-6 rounded-full border border-slate-300 dark:border-white/10 font-bold text-sm hover:bg-slate-50 dark:hover:bg-surface-dark transition-colors">
+                SAVE DRAFT
+            </button>
+<button class="flex-[2] py-4 px-6 rounded-full bg-gradient-to-r from-primary to-[#0e4e8e] text-white font-bold text-sm shadow-xl shadow-primary/20 hover:opacity-90 transition-opacity">
+                SUBMIT VERIFICATION
+            </button>
+</div>
+</footer>
+<!-- Background Decoration -->
+<div class="fixed top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none"></div>
+<div class="fixed bottom-0 left-0 w-64 h-64 bg-primary/5 rounded-full -ml-32 -mb-32 blur-3xl pointer-events-none"></div>
+</body></html>

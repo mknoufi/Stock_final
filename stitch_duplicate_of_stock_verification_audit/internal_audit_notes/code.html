@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Internal Audit Notes</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#258cf4",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#0a0f14",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-darker {
+            background: rgba(16, 25, 34, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        body {
+            background: radial-gradient(circle at top right, #162a3d, #0a0f14 60%);
+            min-height: 100vh;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-display text-white selection:bg-primary/30">
+<div class="relative flex h-screen w-full flex-col overflow-hidden max-w-md mx-auto bg-transparent shadow-2xl">
+<!-- Top App Bar -->
+<header class="flex items-center justify-between px-6 pt-12 pb-4">
+<div class="flex items-center gap-4">
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-white">arrow_back_ios_new</span>
+</button>
+<h1 class="text-2xl font-bold tracking-tight">Notes</h1>
+</div>
+<button class="flex size-10 items-center justify-center rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-primary">analytics</span>
+</button>
+</header>
+<!-- Search Bar with Glassmorphism -->
+<div class="px-6 py-2">
+<div class="glass flex h-12 w-full items-center rounded-2xl px-4 focus-within:ring-1 focus-within:ring-primary/50 transition-all">
+<span class="material-symbols-outlined text-white/40 mr-3">search</span>
+<input class="w-full bg-transparent border-none p-0 text-sm font-light placeholder:text-white/30 focus:ring-0" placeholder="Search notes or dates..." type="text"/>
+</div>
+</div>
+<!-- Scrollable Notes Area -->
+<main class="flex-1 overflow-y-auto px-6 py-4 space-y-4 pb-32">
+<!-- Note Card 1 -->
+<div class="glass relative p-5 rounded-2xl group transition-all hover:bg-white/5">
+<div class="flex justify-between items-start mb-2">
+<span class="text-[10px] font-medium uppercase tracking-wider text-primary/80">Inventory Log</span>
+<div class="flex items-center gap-3">
+<span class="text-xs text-white/40">10:30 AM</span>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-sm text-white/40 hover:text-red-400">delete</span>
+</button>
+</div>
+</div>
+<p class="text-[15px] leading-relaxed text-white/90">Shelf 4B: 3 units of SKU-902 damaged during morning replenishment. Tagged for disposal.</p>
+<div class="mt-4 flex -space-x-2">
+<div class="size-6 rounded-full border border-[#0a0f14] bg-cover bg-center" data-alt="Avatar of audit staff member" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDBm_5QXQrrhwSLtkxYO-vtD58ewFRTxj6bMRRW723ncZL5EMIaSKxYW-DVazLJAH1B76Sqqf9jixRY348ZLtgb5BsmQWqLG0QaQl7LC7AipszSlOD2-5shFELWO8cbDBRdRy7hPUihyqihjiXS5LiQRLLSoLxKpXUNQNpyurFew91sxZ0VfiEMFocmFYmJXl5sTDqk2_p9LVnxZEfu5tW4Hyl0dNPfxT5G9VJa2RLtSfAi7Loto1yEPr5WWJKJBINua-vcUvDqEks')"></div>
+<div class="size-6 rounded-full border border-[#0a0f14] bg-primary flex items-center justify-center text-[10px] font-bold">+2</div>
+</div>
+</div>
+<!-- Note Card 2 -->
+<div class="glass relative p-5 rounded-2xl group transition-all hover:bg-white/5">
+<div class="flex justify-between items-start mb-2">
+<span class="text-[10px] font-medium uppercase tracking-wider text-green-400">Audit Status</span>
+<div class="flex items-center gap-3">
+<span class="text-xs text-white/40">09:15 AM</span>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-sm text-white/40 hover:text-red-400">delete</span>
+</button>
+</div>
+</div>
+<p class="text-[15px] leading-relaxed text-white/90">Inventory count for frozen section completed at 09:00. All discrepancies resolved in real-time.</p>
+</div>
+<!-- Note Card 3 (Image content) -->
+<div class="glass relative p-5 rounded-2xl group transition-all hover:bg-white/5">
+<div class="flex justify-between items-start mb-3">
+<span class="text-[10px] font-medium uppercase tracking-wider text-amber-400">Flagged Item</span>
+<div class="flex items-center gap-3">
+<span class="text-xs text-white/40">Yesterday</span>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-sm text-white/40 hover:text-red-400">delete</span>
+</button>
+</div>
+</div>
+<div class="mb-3 w-full h-32 rounded-xl overflow-hidden bg-cover bg-center" data-alt="Photo showing a damaged electronic box on shelf" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBh7NGtlqFCxcSK5EAe6hJvyp3YWor5qGMRxtL48xYwY0mOSkkpeohy2xrgBYw3TrxJYlt2VoHfEzgIk0y2a5QWlm_R3LpgwMYW6uQ_R6N3YtCWxXSiCy1CKIO6sImvVef0MiZYK2y-MfxTyZ4b7rCZmbhz4vbwTLse3wHr9IZDGYCzmWoQx1rLlbjV2wqaPjh7-dFLDdJe_lkb5wB1OY1D6W5tUAx8J6WuZS0-AEh6Lrxk2rBl5Uk61udvE1Gupqe9ckJ0rrolcws')"></div>
+<p class="text-[15px] leading-relaxed text-white/90">Discrepancy in electronics category; serial numbers for SKU-441 don't match warehouse manifest. Needs re-check by supervisor.</p>
+</div>
+<!-- Note Card 4 -->
+<div class="glass relative p-5 rounded-2xl group transition-all hover:bg-white/5">
+<div class="flex justify-between items-start mb-2">
+<span class="text-[10px] font-medium uppercase tracking-wider text-white/40">System Memo</span>
+<div class="flex items-center gap-3">
+<span class="text-xs text-white/40">Nov 12</span>
+<button class="opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-sm text-white/40 hover:text-red-400">delete</span>
+</button>
+</div>
+</div>
+<p class="text-[15px] leading-relaxed text-white/90">End-of-month audit scheduled for Nov 30. Ensure all backroom pallets are tagged properly.</p>
+</div>
+</main>
+<!-- Persistent Input Area -->
+<div class="glass-darker absolute bottom-0 left-0 w-full px-6 pt-4 pb-10 flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="flex-1 glass h-14 rounded-full flex items-center px-6">
+<input class="w-full bg-transparent border-none p-0 text-[15px] placeholder:text-white/20 focus:ring-0" placeholder="Write a new note..." type="text"/>
+</div>
+<button class="size-14 rounded-full bg-gradient-to-br from-primary to-[#1a66b5] flex items-center justify-center shadow-[0_0_20px_rgba(37,140,244,0.4)] hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-white text-2xl">arrow_forward</span>
+</button>
+</div>
+<!-- Quick Action Tags -->
+<div class="flex gap-2 overflow-x-auto no-scrollbar">
+<button class="whitespace-nowrap rounded-full bg-white/5 px-4 py-1.5 text-xs text-white/60 border border-white/5 hover:bg-white/10">#damaged</button>
+<button class="whitespace-nowrap rounded-full bg-white/5 px-4 py-1.5 text-xs text-white/60 border border-white/5 hover:bg-white/10">#missing</button>
+<button class="whitespace-nowrap rounded-full bg-white/5 px-4 py-1.5 text-xs text-white/60 border border-white/5 hover:bg-white/10">#completed</button>
+<button class="whitespace-nowrap rounded-full bg-white/5 px-4 py-1.5 text-xs text-white/60 border border-white/5 hover:bg-white/10">#urgent</button>
+</div>
+</div>
+</div>
+<style>
+        /* Custom scrollbar hiding for the horizontal tags */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</body></html>

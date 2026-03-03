@@ -1,0 +1,54 @@
+# EAS Build ignore - exclude non-essential files from upload
+# EAS installs dependencies on their servers, so node_modules is not needed
+
+# Dependencies
+node_modules/
+
+# Backend (not needed for mobile build)
+backend/
+data/
+
+# Test & Debug files
+tests/
+*.log
+*.txt
+debug_*
+diagnose_*
+test_*
+verification_output.txt
+final_audit_results.txt
+
+# Scripts & Ops
+scripts/
+ops/
+agents/
+stop_app_processes.py
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# IDE & Config
+.vscode/
+.agent/
+.cursor/
+.continue/
+.codex/
+.frontmatter/
+.husky/
+
+# Tunnel & monitoring
+.tunnel_url
+tunnel_log.txt
+health_monitor.ps1
+start_tunnel.ps1
+start_app.ps1
+
+# Git
+.git/
+
+# Temp
+*.pyc
+__pycache__/
+.pytest_cache/

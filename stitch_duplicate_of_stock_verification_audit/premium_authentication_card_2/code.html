@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Stock Verify 2026 - Branded Authentication</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b7cee",
+                        "cyan-accent": "#00f2fe",
+                        "background-dark": "#0a0f18",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply bg-background-dark font-display text-white min-h-screen flex items-center justify-center overflow-hidden;
+            }
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .flare-1 {
+            filter: blur(100px);
+            background: radial-gradient(circle, rgba(43, 124, 238, 0.25) 0%, rgba(43, 124, 238, 0) 70%);
+        }
+        .flare-2 {
+            filter: blur(120px);
+            background: radial-gradient(circle, rgba(0, 242, 254, 0.12) 0%, rgba(0, 242, 254, 0) 70%);
+        }
+        .input-dark {
+            @apply bg-white/[0.03] border border-white/10 text-white placeholder-transparent focus:ring-2 focus:ring-primary/40 focus:border-primary/60 focus:bg-white/[0.05] transition-all duration-300;
+        }
+        .floating-label-group input:focus ~ label,
+        .floating-label-group input:not(:placeholder-shown) ~ label {
+            @apply -translate-y-7 scale-90 text-primary font-semibold;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body>
+<div class="fixed inset-0 pointer-events-none z-0">
+<div class="absolute -top-32 -left-32 w-[600px] h-[600px] flare-1 rounded-full opacity-60"></div>
+<div class="absolute top-1/2 -right-40 w-[700px] h-[700px] flare-2 rounded-full opacity-40"></div>
+<div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-[400px] flare-1 opacity-10"></div>
+</div>
+<main class="relative z-10 w-full max-w-[420px] px-6">
+<div class="glass-card rounded-2xl p-10 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]">
+<div class="flex flex-col items-center mb-12">
+<div class="w-20 h-20 mb-6 relative flex items-center justify-center">
+<div class="absolute inset-0 bg-primary/20 blur-xl rounded-full"></div>
+<div class="relative w-full h-full bg-gradient-to-br from-primary to-[#1a5bb8] rounded-2xl flex items-center justify-center shadow-lg border border-white/10">
+<span class="text-white text-4xl font-black italic tracking-tighter">e</span>
+</div>
+</div>
+<h1 class="text-white text-2xl font-bold tracking-tight text-center">
+                    Stock Verify <span class="text-primary">2026</span>
+</h1>
+<p class="text-white/40 text-xs mt-2 uppercase tracking-[0.2em] font-medium">Secure Enterprise Access</p>
+</div>
+<form action="#" class="space-y-8" method="POST">
+<div class="relative floating-label-group">
+<input class="block w-full px-4 py-4 rounded-xl input-dark" id="email" name="email" placeholder="Email Address" required="" type="email"/>
+<label class="absolute left-4 top-4 text-white/50 pointer-events-none transition-all duration-300 origin-left" for="email">
+                        Email Address
+                    </label>
+</div>
+<div class="relative floating-label-group">
+<input class="block w-full px-4 py-4 rounded-xl input-dark" id="password" name="password" placeholder="Password" required="" type="password"/>
+<label class="absolute left-4 top-4 text-white/50 pointer-events-none transition-all duration-300 origin-left" for="password">
+                        Password
+                    </label>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors" type="button">
+<span class="material-symbols-outlined text-xl">visibility</span>
+</button>
+</div>
+<div class="flex justify-between items-center px-1">
+<label class="flex items-center space-x-2 cursor-pointer group">
+<input class="w-4 h-4 rounded border-white/10 bg-white/5 text-primary focus:ring-offset-background-dark" type="checkbox"/>
+<span class="text-xs text-white/40 group-hover:text-white/60 transition-colors">Keep me signed in</span>
+</label>
+<a class="text-xs text-primary/90 hover:text-primary transition-colors font-semibold" href="#">Forgot Password?</a>
+</div>
+<button class="w-full py-4 bg-gradient-to-r from-primary to-cyan-accent hover:brightness-110 text-white font-bold rounded-xl shadow-[0_10px_25px_-5px_rgba(43,124,238,0.4)] transform transition-all active:scale-[0.98] uppercase tracking-wider text-sm" type="submit">
+                    Sign In
+                </button>
+</form>
+<div class="mt-10 pt-8 border-t border-white/5 text-center">
+<p class="text-white/30 text-xs">
+                    New operator? 
+                    <a class="text-white font-bold hover:text-primary transition-colors ml-1 underline decoration-primary/50 underline-offset-4" href="#">Create Account</a>
+</p>
+</div>
+</div>
+<div class="mt-10 flex justify-between items-center px-4">
+<div class="flex items-center space-x-2">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+</span>
+<span class="text-[10px] text-white/40 uppercase tracking-[0.2em] font-bold">Systems Online</span>
+</div>
+<div class="text-[10px] text-white/25 font-mono">
+                BUILD_2026.V4.12
+            </div>
+</div>
+</main>
+<footer class="fixed bottom-10 left-0 right-0 text-center opacity-25 select-none z-0">
+<div class="flex justify-center items-center space-x-8">
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-sm">lock_person</span>
+<span class="text-[9px] font-bold tracking-[0.15em] uppercase">AES-256 Governance Grade</span>
+</div>
+<div class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-sm">verified_user</span>
+<span class="text-[9px] font-bold tracking-[0.15em] uppercase">Protocol 7 Certified</span>
+</div>
+</div>
+</footer>
+
+</body></html>

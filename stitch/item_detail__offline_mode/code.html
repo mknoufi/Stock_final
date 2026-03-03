@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Stock Verify: Offline Mode</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#1c2630",
+                        "warning": "#f59e0b",
+                        "danger": "#ef4444",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["Roboto Mono", "monospace"],
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased min-h-screen flex flex-col overflow-hidden text-slate-900 dark:text-white selection:bg-primary selection:text-white">
+<!-- Sticky Header Area -->
+<header class="sticky top-0 z-50 bg-background-dark/95 backdrop-blur-md border-b border-slate-700/50">
+<!-- Top App Bar -->
+<div class="flex items-center justify-between px-4 py-3 pt-safe-top">
+<button class="flex items-center justify-center p-2 -ml-2 text-slate-400 hover:text-white transition-colors rounded-full active:bg-slate-800">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="text-base font-semibold tracking-tight text-center flex-1 truncate px-2">
+                Stock Verify: Item SV-992-AX
+            </h1>
+<div class="flex items-center gap-2 -mr-2 w-10 justify-end">
+<!-- Battery Icon from provided components list style -->
+<span class="material-symbols-outlined text-slate-400 text-[20px]">battery_charging_80</span>
+</div>
+</div>
+<!-- System Status Bar (Red/Amber Context) -->
+<div class="px-4 pb-2">
+<div class="flex flex-wrap items-center justify-between gap-y-2 gap-x-4 text-xs font-mono py-1.5 px-3 bg-slate-800/50 rounded-md border border-slate-700/50">
+<div class="flex items-center gap-1.5 text-danger font-bold">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-danger opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-danger"></span>
+</span>
+                    OFFLINE
+                </div>
+<div class="flex items-center gap-1.5 text-warning font-medium">
+<span class="material-symbols-outlined text-[14px]">pending_actions</span>
+                    Queue: 4
+                </div>
+<div class="flex items-center gap-1.5 text-slate-500">
+<span class="material-symbols-outlined text-[14px]">dns</span>
+                    SQL: UNAVAILABLE
+                </div>
+</div>
+</div>
+</header>
+<!-- Scrollable Main Content -->
+<main class="flex-1 overflow-y-auto pb-32">
+<div class="flex flex-col gap-4 p-4">
+<!-- Warning Banner -->
+<div class="relative overflow-hidden rounded-lg border border-warning/20 bg-warning/5 p-4">
+<div class="flex items-start gap-3">
+<div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning">
+<span class="material-symbols-outlined">wifi_off</span>
+</div>
+<div>
+<h3 class="font-bold text-warning text-sm">Offline Mode Active</h3>
+<p class="mt-1 text-sm text-slate-400 leading-relaxed">
+                            Mutations will be queued locally with idempotency keys. Data will sync automatically when connectivity is restored.
+                        </p>
+</div>
+</div>
+</div>
+<!-- Item Card -->
+<div class="rounded-lg bg-surface-dark border border-slate-700/50 shadow-sm overflow-hidden">
+<div class="flex flex-col sm:flex-row">
+<!-- Image -->
+<div class="h-32 sm:h-auto sm:w-32 bg-slate-800 relative group shrink-0">
+<div class="absolute inset-0 bg-cover bg-center opacity-80" data-alt="Close up of an industrial metal valve component" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCCVfccsVQm4F-VegPuZeRy-DJ4-t4n9_nen_y3ym9htl01egB3kfRvODVUTdeerUU4fogoytMvViaqS0WG1pExoJHSpQe3wSn7D6Kzlbpt5tYgcy9BqaybYfYw4TS5B2fyECIBFfjoqEmQaZcI7v7BcYzb1OztC6p3Htlo9JNP9YLU69QjAIZDVlEzoJJKBXi-DIeX6B3H8NU_mOiBowpotmB9OMF1lR3efjOzTOYDB9Yb7ZjzNoJXfmXrkODvkxcxWB_7TK1_zIMJ');">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-dark to-transparent sm:bg-gradient-to-r"></div>
+</div>
+<!-- Content -->
+<div class="p-4 flex-1 flex flex-col justify-center">
+<div class="flex justify-between items-start">
+<div>
+<div class="text-xs font-mono text-slate-500 mb-1">SKU: SV-992-AX</div>
+<h2 class="text-lg font-bold text-white leading-tight">Industrial Actuator Valve</h2>
+<div class="flex items-center gap-2 mt-2">
+<span class="inline-flex items-center rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-300 ring-1 ring-inset ring-slate-700/50">
+                                        Loc: B-12
+                                    </span>
+<span class="inline-flex items-center rounded-md bg-slate-800 px-2 py-1 text-xs font-medium text-slate-300 ring-1 ring-inset ring-slate-700/50">
+                                        Zone: Heavy
+                                    </span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Truth Matrix (Snapshot Data) -->
+<div class="space-y-3">
+<div class="flex items-center justify-between">
+<h3 class="text-sm font-semibold text-slate-200">Local Snapshot #8829</h3>
+<span class="text-xs text-slate-500">Cached 2h ago</span>
+</div>
+<div class="grid grid-cols-3 gap-3">
+<div class="rounded-lg bg-surface-dark border border-slate-700/50 p-3 text-center">
+<div class="text-xs text-slate-400 mb-1">Expected</div>
+<div class="text-xl font-bold text-white font-mono">100</div>
+</div>
+<div class="rounded-lg bg-surface-dark border border-slate-700/50 p-3 text-center">
+<div class="text-xs text-slate-400 mb-1">On Hand</div>
+<div class="text-xl font-bold text-slate-500 font-mono">--</div>
+</div>
+<div class="rounded-lg bg-surface-dark border border-slate-700/50 p-3 text-center relative overflow-hidden">
+<div class="absolute top-0 right-0 p-1">
+<span class="material-symbols-outlined text-[10px] text-primary">verified</span>
+</div>
+<div class="text-xs text-slate-400 mb-1">Variance</div>
+<div class="text-xl font-bold text-primary font-mono">0</div>
+</div>
+</div>
+</div>
+<!-- Input Form -->
+<div class="rounded-lg bg-surface-dark border border-slate-700/50 p-4 space-y-4">
+<div class="space-y-1.5">
+<label class="block text-sm font-medium text-slate-300" for="count">Physical Count</label>
+<div class="relative">
+<input class="block w-full rounded-md border-0 bg-background-dark py-3 pl-4 pr-12 text-white shadow-sm ring-1 ring-inset ring-slate-700 placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-lg font-mono tracking-wider" id="count" name="count" placeholder="0" type="number" value="100"/>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+<span class="text-slate-500 text-sm">pcs</span>
+</div>
+</div>
+</div>
+<div class="space-y-1.5">
+<label class="block text-sm font-medium text-slate-300" for="condition">Condition</label>
+<div class="relative">
+<select class="appearance-none block w-full rounded-md border-0 bg-background-dark py-3 pl-4 pr-10 text-white shadow-sm ring-1 ring-inset ring-slate-700 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm" id="condition">
+<option>Good</option>
+<option>Damaged</option>
+<option>Missing Packaging</option>
+</select>
+<div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400">
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</div>
+<div class="space-y-1.5">
+<label class="block text-sm font-medium text-slate-300" for="notes">Notes (Optional)</label>
+<textarea class="block w-full rounded-md border-0 bg-background-dark py-2 px-3 text-white shadow-sm ring-1 ring-inset ring-slate-700 placeholder:text-slate-600 focus:ring-2 focus:ring-inset focus:ring-primary sm:text-sm resize-none" id="notes" placeholder="Add details about discrepancy..." rows="2"></textarea>
+</div>
+</div>
+<!-- Metadata Footer -->
+<div class="pb-4 pt-2 text-center">
+<p class="text-[10px] text-slate-600 font-mono uppercase">
+                     Session ID: loc_sess_8921 • Cache v12
+                 </p>
+</div>
+</div>
+</main>
+<!-- Sticky Bottom Action Bar -->
+<footer class="fixed bottom-0 left-0 right-0 bg-surface-dark border-t border-slate-700/50 p-4 pb-safe-bottom z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)]">
+<div class="flex gap-3 max-w-md mx-auto">
+<button class="flex-1 rounded-lg bg-slate-800 px-4 py-3 text-sm font-semibold text-white shadow-sm ring-1 ring-inset ring-slate-700 hover:bg-slate-700 transition-colors">
+                Save Draft
+            </button>
+<button class="flex-[2] flex flex-col items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-colors">
+<span class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">queue</span>
+                    Queue &amp; Continue
+                </span>
+<span class="text-[10px] font-mono opacity-80 font-normal">key: idemp_003</span>
+</button>
+</div>
+<!-- Safe Area Spacer for iOS Home Indicator -->
+<div class="h-4"></div>
+</footer>
+<style>
+        /* iOS Safe Area Support */
+        .pt-safe-top {
+            padding-top: max(1rem, env(safe-area-inset-top));
+        }
+        .pb-safe-bottom {
+            padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        }
+        
+        /* Hide scrollbar for cleaner mobile look but keep functionality */
+        main::-webkit-scrollbar {
+            display: none;
+        }
+        main {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</body></html>

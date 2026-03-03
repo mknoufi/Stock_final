@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Secure Portal Login - Stock Verify 2026</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#256af4",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#0f172a",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "2xl": "2rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style type="text/tailwindcss">
+        @layer base {
+            body {
+                @apply font-display antialiased text-slate-900;
+            }
+        }
+        .floating-label-group {
+            position: relative;
+        }
+        .floating-label-group input:focus ~ label,
+        .floating-label-group input:not(:placeholder-shown) ~ label {
+            top: -0.5rem;
+            left: 0.75rem;
+            font-size: 0.75rem;
+            color: #256af4;
+            background-color: white;
+            padding: 0 0.25rem;
+        }
+        .floating-label-group label {
+            position: absolute;
+            top: 1rem;
+            left: 3rem;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            color: #64748b;
+        }
+        .dark .floating-label-group input:focus ~ label,
+        .dark .floating-label-group input:not(:placeholder-shown) ~ label {
+            background-color: #1e293b;
+            color: #3b82f6;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen flex items-center justify-center p-4">
+<div class="w-full max-w-md bg-white dark:bg-slate-900 shadow-2xl rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
+<div class="p-8 sm:p-10 flex flex-col items-center">
+<div class="mb-8 flex flex-col items-center text-center">
+<div class="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 shadow-sm border border-primary/20">
+<span class="material-symbols-outlined text-primary text-5xl font-bold">alternate_email</span>
+</div>
+<h1 class="text-3xl font-bold tracking-tight text-slate-900 dark:text-white">Stock Verify 2026</h1>
+<p class="text-slate-500 dark:text-slate-400 mt-1 font-medium">Secure Portal Login</p>
+</div>
+<form class="w-full space-y-6">
+<div class="floating-label-group">
+<div class="relative flex items-center">
+<span class="material-icons-round absolute left-4 text-slate-400">mail_outline</span>
+<input class="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all dark:text-white" id="email" placeholder=" " type="email"/>
+<label for="email">Email Address</label>
+</div>
+</div>
+<div class="space-y-2">
+<div class="floating-label-group">
+<div class="relative flex items-center">
+<span class="material-icons-round absolute left-4 text-slate-400">lock_outline</span>
+<input class="w-full pl-12 pr-12 py-4 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all dark:text-white" id="password" placeholder=" " type="password"/>
+<label for="password">Password</label>
+<button class="absolute right-4 text-slate-400 hover:text-primary transition-colors" type="button">
+<span class="material-icons-round text-xl">visibility_off</span>
+</button>
+</div>
+</div>
+<div class="flex justify-end">
+<a class="text-sm font-semibold text-primary hover:underline" href="#">Forgot Password?</a>
+</div>
+</div>
+<div class="flex items-center space-x-2">
+<input class="h-5 w-5 text-primary focus:ring-primary border-slate-300 rounded-md transition-all cursor-pointer" id="remember-me" name="remember-me" type="checkbox"/>
+<label class="text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none" for="remember-me">
+                    Keep me signed in
+                </label>
+</div>
+<button class="w-full bg-primary hover:bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-primary/25 transition-all active:scale-[0.98] flex items-center justify-center gap-2" type="submit">
+<span>Sign In to Portal</span>
+<span class="material-icons-round">arrow_forward</span>
+</button>
+</form>
+<div class="relative w-full my-10">
+<div class="absolute inset-0 flex items-center">
+<div class="w-full border-t border-slate-100 dark:border-slate-800"></div>
+</div>
+<div class="relative flex justify-center text-xs uppercase tracking-widest font-bold">
+<span class="px-4 bg-white dark:bg-slate-900 text-slate-400">Security Verification</span>
+</div>
+</div>
+<div class="flex justify-center gap-6 mb-8">
+<button class="w-14 h-14 rounded-full flex items-center justify-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary hover:text-primary transition-all shadow-sm">
+<span class="material-icons-round text-2xl">fingerprint</span>
+</button>
+<button class="w-14 h-14 rounded-full flex items-center justify-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-primary hover:text-primary transition-all shadow-sm">
+<span class="material-icons-round text-2xl">face</span>
+</button>
+</div>
+<div class="text-center">
+<p class="text-slate-500 dark:text-slate-400">
+                Don't have an account? 
+                <a class="text-primary font-bold hover:underline ml-1" href="#">Register Now</a>
+</p>
+</div>
+<div class="mt-12 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.2em]">
+<span class="material-icons-round text-sm">shield</span>
+<span>Secure Encrypted Connection</span>
+</div>
+</div>
+</div>
+
+</body></html>

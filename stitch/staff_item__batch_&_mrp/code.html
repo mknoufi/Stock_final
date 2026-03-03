@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Staff Item: Batch &amp; MRP</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#1c2630",
+                        "surface-dark-highlight": "#28323c",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "body": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom Scrollbar for table area */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #1c2630; 
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #28323c; 
+            border-radius: 2px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen flex justify-center w-full">
+<div class="relative flex h-full min-h-screen w-full max-w-md flex-col bg-background-light dark:bg-background-dark overflow-hidden shadow-2xl">
+<!-- Header -->
+<div class="flex items-center px-4 py-3 bg-surface-dark sticky top-0 z-20 shadow-md">
+<button class="text-white/70 hover:text-white transition-colors p-2 -ml-2 rounded-full hover:bg-white/10">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="flex-1 text-center text-lg font-bold text-white tracking-tight">Item Detail</h1>
+<button class="text-white/70 hover:text-white transition-colors p-2 -mr-2 rounded-full hover:bg-white/10">
+<span class="material-symbols-outlined">history</span>
+</button>
+</div>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto custom-scrollbar pb-32">
+<!-- Item Identity Section -->
+<div class="p-5">
+<div class="flex items-start justify-between mb-2">
+<h2 class="text-white text-2xl font-bold leading-tight">Amoxicillin 500mg</h2>
+<button class="text-primary hover:text-blue-400 p-1">
+<span class="material-symbols-outlined">edit_square</span>
+</button>
+</div>
+<p class="text-gray-400 text-sm font-medium mb-4 font-mono">SKU: AMX-500-GEN</p>
+<div class="flex gap-2 flex-wrap">
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+<span class="material-symbols-outlined text-blue-400 text-[18px]">layers</span>
+<span class="text-blue-400 text-xs font-semibold tracking-wide">BATCH</span>
+</div>
+<div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20">
+<span class="material-symbols-outlined text-purple-400 text-[18px]">payments</span>
+<span class="text-purple-400 text-xs font-semibold tracking-wide">MULTI-MRP</span>
+</div>
+</div>
+</div>
+<!-- Stats Summary -->
+<div class="grid grid-cols-2 gap-3 px-5 mb-6">
+<div class="bg-surface-dark p-4 rounded-xl border border-surface-dark-highlight">
+<p class="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Total Stock</p>
+<p class="text-white text-2xl font-bold">80 <span class="text-sm font-normal text-gray-500">units</span></p>
+</div>
+<div class="bg-surface-dark p-4 rounded-xl border border-surface-dark-highlight">
+<p class="text-gray-400 text-xs font-medium uppercase tracking-wider mb-1">Avg MRP</p>
+<p class="text-white text-2xl font-bold">$13.25</p>
+</div>
+</div>
+<!-- Batch Table Header -->
+<div class="px-5 mb-3 flex items-center justify-between">
+<h3 class="text-white text-lg font-bold">Batch Inventory</h3>
+<button class="text-primary text-sm font-medium flex items-center gap-1 hover:underline">
+<span class="material-symbols-outlined text-[18px]">add</span> Add Batch
+                </button>
+</div>
+<!-- Batch List -->
+<div class="px-4 space-y-3">
+<!-- Row 1 -->
+<div class="bg-surface-dark rounded-xl p-4 border border-surface-dark-highlight relative group">
+<div class="flex justify-between items-start mb-3">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="text-white font-mono font-bold text-lg">B-101</span>
+<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-400 border border-green-500/20">ACTIVE</span>
+</div>
+<div class="flex items-center gap-3 text-sm text-gray-400">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">calendar_today</span> Exp: 12/25</span>
+</div>
+</div>
+<div class="text-right">
+<span class="block text-white font-bold text-lg">$12.00</span>
+<span class="text-xs text-gray-500 uppercase">MRP</span>
+</div>
+</div>
+<div class="bg-background-dark/50 rounded-lg p-3 flex items-center justify-between border border-surface-dark-highlight/50">
+<div class="flex flex-col">
+<span class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">System Qty</span>
+<span class="text-white font-bold text-xl">50</span>
+</div>
+<div class="h-8 w-[1px] bg-surface-dark-highlight"></div>
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-lg bg-surface-dark-highlight flex items-center justify-center text-white hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">remove</span>
+</button>
+<div class="flex flex-col items-center w-12">
+<span class="text-[10px] text-primary uppercase font-bold tracking-wider mb-0.5">Count</span>
+<span class="text-primary font-bold text-xl">50</span>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface-dark-highlight flex items-center justify-center text-white hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Row 2 -->
+<div class="bg-surface-dark rounded-xl p-4 border border-surface-dark-highlight relative group">
+<div class="flex justify-between items-start mb-3">
+<div>
+<div class="flex items-center gap-2 mb-1">
+<span class="text-white font-mono font-bold text-lg">B-102</span>
+<span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-500/20 text-green-400 border border-green-500/20">ACTIVE</span>
+</div>
+<div class="flex items-center gap-3 text-sm text-gray-400">
+<span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px]">calendar_today</span> Exp: 01/26</span>
+</div>
+</div>
+<div class="text-right">
+<span class="block text-white font-bold text-lg">$14.50</span>
+<span class="text-xs text-gray-500 uppercase">MRP</span>
+</div>
+</div>
+<div class="bg-background-dark/50 rounded-lg p-3 flex items-center justify-between border border-surface-dark-highlight/50">
+<div class="flex flex-col">
+<span class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">System Qty</span>
+<span class="text-white font-bold text-xl">30</span>
+</div>
+<div class="h-8 w-[1px] bg-surface-dark-highlight"></div>
+<div class="flex items-center gap-3">
+<button class="w-8 h-8 rounded-lg bg-surface-dark-highlight flex items-center justify-center text-white hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">remove</span>
+</button>
+<div class="flex flex-col items-center w-12">
+<span class="text-[10px] text-primary uppercase font-bold tracking-wider mb-0.5">Count</span>
+<span class="text-primary font-bold text-xl">30</span>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface-dark-highlight flex items-center justify-center text-white hover:bg-primary hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[20px]">add</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Spacer for scrolling -->
+<div class="h-6"></div>
+</div>
+</div>
+<!-- Sticky Footer - Reconciliation & Action -->
+<div class="absolute bottom-0 w-full bg-surface-dark border-t border-surface-dark-highlight shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.3)] z-30">
+<!-- Reconciliation Message -->
+<div class="bg-green-500/10 border-b border-green-500/20 py-2 px-4 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-green-400 text-[20px]">check_circle</span>
+<p class="text-green-400 text-sm font-semibold">Batch Total (80) = Staff Count (80)</p>
+</div>
+<div class="flex gap-2 p-4 pt-3 bg-surface-dark">
+<!-- Action Buttons -->
+<a class="flex flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-surface-dark-highlight bg-transparent py-3 text-white hover:bg-surface-dark-highlight transition-colors" href="#">
+<p class="text-sm font-bold">Report Issue</p>
+</a>
+<button class="flex flex-[2] cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-primary text-white gap-2 text-base font-bold leading-normal tracking-[0.015em] py-3 hover:bg-blue-600 transition-colors shadow-lg shadow-blue-900/20">
+<span class="material-symbols-outlined">verified</span>
+<span>Confirm Verification</span>
+</button>
+</div>
+<!-- Bottom Nav (Simplified for Context) -->
+<div class="flex gap-2 border-t border-[#283039] bg-[#1c2127] px-4 pb-6 pt-2">
+<a class="just flex flex-1 flex-col items-center justify-end gap-1 rounded-full text-white" href="#">
+<div class="text-white flex h-6 items-center justify-center">
+<span class="material-symbols-outlined">inventory_2</span>
+</div>
+<p class="text-white text-[10px] font-medium leading-normal tracking-[0.015em]">Stock</p>
+</a>
+<a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#9dabb9]" href="#">
+<div class="text-[#9dabb9] flex h-6 items-center justify-center">
+<span class="material-symbols-outlined">qr_code_scanner</span>
+</div>
+<p class="text-[#9dabb9] text-[10px] font-medium leading-normal tracking-[0.015em]">Scan</p>
+</a>
+<a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#9dabb9]" href="#">
+<div class="text-[#9dabb9] flex h-6 items-center justify-center">
+<span class="material-symbols-outlined">notifications</span>
+</div>
+<p class="text-[#9dabb9] text-[10px] font-medium leading-normal tracking-[0.015em]">Alerts</p>
+</a>
+<a class="just flex flex-1 flex-col items-center justify-end gap-1 text-[#9dabb9]" href="#">
+<div class="text-[#9dabb9] flex h-6 items-center justify-center">
+<span class="material-symbols-outlined">person</span>
+</div>
+<p class="text-[#9dabb9] text-[10px] font-medium leading-normal tracking-[0.015em]">Profile</p>
+</a>
+</div>
+</div>
+</div>
+</body></html>

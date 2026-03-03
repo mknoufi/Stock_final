@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Conflict Fork &amp; Version Tree Viewer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              colors: {
+                "primary": "#137fec",
+                "background-light": "#f6f7f8",
+                "background-dark": "#101922",
+                "surface-dark": "#1a242f",
+                "border-dark": "#2d3a4b",
+              },
+              fontFamily: {
+                "display": ["Space Grotesk"]
+              },
+              borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            },
+          },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .tree-line {
+            stroke: #2d3a4b;
+            stroke-width: 2;
+            fill: none;
+        }
+        .node-active {
+            box-shadow: 0 0 15px rgba(19, 127, 236, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen font-display">
+<!-- Main Desktop Layout -->
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar: Audit Timeline -->
+<aside class="w-80 border-r border-slate-200 dark:border-border-dark bg-white dark:bg-surface-dark flex flex-col">
+<div class="p-6 border-b border-slate-200 dark:border-border-dark">
+<h2 class="text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Audit Timeline</h2>
+<p class="text-xs text-slate-400 mt-1">Item: SKU-8829-XPL</p>
+</div>
+<div class="flex-1 overflow-y-auto p-6">
+<div class="relative space-y-8">
+<!-- Timeline Line -->
+<div class="absolute left-3 top-2 bottom-2 w-0.5 bg-slate-200 dark:bg-border-dark"></div>
+<!-- Timeline Item 1 -->
+<div class="relative flex items-start gap-4">
+<div class="z-10 w-6 h-6 rounded-full bg-slate-400 flex items-center justify-center text-[10px] text-white font-bold">1</div>
+<div>
+<p class="text-sm font-medium">Scan v1</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Initial warehouse intake</p>
+<p class="text-[10px] font-mono mt-1 opacity-60">2023-10-24 09:15:02</p>
+</div>
+</div>
+<!-- Timeline Item 2 -->
+<div class="relative flex items-start gap-4">
+<div class="z-10 w-6 h-6 rounded-full bg-slate-400 flex items-center justify-center text-[10px] text-white font-bold">2</div>
+<div>
+<p class="text-sm font-medium">Draft v2</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Batch update by robot-04</p>
+<p class="text-[10px] font-mono mt-1 opacity-60">2023-10-24 11:30:45</p>
+</div>
+</div>
+<!-- Timeline Item 3 -->
+<div class="relative flex items-start gap-4">
+<div class="z-10 w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[10px] text-white font-bold ring-4 ring-primary/20">3</div>
+<div>
+<p class="text-sm font-medium text-primary">Conflict v3</p>
+<p class="text-xs text-slate-500 dark:text-slate-400">Manual discrepancy detected</p>
+<p class="text-[10px] font-mono mt-1 opacity-60">2023-10-24 14:22:10</p>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 bg-slate-50 dark:bg-background-dark/50 border-t border-slate-200 dark:border-border-dark">
+<div class="flex items-center gap-2 text-xs text-slate-400">
+<span class="material-icons text-sm">history</span>
+<span>System ID: 0x9928AF</span>
+</div>
+</div>
+</aside>
+<!-- Main Workspace -->
+<main class="flex-1 flex flex-col overflow-hidden">
+<!-- Header -->
+<header class="h-16 border-b border-slate-200 dark:border-border-dark bg-white dark:bg-surface-dark flex items-center justify-between px-8">
+<div class="flex items-center gap-4">
+<div class="p-2 bg-primary/10 rounded-lg">
+<span class="material-icons text-primary">account_tree</span>
+</div>
+<div>
+<h1 class="text-lg font-bold">Conflict Resolution</h1>
+<p class="text-xs text-slate-500">supersedes_line_id: <span class="font-mono text-primary">L_8829_V2_A</span></p>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-medium rounded-full">
+                        Action Required: Supervisor
+                    </div>
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-border-dark rounded-lg transition-colors">
+<span class="material-icons text-slate-400">settings</span>
+</button>
+<button class="p-2 hover:bg-slate-100 dark:hover:bg-border-dark rounded-lg transition-colors">
+<span class="material-icons text-slate-400">close</span>
+</button>
+</div>
+</header>
+<!-- Workspace Content -->
+<div class="flex-1 overflow-y-auto p-8 bg-background-light dark:bg-background-dark space-y-8">
+<!-- Version Tree Viewer -->
+<section class="relative">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-sm font-semibold flex items-center gap-2">
+<span class="material-icons text-xs">schema</span>
+                            Version Lineage Tree
+                        </h3>
+</div>
+<div class="relative h-64 bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-border-dark overflow-hidden flex items-center justify-center">
+<!-- Connecting Lines (SVG) -->
+<svg class="absolute inset-0 w-full h-full pointer-events-none">
+<path class="tree-line" d="M 400 128 L 600 80"></path>
+<path class="tree-line" d="M 400 128 L 600 176" stroke-dasharray="4"></path>
+</svg>
+<!-- Tree Nodes -->
+<div class="relative w-full max-w-4xl flex items-center justify-between px-20">
+<!-- Parent Node -->
+<div class="z-10 group flex flex-col items-center">
+<div class="w-16 h-16 rounded-xl bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 flex items-center justify-center mb-3">
+<span class="material-icons text-slate-500">inventory_2</span>
+</div>
+<span class="text-xs font-bold uppercase tracking-tighter">Parent Line</span>
+<span class="text-[10px] text-slate-400 font-mono">ID: 0xP00</span>
+</div>
+<div class="flex flex-col gap-12">
+<!-- Branch A (Staff) -->
+<div class="z-10 group flex flex-col items-center translate-x-12 opacity-60">
+<div class="w-14 h-14 rounded-xl bg-slate-200 dark:bg-slate-800 border-2 border-slate-400 dark:border-slate-600 flex items-center justify-center mb-3">
+<span class="material-icons text-slate-500">person</span>
+</div>
+<span class="text-[10px] font-bold uppercase">Branch A (Staff)</span>
+<span class="text-[10px] text-slate-400 font-mono">ID: 0xS0A</span>
+</div>
+<!-- Branch B (Supervisor) - Active -->
+<div class="z-10 group flex flex-col items-center translate-x-12">
+<div class="w-16 h-16 rounded-xl bg-primary/20 border-2 border-primary flex items-center justify-center mb-3 node-active">
+<span class="material-icons text-primary">supervisor_account</span>
+</div>
+<span class="text-xs font-bold uppercase text-primary tracking-tighter">Branch B (Active)</span>
+<span class="text-[10px] text-primary/60 font-mono">ID: 0xSUP</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Item Stock Triptych -->
+<section>
+<h3 class="text-sm font-semibold flex items-center gap-2 mb-6">
+<span class="material-icons text-xs">difference</span>
+                        Stock Metrics Comparison
+                    </h3>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<!-- Pane 1: Observed (Grey) -->
+<div class="bg-white dark:bg-surface-dark p-6 rounded-xl border border-slate-200 dark:border-border-dark flex flex-col">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-bold uppercase tracking-widest text-slate-400">Observed</span>
+<span class="material-icons text-slate-400 text-sm">visibility</span>
+</div>
+<div class="flex-1 flex flex-col justify-center">
+<span class="text-4xl font-bold font-mono">420</span>
+<p class="text-xs text-slate-500 mt-2">Initial system state before discrepancy fork.</p>
+</div>
+<div class="mt-4 pt-4 border-t border-slate-100 dark:border-border-dark/50">
+<div class="flex justify-between text-[10px] font-mono text-slate-400 uppercase">
+<span>Confidence Score</span>
+<span>98%</span>
+</div>
+</div>
+</div>
+<!-- Pane 2: Counted (Blue/Primary) -->
+<div class="bg-primary/5 dark:bg-primary/10 p-6 rounded-xl border border-primary/30 flex flex-col ring-1 ring-primary/20">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-bold uppercase tracking-widest text-primary">Counted (Staff)</span>
+<span class="material-icons text-primary text-sm">edit_note</span>
+</div>
+<div class="flex-1 flex flex-col justify-center">
+<span class="text-4xl font-bold font-mono text-primary">385</span>
+<p class="text-xs text-slate-500 mt-2">Manual physical count submitted by warehouse staff.</p>
+</div>
+<div class="mt-4 pt-4 border-t border-primary/10">
+<div class="flex justify-between text-[10px] font-mono text-primary uppercase">
+<span>Delta</span>
+<span>-35 units</span>
+</div>
+</div>
+</div>
+<!-- Pane 3: Verified (Green) -->
+<div class="bg-emerald-500/5 dark:bg-emerald-500/10 p-6 rounded-xl border border-emerald-500/30 flex flex-col">
+<div class="flex items-center justify-between mb-4">
+<span class="text-[10px] font-bold uppercase tracking-widest text-emerald-500">Verified</span>
+<span class="material-icons text-emerald-500 text-sm">check_circle</span>
+</div>
+<div class="flex-1 flex flex-col justify-center">
+<span class="text-4xl font-bold font-mono text-emerald-500">392</span>
+<p class="text-xs text-slate-500 mt-2">Adjusted value after accounting for pending shipments.</p>
+</div>
+<div class="mt-4 pt-4 border-t border-emerald-500/10">
+<div class="flex justify-between text-[10px] font-mono text-emerald-500 uppercase">
+<span>Resolution Path</span>
+<span>Branch B</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Conflict Details Table -->
+<section class="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-border-dark overflow-hidden">
+<div class="px-6 py-4 border-b border-slate-200 dark:border-border-dark flex items-center justify-between">
+<h3 class="text-sm font-semibold uppercase tracking-wider">Lineage Metadata</h3>
+<span class="text-[10px] text-slate-400">v3_conflict_payload_raw</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50 dark:bg-background-dark/50 text-[10px] uppercase tracking-tighter text-slate-500 font-bold border-b border-slate-200 dark:border-border-dark">
+<th class="px-6 py-3">Property</th>
+<th class="px-6 py-3">Branch A Value</th>
+<th class="px-6 py-3">Branch B Value</th>
+<th class="px-6 py-3">Status</th>
+</tr>
+</thead>
+<tbody class="text-sm divide-y divide-slate-100 dark:divide-border-dark/30">
+<tr>
+<td class="px-6 py-4 font-mono text-xs">location_bin_id</td>
+<td class="px-6 py-4">BIN-A102</td>
+<td class="px-6 py-4">BIN-A102</td>
+<td class="px-6 py-4"><span class="text-[10px] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500">MATCH</span></td>
+</tr>
+<tr>
+<td class="px-6 py-4 font-mono text-xs">quantity_total</td>
+<td class="px-6 py-4 text-red-400">385</td>
+<td class="px-6 py-4 text-emerald-400">392</td>
+<td class="px-6 py-4"><span class="text-[10px] bg-red-500/10 px-2 py-0.5 rounded text-red-500 font-bold">CONFLICT</span></td>
+</tr>
+<tr>
+<td class="px-6 py-4 font-mono text-xs">timestamp_last_obs</td>
+<td class="px-6 py-4">14:10:00</td>
+<td class="px-6 py-4">14:22:10</td>
+<td class="px-6 py-4"><span class="text-[10px] bg-amber-500/10 px-2 py-0.5 rounded text-amber-500">SKEW</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+<!-- Footer Action Bar -->
+<footer class="h-20 bg-white dark:bg-surface-dark border-t border-slate-200 dark:border-border-dark px-8 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase font-bold text-slate-400">Selection</span>
+<span class="text-sm font-medium">1 Conflict / 3 Nodes</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="px-6 py-2.5 rounded-lg border border-slate-300 dark:border-border-dark text-sm font-medium hover:bg-slate-50 dark:hover:bg-background-dark transition-all">
+                        Merge &amp; Recount
+                    </button>
+<button class="px-8 py-2.5 rounded-lg bg-primary text-white text-sm font-bold shadow-lg shadow-primary/20 hover:brightness-110 active:scale-[0.98] transition-all">
+                        Resolve with Branch B
+                    </button>
+</div>
+</footer>
+</main>
+</div>
+</body></html>

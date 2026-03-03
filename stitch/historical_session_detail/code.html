@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Historical Session Detail</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["Roboto Mono", "monospace"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #374151;
+            border-radius: 2px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-white min-h-screen flex flex-col antialiased">
+<!-- Top Navigation -->
+<header class="sticky top-0 z-20 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+<div class="flex items-center justify-between px-4 py-3">
+<button class="p-2 -ml-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-gray-900 dark:text-white">
+<span class="material-symbols-outlined text-[24px]">arrow_back_ios_new</span>
+</button>
+<h1 class="text-base font-semibold text-gray-900 dark:text-white">Session Detail</h1>
+<button class="p-2 -mr-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors text-primary">
+<span class="material-symbols-outlined text-[24px]">share</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto pb-32">
+<div class="px-5 pt-6 pb-2">
+<!-- Header Section with Status -->
+<div class="flex items-start justify-between mb-2">
+<div>
+<h2 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">SESS-9928</h2>
+<p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Audit Log • Read Only</p>
+</div>
+<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-300 dark:border-gray-700">
+<span class="material-symbols-outlined text-[16px]">lock</span>
+                    SEALED
+                </span>
+</div>
+<!-- Metadata Card -->
+<div class="mt-6 bg-white dark:bg-[#1C252E] rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-800">
+<div class="px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#232D38]">
+<h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Metadata</h3>
+</div>
+<div class="p-4 space-y-4">
+<!-- Hash -->
+<div class="group relative">
+<label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Snapshot Hash</label>
+<div class="flex items-center justify-between">
+<code class="font-mono text-sm text-primary dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 px-2 py-1 rounded">0x7a2...8b9c</code>
+<button class="text-gray-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined text-[18px]">content_copy</span>
+</button>
+</div>
+</div>
+<!-- Device -->
+<div>
+<label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Device ID</label>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400 text-[18px]">smartphone</span>
+<span class="text-sm text-gray-900 dark:text-gray-200">Zebra-Handheld-04</span>
+<span class="text-xs font-mono text-gray-500 ml-auto">UUID-8821</span>
+</div>
+</div>
+<!-- Period -->
+<div>
+<label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Period</label>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-gray-400 text-[18px]">schedule</span>
+<span class="text-sm text-gray-900 dark:text-gray-200">Oct 28, 08:00 - 16:30</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Truth Matrix -->
+<div class="mt-6">
+<h3 class="text-lg font-bold text-gray-900 dark:text-white mb-3 px-1">Truth Matrix</h3>
+<div class="grid grid-cols-2 gap-3">
+<!-- Snapshot Total -->
+<div class="bg-white dark:bg-[#1C252E] p-4 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+<div class="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">Snapshot Total</div>
+<div class="text-2xl font-bold text-gray-900 dark:text-white">1,200</div>
+</div>
+<!-- Verified Total -->
+<div class="bg-white dark:bg-[#1C252E] p-4 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+<div class="text-xs text-gray-500 dark:text-gray-400 font-medium mb-1">Verified Total</div>
+<div class="text-2xl font-bold text-gray-900 dark:text-white">1,196</div>
+</div>
+<!-- Variance -->
+<div class="bg-white dark:bg-[#1C252E] p-4 rounded-xl border border-red-100 dark:border-red-900/30 shadow-sm relative overflow-hidden">
+<div class="absolute right-0 top-0 w-16 h-16 bg-red-500/5 rounded-full blur-2xl -mr-4 -mt-4"></div>
+<div class="text-xs text-red-600 dark:text-red-400 font-medium mb-1">Variance</div>
+<div class="flex items-baseline gap-2">
+<span class="text-2xl font-bold text-red-600 dark:text-red-400">-4</span>
+<span class="text-xs font-medium text-red-500 dark:text-red-400/80">(0.33%)</span>
+</div>
+</div>
+<!-- SQL Status -->
+<div class="bg-white dark:bg-[#1C252E] p-4 rounded-xl border border-emerald-100 dark:border-emerald-900/30 shadow-sm flex flex-col justify-between relative overflow-hidden">
+<div class="absolute right-0 top-0 w-16 h-16 bg-emerald-500/5 rounded-full blur-2xl -mr-4 -mt-4"></div>
+<div class="text-xs text-emerald-600 dark:text-emerald-400 font-medium mb-1">SQL Status</div>
+<div class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+<span class="material-symbols-outlined text-[20px]">check_circle</span>
+<span class="text-lg font-bold tracking-wide">MATCH</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Audit Timeline -->
+<div class="mt-8 mb-4">
+<h3 class="text-lg font-bold text-gray-900 dark:text-white mb-4 px-1">Audit Timeline</h3>
+<div class="relative pl-4 border-l-2 border-gray-200 dark:border-gray-800 ml-3 space-y-8">
+<!-- Item 1 -->
+<div class="relative pl-6">
+<div class="absolute -left-[21px] top-1 bg-background-light dark:bg-background-dark p-1">
+<div class="h-3 w-3 rounded-full bg-emerald-500 border-2 border-background-light dark:border-background-dark shadow-sm"></div>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-mono text-gray-500 dark:text-gray-400 mb-0.5">08:00</span>
+<span class="text-sm font-semibold text-gray-900 dark:text-white">Session Opened</span>
+<span class="text-xs text-gray-500 dark:text-gray-500 mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">person</span> Staff A
+                            </span>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="relative pl-6">
+<div class="absolute -left-[21px] top-1 bg-background-light dark:bg-background-dark p-1">
+<div class="h-3 w-3 rounded-full bg-orange-400 border-2 border-background-light dark:border-background-dark shadow-sm"></div>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-mono text-gray-500 dark:text-gray-400 mb-0.5">12:45</span>
+<span class="text-sm font-semibold text-gray-900 dark:text-white">50 items queued</span>
+<span class="text-xs text-orange-400 mt-1 flex items-center gap-1 font-medium bg-orange-400/10 w-fit px-1.5 py-0.5 rounded">
+<span class="material-symbols-outlined text-[14px]">wifi_off</span> Offline Mode
+                            </span>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="relative pl-6">
+<div class="absolute -left-[21px] top-1 bg-background-light dark:bg-background-dark p-1">
+<div class="h-3 w-3 rounded-full bg-primary border-2 border-background-light dark:border-background-dark shadow-sm"></div>
+</div>
+<div class="flex flex-col">
+<span class="text-xs font-mono text-gray-500 dark:text-gray-400 mb-0.5">13:00</span>
+<span class="text-sm font-semibold text-gray-900 dark:text-white">50 items synced</span>
+<span class="text-xs text-primary mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">sync_alt</span> Tunnel Connection
+                            </span>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="relative pl-6">
+<div class="absolute -left-[21px] top-1 bg-background-light dark:bg-background-dark p-1">
+<div class="h-3 w-3 rounded-full bg-gray-400 dark:bg-gray-600 border-2 border-background-light dark:border-background-dark shadow-sm"></div>
+</div>
+<div class="flex flex-col opacity-80">
+<span class="text-xs font-mono text-gray-500 dark:text-gray-400 mb-0.5">16:30</span>
+<span class="text-sm font-semibold text-gray-900 dark:text-white">Session Closed &amp; Snapshot Sealed</span>
+<span class="text-xs text-gray-500 dark:text-gray-500 mt-1 flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">lock_clock</span> System Auto-Close
+                            </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Immutable Note -->
+<div class="mt-6 mb-8 px-4 py-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg flex items-start gap-3 border border-blue-100 dark:border-blue-900/20">
+<span class="material-symbols-outlined text-blue-600 dark:text-blue-400 text-[20px] mt-0.5">info</span>
+<p class="text-xs leading-relaxed text-blue-800 dark:text-blue-200">
+<strong>Immutable Record:</strong> Historical sessions are read-only to ensure audit integrity. Reopening this session will create a new tracked instance.
+                </p>
+</div>
+</div>
+</main>
+<!-- Sticky Footer Action -->
+<div class="fixed bottom-0 left-0 w-full bg-background-light dark:bg-background-dark border-t border-gray-200 dark:border-gray-800 p-4 z-30 pb-8 safe-pb">
+<button class="w-full flex items-center justify-center gap-2 bg-primary hover:bg-blue-600 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined">restart_alt</span>
+            Reopen as New Session
+        </button>
+</div>
+</body></html>

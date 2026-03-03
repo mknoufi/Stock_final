@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Staff Item: Conflict Fork</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#137fec",
+              "background-light": "#f6f7f8",
+              "background-dark": "#101922",
+              "surface-dark": "#1c242d",
+              "surface-modal": "#182029",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"],
+              "mono": ["Roboto Mono", "monospace"],
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        /* iOS-like blurred backdrop for the overlay */
+        .backdrop-blur-custom {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 4px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-white overflow-hidden h-screen w-full relative">
+<!-- Dimmed Background Content -->
+<div class="h-full overflow-y-auto opacity-30 pointer-events-none filter blur-[1px]">
+<!-- Header -->
+<div class="sticky top-0 z-10 flex items-center bg-background-dark p-4 pb-2 justify-between border-b border-white/5">
+<div class="text-white flex size-12 shrink-0 items-center justify-center -ml-2 rounded-full hover:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-[24px]">arrow_back</span>
+</div>
+<h2 class="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-10">Item #8842</h2>
+<div class="flex w-12 items-center justify-end absolute right-4">
+<button class="flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-[24px]">more_vert</span>
+</button>
+</div>
+</div>
+<!-- Governance Bar -->
+<div class="bg-amber-900/30 border-b border-amber-500/20 py-2 px-4 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-amber-500 text-[18px]">warning</span>
+<p class="text-amber-500 text-xs font-semibold uppercase tracking-wider">Version: v12 (Stale) - Local Copy</p>
+</div>
+<!-- Main Content -->
+<div class="p-4 space-y-4">
+<!-- Item Identity Card -->
+<div class="flex items-stretch justify-between gap-4 rounded-xl bg-surface-dark p-4 shadow-lg border border-white/5">
+<div class="flex flex-col gap-1 flex-[2_2_0px]">
+<div class="flex items-center gap-2 mb-1">
+<span class="px-2 py-0.5 rounded bg-white/5 text-[10px] font-medium text-slate-400 uppercase tracking-wide">Industrial Parts</span>
+</div>
+<p class="text-white text-lg font-bold leading-tight">Precision Widget X-200</p>
+<p class="text-slate-400 text-sm font-mono mt-1">SKU: 8842-A</p>
+</div>
+<div class="w-24 h-24 bg-center bg-no-repeat bg-cover rounded-lg flex-shrink-0 border border-white/5" data-alt="Industrial metal precision widget part" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuArPD0lKj7FcPTabrQoYKcjzriWQu-qAgidw_Wf8J0OhUHmupfhjoP_nHie3dN34R2H1hovB6tCHNc7C1PKjlBbCCWPfCSlE3d5d6QoFAZnT4Ps8dSRjhNKFW86UGsBZrvIAmLRRwTNUxbflMaATaQsc1rlCqKwooJHxtkCynIKQxPH-cQ4rDRMsr8Ta70sGxSkPuaffaJpPwiEkoREyoEW8folVUawLG9mkdy84kdco9hg6EutFgDREDsRdydLVNNU968lzC7NyhAX");'>
+</div>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-surface-dark p-4 rounded-xl border border-white/5 flex flex-col gap-1">
+<div class="flex items-center gap-2 text-slate-400">
+<span class="material-symbols-outlined text-[18px]">inventory_2</span>
+<span class="text-xs font-medium uppercase">Current Stock</span>
+</div>
+<p class="text-white text-xl font-bold font-mono">42 <span class="text-sm font-normal text-slate-500 font-display">units</span></p>
+</div>
+<div class="bg-surface-dark p-4 rounded-xl border border-white/5 flex flex-col gap-1">
+<div class="flex items-center gap-2 text-slate-400">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+<span class="text-xs font-medium uppercase">Location</span>
+</div>
+<p class="text-white text-lg font-bold">Warehouse A-12</p>
+</div>
+<div class="bg-surface-dark p-4 rounded-xl border border-white/5 flex flex-col gap-1">
+<div class="flex items-center gap-2 text-slate-400">
+<span class="material-symbols-outlined text-[18px]">history</span>
+<span class="text-xs font-medium uppercase">Last Count</span>
+</div>
+<p class="text-white text-sm font-medium">2 hours ago</p>
+</div>
+<div class="bg-surface-dark p-4 rounded-xl border border-white/5 flex flex-col gap-1">
+<div class="flex items-center gap-2 text-slate-400">
+<span class="material-symbols-outlined text-[18px]">person</span>
+<span class="text-xs font-medium uppercase">Counter</span>
+</div>
+<p class="text-white text-sm font-medium">J. Smith</p>
+</div>
+</div>
+<!-- Edit Form (Obscured) -->
+<div class="bg-surface-dark p-4 rounded-xl border border-white/5 space-y-4">
+<h3 class="text-sm font-semibold text-slate-300">Adjustment Details</h3>
+<div class="space-y-3">
+<div class="h-10 bg-white/5 rounded w-full"></div>
+<div class="h-24 bg-white/5 rounded w-full"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Conflict Overlay (Modal) -->
+<div class="absolute inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-custom animate-fade-in">
+<!-- Modal Card -->
+<div class="w-full max-w-sm bg-surface-modal rounded-2xl shadow-2xl border border-white/10 overflow-hidden flex flex-col relative animate-slide-up">
+<!-- Warning Header Strip -->
+<div class="h-1.5 w-full bg-gradient-to-r from-amber-500 via-orange-500 to-red-500"></div>
+<div class="p-6 flex flex-col items-center text-center gap-4">
+<!-- Icon -->
+<div class="size-16 rounded-full bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center mb-2 ring-1 ring-amber-500/30">
+<span class="material-symbols-outlined text-amber-500 text-[32px]">call_split</span>
+</div>
+<!-- Text Content -->
+<div class="space-y-2">
+<h2 class="text-xl font-bold text-white tracking-tight">Version Mismatch Detected</h2>
+<p class="text-slate-400 text-sm leading-relaxed">
+                        A newer update (<span class="font-mono text-amber-400 bg-amber-400/10 px-1 rounded text-xs">v13</span>) exists in Mongo SoT. Your local changes are based on <span class="font-mono text-slate-300 bg-slate-700 px-1 rounded text-xs">v12</span> and cannot be saved directly.
+                    </p>
+</div>
+<!-- Action Stack -->
+<div class="flex flex-col gap-3 w-full mt-4">
+<!-- Primary: View Latest -->
+<button class="w-full h-12 rounded-lg bg-primary hover:bg-primary/90 active:bg-primary/80 text-white font-semibold text-sm flex items-center justify-center gap-2 transition-all shadow-[0_4px_12px_rgba(19,127,236,0.2)]">
+<span class="material-symbols-outlined text-[20px]">sync</span>
+                        View Latest Version (v13)
+                    </button>
+<!-- Secondary: Fork -->
+<button class="w-full h-12 rounded-lg bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 text-white font-medium text-sm flex items-center justify-center gap-2 transition-all">
+<span class="material-symbols-outlined text-[20px] text-slate-300">fork_right</span>
+                        Fork &amp; Continue
+                    </button>
+<!-- Tertiary: Discard -->
+<button class="w-full h-10 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/5 text-sm font-medium transition-colors mt-1">
+                        Discard &amp; Refresh
+                    </button>
+</div>
+</div>
+<!-- Footer Meta -->
+<div class="bg-black/20 p-3 text-center border-t border-white/5">
+<p class="text-[10px] text-slate-600 font-mono">Error Code: OPLOCK_FAIL_8842</p>
+</div>
+</div>
+</div>
+<!-- Home indicator bar for iOS -->
+<div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/20 rounded-full z-50"></div>
+<style>
+        @keyframes slide-up {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .animate-slide-up {
+            animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.2s ease-out forwards;
+        }
+    </style>
+</body></html>

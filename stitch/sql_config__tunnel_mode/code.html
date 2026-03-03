@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SQL Config: Tunnel Mode</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#7f13ec",
+                        "background-light": "#f7f6f8",
+                        "background-dark": "#191022",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #473b54;
+            border-radius: 2px;
+        }
+        
+        /* Toggle Switch Customization */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #7f13ec;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #7f13ec;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display antialiased overflow-x-hidden">
+<div class="relative flex h-full min-h-screen w-full flex-col max-w-md mx-auto bg-background-light dark:bg-background-dark shadow-2xl">
+<!-- Status Bar Area (Simulated) -->
+<div class="h-12 w-full bg-background-light dark:bg-background-dark flex items-end justify-between px-6 pb-2 text-xs font-medium dark:text-white">
+<span>9:41</span>
+<div class="flex gap-1.5">
+<span class="material-symbols-outlined text-[16px]">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-[16px]">wifi</span>
+<span class="material-symbols-outlined text-[16px]">battery_full</span>
+</div>
+</div>
+<!-- Sticky Header with Navigation -->
+<div class="sticky top-0 z-50 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-b border-slate-200 dark:border-white/10 px-4 py-3 flex items-center justify-between">
+<button class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-primary">
+<span class="material-symbols-outlined">arrow_back_ios_new</span>
+</button>
+<div class="flex flex-col items-center">
+<h1 class="text-base font-bold text-slate-900 dark:text-white">SQL Config</h1>
+<p class="text-[10px] text-slate-500 dark:text-slate-400 font-medium tracking-wide uppercase">Stock Verify • ERP Observer</p>
+</div>
+<button class="flex items-center justify-center w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-primary font-semibold text-sm">
+                Save
+            </button>
+</div>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto pb-24">
+<!-- Connectivity Status Banner -->
+<div class="bg-primary/10 dark:bg-primary/20 border-b border-primary/20 px-5 py-3 flex items-center justify-center gap-2">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+</span>
+<p class="text-primary text-xs font-bold tracking-wider uppercase">Connectivity: TUNNEL</p>
+</div>
+<div class="p-5 space-y-6">
+<!-- Main Connection Card -->
+<div class="relative overflow-hidden rounded-xl bg-white dark:bg-[#211c27] shadow-sm border border-slate-100 dark:border-white/5">
+<!-- Card Background Gradient Accent -->
+<div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-purple-400 to-primary"></div>
+<div class="p-5">
+<div class="flex items-start justify-between mb-4">
+<div class="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined">vpn_lock</span>
+</div>
+<span class="px-2 py-1 rounded bg-green-500/10 text-green-600 dark:text-green-400 text-[10px] font-bold uppercase tracking-wide border border-green-500/20">Secured</span>
+</div>
+<h2 class="text-lg font-bold text-slate-900 dark:text-white leading-tight mb-1">Cloudflare Tunnel</h2>
+<p class="text-sm text-slate-500 dark:text-slate-400 mb-6">Connection routed via secure tunnel.</p>
+<div class="space-y-3">
+<div class="p-3 rounded-lg bg-slate-50 dark:bg-[#141118] border border-slate-100 dark:border-white/5 flex flex-col gap-1">
+<span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Host Address</span>
+<div class="flex items-center justify-between">
+<code class="text-sm font-mono text-slate-700 dark:text-slate-200">erp-internal.tunnel.local</code>
+<button class="text-primary opacity-60 hover:opacity-100">
+<span class="material-symbols-outlined text-sm">content_copy</span>
+</button>
+</div>
+</div>
+<div class="p-3 rounded-lg bg-slate-50 dark:bg-[#141118] border border-slate-100 dark:border-white/5 flex flex-col gap-1">
+<span class="text-[10px] text-slate-400 uppercase font-semibold tracking-wider">Protocol</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-sm text-slate-500">lock</span>
+<span class="text-sm font-medium text-slate-700 dark:text-slate-200">TCP / TLS 1.3</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Latency Warning -->
+<div class="flex items-start gap-3 p-4 rounded-xl bg-orange-50 dark:bg-orange-500/10 border border-orange-100 dark:border-orange-500/20">
+<span class="material-symbols-outlined text-orange-500 shrink-0 mt-0.5">warning</span>
+<div class="flex flex-col">
+<h3 class="text-sm font-bold text-orange-700 dark:text-orange-400">Latency Warning</h3>
+<p class="text-xs text-orange-600/80 dark:text-orange-300/80 mt-1 leading-relaxed">
+                            Latency may be higher via Tunnel due to encryption overhead.
+                        </p>
+<div class="mt-2 flex items-center gap-2">
+<span class="h-1.5 w-1.5 rounded-full bg-orange-500"></span>
+<span class="text-xs font-mono font-medium text-orange-700 dark:text-orange-400">Current: 85ms</span>
+</div>
+</div>
+</div>
+<!-- Policy Section -->
+<div class="space-y-3">
+<h3 class="text-sm font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1">Network Policy</h3>
+<div class="rounded-xl bg-white dark:bg-[#211c27] shadow-sm border border-slate-100 dark:border-white/5 divide-y divide-slate-100 dark:divide-white/5">
+<!-- Toggle Item -->
+<div class="p-4 flex items-center justify-between">
+<div class="flex-1 pr-4">
+<p class="text-base font-medium text-slate-900 dark:text-white">Tunnel Allowed</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Permit fallback when VPN is down.</p>
+</div>
+<label class="flex items-center cursor-pointer relative" for="tunnel-toggle">
+<input checked="" class="sr-only peer" id="tunnel-toggle" type="checkbox"/>
+<div class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary/30 dark:peer-focus:ring-primary/80 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+<!-- Read Only Info Item -->
+<div class="p-4 flex items-center justify-between opacity-60">
+<div class="flex-1 pr-4">
+<p class="text-sm font-medium text-slate-900 dark:text-white">Strict SQL Mode</p>
+<p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Enforced by organization policy.</p>
+</div>
+<span class="text-xs font-bold text-slate-400 uppercase">On</span>
+</div>
+</div>
+<p class="text-[10px] text-slate-400 px-2 leading-relaxed">
+                        Changes to network policies may require a restart of the ERP Observer service to take effect.
+                    </p>
+</div>
+</div>
+</div>
+<!-- Bottom Navigation Bar -->
+<div class="absolute bottom-0 w-full border-t border-slate-200 dark:border-white/10 bg-background-light dark:bg-[#211c27] px-4 pb-8 pt-3 z-40">
+<div class="flex justify-around items-end">
+<a class="flex flex-col items-center justify-end gap-1 text-slate-400 hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-[24px] group-hover:scale-110 transition-transform">dashboard</span>
+<span class="text-[10px] font-medium">Dashboard</span>
+</a>
+<a class="flex flex-col items-center justify-end gap-1 text-primary" href="#">
+<div class="h-8 w-12 rounded-full bg-primary/20 flex items-center justify-center mb-0.5">
+<span class="material-symbols-outlined text-[24px]">settings</span>
+</div>
+<span class="text-[10px] font-bold">Config</span>
+</a>
+<a class="flex flex-col items-center justify-end gap-1 text-slate-400 hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-[24px] group-hover:scale-110 transition-transform">list_alt</span>
+<span class="text-[10px] font-medium">Logs</span>
+</a>
+<a class="flex flex-col items-center justify-end gap-1 text-slate-400 hover:text-primary transition-colors group" href="#">
+<span class="material-symbols-outlined text-[24px] group-hover:scale-110 transition-transform">account_circle</span>
+<span class="text-[10px] font-medium">Profile</span>
+</a>
+</div>
+</div>
+</div>
+</body></html>

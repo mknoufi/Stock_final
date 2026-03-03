@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Staff Item: SQL Offline Policy</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Hide scrollbar for clean mobile look */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white overflow-x-hidden min-h-screen flex justify-center">
+<div class="relative flex h-full w-full max-w-md flex-col bg-background-light dark:bg-background-dark shadow-xl overflow-hidden min-h-screen">
+<!-- Header -->
+<div class="flex items-center justify-between px-4 py-3 bg-white/5 dark:bg-[#1c2127] border-b border-slate-200 dark:border-slate-800 backdrop-blur-md sticky top-0 z-50">
+<button class="flex items-center justify-center p-2 -ml-2 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors rounded-full">
+<span class="material-symbols-outlined text-2xl">arrow_back_ios_new</span>
+</button>
+<h1 class="text-base font-bold text-slate-900 dark:text-white tracking-tight">Item Detail</h1>
+<button class="flex items-center justify-center p-2 -mr-2 text-slate-500 dark:text-slate-400 hover:text-primary dark:hover:text-primary transition-colors rounded-full">
+<span class="material-symbols-outlined text-2xl">more_horiz</span>
+</button>
+</div>
+<!-- Governance Bar (SQL Status) -->
+<div class="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-amber-500 text-sm">database_off</span>
+<p class="text-amber-500 text-xs font-semibold tracking-wide uppercase">
+                SQL STATUS: <span class="line-through opacity-70">UNAVAILABLE</span>
+</p>
+</div>
+<!-- Main Content Scroll Area -->
+<div class="flex-1 overflow-y-auto pb-24">
+<!-- Item Header Card -->
+<div class="p-4">
+<div class="flex gap-4 p-4 rounded-xl bg-white dark:bg-[#1c2127] shadow-sm border border-slate-200 dark:border-slate-800">
+<div class="h-24 w-24 shrink-0 rounded-lg bg-slate-100 dark:bg-slate-800 bg-center bg-cover border border-slate-200 dark:border-slate-700" data-alt="Industrial steel widget close up" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAXaz6Bc3_bDWgLnZOZGKRWg_GsU5jVdp6wJkbK-34vZ1cf5awFLkJp-0XD64xqGILr82OlaQLs-nwbbJLSwCL2MI-nbofrmUpFm0RhCjSzqLatmu0TBeNGcZA1UnB2H0CBB6QhbBtpfr9NjwOcWXgNSp7azgHZoCQfgfuh2WOsbErvxlqIWUTvVZmEYuzCFrW4i-vo1RDal-q2OEM8HaQhg0SXDmGbwU4RCK9iJ2f4GIBEYj7n2LzXR_vMudnLPqbBaO70XGGv1rLp');">
+</div>
+<div class="flex flex-col justify-center gap-1">
+<h2 class="text-lg font-bold leading-tight text-slate-900 dark:text-white">Industrial Steel Widget - Size M</h2>
+<div class="flex items-center gap-2">
+<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase tracking-wider">Stock Item</span>
+</div>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400">SKU: 884-291-A</p>
+</div>
+</div>
+</div>
+<!-- Action Gate Panel (Alert) -->
+<div class="px-4 pb-4">
+<div class="relative overflow-hidden rounded-xl border border-amber-500/30 bg-amber-500/5 dark:bg-[#1c2127] p-4">
+<div class="absolute left-0 top-0 bottom-0 w-1 bg-amber-500"></div>
+<div class="flex gap-3">
+<div class="mt-0.5 shrink-0 text-amber-500">
+<span class="material-symbols-outlined">warning</span>
+</div>
+<div class="flex flex-col gap-1">
+<h3 class="text-sm font-bold text-slate-900 dark:text-white">Degraded Mode Active</h3>
+<p class="text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+                                SQL Server (Observer) is currently offline. Proceeding with Mongo SoT and Local Snapshot policy.
+                            </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Totals Matrix -->
+<div class="px-4 pb-2">
+<h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 ml-1">Inventory Check</h3>
+<div class="grid grid-cols-2 gap-3">
+<!-- Mongo SoT (Read Only) -->
+<div class="flex flex-col gap-1 rounded-xl bg-white dark:bg-[#1c2127] p-4 border border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="material-symbols-outlined text-lg">cloud_done</span>
+<span class="text-xs font-medium">Mongo SoT</span>
+</div>
+<span class="text-2xl font-bold text-slate-900 dark:text-white tabular-nums">42</span>
+<span class="text-[10px] text-slate-400">Last synced: 2m ago</span>
+</div>
+<!-- ERP Observed (Unavailable) -->
+<div class="relative flex flex-col gap-1 rounded-xl bg-slate-50 dark:bg-[#151a20] p-4 border border-slate-200 dark:border-slate-800/50 opacity-70">
+<div class="flex items-center gap-1.5 text-slate-400">
+<span class="material-symbols-outlined text-lg">dns</span>
+<span class="text-xs font-medium line-through decoration-slate-400">ERP Observed</span>
+</div>
+<span class="text-2xl font-bold text-slate-400 tabular-nums">--</span>
+<span class="inline-flex items-center rounded bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 text-[10px] font-medium text-slate-500 uppercase self-start">Unavailable</span>
+<!-- Diagonal stripe overlay for disabled look -->
+<div class="absolute inset-0 rounded-xl bg-[linear-gradient(45deg,transparent_25%,rgba(0,0,0,0.02)_25%,rgba(0,0,0,0.02)_50%,transparent_50%,transparent_75%,rgba(0,0,0,0.02)_75%,rgba(0,0,0,0.02)_100%)] bg-[length:10px_10px] pointer-events-none"></div>
+</div>
+<!-- Your Count (Editable) -->
+<div class="col-span-2 flex flex-col gap-3 rounded-xl bg-white dark:bg-[#1c2127] p-5 border border-primary/30 shadow-[0_0_0_1px_rgba(19,127,236,0.1)]">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2 text-slate-900 dark:text-white">
+<span class="material-symbols-outlined text-lg text-primary">edit_note</span>
+<span class="text-sm font-semibold">Your Local Count</span>
+</div>
+<span class="text-[10px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">REQUIRED</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="h-10 w-10 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 active:bg-slate-200 dark:active:bg-slate-700 transition-colors">
+<span class="material-symbols-outlined">remove</span>
+</button>
+<input class="flex-1 bg-slate-50 dark:bg-[#111418] border border-slate-200 dark:border-slate-700 text-center text-3xl font-bold text-slate-900 dark:text-white rounded-lg py-2 focus:ring-2 focus:ring-primary focus:border-transparent outline-none tabular-nums" type="number" value="42"/>
+<button class="h-10 w-10 flex items-center justify-center rounded-lg bg-primary text-white active:bg-primary/90 transition-colors shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Notes Section -->
+<div class="px-4 py-2">
+<div class="flex flex-col gap-2 rounded-xl bg-transparent p-2">
+<p class="text-xs text-center text-slate-400 dark:text-slate-500 font-mono">
+                        Session snapshot 0x99a verified at 08:00
+                    </p>
+</div>
+</div>
+<!-- Spacer for bottom nav -->
+<div class="h-4"></div>
+</div>
+<!-- Fixed Bottom Action Bar -->
+<div class="absolute bottom-[70px] left-0 right-0 px-4 py-3 bg-gradient-to-t from-background-light via-background-light to-transparent dark:from-background-dark dark:via-background-dark pointer-events-none flex justify-center z-10">
+<button class="pointer-events-auto w-full max-w-[360px] bg-primary hover:bg-primary/90 text-white font-bold py-3.5 px-6 rounded-xl shadow-lg shadow-primary/25 flex items-center justify-center gap-2 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined">save_as</span>
+                Save to Local Snapshot
+            </button>
+</div>
+<!-- Bottom Navigation -->
+<div class="flex gap-2 border-t border-slate-200 dark:border-[#283039] bg-white dark:bg-[#1c2127] px-4 pb-6 pt-2 z-20">
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-slate-400 dark:text-[#9dabb9] hover:text-primary dark:hover:text-white transition-colors group" href="#">
+<div class="flex h-8 items-center justify-center group-hover:-translate-y-0.5 transition-transform duration-200">
+<span class="material-symbols-outlined text-2xl">barcode_scanner</span>
+</div>
+<p class="text-xs font-medium leading-normal tracking-[0.015em]">Scan</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-primary dark:text-white" href="#">
+<div class="flex h-8 items-center justify-center relative">
+<span class="material-symbols-outlined text-2xl fill-current">check_circle</span>
+<span class="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+</div>
+<p class="text-xs font-medium leading-normal tracking-[0.015em]">Verify</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-slate-400 dark:text-[#9dabb9] hover:text-primary dark:hover:text-white transition-colors group" href="#">
+<div class="flex h-8 items-center justify-center group-hover:-translate-y-0.5 transition-transform duration-200">
+<span class="material-symbols-outlined text-2xl">assignment</span>
+</div>
+<p class="text-xs font-medium leading-normal tracking-[0.015em]">Tasks</p>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-slate-400 dark:text-[#9dabb9] hover:text-primary dark:hover:text-white transition-colors group" href="#">
+<div class="flex h-8 items-center justify-center group-hover:-translate-y-0.5 transition-transform duration-200">
+<span class="material-symbols-outlined text-2xl">account_circle</span>
+</div>
+<p class="text-xs font-medium leading-normal tracking-[0.015em]">Profile</p>
+</a>
+</div>
+</div>
+</body></html>

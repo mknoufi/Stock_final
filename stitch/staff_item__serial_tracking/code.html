@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Staff Item: Serial Tracking</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#1c2630",
+                        "surface-highlight": "#25303b",
+                        "text-secondary": "#9dabb9",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for list if needed */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white antialiased">
+<div class="relative flex h-full min-h-screen w-full flex-col overflow-hidden max-w-md mx-auto shadow-2xl bg-background-light dark:bg-background-dark">
+<!-- Top App Bar -->
+<header class="flex items-center bg-background-light dark:bg-background-dark p-4 sticky top-0 z-10 border-b border-gray-200 dark:border-gray-800">
+<button class="text-slate-900 dark:text-white flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-gray-100 dark:hover:bg-surface-highlight transition-colors">
+<span class="material-symbols-outlined" style="font-size: 24px;">arrow_back</span>
+</button>
+<h1 class="text-slate-900 dark:text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center">Item Detail</h1>
+<button class="flex w-10 items-center justify-center text-primary font-semibold text-sm">Help</button>
+</header>
+<!-- Main Content Scroll Area -->
+<main class="flex-1 overflow-y-auto pb-24">
+<!-- Item Identity Card -->
+<div class="p-4">
+<div class="flex flex-col gap-4 rounded-xl bg-white dark:bg-surface-dark p-4 shadow-sm ring-1 ring-gray-200 dark:ring-gray-800">
+<div class="flex items-start gap-4">
+<div class="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-gray-100 dark:bg-surface-highlight border border-gray-200 dark:border-gray-700">
+<div class="h-full w-full bg-cover bg-center" data-alt="Macbook Pro laptop on a desk" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAb1Age_vMT-4rJIpqUE9z3G4lbuARpEGkwMl6WJvTVlsCuiZULKUAxreoLcqmvNEivhMyFB1tQL24V8PkUA3Hw7GZj1pmLKYz9xfU_qwVujD3-XiCF5DwN3tunrB-zKMgjI0TaskgZdp9Il21aw6ne-qpjeV8hd6MhV18iUvEI8anXYvmyAaF-I7i9fXYhcBdngVyHg2wj0ocZZ4mfMn5yyU1CP55BsyHFRwEAK_nN0bq6zzTkcO6Wj6sencC-RXle4KKRpWDe-F_t');"></div>
+</div>
+<div class="flex flex-col flex-1 gap-1">
+<h2 class="text-lg font-bold leading-tight">MacBook Pro M3</h2>
+<p class="text-text-secondary text-sm font-medium">Code: <span class="text-slate-700 dark:text-slate-300 font-mono">APP-MBP-14</span></p>
+</div>
+</div>
+<div class="flex flex-wrap gap-2">
+<span class="inline-flex items-center rounded-md bg-primary/20 px-2 py-1 text-xs font-semibold text-primary ring-1 ring-inset ring-primary/30">SERIAL</span>
+<span class="inline-flex items-center rounded-md bg-purple-500/10 dark:bg-purple-400/10 px-2 py-1 text-xs font-semibold text-purple-600 dark:text-purple-400 ring-1 ring-inset ring-purple-500/20">LOCATION-OVERLAY</span>
+<span class="inline-flex items-center rounded-md bg-gray-100 dark:bg-surface-highlight px-2 py-1 text-xs font-semibold text-text-secondary ring-1 ring-inset ring-gray-200 dark:ring-gray-700">WAREHOUSE A-2</span>
+</div>
+</div>
+</div>
+<!-- Serial Scanning Panel -->
+<div class="px-4 pb-2">
+<div class="rounded-xl border border-primary/30 bg-primary/5 p-5 relative overflow-hidden">
+<!-- Subtle background decoration -->
+<div class="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-primary/10 blur-2xl"></div>
+<div class="flex flex-col gap-4 relative z-0">
+<div class="flex justify-between items-end">
+<div>
+<p class="text-sm font-semibold text-primary mb-1">Active Task</p>
+<h3 class="text-lg font-bold">Scan Serial Numbers</h3>
+</div>
+<div class="text-right">
+<span class="text-2xl font-bold text-primary font-mono tabular-nums">3</span>
+<span class="text-text-secondary font-medium">/ 5</span>
+</div>
+</div>
+<!-- Progress Bar -->
+<div class="h-2.5 w-full rounded-full bg-gray-200 dark:bg-surface-highlight overflow-hidden">
+<div class="h-full rounded-full bg-primary transition-all duration-500 ease-out" style="width: 60%"></div>
+</div>
+<button class="mt-2 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3.5 text-white shadow-lg shadow-primary/25 active:scale-[0.98] transition-all hover:bg-blue-600">
+<span class="material-symbols-outlined">qr_code_scanner</span>
+<span class="font-semibold">Open Camera Scanner</span>
+</button>
+<p class="text-center text-xs text-text-secondary">Align barcode within the frame to scan automatically.</p>
+</div>
+</div>
+</div>
+<!-- Scanned List -->
+<div class="flex flex-col gap-3 px-4 py-4">
+<div class="flex items-center justify-between pb-1">
+<p class="text-sm font-semibold uppercase tracking-wider text-text-secondary">Scanned Serials</p>
+<button class="text-xs font-medium text-primary hover:text-primary/80">Clear All</button>
+</div>
+<!-- List Item 1 -->
+<div class="group flex items-center justify-between gap-3 rounded-lg bg-white dark:bg-surface-dark p-3 shadow-sm ring-1 ring-gray-200 dark:ring-gray-800 transition-all hover:ring-primary/50">
+<div class="flex items-center gap-3">
+<div class="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs text-text-secondary">Serial Number</span>
+<span class="font-mono text-sm font-medium tracking-wide">SN: 1A2B3C</span>
+</div>
+</div>
+<button class="flex h-8 w-8 items-center justify-center rounded text-text-secondary hover:bg-red-500/10 hover:text-red-500 transition-colors" title="Remove">
+<span class="material-symbols-outlined text-xl">delete</span>
+</button>
+</div>
+<!-- List Item 2 -->
+<div class="group flex items-center justify-between gap-3 rounded-lg bg-white dark:bg-surface-dark p-3 shadow-sm ring-1 ring-gray-200 dark:ring-gray-800 transition-all hover:ring-primary/50">
+<div class="flex items-center gap-3">
+<div class="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs text-text-secondary">Serial Number</span>
+<span class="font-mono text-sm font-medium tracking-wide">SN: 4D5E6F</span>
+</div>
+</div>
+<button class="flex h-8 w-8 items-center justify-center rounded text-text-secondary hover:bg-red-500/10 hover:text-red-500 transition-colors" title="Remove">
+<span class="material-symbols-outlined text-xl">delete</span>
+</button>
+</div>
+<!-- List Item 3 -->
+<div class="group flex items-center justify-between gap-3 rounded-lg bg-white dark:bg-surface-dark p-3 shadow-sm ring-1 ring-gray-200 dark:ring-gray-800 transition-all hover:ring-primary/50">
+<div class="flex items-center gap-3">
+<div class="flex h-8 w-8 items-center justify-center rounded-full bg-green-500/20 text-green-600 dark:text-green-400">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+</div>
+<div class="flex flex-col">
+<span class="text-xs text-text-secondary">Serial Number</span>
+<span class="font-mono text-sm font-medium tracking-wide">SN: 7G8H9I</span>
+</div>
+</div>
+<button class="flex h-8 w-8 items-center justify-center rounded text-text-secondary hover:bg-red-500/10 hover:text-red-500 transition-colors" title="Remove">
+<span class="material-symbols-outlined text-xl">delete</span>
+</button>
+</div>
+<!-- Empty State Slots (Visual indication of remaining work) -->
+<div class="flex items-center justify-between gap-3 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 bg-transparent p-3 opacity-60">
+<div class="flex items-center gap-3">
+<div class="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-surface-highlight text-text-secondary">
+<span class="material-symbols-outlined text-lg">radio_button_unchecked</span>
+</div>
+<div class="flex flex-col">
+<span class="font-medium text-sm text-text-secondary italic">Waiting for scan...</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Count Validation Section -->
+<div class="mt-2 px-4">
+<div class="flex items-center justify-between gap-4 rounded-lg bg-yellow-500/5 p-4 ring-1 ring-yellow-500/20">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-yellow-600 dark:text-yellow-500">lock</span>
+<div>
+<p class="text-sm font-medium text-slate-900 dark:text-white">Count Locked</p>
+<p class="text-xs text-text-secondary">Value updates via serial scan only.</p>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">3</span>
+</div>
+</div>
+</div>
+<div class="h-8"></div>
+</main>
+<!-- Footer Actions -->
+<footer class="absolute bottom-0 left-0 right-0 bg-white dark:bg-surface-dark border-t border-gray-200 dark:border-gray-800 p-4 pb-6 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+<div class="flex gap-3">
+<button class="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-transparent px-4 py-3 text-sm font-medium text-slate-700 dark:text-white hover:bg-gray-50 dark:hover:bg-surface-highlight transition-colors">
+                    Report Issue
+                </button>
+<button class="flex-[2] rounded-lg bg-primary px-4 py-3 text-sm font-bold text-white shadow-md hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    Confirm (3/5)
+                </button>
+</div>
+</footer>
+</div>
+</body></html>

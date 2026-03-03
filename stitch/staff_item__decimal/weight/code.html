@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Staff Item: Decimal/Weight</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for log area */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Tap highlight removal for mobile feel */
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display min-h-screen flex flex-col antialiased selection:bg-primary/30 selection:text-white">
+<!-- Header -->
+<header class="sticky top-0 z-10 bg-background-light dark:bg-background-dark/95 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 px-4 h-14 flex items-center justify-between shrink-0">
+<button class="flex items-center justify-center size-10 text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<h1 class="text-lg font-bold text-gray-900 dark:text-white tracking-tight">Stock Verify</h1>
+<button class="flex items-center justify-center size-10 text-gray-900 dark:text-white hover:bg-black/5 dark:hover:bg-white/10 rounded-full transition-colors">
+<span class="material-symbols-outlined text-2xl">more_vert</span>
+</button>
+</header>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col p-4 overflow-hidden h-[calc(100vh-3.5rem)]">
+<!-- Item Card -->
+<div class="bg-white dark:bg-[#1c2127] rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-800 shrink-0 mb-4">
+<div class="flex gap-4">
+<div class="size-20 bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden shrink-0 relative">
+<img alt="Copper Wire Scraps preview image" class="w-full h-full object-cover" data-alt="Close up of copper wire scraps texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIke3TjXFk4rIiaWJoSsF9NLASEv2JDqZFTO4NQmdwqEMO8a12rNMKmlL9xL-aC5fiH2rpyF4ys8mkhHV17yGn2PiTUc2r5Qjw8FJtoYqZXO-ctmdF0sj0bSsXjrwkVnEji68v9DUozbOf1sbL9_mgTB_8Zo8EcestrQITkjHJSHPzdb05_ms_v5v-2ux5N23y951EX_rUnuCLmUD1G50BH5kgfJ27wL_G1JTkJlLtFADrVGHgGScH_EwOxXgODLfu2NCK5wvZpxlj"/>
+</div>
+<div class="flex flex-col justify-center flex-1 min-w-0">
+<div class="flex items-center gap-2 mb-1">
+<span class="bg-primary/20 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Verified</span>
+</div>
+<h2 class="text-gray-900 dark:text-white font-bold text-lg leading-tight truncate">Copper Wire Scraps</h2>
+<p class="text-gray-500 dark:text-[#9dabb9] text-xs mt-1 font-mono">SKU: CW-9920-SCR</p>
+</div>
+</div>
+<!-- Tags -->
+<div class="flex gap-2 mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+<div class="flex items-center gap-1.5 bg-gray-100 dark:bg-[#283039] px-3 py-1.5 rounded-lg">
+<span class="material-symbols-outlined text-gray-500 dark:text-gray-400 text-sm">scale</span>
+<span class="text-gray-700 dark:text-gray-200 text-xs font-semibold">DECIMAL</span>
+</div>
+<div class="flex items-center gap-1.5 bg-gray-100 dark:bg-[#283039] px-3 py-1.5 rounded-lg">
+<span class="material-symbols-outlined text-gray-500 dark:text-gray-400 text-sm">fitness_center</span>
+<span class="text-gray-700 dark:text-gray-200 text-xs font-semibold">KG</span>
+</div>
+</div>
+</div>
+<!-- Total & Log Section -->
+<div class="flex-1 flex flex-col min-h-0 bg-white dark:bg-[#1c2127] rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-gray-800 mb-4">
+<!-- Total Header -->
+<div class="p-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-[#232930] flex items-center justify-between shrink-0">
+<div class="flex flex-col">
+<span class="text-xs text-gray-500 dark:text-[#9dabb9] font-medium uppercase tracking-wide">Total Verified</span>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-primary tracking-tight">17.65</span>
+<span class="text-sm font-medium text-gray-500 dark:text-gray-400">kg</span>
+</div>
+</div>
+<div class="size-10 rounded-full bg-green-500/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-green-500 text-xl">check</span>
+</div>
+</div>
+<!-- Scrollable Log -->
+<div class="flex-1 overflow-y-auto p-2 space-y-2 scrollbar-hide">
+<div class="text-xs text-gray-400 dark:text-gray-600 text-center py-2 uppercase tracking-widest font-medium">Session Started 09:55 AM</div>
+<!-- Entry Item -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-[#283039]/50 border border-transparent dark:border-gray-800/50">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                            A
+                        </div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-900 dark:text-white">+12.45 kg</span>
+<span class="text-[10px] text-gray-500 dark:text-gray-400">Staff A • 10:05 AM</span>
+</div>
+</div>
+<button class="text-gray-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</div>
+<!-- Entry Item -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-[#283039]/50 border border-transparent dark:border-gray-800/50">
+<div class="flex items-center gap-3">
+<div class="size-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                            A
+                        </div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-gray-900 dark:text-white">+5.20 kg</span>
+<span class="text-[10px] text-gray-500 dark:text-gray-400">Staff A • 10:10 AM</span>
+</div>
+</div>
+<button class="text-gray-400 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-lg">delete</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Input & Keypad Area -->
+<div class="flex flex-col gap-3 shrink-0">
+<!-- Input Display -->
+<div class="relative bg-white dark:bg-[#1c2127] rounded-xl border-2 border-primary/50 h-16 flex items-center px-4 justify-between shadow-lg shadow-primary/5">
+<span class="text-gray-400 dark:text-gray-500 font-medium">Add Weight</span>
+<div class="flex items-baseline gap-1">
+<span class="text-3xl font-bold text-gray-900 dark:text-white font-display tabular-nums cursor-text">0.00</span>
+<span class="text-lg text-gray-400 dark:text-gray-500 font-medium">kg</span>
+</div>
+<div class="absolute inset-y-0 right-0 w-1.5 bg-primary animate-pulse rounded-r-xl opacity-0"></div> <!-- Cursor indicator if needed -->
+</div>
+<!-- Numpad -->
+<div class="grid grid-cols-4 gap-2 h-64">
+<!-- Numbers -->
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">1</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">2</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">3</button>
+<!-- Action: Backspace -->
+<button class="bg-gray-300 dark:bg-[#1c2127] active:bg-gray-400 dark:active:bg-[#283039] text-gray-700 dark:text-gray-300 rounded-lg flex items-center justify-center transition-colors row-span-2">
+<span class="material-symbols-outlined text-3xl">backspace</span>
+</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">4</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">5</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">6</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">7</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">8</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">9</button>
+<!-- Action: Enter -->
+<button class="bg-primary hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg flex flex-col items-center justify-center transition-colors row-span-2 shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-3xl mb-1">keyboard_return</span>
+<span class="text-[10px] font-bold uppercase tracking-wider">Add</span>
+</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">.</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">0</button>
+<button class="bg-gray-200 dark:bg-[#283039] active:bg-gray-300 dark:active:bg-[#343e49] text-gray-900 dark:text-white rounded-lg text-2xl font-semibold flex items-center justify-center transition-colors">00</button>
+</div>
+</div>
+</main>
+</body></html>

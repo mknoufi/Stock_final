@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Stock Verify - Login Restricted</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        /* iOS Safe Area Support */
+        body {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display min-h-screen flex flex-col justify-between antialiased overflow-x-hidden selection:bg-primary/30">
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col w-full max-w-md mx-auto">
+<!-- Header -->
+<div class="flex items-center px-4 pt-6 pb-2 justify-between">
+<div class="text-white flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#283039]">
+<span class="material-symbols-outlined text-[24px]">inventory_2</span>
+</div>
+<h2 class="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-10">Stock Verify</h2>
+<!-- Empty div to balance the logo -->
+<div class="size-10"></div>
+</div>
+<!-- Offline Badge -->
+<div class="flex justify-center pb-6 pt-2">
+<div class="flex items-center gap-2 bg-red-500/20 border border-red-500/30 px-3 py-1 rounded-full">
+<div class="size-2 rounded-full bg-red-500 animate-pulse"></div>
+<p class="text-red-500 text-xs font-bold tracking-wide uppercase">Offline Restricted</p>
+</div>
+</div>
+<!-- Notification Banner -->
+<div class="px-5 mb-6">
+<div class="flex flex-col items-center gap-4 rounded-xl border border-dashed border-[#3b4754] bg-[#1a222c] p-6 text-center">
+<div class="size-12 rounded-full bg-[#283039] flex items-center justify-center text-[#9dabb9]">
+<span class="material-symbols-outlined text-[24px]">cloud_off</span>
+</div>
+<div class="flex flex-col gap-1">
+<p class="text-white text-base font-bold leading-tight">Login Disabled</p>
+<p class="text-[#9dabb9] text-sm font-normal leading-relaxed">
+                        Authentication requires a secure connection to Cloudflare Tunnel or LAN for initial device binding.
+                    </p>
+</div>
+</div>
+</div>
+<!-- Login Form (Disabled) -->
+<div class="px-5 flex flex-col gap-4">
+<div class="relative group">
+<label class="block text-[#9dabb9] text-sm font-medium mb-2 opacity-70">Username</label>
+<div class="relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#576472] material-symbols-outlined text-[20px]">person</span>
+<input class="w-full bg-[#1e2630] border-transparent text-[#576472] rounded-lg h-12 pl-12 pr-4 text-sm font-normal cursor-not-allowed select-none focus:ring-0" disabled="" placeholder="Enter username" type="text" value="admin_user"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-[#576472] material-symbols-outlined text-[18px]">lock</span>
+</div>
+</div>
+<div class="relative group">
+<label class="block text-[#9dabb9] text-sm font-medium mb-2 opacity-70">Password</label>
+<div class="relative">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#576472] material-symbols-outlined text-[20px]">key</span>
+<input class="w-full bg-[#1e2630] border-transparent text-[#576472] rounded-lg h-12 pl-12 pr-4 text-sm font-normal cursor-not-allowed select-none focus:ring-0" disabled="" placeholder="Enter password" type="password" value="••••••••••••"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-[#576472] material-symbols-outlined text-[18px]">lock</span>
+</div>
+</div>
+<div class="pt-4">
+<button class="w-full h-12 rounded-lg bg-[#283039] text-[#576472] font-bold text-sm cursor-not-allowed flex items-center justify-center gap-2 transition-opacity opacity-70" disabled="">
+<span>Log In</span>
+<span class="material-symbols-outlined text-[18px]">login</span>
+</button>
+</div>
+<button class="w-full h-10 mt-2 rounded-lg bg-transparent hover:bg-[#1e2630] text-primary font-medium text-sm flex items-center justify-center gap-2 transition-colors">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+<span>Retry Connection</span>
+</button>
+</div>
+<!-- Info Text -->
+<div class="px-8 py-6 text-center">
+<p class="text-[#576472] text-xs leading-relaxed">
+                Offline mode is only available for already authenticated sessions. Please connect to the secure network to proceed.
+            </p>
+</div>
+</div>
+<!-- Footer -->
+<div class="w-full max-w-md mx-auto p-6 flex flex-col items-center gap-3 border-t border-[#1e2630]">
+<div class="flex items-center gap-2 text-[#3b4754]">
+<span class="material-symbols-outlined text-[16px]">fingerprint</span>
+<span class="font-mono text-xs tracking-wider">DEVICE ID: 89A2-B4C6-D8E0</span>
+</div>
+<div class="text-[#3b4754] text-[10px]">
+            v4.2.0 (Build 8902) • Stock Verify Inc.
+        </div>
+</div>
+</body></html>

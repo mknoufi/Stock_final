@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Active Session Audit Detail</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#25d1f4",
+                        "background-light": "#f5f8f8",
+                        "background-dark": "#101f22",
+                        "surface-dark": "#1a2d30",
+                        "error": "#ef4444",
+                        "warning": "#f59e0b",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .animate-pulse-red {
+            animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen flex flex-col">
+<!-- iOS Status Bar Placeholder -->
+<div class="h-12 w-full bg-background-light dark:bg-background-dark flex items-center justify-between px-6 shrink-0">
+<span class="text-xs font-bold tracking-tight">9:41</span>
+<div class="flex items-center gap-1.5">
+<span class="material-icons text-[14px]">signal_cellular_alt</span>
+<span class="material-icons text-[14px]">wifi</span>
+<span class="material-icons text-[18px]">battery_full</span>
+</div>
+</div>
+<!-- Header Section -->
+<header class="px-6 py-4 flex flex-col gap-1 shrink-0 border-b border-primary/10">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-error animate-pulse-red"></div>
+<span class="text-[10px] font-bold tracking-widest text-error uppercase">Live Audit</span>
+</div>
+<div class="flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full border border-primary/20">
+<span class="material-icons text-sm">timer</span>
+<span class="text-sm font-mono font-bold">01:24:15</span>
+</div>
+</div>
+<h1 class="text-2xl font-bold mt-2">Warehouse A - Zone 12</h1>
+<p class="text-xs text-slate-500 dark:text-slate-400">Supervisor: Alex Johnson</p>
+</header>
+<!-- Scrollable Content -->
+<main class="flex-1 overflow-y-auto px-6 py-6 space-y-6 pb-40">
+<!-- Progress Summary Card -->
+<div class="bg-surface-dark/40 dark:bg-surface-dark border border-white/5 p-5 rounded-xl shadow-xl">
+<div class="flex items-end justify-between mb-4">
+<div>
+<span class="text-4xl font-bold text-primary">65%</span>
+<span class="text-xs text-slate-400 ml-1">Complete</span>
+</div>
+<div class="text-right">
+<span class="text-xs text-slate-400 block">Total Items</span>
+<span class="font-bold">1,240 / 1,908</span>
+</div>
+</div>
+<div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full w-[65%] shadow-[0_0_12px_rgba(37,209,244,0.4)]"></div>
+</div>
+<div class="flex justify-between mt-4 text-[11px] font-medium text-slate-500 uppercase tracking-wider">
+<span>Scanned: 1,180</span>
+<span>Flagged: 60</span>
+</div>
+</div>
+<!-- Live Scan List Header -->
+<div class="flex items-center justify-between">
+<h2 class="text-lg font-bold">Live Scan Stream</h2>
+<button class="text-xs font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">Filter: Discrepancies</button>
+</div>
+<!-- Item List -->
+<div class="space-y-3">
+<!-- Item Row: Discrepancy Missing -->
+<div class="bg-error/10 border border-error/20 p-4 rounded-xl flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-bold text-slate-100">Industrial Fan Blade</h3>
+<p class="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">SKU-9920-X</p>
+</div>
+<span class="bg-error/20 text-error text-[10px] font-bold px-2 py-0.5 rounded border border-error/30 uppercase">-2 Missing</span>
+</div>
+<div class="flex gap-4 pt-2 border-t border-error/10">
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-500 uppercase font-bold">Expected</span>
+<span class="text-lg font-bold">50</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-500 uppercase font-bold">Scanned</span>
+<span class="text-lg font-bold text-error">48</span>
+</div>
+<div class="flex-1 flex justify-end items-center">
+<div class="w-8 h-8 rounded-full bg-error/20 flex items-center justify-center text-error">
+<span class="material-icons text-lg">priority_high</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Item Row: Discrepancy Overage -->
+<div class="bg-warning/10 border border-warning/20 p-4 rounded-xl flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-bold text-slate-100">Hydraulic Seal Kit</h3>
+<p class="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">SKU-4412-M</p>
+</div>
+<span class="bg-warning/20 text-warning text-[10px] font-bold px-2 py-0.5 rounded border border-warning/30 uppercase">+5 Overage</span>
+</div>
+<div class="flex gap-4 pt-2 border-t border-warning/10">
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-500 uppercase font-bold">Expected</span>
+<span class="text-lg font-bold">120</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-500 uppercase font-bold">Scanned</span>
+<span class="text-lg font-bold text-warning">125</span>
+</div>
+<div class="flex-1 flex justify-end items-center">
+<div class="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center text-warning">
+<span class="material-icons text-lg">add_circle_outline</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Item Row: Perfect Match -->
+<div class="bg-surface-dark border border-white/5 p-4 rounded-xl flex flex-col gap-3">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-bold text-slate-100">Bearing Housing Gasket</h3>
+<p class="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">SKU-2104-G</p>
+</div>
+<span class="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded border border-primary/20 uppercase">Verified</span>
+</div>
+<div class="flex gap-4 pt-2 border-t border-white/5">
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-500 uppercase font-bold">Expected</span>
+<span class="text-lg font-bold">300</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-500 uppercase font-bold">Scanned</span>
+<span class="text-lg font-bold">300</span>
+</div>
+<div class="flex-1 flex justify-end items-center text-primary/50">
+<span class="material-icons">check_circle</span>
+</div>
+</div>
+</div>
+<!-- Item Row: Discrepancy Missing -->
+<div class="bg-error/10 border border-error/20 p-4 rounded-xl flex flex-col gap-3 opacity-80">
+<div class="flex justify-between items-start">
+<div>
+<h3 class="font-bold text-slate-100">Steel Support Bolt (12mm)</h3>
+<p class="text-[10px] font-mono text-slate-400 uppercase tracking-tighter">SKU-8821-B</p>
+</div>
+<span class="bg-error/20 text-error text-[10px] font-bold px-2 py-0.5 rounded border border-error/30 uppercase">-12 Missing</span>
+</div>
+<div class="flex gap-4 pt-2 border-t border-error/10">
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-500 uppercase font-bold">Expected</span>
+<span class="text-lg font-bold">500</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-slate-500 uppercase font-bold">Scanned</span>
+<span class="text-lg font-bold text-error">488</span>
+</div>
+<div class="flex-1 flex justify-end items-center">
+<span class="material-icons text-error">flag</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Fixed Bottom Controls -->
+<div class="fixed bottom-0 inset-x-0 z-50">
+<!-- Quick Action Bar -->
+<div class="px-6 py-4 bg-background-dark/80 backdrop-blur-xl border-t border-white/10 flex items-center gap-4 shadow-2xl pb-10">
+<button class="flex flex-col items-center justify-center bg-slate-800/50 border border-white/10 rounded-xl w-14 h-14 text-slate-300">
+<span class="material-icons">pause</span>
+<span class="text-[9px] uppercase font-bold">Pause</span>
+</button>
+<button class="flex-1 h-14 bg-gradient-to-r from-primary to-[#16a3bc] rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+<span class="text-background-dark font-bold uppercase tracking-wider">Finalize Count</span>
+<span class="material-icons text-background-dark">fact_check</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-slate-800/50 border border-white/10 rounded-xl w-14 h-14 text-slate-300">
+<span class="material-icons">person_add</span>
+<span class="text-[9px] uppercase font-bold">Assign</span>
+</button>
+</div>
+<!-- Tab Navigation (iOS Style) -->
+<div class="bg-background-dark border-t border-white/5 h-20 flex items-center justify-around px-6 pb-4">
+<div class="flex flex-col items-center text-primary">
+<span class="material-icons">dashboard</span>
+<span class="text-[10px] mt-1 font-medium">Dashboard</span>
+</div>
+<div class="flex flex-col items-center text-slate-500">
+<span class="material-icons">inventory_2</span>
+<span class="text-[10px] mt-1 font-medium">Stock</span>
+</div>
+<div class="flex flex-col items-center text-slate-500">
+<span class="material-icons">history</span>
+<span class="text-[10px] mt-1 font-medium">History</span>
+</div>
+<div class="flex flex-col items-center text-slate-500">
+<span class="material-icons">settings</span>
+<span class="text-[10px] mt-1 font-medium">Settings</span>
+</div>
+</div>
+<!-- Home Indicator -->
+<div class="h-1.5 w-32 bg-white/20 rounded-full mx-auto absolute bottom-2 left-1/2 -translate-x-1/2"></div>
+</div>
+</body></html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>LAN-Only Connectivity Guard UI</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "danger": "#ef4444",
+                        "warning": "#f59e0b",
+                        "success": "#10b981",
+                        "surface": "#1a2632"
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background-image: 
+                radial-gradient(circle at 2px 2px, rgba(19, 127, 236, 0.05) 1px, transparent 0);
+            background-size: 40px 40px;
+        }
+        .topology-bg {
+            background: linear-gradient(90deg, rgba(19, 127, 236, 0.03) 1px, transparent 1px) 0 0 / 100px 100px,
+                        linear-gradient(rgba(19, 127, 236, 0.03) 1px, transparent 1px) 0 0 / 100px 100px;
+        }
+        .glow-red {
+            box-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+        }
+        .glow-blue {
+            box-shadow: 0 0 20px rgba(19, 127, 236, 0.3);
+        }
+        .blueprint-line {
+            stroke: rgba(19, 127, 236, 0.15);
+            stroke-width: 1;
+            fill: none;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen selection:bg-primary/30">
+<div class="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden topology-bg">
+<!-- Top Navigation -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-slate-200 dark:border-slate-800 bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-md px-6 py-3 sticky top-0 z-50">
+<div class="flex items-center gap-4">
+<div class="size-8 text-primary">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M44 11.2727C44 14.0109 39.8386 16.3957 33.69 17.6364C39.8386 18.877 44 21.2618 44 24C44 26.7382 39.8386 29.123 33.69 30.3636C39.8386 31.6043 44 33.9891 44 36.7273C44 40.7439 35.0457 44 24 44C12.9543 44 4 40.7439 4 36.7273C4 33.9891 8.16144 31.6043 14.31 30.3636C8.16144 29.123 4 26.7382 4 24C4 21.2618 8.16144 18.877 14.31 17.6364C8.16144 16.3957 4 14.0109 4 11.2727C4 7.25611 12.9543 4 24 4C35.0457 4 44 7.25611 44 11.2727Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-tight">Lavanya Emart v4.0</h2>
+</div>
+<div class="flex flex-1 justify-end gap-6 items-center">
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Dashboard</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Security Logs</a>
+<a class="text-sm font-medium hover:text-primary transition-colors" href="#">Network Map</a>
+</nav>
+<div class="h-6 w-px bg-slate-200 dark:bg-slate-800"></div>
+<button class="flex min-w-[120px] cursor-pointer items-center justify-center rounded-lg h-9 px-4 bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-all">
+<span>Admin Console</span>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-9 border-2 border-primary/20" data-alt="User profile avatar placeholder" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB2Q8k68CJPbOWMOJi9RgNzcN9TVl1O6bMGQh5LUdeNwow6s6a7p7897t0ejwiRdd9m17S9IQON-7-dq8Fwwi306nfxrGK6sZfs-scM-6CCXLpD6c2Tzv8w3aqWqYIAkKP6UY5bQbWrebBf-laXdMZDYWHeHw75GRgmhmCqNl1rSgb2TtVfoOBWxtdZES7e4MR7Ifz3Xyf-wpnoiQ3kb8i0fyg--tkTwIxbtIdcCm4VS5ClY0w6AI9jHx-0Zs1wYQuGfng1InBG3uRf");'></div>
+</div>
+</header>
+<main class="layout-container flex flex-col flex-1 max-w-7xl mx-auto w-full px-6 py-8 gap-8">
+<!-- Hero Status Section -->
+<div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 p-6 rounded-xl bg-surface/40 border border-slate-200 dark:border-slate-800 backdrop-blur-sm relative overflow-hidden">
+<div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+<span class="material-symbols-outlined text-8xl">hub</span>
+</div>
+<div class="flex flex-col gap-2 relative z-10">
+<div class="flex items-center gap-3">
+<span class="flex h-3 w-3 rounded-full bg-danger animate-pulse"></span>
+<p class="text-primary font-bold uppercase tracking-widest text-sm">Active Monitoring</p>
+</div>
+<h1 class="text-3xl md:text-4xl font-black leading-tight tracking-tight">Network Governance &amp; Security</h1>
+<p class="text-slate-500 dark:text-slate-400 max-w-2xl font-medium">Real-time LAN-Only Connectivity Guard and Infrastructure Diagnostics for Stock Verification.</p>
+</div>
+<div class="flex gap-4 w-full lg:w-auto">
+<div class="flex-1 lg:min-w-[200px] flex flex-col gap-1 rounded-lg p-5 border border-danger/30 bg-danger/5 backdrop-blur-md glow-red">
+<p class="text-slate-400 text-xs font-bold uppercase tracking-wider">LAN Guard Status</p>
+<p class="text-danger text-3xl font-black tracking-tighter">RESTRICTED</p>
+<div class="flex items-center gap-1 text-danger text-sm font-bold">
+<span class="material-symbols-outlined text-sm">lock</span>
+                            Secure Mode Active
+                        </div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Left Column: Security Constraints -->
+<div class="lg:col-span-5 flex flex-col gap-6">
+<div class="bg-surface/40 border border-slate-200 dark:border-slate-800 rounded-xl p-6">
+<h2 class="text-xl font-bold mb-6 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">verified_user</span>
+                            Security Constraints
+                        </h2>
+<div class="space-y-4">
+<!-- SSID PASS -->
+<div class="flex items-center justify-between p-4 rounded-lg bg-success/10 border border-success/20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-success">wifi</span>
+<div>
+<p class="text-sm font-bold text-slate-300">SSID Check</p>
+<p class="text-xs font-mono text-slate-400">Warehouse_Internal_5G</p>
+</div>
+</div>
+<span class="bg-success text-white text-[10px] font-black px-2 py-1 rounded">PASS</span>
+</div>
+<!-- IP PASS -->
+<div class="flex items-center justify-between p-4 rounded-lg bg-success/10 border border-success/20">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-success">router</span>
+<div>
+<p class="text-sm font-bold text-slate-300">IP Range Check</p>
+<p class="text-xs font-mono text-slate-400">10.0.5.142 [Allowed]</p>
+</div>
+</div>
+<span class="bg-success text-white text-[10px] font-black px-2 py-1 rounded">PASS</span>
+</div>
+<!-- Gateway FAIL -->
+<div class="flex items-center justify-between p-4 rounded-lg bg-danger/10 border border-danger/30 relative overflow-hidden">
+<div class="absolute inset-y-0 left-0 w-1 bg-danger"></div>
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-danger">lan</span>
+<div>
+<p class="text-sm font-bold text-slate-300">Gateway Verification</p>
+<p class="text-xs font-mono text-danger">192.168.1.1 - MISMATCH</p>
+</div>
+</div>
+<span class="bg-danger text-white text-[10px] font-black px-2 py-1 rounded">FAILED</span>
+</div>
+</div>
+<div class="mt-6 p-4 rounded-lg bg-primary/5 border border-primary/20">
+<p class="text-xs text-slate-400 leading-relaxed italic">
+                                * Secondary verification required for gateway hop 3. Your current connection originates from an unauthorized uplink.
+                            </p>
+</div>
+</div>
+<!-- Unauthorized Alert Box -->
+<div class="bg-danger/10 border-2 border-dashed border-danger rounded-xl p-8 flex flex-col items-center text-center gap-4 relative">
+<div class="absolute -top-4 bg-danger text-white px-4 py-1 rounded-full text-xs font-black">CRITICAL ALERT</div>
+<span class="material-symbols-outlined text-5xl text-danger animate-pulse">report_off</span>
+<h3 class="text-xl font-bold text-danger">Unauthorized Network</h3>
+<p class="text-slate-400 text-sm">
+                            Access to the Stock Data &amp; Inventory Management is <strong>LOCKED</strong>. 
+                            Please connect to the corporate warehouse LAN to resume operations.
+                        </p>
+</div>
+</div>
+<!-- Right Column: Network Health & Graph -->
+<div class="lg:col-span-7 flex flex-col gap-6">
+<div class="bg-surface/40 border border-slate-200 dark:border-slate-800 rounded-xl p-6 flex flex-col h-full">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-xl font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">query_stats</span>
+                                Network Health Analytics
+                            </h2>
+<div class="flex gap-4">
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-primary"></span>
+<span class="text-[10px] font-bold uppercase text-slate-400">Mongo SoT</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-3 h-3 rounded-full bg-slate-500"></span>
+<span class="text-[10px] font-bold uppercase text-slate-400">SQL Observer</span>
+</div>
+</div>
+</div>
+<!-- Technical Latency Chart (Stylized SVG) -->
+<div class="flex-1 min-h-[300px] w-full bg-slate-900/50 rounded-lg border border-slate-800 p-4 relative flex flex-col">
+<div class="flex justify-between text-[10px] font-mono text-slate-600 mb-2">
+<span>LATENCY (ms)</span>
+<span>REAL-TIME FEED</span>
+</div>
+<div class="relative flex-1">
+<svg class="w-full h-full" preserveaspectratio="none" viewbox="0 0 400 200">
+<!-- Grid Lines -->
+<line stroke="rgba(255,255,255,0.05)" x1="0" x2="400" y1="50" y2="50"></line>
+<line stroke="rgba(255,255,255,0.05)" x1="0" x2="400" y1="100" y2="100"></line>
+<line stroke="rgba(255,255,255,0.05)" x1="0" x2="400" y1="150" y2="150"></line>
+<!-- Mongo SoT Line (Primary) -->
+<path d="M0 160 Q 50 140, 100 150 T 200 120 T 300 140 T 400 110" fill="none" stroke="#137fec" stroke-width="2"></path>
+<!-- SQL Observer Line (Gray) -->
+<path d="M0 180 Q 50 170, 100 175 T 200 160 T 300 170 T 400 155" fill="none" stroke="#64748b" stroke-dasharray="4" stroke-width="2"></path>
+</svg>
+<!-- Data Overlay -->
+<div class="absolute top-4 left-4 bg-background-dark/80 backdrop-blur-md p-2 rounded border border-slate-700">
+<p class="text-[10px] text-slate-500 font-bold uppercase">Average Latency</p>
+<p class="text-xl font-black text-primary">12.4ms</p>
+</div>
+</div>
+<div class="mt-4 grid grid-cols-3 gap-4 border-t border-slate-800 pt-4">
+<div>
+<p class="text-[10px] font-bold text-slate-500 uppercase">Packet Loss</p>
+<p class="text-lg font-bold text-success">0.00%</p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-slate-500 uppercase">Jitter</p>
+<p class="text-lg font-bold text-warning">4.2ms</p>
+</div>
+<div>
+<p class="text-[10px] font-bold text-slate-500 uppercase">Uptime</p>
+<p class="text-lg font-bold text-slate-200">99.99%</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Footer -->
+<div class="flex flex-col md:flex-row gap-4 items-center justify-between p-6 bg-surface/60 border border-slate-200 dark:border-slate-800 rounded-xl mt-auto">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-slate-500">info</span>
+<p class="text-sm text-slate-400">Diagnostics token: <code class="bg-slate-800 px-2 py-0.5 rounded text-xs">LV-EMRT-8821-SEC</code></p>
+</div>
+<div class="flex gap-4 w-full md:w-auto">
+<button class="flex-1 md:flex-none px-6 py-3 text-sm font-bold border border-slate-700 rounded-lg hover:bg-slate-800 transition-colors">
+                        View Technical Logs
+                    </button>
+<button class="flex-1 md:min-w-[240px] px-6 py-3 text-sm font-black text-white bg-gradient-to-r from-primary to-[#0052cc] rounded-lg glow-blue hover:brightness-110 transition-all flex items-center justify-center gap-2 uppercase tracking-widest">
+<span class="material-symbols-outlined">refresh</span>
+                        Reconnect &amp; Verify
+                    </button>
+</div>
+</div>
+</main>
+<!-- Background Blueprint Topology Decoration -->
+<div class="fixed inset-0 pointer-events-none -z-10 opacity-20">
+<svg height="100%" width="100%" xmlns="http://www.w3.org/2000/svg">
+<circle cx="10%" cy="20%" fill="#137fec" r="4"></circle>
+<circle cx="90%" cy="80%" fill="#137fec" r="4"></circle>
+<path class="blueprint-line" d="M 10% 20% L 30% 20% L 30% 50% L 70% 50% L 70% 80% L 90% 80%"></path>
+<circle cx="30%" cy="50%" fill="#137fec" r="3"></circle>
+<circle cx="70%" cy="50%" fill="#137fec" r="3"></circle>
+<circle cx="85%" cy="15%" fill="#ef4444" r="4"></circle>
+<path class="blueprint-line" d="M 85% 15% L 85% 35% L 60% 35%" style="stroke: rgba(239, 68, 68, 0.2);"></path>
+</svg>
+</div>
+</div>
+</body></html>

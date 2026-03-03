@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Staff Login: Online Tunnel</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #137fec;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #137fec;
+        }
+        
+        /* Pulse Animation for Healthy Status */
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+        .animate-pulse-green {
+            animation: pulse-green 2s infinite;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display flex flex-col min-h-screen text-[#111418] dark:text-white">
+<!-- Top Status Bar Area -->
+<div class="flex items-center justify-between p-6 pt-8 pb-2">
+<div class="flex items-center gap-3">
+<!-- Tunnel Badge -->
+<div class="flex h-7 items-center justify-center gap-x-1.5 rounded-full bg-purple-500/20 px-3 border border-purple-500/30">
+<span class="material-symbols-outlined text-purple-400 text-[18px]">vpn_lock</span>
+<p class="text-purple-400 text-xs font-bold tracking-wide">TUNNEL</p>
+</div>
+<!-- Healthy Badge -->
+<div class="flex h-7 items-center justify-center gap-x-1.5 rounded-full bg-emerald-500/20 px-3 border border-emerald-500/30">
+<div class="relative flex h-2.5 w-2.5">
+<span class="animate-pulse-green absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+</div>
+<p class="text-emerald-400 text-xs font-bold tracking-wide">HEALTHY</p>
+</div>
+</div>
+<div class="text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined">help</span>
+</div>
+</div>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col justify-center px-6 max-w-md mx-auto w-full">
+<!-- Header Section -->
+<div class="mb-10 text-center">
+<div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1c2127] to-[#111418] border border-slate-700 shadow-xl">
+<span class="material-symbols-outlined text-white text-[32px]">verified_user</span>
+</div>
+<h1 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white mb-1">Stock Verify</h1>
+<p class="text-slate-500 dark:text-slate-400 font-medium text-sm tracking-widest uppercase">Governance Edition</p>
+</div>
+<!-- Login Form -->
+<div class="space-y-5">
+<div class="space-y-4">
+<label class="block">
+<span class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 block ml-1">Username</span>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-500 text-[20px]">person</span>
+</div>
+<input class="block w-full rounded-lg border-slate-300 dark:border-slate-700 bg-white dark:bg-[#1c2127] text-slate-900 dark:text-white focus:border-primary focus:ring-primary dark:focus:border-primary dark:focus:ring-primary pl-10 py-3 sm:text-sm" placeholder="Enter ID or Email" type="text"/>
+</div>
+</label>
+<label class="block">
+<span class="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5 block ml-1">Password</span>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-500 text-[20px]">key</span>
+</div>
+<input class="block w-full rounded-lg border-slate-300 dark:border-slate-700 bg-white dark:bg-[#1c2127] text-slate-900 dark:text-white focus:border-primary focus:ring-primary dark:focus:border-primary dark:focus:ring-primary pl-10 py-3 sm:text-sm" placeholder="••••••••" type="password"/>
+</div>
+</label>
+</div>
+<!-- Toggles Row -->
+<div class="grid grid-cols-2 gap-4 py-2">
+<!-- Toggle: Use PIN -->
+<div class="flex items-center justify-between rounded-lg bg-slate-100 dark:bg-[#1c2127] p-3 border border-slate-200 dark:border-slate-800">
+<span class="text-xs font-medium text-slate-600 dark:text-slate-300">Use PIN</span>
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300" id="toggle-pin" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer" for="toggle-pin"></label>
+</div>
+</div>
+<!-- Toggle: Biometrics -->
+<div class="flex items-center justify-between rounded-lg bg-slate-100 dark:bg-[#1c2127] p-3 border border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary text-[16px]">fingerprint</span>
+<span class="text-xs font-medium text-slate-600 dark:text-slate-300">Biometrics</span>
+</div>
+<div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+<input checked="" class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 appearance-none cursor-pointer border-slate-300" id="toggle-bio" name="toggle" type="checkbox"/>
+<label class="toggle-label block overflow-hidden h-5 rounded-full bg-slate-300 cursor-pointer" for="toggle-bio"></label>
+</div>
+</div>
+</div>
+<!-- Login Button -->
+<button class="w-full bg-primary hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-lg shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[20px]">login</span>
+                Sign In
+            </button>
+</div>
+<!-- Metadata Block -->
+<div class="mt-8 rounded-lg bg-slate-100 dark:bg-[#161b21] border border-slate-200 dark:border-slate-800 p-4 space-y-2">
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-500 dark:text-slate-400">Device ID</span>
+<span class="font-mono text-slate-700 dark:text-slate-300 bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded text-[10px] tracking-tight">UUID-8821-4F9A-B2</span>
+</div>
+<div class="h-px bg-slate-200 dark:bg-slate-800 w-full"></div>
+<div class="flex justify-between items-center text-xs">
+<span class="text-slate-500 dark:text-slate-400">Last Login</span>
+<span class="font-mono text-slate-700 dark:text-slate-300">2023-10-27 08:30</span>
+</div>
+</div>
+</div>
+<!-- Footer Disclaimer -->
+<div class="p-6 text-center">
+<div class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-[#1c2127]/50 border border-slate-200 dark:border-slate-800">
+<span class="material-symbols-outlined text-slate-400 text-[14px]">security</span>
+<p class="text-[10px] font-medium text-slate-500 dark:text-slate-500 uppercase tracking-wide">All login attempts are audited for idempotency</p>
+</div>
+</div>
+</body></html>

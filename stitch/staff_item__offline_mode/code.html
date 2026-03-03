@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Staff Item: Offline Mode</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#1c2630",
+                        "surface-light": "#ffffff",
+                        "offline-red": "#FF453A",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display min-h-screen flex flex-col overflow-hidden">
+<!-- Top Navigation -->
+<header class="flex items-center justify-between px-4 py-3 bg-surface-dark border-b border-slate-800 sticky top-0 z-20">
+<div class="flex items-center gap-3">
+<button class="text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="text-lg font-bold leading-tight">Item Detail</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="text-slate-400 hover:text-white transition-colors p-1">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</div>
+</header>
+<!-- Governance Bar -->
+<div class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between text-xs font-medium">
+<div class="flex items-center gap-2 text-offline-red">
+<span class="material-symbols-outlined text-[16px] animate-pulse">wifi_off</span>
+<span class="uppercase tracking-wider">Offline</span>
+</div>
+<div class="h-4 w-px bg-slate-700"></div>
+<div class="flex items-center gap-1.5 text-slate-400">
+<span class="material-symbols-outlined text-[16px]">queue</span>
+<span>4 Pending</span>
+</div>
+<div class="h-4 w-px bg-slate-700"></div>
+<div class="flex items-center gap-1.5 text-slate-400">
+<span class="material-symbols-outlined text-[16px]">schedule</span>
+<span>12m ago</span>
+</div>
+<div class="h-4 w-px bg-slate-700"></div>
+<div class="flex items-center gap-1.5 text-slate-500">
+<span class="material-symbols-outlined text-[16px]">database</span>
+<span class="uppercase">SQL Unavail</span>
+</div>
+</div>
+<!-- Scrollable Content Area -->
+<main class="flex-1 overflow-y-auto pb-32">
+<!-- Action Gate Panel (Offline Alert) -->
+<div class="p-4">
+<div class="bg-offline-red/10 border border-offline-red/30 rounded-lg p-4 flex gap-3 items-start">
+<div class="bg-offline-red/20 rounded-full p-1.5 shrink-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-offline-red text-xl">cloud_off</span>
+</div>
+<div>
+<h3 class="text-offline-red font-bold text-sm mb-1">Offline Mode Active</h3>
+<p class="text-slate-400 text-sm leading-relaxed">Counts will be queued locally and replayed automatically upon reconnection.</p>
+</div>
+</div>
+</div>
+<!-- Item Detail Card -->
+<div class="px-4 pb-2">
+<div class="flex items-start gap-4 p-4 bg-surface-dark rounded-lg border border-slate-800 shadow-sm">
+<div class="w-20 h-20 rounded-lg bg-slate-800 shrink-0 overflow-hidden relative border border-slate-700">
+<img alt="Metallic hex bolt hardware close up" class="w-full h-full object-cover opacity-80" data-alt="Close up of industrial hex bolt" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB4adj5IiCQrY5Lim8F1AUgX4SpFL0AuNKcjiZrb0_7geiJCTIoJ41v_Plf6o3znH144xFu_BtDEEbYRW9o6fA44q-UQMGwCCnOOCJ-aWzGQDeD07nG3RoNLn2FXclPr_NerET4G0UCNmspTpj6r5AyotznZ5z8y4r1VU0fkTa8_9xkavTVzyuyHNRIX-Imd8U6qJuS3DLzfhvyu9rHVbhwL8BrZDWfJ4uzfqMtTenk3GqjiMZTQpgj1sKaCN6r9tj6Q8cTKuW57_LZ"/>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex justify-between items-start mb-1">
+<h2 class="text-white font-bold text-lg truncate pr-2">Hex Bolt M4 Stainless</h2>
+<span class="bg-slate-800 text-slate-400 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider border border-slate-700">Stock</span>
+</div>
+<p class="text-slate-400 text-sm font-medium mb-3">SKU: HB-M4-001</p>
+<div class="flex gap-2">
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-300">
+<span class="material-symbols-outlined text-[14px]">warehouse</span> Aisle 4
+                        </span>
+<span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-800 border border-slate-700 text-xs text-slate-300">
+<span class="material-symbols-outlined text-[14px]">shelf_position</span> Bin C2
+                        </span>
+</div>
+</div>
+</div>
+</div>
+<!-- Totals Truth Matrix -->
+<div class="px-4 py-4">
+<div class="grid grid-cols-3 gap-3">
+<!-- ERP Column (Disabled/NA) -->
+<div class="bg-slate-900/50 rounded-lg p-3 border border-slate-800 flex flex-col items-center justify-center opacity-60">
+<p class="text-slate-500 text-[10px] uppercase font-bold tracking-wider mb-1">ERP Observed</p>
+<p class="text-slate-600 text-2xl font-bold">N/A</p>
+<span class="material-symbols-outlined text-slate-600 text-sm mt-1">link_off</span>
+</div>
+<!-- Snapshot Column -->
+<div class="bg-surface-dark rounded-lg p-3 border border-slate-700 flex flex-col items-center justify-center relative overflow-hidden">
+<div class="absolute top-0 right-0 w-8 h-8 bg-primary/10 rounded-bl-full"></div>
+<p class="text-slate-400 text-[10px] uppercase font-bold tracking-wider mb-1">Snapshot</p>
+<p class="text-white text-2xl font-bold">85</p>
+<span class="text-slate-500 text-[10px] mt-1">Last Valid</span>
+</div>
+<!-- Verified Total Column (Active) -->
+<div class="bg-primary/10 rounded-lg p-3 border border-primary/30 flex flex-col items-center justify-center relative shadow-[0_0_15px_-5px_rgba(19,127,236,0.3)]">
+<p class="text-primary text-[10px] uppercase font-bold tracking-wider mb-1">Verified Total</p>
+<p class="text-primary text-2xl font-bold">85</p>
+<div class="w-1.5 h-1.5 bg-primary rounded-full mt-2 animate-pulse"></div>
+</div>
+</div>
+</div>
+<!-- Input Section -->
+<div class="px-4">
+<h3 class="text-sm font-medium text-slate-400 mb-3 px-1">Physical Count Entry</h3>
+<div class="bg-surface-dark rounded-xl border border-slate-700 p-4">
+<div class="flex items-center gap-4 mb-6">
+<button class="w-12 h-12 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 flex items-center justify-center text-white active:scale-95 transition-all">
+<span class="material-symbols-outlined">remove</span>
+</button>
+<div class="flex-1">
+<input class="w-full bg-slate-900 border-slate-700 text-center text-3xl font-bold text-white rounded-lg focus:ring-2 focus:ring-primary focus:border-primary p-2" type="number" value="85"/>
+</div>
+<button class="w-12 h-12 rounded-lg bg-primary hover:bg-primary/90 flex items-center justify-center text-white shadow-lg active:scale-95 transition-all">
+<span class="material-symbols-outlined">add</span>
+</button>
+</div>
+<!-- Input Helpers -->
+<div class="flex gap-2 justify-center">
+<button class="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm font-medium text-slate-300 hover:text-white hover:border-slate-500 transition-colors">+5</button>
+<button class="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm font-medium text-slate-300 hover:text-white hover:border-slate-500 transition-colors">+10</button>
+<button class="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm font-medium text-slate-300 hover:text-white hover:border-slate-500 transition-colors">+25</button>
+</div>
+</div>
+<div class="mt-4 flex items-center gap-2 px-2">
+<span class="material-symbols-outlined text-slate-500 text-sm">info</span>
+<p class="text-xs text-slate-500">Last scanned location: Bin C2. Ensure physical match.</p>
+</div>
+</div>
+</main>
+<!-- Bottom Actions (Fixed) -->
+<div class="fixed bottom-0 left-0 w-full bg-surface-dark border-t border-slate-800 p-4 pb-8 z-30">
+<div class="flex gap-3">
+<button class="flex-1 h-12 rounded-lg border border-slate-600 bg-transparent text-slate-300 font-bold text-sm hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-[20px]">save_as</span>
+                Save Draft
+            </button>
+<button class="flex-[2] h-12 rounded-lg bg-primary text-white font-bold text-sm shadow-lg shadow-primary/25 hover:bg-primary/90 transition-all flex items-center justify-center gap-2 active:scale-[0.98]">
+<span class="material-symbols-outlined text-[20px]">queue_play_next</span>
+                Queue &amp; Continue
+            </button>
+</div>
+</div>
+</body></html>

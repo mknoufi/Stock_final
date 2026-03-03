@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Product Inventory Management System</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b7cee",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101822",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-800 dark:text-slate-200 antialiased min-h-screen">
+<!-- Sidebar & Main Content Wrapper -->
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar -->
+<aside class="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 hidden lg:flex flex-col">
+<div class="p-6">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-icons-round text-3xl">inventory_2</span>
+<span class="text-xl font-bold tracking-tight text-slate-900 dark:text-white">StockPro</span>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg bg-primary/10 text-primary" href="#">
+<span class="material-icons-round">dashboard</span> Dashboard
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-round">category</span> Inventory
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-round">warehouse</span> Warehouses
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-round">assessment</span> Reports
+                </a>
+<a class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" href="#">
+<span class="material-icons-round">settings</span> Settings
+                </a>
+</nav>
+<div class="p-4 border-t border-slate-200 dark:border-slate-800">
+<div class="flex items-center gap-3 px-2">
+<img alt="Profile" class="w-10 h-10 rounded-full border-2 border-slate-100 dark:border-slate-700" data-alt="User profile avatar of a warehouse manager" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJlay24-pzZhQSDy_SlIiEPZz4_XDmlmrneSWmgXNj8cCqy3HGRVxJ8MGj78iKibEo9c4U25LXzOK7XQsgXWNK_mKjfmIWKc8pYXaA_pZ-FqJ032_uDmI51n4vIbtAAobdfYtjLElOOoCP4EJqkCkJ3iujBX7mpqUvVcgWtwj24_CEl2wI33x7pxSJs4ZL0XiC6UhsywdDP6x1Yxepn0TMItieB-Bek-eTi6w9qPj4y0sC-CiyS4J_x8i4e2K4c1HC4qKmYGq0en4"/>
+<div>
+<p class="text-sm font-semibold dark:text-white">Alex Johnson</p>
+<p class="text-xs text-slate-500">Admin</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto">
+<!-- Top Navbar -->
+<header class="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-30 border-bottom border-slate-200 dark:border-slate-800 px-8 py-4">
+<div class="flex justify-between items-center">
+<div>
+<h1 class="text-2xl font-bold text-slate-900 dark:text-white">Product Inventory</h1>
+<p class="text-sm text-slate-500">Manage and track your global product catalog</p>
+</div>
+<div class="flex items-center gap-4">
+<button class="bg-primary hover:bg-primary/90 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-semibold shadow-lg shadow-primary/20 transition-all active:scale-95">
+<span class="material-icons-round text-sm">add</span> Add New Product
+                        </button>
+</div>
+</div>
+</header>
+<div class="p-8 space-y-6">
+<!-- Filters Section -->
+<div class="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col md:flex-row gap-4 items-center">
+<div class="relative flex-1 w-full">
+<span class="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-slate-400">search</span>
+<input class="w-full pl-12 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-lg focus:ring-2 focus:ring-primary/50 text-sm" placeholder="Search by SKU, Name, or Category..." type="text"/>
+</div>
+<div class="flex flex-wrap gap-4 w-full md:w-auto">
+<div class="relative min-w-[140px]">
+<select class="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-lg py-2.5 pl-4 pr-10 text-sm font-medium focus:ring-2 focus:ring-primary/50 cursor-pointer">
+<option>Category: All</option>
+<option>Electronics</option>
+<option>Apparel</option>
+<option>Home Decor</option>
+</select>
+<span class="material-icons-round absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">expand_more</span>
+</div>
+<div class="relative min-w-[140px]">
+<select class="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-lg py-2.5 pl-4 pr-10 text-sm font-medium focus:ring-2 focus:ring-primary/50 cursor-pointer">
+<option>Status: All</option>
+<option>In Stock</option>
+<option>Low Stock</option>
+<option>Out of Stock</option>
+</select>
+<span class="material-icons-round absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">expand_more</span>
+</div>
+<div class="relative min-w-[140px]">
+<select class="appearance-none w-full bg-slate-50 dark:bg-slate-800 border-none rounded-lg py-2.5 pl-4 pr-10 text-sm font-medium focus:ring-2 focus:ring-primary/50 cursor-pointer">
+<option>Warehouse: All</option>
+<option>Warehouse A</option>
+<option>Warehouse B</option>
+<option>Warehouse C</option>
+</select>
+<span class="material-icons-round absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">expand_more</span>
+</div>
+<button class="flex items-center justify-center p-2.5 bg-slate-50 dark:bg-slate-800 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+<span class="material-icons-round text-slate-500">filter_list</span>
+</button>
+</div>
+</div>
+<!-- Data Grid -->
+<div class="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+<th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Product</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">SKU</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Category</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Qty On Hand</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Variance</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Last Count</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+<th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+<!-- Row 1 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<img alt="Product" class="w-12 h-12 rounded-lg object-cover shadow-sm" data-alt="Red sleek athletic running shoe thumbnail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDAU63yxUKTw5_OmayikEuSQuqwCsn9ArpdAwrYJCNin2rQJt-FdS_8eFQbRMgO4YYzTcrVjPsvifU2iFJs2SYD1XoEmnprHAFcMb9Rw1zeOlnp240IgwgvKdHCl2CLo9Oi5eIp1rE_HSeDEwyrPesJjpCYUKU6AQkrH9zBtvmX7wcKveys-YsHBaZlTndcHXf_v7ZP5i0VJFISLY0wQXHKp26_YuTZ-DMMtq1Zzcv1rXVjQMKBwSdMhyN-Jr0jXT6AB0qqBkUiY3A"/>
+<span class="font-semibold text-slate-900 dark:text-white">AeroSwift Runner X</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm font-medium text-primary cursor-pointer hover:underline">SHOE-AR-001</td>
+<td class="px-6 py-4 text-sm text-slate-500">Apparel</td>
+<td class="px-6 py-4 text-lg font-bold text-slate-900 dark:text-white">1,240</td>
+<td class="px-6 py-4 text-sm font-semibold text-emerald-600">+12</td>
+<td class="px-6 py-4 text-sm text-slate-500">Oct 24, 2023</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> In Stock
+                                        </span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-slate-400 hover:text-primary hover:bg-white dark:hover:bg-slate-700 rounded-full transition-all">
+<span class="material-icons-round">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<img alt="Product" class="w-12 h-12 rounded-lg object-cover shadow-sm" data-alt="Premium black wireless headphones studio shot" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD5OjlwQ2ymC3rf6z5RcBArV0kY1o_sr0Way5pE80Hos_F76ySsho1MDr_Sh08LFMLALL78vrZtou3yK5pt2u8RCEfnZopIQh3ne2NFF-h6jyPKo-mcquYYcSAjwkPpY9fLd92Ro5ef6wnBsOQ3228IX6dO798-22mVPyco_nLrL3HwMCeM98VUhE5PcGy_Afeu07DrOAk9w-XUQxjiOrqm0OjicqGb2BOtS-JHtBwTEE1vzsi4PX-9GEj9rqVtQRCArOF-10cnUos"/>
+<span class="font-semibold text-slate-900 dark:text-white">SoundPhase Pro 5</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm font-medium text-primary cursor-pointer hover:underline">ELEC-SP-105</td>
+<td class="px-6 py-4 text-sm text-slate-500">Electronics</td>
+<td class="px-6 py-4 text-lg font-bold text-slate-900 dark:text-white">42</td>
+<td class="px-6 py-4 text-sm font-semibold text-rose-600">-5</td>
+<td class="px-6 py-4 text-sm text-slate-500">Oct 22, 2023</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
+<span class="w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5"></span> Low Stock
+                                        </span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-slate-400 hover:text-primary hover:bg-white dark:hover:bg-slate-700 rounded-full transition-all">
+<span class="material-icons-round">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<img alt="Product" class="w-12 h-12 rounded-lg object-cover shadow-sm" data-alt="Minimalist white smart watch top view" src="https://lh3.googleusercontent.com/aida-public/AB6AXuB0mPRlxw98j7B9vuDDvauEQHIdWg-H5DD6Hg-p21MDQYAskw3tHk_gPnV2CEyGDlKlw-zQtP2lKsLw95v_ak6LUOM9tSP6hdcEAjLZjoCWcnhaobsnoD8RLrkaQre4KlCewVpa2BcQRMzFSfhlR2JbM-5e_A4_o6pa0QyWg1lrzXtmQSYITarvCBHTg6tW2EYx0eBKG1pyHARh-UdO8NzSwK99A9vi1714F_KhlNp_ZVVsrAEM4ZFoUmSWOqyOU0I2jJOcsMy7BsI"/>
+<span class="font-semibold text-slate-900 dark:text-white">Lumina Smartwatch</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm font-medium text-primary cursor-pointer hover:underline">ELEC-LS-099</td>
+<td class="px-6 py-4 text-sm text-slate-500">Electronics</td>
+<td class="px-6 py-4 text-lg font-bold text-slate-900 dark:text-white">0</td>
+<td class="px-6 py-4 text-sm font-semibold text-slate-400">0</td>
+<td class="px-6 py-4 text-sm text-slate-500">Oct 20, 2023</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-400">
+<span class="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5"></span> Out of Stock
+                                        </span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-slate-400 hover:text-primary hover:bg-white dark:hover:bg-slate-700 rounded-full transition-all">
+<span class="material-icons-round">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<img alt="Product" class="w-12 h-12 rounded-lg object-cover shadow-sm" data-alt="Modern minimalist office desk chair" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCUI38YDUHEWYRofJzdY8AzOoV4uUb4fkXTBrufqbL66IjkfMb3ABBYz2FXRzGniJbp9ALR72FkGDNR5o40OGRs4hxALxMbSzNL7RMMBMowKkt3o9A2x_0SgV-FG_fD6sYF_OvvJj_e2wup8vXNbZGP6jG0sffuPAtlZxThvPm7pcBA8vdHpvqgoT9rsEOt4k1k29zJS5Rz-lSDBSNsxirliqzlYMhHAhiz6Jd6XK2nU82FvKVkbC7DCvTuSVXedNAOgxtkoZ0yyp4"/>
+<span class="font-semibold text-slate-900 dark:text-white">ErgoCurve Office Chair</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm font-medium text-primary cursor-pointer hover:underline">FURN-EC-442</td>
+<td class="px-6 py-4 text-sm text-slate-500">Home Decor</td>
+<td class="px-6 py-4 text-lg font-bold text-slate-900 dark:text-white">256</td>
+<td class="px-6 py-4 text-sm font-semibold text-emerald-600">+8</td>
+<td class="px-6 py-4 text-sm text-slate-500">Oct 19, 2023</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> In Stock
+                                        </span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-slate-400 hover:text-primary hover:bg-white dark:hover:bg-slate-700 rounded-full transition-all">
+<span class="material-icons-round">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-4">
+<img alt="Product" class="w-12 h-12 rounded-lg object-cover shadow-sm" data-alt="Professional grade chef kitchen knife" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJSQu2QtFoJ5z5kViL_aFHC3SRFzUqnMQPFOeGqncuTIYRqicqXj-PZjnJz54JiwilI1Dv5A_0_3gZ4M4ISOW_2r8HUA8EeuXQLSJ27UX89Dk0K7581sTmZQX1FUq6O0wbO8WNnXAmhEUcY0DGgEFiYmS4VJQOcqMnNRuPVB640bQBC7EQLckmMrneXJs0PPVYg_MYj8d5Fov4u8bzVtAnqgTxGg0ajUuGWrSd3xDtOesFY21g55f_eokdDXjENZabAubIXGnglbY"/>
+<span class="font-semibold text-slate-900 dark:text-white">Zenith Pro Knife Set</span>
+</div>
+</td>
+<td class="px-6 py-4 text-sm font-medium text-primary cursor-pointer hover:underline">KITCH-ZK-771</td>
+<td class="px-6 py-4 text-sm text-slate-500">Home Decor</td>
+<td class="px-6 py-4 text-lg font-bold text-slate-900 dark:text-white">880</td>
+<td class="px-6 py-4 text-sm font-semibold text-rose-600">-24</td>
+<td class="px-6 py-4 text-sm text-slate-500">Oct 18, 2023</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5"></span> In Stock
+                                        </span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-slate-400 hover:text-primary hover:bg-white dark:hover:bg-slate-700 rounded-full transition-all">
+<span class="material-icons-round">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination Footer -->
+<div class="px-6 py-4 bg-slate-50/50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="flex items-center gap-4 text-sm text-slate-500">
+<span>Showing 1-25 of 1,250 results</span>
+<div class="flex items-center gap-2">
+<span>Rows per page:</span>
+<select class="bg-transparent border-none py-0 pl-0 pr-6 text-sm font-semibold focus:ring-0 cursor-pointer">
+<option>25</option>
+<option>50</option>
+<option>100</option>
+</select>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 transition-colors">
+<span class="material-icons-round">chevron_left</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-primary text-white text-sm font-bold">1</button>
+<button class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-sm font-medium transition-colors">2</button>
+<button class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-sm font-medium transition-colors">3</button>
+<span class="px-1 text-slate-400">...</span>
+<button class="w-8 h-8 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-sm font-medium transition-colors">50</button>
+<button class="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-400 transition-colors">
+<span class="material-icons-round">chevron_right</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Stats Summary Section -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+<div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Inventory Value</p>
+<h3 class="text-2xl font-bold mt-2 text-slate-900 dark:text-white">$1,452,000</h3>
+<p class="text-xs text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+<span class="material-icons-round text-sm">trending_up</span> +2.4% vs last month
+                        </p>
+</div>
+<div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Low Stock Alerts</p>
+<h3 class="text-2xl font-bold mt-2 text-slate-900 dark:text-white">14 Items</h3>
+<p class="text-xs text-rose-600 font-semibold mt-1 flex items-center gap-1">
+<span class="material-icons-round text-sm">priority_high</span> 3 critical items
+                        </p>
+</div>
+<div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Stock Units</p>
+<h3 class="text-2xl font-bold mt-2 text-slate-900 dark:text-white">45,820</h3>
+<p class="text-xs text-slate-500 font-semibold mt-1">Across 3 warehouses</p>
+</div>
+<div class="bg-white dark:bg-slate-900 p-5 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+<p class="text-xs font-bold text-slate-500 uppercase tracking-widest">Stock Turnover Rate</p>
+<h3 class="text-2xl font-bold mt-2 text-slate-900 dark:text-white">6.2x</h3>
+<p class="text-xs text-primary font-semibold mt-1">Excellent performance</p>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

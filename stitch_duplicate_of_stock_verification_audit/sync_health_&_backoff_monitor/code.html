@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sync Health &amp; Backoff Monitor | Lavanya eMart</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#256af4",
+                        "background-light": "#f5f6f8",
+                        "background-dark": "#0f172a",
+                        "surface-dark": "#1e293b",
+                        "border-dark": "#334155",
+                        "warning-amber": "#f59e0b",
+                        "success-emerald": "#10b981",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"],
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .status-pulse {
+            box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 antialiased">
+<!-- StatusRail (Top Bar) -->
+<div class="w-full bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-border-dark px-6 py-2 flex justify-between items-center text-xs font-medium tracking-wider uppercase text-slate-500 dark:text-slate-400">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="size-2 rounded-full bg-success-emerald"></span>
+<span>Plane: <span class="text-slate-900 dark:text-white">CF Tunnel</span></span>
+</div>
+<div class="flex items-center gap-2">
+<span class="size-2 rounded-full bg-success-emerald"></span>
+<span>Access: <span class="text-slate-900 dark:text-white">Allowed (Encrypted)</span></span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span>Uptime: 99.98%</span>
+<span class="h-3 w-px bg-slate-700"></span>
+<span>Region: US-EAST-1</span>
+</div>
+</div>
+<div class="max-w-[1440px] mx-auto p-6 space-y-6">
+<!-- GovernanceHeader -->
+<header class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-surface-dark p-5 rounded-xl border border-slate-200 dark:border-border-dark shadow-sm">
+<div class="flex items-center gap-4">
+<div class="size-10 bg-primary rounded-lg flex items-center justify-center text-white">
+<span class="material-symbols-outlined">sync_alt</span>
+</div>
+<div>
+<h1 class="text-xl font-bold tracking-tight">Lavanya eMart</h1>
+<p class="text-xs text-slate-500 dark:text-slate-400 font-mono">v4.2.0-stable | Sync Monitor</p>
+</div>
+</div>
+<div class="flex flex-wrap gap-3">
+<div class="flex items-center gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-border-dark">
+<span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">SQL Observer</span>
+<span class="px-2 py-0.5 bg-success-emerald/10 text-success-emerald text-xs font-bold rounded border border-success-emerald/20">MATCH</span>
+</div>
+<div class="flex items-center gap-3 px-4 py-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-border-dark">
+<span class="text-xs font-semibold text-slate-500 uppercase tracking-widest">Mongo SoT</span>
+<span class="px-2 py-0.5 bg-primary/10 text-primary text-xs font-bold rounded border border-primary/20">SYNCING</span>
+</div>
+<button class="size-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-border-dark hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-slate-400">settings</span>
+</button>
+</div>
+</header>
+<!-- Main Dashboard Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- Left Column: Metrics & Alerts -->
+<div class="lg:col-span-4 space-y-6">
+<!-- Sync Queue Status Card -->
+<div class="bg-white dark:bg-surface-dark p-6 rounded-xl border border-slate-200 dark:border-border-dark shadow-sm overflow-hidden relative">
+<div class="absolute top-0 right-0 p-4">
+<span class="material-symbols-outlined text-primary/20 text-6xl">stack</span>
+</div>
+<p class="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Sync Queue Status</p>
+<div class="mt-4 flex items-baseline gap-2">
+<h2 class="text-5xl font-black text-slate-900 dark:text-white">14</h2>
+<span class="text-lg font-semibold text-slate-500">Actions Pending</span>
+</div>
+<div class="mt-6 flex items-center gap-2 text-xs font-medium text-warning-amber bg-warning-amber/10 w-fit px-2 py-1 rounded">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span>+2 items since last check</span>
+</div>
+</div>
+<!-- Active Backoff Alert -->
+<div class="bg-warning-amber/10 border border-warning-amber/30 p-6 rounded-xl shadow-sm status-pulse">
+<div class="flex items-start gap-4">
+<div class="bg-warning-amber text-white p-2 rounded-lg">
+<span class="material-symbols-outlined">running_with_errors</span>
+</div>
+<div class="flex-1">
+<h3 class="text-warning-amber font-bold uppercase tracking-tight text-sm">Exponential Backoff Active</h3>
+<p class="text-slate-600 dark:text-slate-400 text-sm mt-1 leading-relaxed">System is currently throttling requests due to network instability in the CF Tunnel.</p>
+<!-- Countdown Component -->
+<div class="mt-6 flex gap-3">
+<div class="flex-1 bg-white/50 dark:bg-slate-900/50 p-3 rounded-lg border border-warning-amber/20 text-center">
+<p class="text-2xl font-black font-mono text-warning-amber">00</p>
+<p class="text-[10px] uppercase font-bold text-slate-500">Min</p>
+</div>
+<div class="flex-1 bg-white/50 dark:bg-slate-900/50 p-3 rounded-lg border border-warning-amber/20 text-center">
+<p class="text-2xl font-black font-mono text-warning-amber text-warning-amber">45</p>
+<p class="text-[10px] uppercase font-bold text-slate-500">Sec</p>
+</div>
+</div>
+<button class="w-full mt-4 py-2 bg-warning-amber text-white font-bold text-sm rounded-lg hover:bg-amber-600 transition-colors">
+                                Manual Retry Override
+                            </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Graph & Logs -->
+<div class="lg:col-span-8 space-y-6">
+<!-- Sync Health Graph Placeholder -->
+<div class="bg-white dark:bg-surface-dark p-6 rounded-xl border border-slate-200 dark:border-border-dark shadow-sm">
+<div class="flex items-center justify-between mb-6">
+<h3 class="font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">monitoring</span>
+                            Connectivity &amp; Backoff Frequency
+                        </h3>
+<div class="flex gap-4 text-xs font-medium">
+<div class="flex items-center gap-1.5 text-primary">
+<span class="size-2 rounded-full bg-primary"></span> Ping (ms)
+                            </div>
+<div class="flex items-center gap-1.5 text-warning-amber">
+<span class="size-2 rounded-full bg-warning-amber"></span> Backoff
+                            </div>
+</div>
+</div>
+<div class="h-48 w-full bg-slate-50 dark:bg-slate-900/50 rounded-lg relative overflow-hidden border border-slate-100 dark:border-slate-800 flex items-end px-2">
+<!-- Simulated Data Lines -->
+<div class="flex-1 h-12 bg-primary/20 border-t-2 border-primary mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-16 bg-primary/20 border-t-2 border-primary mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-20 bg-primary/20 border-t-2 border-primary mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-24 bg-primary/20 border-t-2 border-primary mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-32 bg-warning-amber/20 border-t-2 border-warning-amber mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-40 bg-warning-amber/30 border-t-2 border-warning-amber mx-0.5 rounded-t-sm shadow-[0_-4px_10px_rgba(245,158,11,0.2)]"></div>
+<div class="flex-1 h-36 bg-warning-amber/20 border-t-2 border-warning-amber mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-28 bg-primary/20 border-t-2 border-primary mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-20 bg-primary/20 border-t-2 border-primary mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-14 bg-primary/20 border-t-2 border-primary mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-10 bg-primary/20 border-t-2 border-primary mx-0.5 rounded-t-sm"></div>
+<div class="flex-1 h-12 bg-primary/20 border-t-2 border-primary mx-0.5 rounded-t-sm"></div>
+</div>
+</div>
+<!-- Sync Log Table -->
+<div class="bg-white dark:bg-surface-dark rounded-xl border border-slate-200 dark:border-border-dark shadow-sm overflow-hidden">
+<div class="p-4 border-b border-slate-200 dark:border-border-dark flex items-center justify-between">
+<h3 class="font-bold">Recent Sync Attempts</h3>
+<button class="text-xs font-bold text-primary hover:underline">Export CSV</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left text-sm">
+<thead>
+<tr class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 font-medium uppercase text-[10px] tracking-widest">
+<th class="px-6 py-3">Action ID</th>
+<th class="px-6 py-3">Status</th>
+<th class="px-6 py-3">Backoff Interval</th>
+<th class="px-6 py-3">Timestamp</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 text-slate-900 dark:text-slate-100">#TX-1004</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-warning-amber/10 text-warning-amber text-[10px] font-bold rounded border border-warning-amber/20">RETRY</span>
+</td>
+<td class="px-6 py-4 text-slate-500">64.0s</td>
+<td class="px-6 py-4 text-slate-400">14:22:10.05</td>
+</tr>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 text-slate-900 dark:text-slate-100">#TX-1003</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-red-500/10 text-red-500 text-[10px] font-bold rounded border border-red-500/20">CONFLICT</span>
+</td>
+<td class="px-6 py-4 text-slate-500">32.0s</td>
+<td class="px-6 py-4 text-slate-400">14:21:25.42</td>
+</tr>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 text-slate-900 dark:text-slate-100">#TX-1002</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-success-emerald/10 text-success-emerald text-[10px] font-bold rounded border border-success-emerald/20">SUCCESS</span>
+</td>
+<td class="px-6 py-4 text-slate-500">0s</td>
+<td class="px-6 py-4 text-slate-400">14:20:58.11</td>
+</tr>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+<td class="px-6 py-4 text-slate-900 dark:text-slate-100">#TX-1001</td>
+<td class="px-6 py-4">
+<span class="px-2 py-0.5 bg-warning-amber/10 text-warning-amber text-[10px] font-bold rounded border border-warning-amber/20">RETRY</span>
+</td>
+<td class="px-6 py-4 text-slate-500">16.0s</td>
+<td class="px-6 py-4 text-slate-400">14:20:10.05</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer / Technical Specs -->
+<footer class="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-900/30 rounded-lg border border-slate-200 dark:border-border-dark text-[10px] text-slate-500 uppercase font-mono tracking-widest">
+<div class="flex gap-6">
+<span>Kernel: 5.15.0-v8+</span>
+<span>Node: US-E-01-A</span>
+<span>Latency: 42ms</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="size-1.5 rounded-full bg-success-emerald animate-pulse"></span>
+<span>Live Data Feed Active</span>
+</div>
+</footer>
+</div>
+</body></html>

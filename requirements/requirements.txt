@@ -1,0 +1,4 @@
+# Enterprise locked entrypoint (deterministic)
+-r base.txt
+-r ai.txt
+-r observability.txt

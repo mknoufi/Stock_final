@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Session Detail: Offline Sync</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "danger": "#EF4444",
+                        "warning": "#F59E0B",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white min-h-screen flex flex-col antialiased selection:bg-primary/30">
+<!-- Top Navigation Bar (iOS Style) -->
+<header class="sticky top-0 z-50 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<!-- Status Bar Spacer (Simulated) -->
+<div class="h-11 w-full"></div>
+<div class="flex items-center justify-between px-4 pb-3">
+<button class="flex items-center text-primary active:opacity-70 transition-opacity">
+<span class="material-symbols-outlined text-2xl -ml-2">chevron_left</span>
+<span class="text-[17px] font-medium leading-none ml-1">Back</span>
+</button>
+<h1 class="text-[17px] font-bold text-center flex-1 truncate px-2">Stock Verify: #2409</h1>
+<button class="flex items-center text-primary active:opacity-70 transition-opacity">
+<span class="text-[17px] font-medium leading-none">Edit</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col pb-32">
+<!-- Governance Status Bar -->
+<div class="bg-slate-200 dark:bg-[#1E2936] px-4 py-3 flex gap-3 items-center border-b border-slate-300 dark:border-slate-800">
+<div class="flex items-center gap-2 bg-danger/10 dark:bg-red-500/20 text-danger dark:text-red-400 px-3 py-1.5 rounded-full border border-danger/20 dark:border-red-500/30">
+<span class="material-symbols-outlined text-[18px]">wifi_off</span>
+<span class="text-xs font-bold tracking-wide uppercase">OFFLINE</span>
+</div>
+<div class="flex items-center gap-2 bg-slate-300 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 px-3 py-1.5 rounded-full">
+<span class="material-symbols-outlined text-[18px]">cloud_off</span>
+<span class="text-xs font-semibold">Queue: 45 (Unsynced)</span>
+</div>
+</div>
+<!-- Warning Banner -->
+<div class="m-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 flex gap-4 items-start">
+<div class="bg-orange-500/20 p-2 rounded-lg shrink-0 text-orange-500">
+<span class="material-symbols-outlined">warning</span>
+</div>
+<div>
+<h3 class="text-sm font-bold text-orange-600 dark:text-orange-400 mb-1">Device Offline</h3>
+<p class="text-xs text-orange-800 dark:text-orange-200/80 leading-relaxed">
+                    Primary device for this session is currently OFFLINE. Data shown is based on the last sync (14m ago).
+                </p>
+</div>
+</div>
+<!-- Stale Summary Cards -->
+<section class="px-4 grid grid-cols-3 gap-3 mb-6">
+<!-- Metric 1 -->
+<div class="bg-white dark:bg-[#1A222C] p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col gap-1 relative overflow-hidden opacity-70">
+<div class="absolute top-0 right-0 p-1">
+<div class="size-2 rounded-full bg-slate-500"></div>
+</div>
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400">Total Items</span>
+<div class="flex items-end gap-1">
+<span class="text-xl font-bold text-slate-900 dark:text-white">200</span>
+</div>
+<span class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-600">(Stale)</span>
+</div>
+<!-- Metric 2 -->
+<div class="bg-white dark:bg-[#1A222C] p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col gap-1 relative overflow-hidden opacity-70">
+<div class="absolute top-0 right-0 p-1">
+<div class="size-2 rounded-full bg-slate-500"></div>
+</div>
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400">Verified</span>
+<div class="flex items-end gap-1">
+<span class="text-xl font-bold text-slate-900 dark:text-white">145</span>
+</div>
+<span class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-600">(Stale)</span>
+</div>
+<!-- Metric 3 -->
+<div class="bg-white dark:bg-[#1A222C] p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col gap-1 relative overflow-hidden opacity-70">
+<div class="absolute top-0 right-0 p-1">
+<div class="size-2 rounded-full bg-slate-500"></div>
+</div>
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400">Variance</span>
+<div class="flex items-end gap-1">
+<span class="text-xl font-bold text-danger dark:text-red-400">-3</span>
+</div>
+<span class="text-[10px] uppercase tracking-wider font-semibold text-slate-400 dark:text-slate-600">(Stale)</span>
+</div>
+</section>
+<!-- List Header -->
+<div class="px-4 pb-2 flex items-center justify-between">
+<h2 class="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Item List</h2>
+<span class="text-xs text-slate-400 dark:text-slate-600 italic">Last Synced 14m ago</span>
+</div>
+<!-- Item List -->
+<div class="flex flex-col divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-[#1A222C] border-y border-slate-200 dark:border-slate-800">
+<!-- Item Row 1 -->
+<div class="flex items-center justify-between p-4 active:bg-slate-50 dark:active:bg-slate-800/50 transition-colors">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="text-sm font-semibold text-slate-900 dark:text-white">Heinz Beans 400g</span>
+<span class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-1.5 py-0.5 rounded">SKU-10293</span>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[14px]">history</span>
+<span>Sync: 10:42 AM</span>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-sm font-bold text-slate-900 dark:text-white">Qty: 50</span>
+<span class="text-[10px] text-green-600 dark:text-green-400 font-medium">Matched</span>
+</div>
+</div>
+<!-- Item Row 2 -->
+<div class="flex items-center justify-between p-4 active:bg-slate-50 dark:active:bg-slate-800/50 transition-colors">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="text-sm font-semibold text-slate-900 dark:text-white">Coca Cola Zero 2L</span>
+<span class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-1.5 py-0.5 rounded">SKU-99212</span>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[14px]">history</span>
+<span>Sync: 10:41 AM</span>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-sm font-bold text-slate-900 dark:text-white">Qty: 12</span>
+<span class="text-[10px] text-danger dark:text-red-400 font-medium">-2 Var</span>
+</div>
+</div>
+<!-- Item Row 3 -->
+<div class="flex items-center justify-between p-4 active:bg-slate-50 dark:active:bg-slate-800/50 transition-colors">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="text-sm font-semibold text-slate-900 dark:text-white">Sourdough Bread</span>
+<span class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-1.5 py-0.5 rounded">SKU-44120</span>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[14px]">history</span>
+<span>Sync: 10:38 AM</span>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-sm font-bold text-slate-900 dark:text-white">Qty: 08</span>
+<span class="text-[10px] text-green-600 dark:text-green-400 font-medium">Matched</span>
+</div>
+</div>
+<!-- Item Row 4 -->
+<div class="flex items-center justify-between p-4 active:bg-slate-50 dark:active:bg-slate-800/50 transition-colors">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="text-sm font-semibold text-slate-900 dark:text-white">Almond Milk 1L</span>
+<span class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-1.5 py-0.5 rounded">SKU-33019</span>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[14px]">history</span>
+<span>Sync: 10:35 AM</span>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-sm font-bold text-slate-900 dark:text-white">Qty: 24</span>
+<span class="text-[10px] text-danger dark:text-red-400 font-medium">-1 Var</span>
+</div>
+</div>
+<!-- Item Row 5 -->
+<div class="flex items-center justify-between p-4 active:bg-slate-50 dark:active:bg-slate-800/50 transition-colors">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2">
+<span class="text-sm font-semibold text-slate-900 dark:text-white">Organic Eggs 12pk</span>
+<span class="text-[10px] bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 px-1.5 py-0.5 rounded">SKU-11022</span>
+</div>
+<div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+<span class="material-symbols-outlined text-[14px]">history</span>
+<span>Sync: 10:30 AM</span>
+</div>
+</div>
+<div class="flex flex-col items-end gap-1">
+<span class="text-sm font-bold text-slate-900 dark:text-white">Qty: 30</span>
+<span class="text-[10px] text-green-600 dark:text-green-400 font-medium">Matched</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Actions Bar (Floating) -->
+<div class="fixed bottom-0 left-0 right-0 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 p-4 pb-8 z-50 shadow-[0_-8px_30px_rgba(0,0,0,0.2)]">
+<div class="flex gap-3 max-w-lg mx-auto">
+<button class="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 font-semibold cursor-not-allowed border border-transparent" disabled="">
+<span class="material-symbols-outlined text-[20px]">check_circle</span>
+                Complete Session
+            </button>
+<button class="flex-1 flex items-center justify-center gap-2 h-12 rounded-xl bg-primary hover:bg-primary/90 text-white font-semibold shadow-lg shadow-primary/25 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined text-[20px]">lock</span>
+                Lock Session
+            </button>
+</div>
+<!-- Helper text for disabled state -->
+<p class="text-center text-[11px] text-slate-400 dark:text-slate-500 mt-3 font-medium">
+            Completion unavailable while primary device is offline.
+        </p>
+</div>
+</body></html>

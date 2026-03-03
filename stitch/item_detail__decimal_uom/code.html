@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Stock Verify - Decimal UOM</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#1c2630",
+                        "surface-darker": "#151d25",
+                        "border-dark": "#2a3744",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"], // For numbers
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        /* Hide scrollbar for clean mobile look */
+        ::-webkit-scrollbar {
+            width: 0px;
+            background: transparent;
+        }
+        
+        /* Custom Keypad Press Effect */
+        .keypad-btn:active {
+            background-color: rgba(19, 127, 236, 0.2);
+            transform: scale(0.98);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased min-h-screen flex flex-col overflow-hidden select-none">
+<!-- Top Navigation -->
+<header class="flex items-center justify-between p-4 bg-background-light dark:bg-surface-darker border-b dark:border-border-dark z-10 sticky top-0">
+<button class="text-slate-600 dark:text-slate-400 p-2 -ml-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-[24px]">arrow_back</span>
+</button>
+<h1 class="text-slate-900 dark:text-white text-lg font-bold tracking-tight">Stock Verify</h1>
+<button class="text-primary font-bold text-base px-2">
+            Done
+        </button>
+</header>
+<!-- Scrollable Content Area -->
+<main class="flex-1 overflow-y-auto pb-80"> <!-- Bottom padding for fixed keypad -->
+<!-- Item Identity Header -->
+<div class="px-5 pt-6 pb-2">
+<h2 class="text-slate-900 dark:text-white text-2xl font-bold leading-tight mb-3">Copper Wire Scraps</h2>
+<div class="flex gap-2 flex-wrap">
+<div class="flex items-center justify-center px-3 py-1 rounded-lg bg-slate-200 dark:bg-surface-dark border border-slate-300 dark:border-border-dark">
+<span class="text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">kg</span>
+</div>
+<div class="flex items-center justify-center px-3 py-1 rounded-lg bg-indigo-100 dark:bg-primary/20 border border-indigo-200 dark:border-primary/30">
+<span class="text-indigo-600 dark:text-primary text-xs font-bold uppercase tracking-wider">DECIMAL</span>
+</div>
+</div>
+</div>
+<!-- Truth Matrix / Summary Card -->
+<div class="p-4">
+<div class="bg-white dark:bg-surface-dark rounded-xl p-5 border border-slate-200 dark:border-border-dark shadow-sm">
+<p class="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">Current Staff Count</p>
+<div class="flex items-end justify-between">
+<p class="text-slate-900 dark:text-white text-4xl font-mono font-bold tracking-tight">17.675 <span class="text-lg text-slate-500 dark:text-slate-500 font-display">kg</span></p>
+<div class="bg-green-500/10 text-green-600 dark:text-green-400 px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">verified</span> Verified
+                    </div>
+</div>
+</div>
+</div>
+<!-- Add-To-Count Log -->
+<div class="px-5 py-2">
+<div class="flex items-center justify-between mb-3">
+<h3 class="text-slate-900 dark:text-white text-sm font-semibold">Recent Entries</h3>
+<span class="text-slate-500 dark:text-slate-400 text-xs">Today</span>
+</div>
+<div class="space-y-3 relative before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200 dark:before:bg-border-dark">
+<!-- Log Entry 1 -->
+<div class="relative pl-6">
+<div class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-slate-100 dark:bg-background-dark border-2 border-green-500 z-10"></div>
+<div class="flex justify-between items-center">
+<span class="text-green-600 dark:text-green-400 font-mono font-bold text-base">+5.225 kg</span>
+<span class="text-slate-400 dark:text-slate-500 text-xs font-mono">10:10 AM</span>
+</div>
+</div>
+<!-- Log Entry 2 -->
+<div class="relative pl-6">
+<div class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-slate-100 dark:bg-background-dark border-2 border-slate-300 dark:border-slate-600 z-10"></div>
+<div class="flex justify-between items-center">
+<span class="text-slate-600 dark:text-slate-300 font-mono font-medium text-base">+12.450 kg</span>
+<span class="text-slate-400 dark:text-slate-500 text-xs font-mono">10:05 AM</span>
+</div>
+</div>
+<!-- Empty state hint -->
+<div class="relative pl-6 pt-2">
+<div class="absolute left-[5px] top-4 w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-border-dark z-10"></div>
+<span class="text-slate-400 dark:text-slate-600 text-xs italic">Session started 09:45 AM</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Fixed Bottom Action Area -->
+<div class="fixed bottom-0 left-0 w-full bg-background-light dark:bg-surface-darker border-t border-slate-200 dark:border-border-dark rounded-t-2xl shadow-2xl z-20">
+<!-- Active Input Display -->
+<div class="px-6 py-4 flex items-center justify-between border-b border-slate-200 dark:border-border-dark bg-white dark:bg-surface-dark/50">
+<div class="flex flex-col">
+<span class="text-xs text-primary font-medium mb-1">Add Quantity</span>
+<div class="flex items-baseline">
+<span class="text-3xl font-mono font-bold text-slate-900 dark:text-white mr-1">
+<span class="opacity-30">0.000</span> <!-- Placeholder logic visual -->
+</span>
+<span class="text-sm text-slate-500 dark:text-slate-400 font-medium">kg</span>
+</div>
+</div>
+<button class="bg-primary/50 cursor-not-allowed text-white px-6 py-3 rounded-xl font-semibold shadow-sm flex items-center gap-2" disabled="">
+                Add
+                <span class="material-symbols-outlined text-sm">add</span>
+</button>
+</div>
+<!-- Custom Numeric Keypad -->
+<div class="grid grid-cols-3 gap-1 p-2 bg-slate-100 dark:bg-surface-darker">
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">1</button>
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">2</button>
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">3</button>
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">4</button>
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">5</button>
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">6</button>
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">7</button>
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">8</button>
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">9</button>
+<button class="keypad-btn h-14 rounded-lg bg-slate-200 dark:bg-surface-darker/50 shadow-sm text-2xl font-bold text-slate-900 dark:text-white flex items-center justify-center pb-2">.</button>
+<button class="keypad-btn h-14 rounded-lg bg-white dark:bg-surface-dark shadow-sm text-xl font-mono font-medium text-slate-900 dark:text-white flex items-center justify-center">0</button>
+<button class="keypad-btn h-14 rounded-lg bg-slate-200 dark:bg-surface-darker/50 shadow-sm text-slate-900 dark:text-white flex items-center justify-center">
+<span class="material-symbols-outlined">backspace</span>
+</button>
+</div>
+<!-- iPhone Home Indicator Spacer -->
+<div class="h-6 bg-slate-100 dark:bg-surface-darker w-full"></div>
+</div>
+</body></html>

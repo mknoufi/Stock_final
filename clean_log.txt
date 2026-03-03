@@ -1,0 +1,50 @@
+ed7ffed0|2026-02-17|Merge branch 'pr-63' into stable-frontend-feb14
+820f815f|2026-02-17|fix: resolve backend initialization errors, silence type hints, and update gradle wrapper to 8.13
+a5d47ef3|2026-02-17|Merge PR #64: Admin Dashboard UI Upgrade
+0aabbeda|2026-02-17|Merge pr-68
+e3323058|2026-02-17|Refactor risk assessment logic to backend/rules/risk_engine.py
+6b45dbef|2026-02-17|Fix potential SQL injection in ChangeDetectionSyncService
+816a0487|2026-02-16|Manual extraction of PR #56: Enhanced Health + Startup Helpers
+dfdaab3b|2026-02-16|Manual extraction of PR #56: Enhanced Health + Startup Helpers
+d5242eea|2026-02-16|Consolidate conflicting PRs (#51,#50,#49,#48,#47,#46,#45,#44,#43,#42,#41,#32,#29,#28,#23,#5,#2) (#58)
+a395bb32|2026-02-16|Merge pull request #55 from mknoufi/update-staff-frontend-aurora-4794867453789531389
+a14c0a4d|2026-02-16|feat(frontend): upgrade staff screens to Aurora Design System
+c1dcd607|2026-02-16|chore: remove pnpm-lock.yaml
+4ce135eb|2026-02-16|Merge pull request #54 from mknoufi/refactor-frontend-theming-dark-mode-17039995837723977500
+d34257f8|2026-02-16|Refactor frontend screens to use dynamic theming for dark/light mode support
+cc53c173|2026-02-16|feat: stable frontend restored to b3b68f90 (Feb 14) with dependency fixes
+8154ef43|2026-02-16|chore: cleanup repo, update gitignore, add utility scripts
+6ca313b9|2026-02-11|Merge pull request #8 from mknoufi/governance-control-plane
+7146c7ce|2026-02-11|ci: run PR checks for my-fix-branch base
+27b7d243|2026-02-11|fix: make governance gate git diff decoding robust on Windows
+e0b46557|2026-02-11|ci: enforce governance control plane for PRs
+3e93ef97|2026-02-01|ci: restore full CI/CD pipeline configuration
+7d30ba0b|2026-02-01|debug: simplify ci to isolate failure
+3886375e|2026-02-01|fix(ci): simplify service health check syntax
+a3a0195d|2026-02-01|ci: add comprehensive CI/CD pipeline and deployment scripts
+d4fc7e2e|2026-01-30|Cleanup: Remove all workflows except minimal main.yml
+4610c1ae|2026-01-30|Debug CI: Replace ci-cd.yml with minimal main.yml
+847ed663|2026-01-30|Simplify CI Workflow: Remove deploy jobs and permissions block to fix startup failure
+73c28993|2026-01-30|Fix CI/CD Pipeline: Update backend tests and config, fix frontend linting, resolve mock errors
+1ff68853|2026-01-29|Merge branch 'main' of https://gitlab.com/mknoufi/stock-verify-new
+8225de4e|2026-01-29|Fix runtime 500 errors and frontend build issues
+15e2955a|2026-01-27|fix: resolve backend CI/CD failures and optimize frontend init
+b6ccb67e|2026-01-27|style: apply pre-commit formatting and linting fixes
+6665cd6b|2026-01-27|chore: cleanup git index and apply .gitignore
+2a134912|2026-01-27|fix: resolve backend startup, login session conflict, and frontend URL discovery
+74ceee13|2026-01-26|CRITICAL: Emergency security fixes for newly discovered vulnerabilities
+2a992602|2026-01-26|docs: comprehensive system analysis and health assessment
+23702448|2026-01-26|docs: add HealthCheck.md and update gitignore
+dc00b209|2026-01-26|chore: update gitignore and remove tracked secrets/dependencies
+3d95ee1a|2026-01-24|feat(ui): Enhance item verify page with batch selection and zero-stock toggle (User Request)
+654a6d30|2026-01-23|Merge pull request #1 from mknoufi/codex/analyze-depth-issues
+f86152cf|2026-01-23|Make SQL auth script configurable
+66a6bb21|2026-01-23|Fix backend linting issues and reformat code
+67da53b9|2026-01-23|Fix CI/CD linting and type errors
+6846f62c|2026-01-23|feat(auth): add persistent user state and biometric PIN support
+82f7f286|2026-01-22|Fix login persistence and improve admin report downloads
+32483468|2026-01-21|fix: Resolve test failures and CI/CD workflow issues
+23fe21ee|2026-01-20|Merge branch 'my-fix-branch' into 'main'
+e7402264|2026-01-20|Enable strict barcode validation for barcode endpoints
+d73a93aa|2026-01-20|Fix sessions API tests, add verification_sessions to InMemoryDatabase
+1c394f19|2026-01-20|Fix lint errors and notification service tests

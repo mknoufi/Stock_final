@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Stock Verify - Tunnel Mode</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Configuration -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#8c2bee",
+                        "primary-dark": "#6b1cb0",
+                        "background-light": "#f7f6f8",
+                        "background-dark": "#191022",
+                        "surface-dark": "#211c27",
+                        "surface-darker": "#141118",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        display: ["Inter", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                        lg: "0.75rem",
+                        xl: "1rem",
+                        full: "9999px",
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #191022; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #473b54; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #8c2bee; 
+        }
+        
+        .safe-area-top {
+            padding-top: env(safe-area-inset-top, 20px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white antialiased overflow-hidden h-screen flex flex-col">
+<!-- Sticky Header: Connectivity Status -->
+<div class="sticky top-0 z-50 w-full flex-none bg-surface-darker border-b border-primary/20 safe-area-top shadow-[0_4px_20px_rgba(140,43,238,0.15)]">
+<div class="px-4 py-3 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="flex items-center justify-center w-10 h-10 rounded-full bg-primary/20 text-primary animate-pulse">
+<span class="material-symbols-outlined">vpn_lock</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] uppercase tracking-wider text-primary font-bold opacity-80">Governance Uplink</span>
+<div class="flex items-center gap-2">
+<span class="text-white font-bold text-base tracking-tight">ONLINE <span class="text-primary">(TUNNEL)</span></span>
+<div class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+</div>
+</div>
+</div>
+<button class="text-gray-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">info</span>
+</button>
+</div>
+<!-- Progress / Activity Indicator Line -->
+<div class="h-[2px] w-full bg-surface-dark overflow-hidden">
+<div class="h-full bg-primary w-1/3 animate-[loading_2s_ease-in-out_infinite]"></div>
+</div>
+</div>
+<style>
+        @keyframes loading {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(400%); }
+        }
+    </style>
+<!-- Main Content Area (Scrollable) -->
+<main class="flex-1 overflow-y-auto overflow-x-hidden pb-24 relative">
+<!-- Header Actions -->
+<div class="px-4 py-4 flex items-center justify-between">
+<button class="flex items-center gap-1 text-gray-400 hover:text-white transition-colors text-sm font-medium">
+<span class="material-symbols-outlined text-lg">arrow_back</span>
+                Back to Scan
+            </button>
+<div class="flex gap-2">
+<button class="w-8 h-8 flex items-center justify-center rounded-full bg-surface-dark text-gray-300 hover:bg-primary/20 hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-lg">edit</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-full bg-surface-dark text-gray-300 hover:bg-red-500/20 hover:text-red-500 transition-colors">
+<span class="material-symbols-outlined text-lg">flag</span>
+</button>
+</div>
+</div>
+<!-- Item Detail Card -->
+<div class="px-4 mb-4">
+<div class="bg-surface-dark rounded-xl overflow-hidden shadow-lg border border-white/5">
+<!-- Image Section -->
+<div class="relative h-48 w-full bg-surface-darker">
+<div class="absolute inset-0 bg-cover bg-center opacity-90" data-alt="Dell Precision laptop on a dark desk with blue lighting" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA4nwJjsefoisoYj_zxYhUo7n2WSxX4JNjDCGl-LGgPh74HQEwOpxUxvbZN5EPxtrXeqe_19nlLfnjh9GqhPtP24sRfJIxaPMedHW0LvDVLaujYrxNHfaN_Rlw83CxkaEwZKWwNRtAJWP0GQHAdzXJcrluF4u6Ym5AVwHXN5sZntuOQDC7lqg5mweiUP2mBD6_TEx4zdC5D8tG8lCT4qPe7DQRZciv4XvDSrraoSBLg93XzRcmvsmUPVb4gUWtaDDIOjEED7w46Vgt5');"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-dark to-transparent"></div>
+<div class="absolute bottom-4 left-4 right-4 flex justify-between items-end">
+<div class="bg-green-500/20 backdrop-blur-md border border-green-500/30 text-green-400 px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">verified</span>
+                            ONLINE MATCH
+                        </div>
+<div class="bg-surface-darker/80 backdrop-blur-md text-white px-2 py-1 rounded text-xs font-mono border border-white/10">
+                            SV-2023-8849
+                        </div>
+</div>
+</div>
+<!-- Title Section -->
+<div class="p-5">
+<h1 class="text-2xl font-bold text-white leading-tight mb-1">Dell Precision 5570 Workstation</h1>
+<p class="text-gray-400 text-sm">Enterprise Grade • High Performance</p>
+<div class="mt-4 flex gap-3">
+<button class="flex-1 bg-primary hover:bg-primary-dark text-white font-medium py-2.5 px-4 rounded-lg transition-all shadow-[0_0_15px_rgba(140,43,238,0.4)] flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">check_circle</span>
+                            Confirm Asset
+                        </button>
+<button class="bg-surface-darker hover:bg-surface-darker/80 border border-white/10 text-white p-2.5 rounded-lg transition-all flex items-center justify-center">
+<span class="material-symbols-outlined">history</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Metadata Grid -->
+<div class="px-4 mb-6">
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-surface-dark p-3.5 rounded-lg border border-white/5 flex flex-col gap-1">
+<div class="flex items-center gap-1.5 text-gray-500 mb-1">
+<span class="material-symbols-outlined text-base">apartment</span>
+<span class="text-xs font-medium uppercase tracking-wide">Department</span>
+</div>
+<p class="text-white font-medium">Engineering</p>
+</div>
+<div class="bg-surface-dark p-3.5 rounded-lg border border-white/5 flex flex-col gap-1">
+<div class="flex items-center gap-1.5 text-gray-500 mb-1">
+<span class="material-symbols-outlined text-base">person</span>
+<span class="text-xs font-medium uppercase tracking-wide">Custodian</span>
+</div>
+<p class="text-white font-medium">J. Doe</p>
+</div>
+<div class="bg-surface-dark p-3.5 rounded-lg border border-white/5 flex flex-col gap-1">
+<div class="flex items-center gap-1.5 text-gray-500 mb-1">
+<span class="material-symbols-outlined text-base">attach_money</span>
+<span class="text-xs font-medium uppercase tracking-wide">Value</span>
+</div>
+<p class="text-white font-medium">$2,400.00</p>
+</div>
+<div class="bg-surface-dark p-3.5 rounded-lg border border-white/5 flex flex-col gap-1">
+<div class="flex items-center gap-1.5 text-gray-500 mb-1">
+<span class="material-symbols-outlined text-base">trending_down</span>
+<span class="text-xs font-medium uppercase tracking-wide">Depreciation</span>
+</div>
+<p class="text-white font-medium">Straight Line (5y)</p>
+</div>
+</div>
+</div>
+<!-- Tunnel Diagnostics -->
+<div class="px-4 pb-8">
+<h3 class="text-sm font-bold text-primary uppercase tracking-wider mb-3 pl-1 flex items-center gap-2">
+<span class="material-symbols-outlined text-lg">hub</span>
+                Tunnel Diagnostics
+            </h3>
+<div class="bg-surface-dark rounded-xl border border-primary/20 overflow-hidden">
+<div class="bg-primary/5 p-3 border-b border-primary/10 flex justify-between items-center">
+<span class="text-xs text-primary font-mono">CF-ARGO-TUNNEL-ID: 884f29a0</span>
+<span class="flex h-2 w-2 relative">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
+</span>
+</div>
+<div class="p-4 space-y-4">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="p-1.5 rounded bg-surface-darker text-gray-400">
+<span class="material-symbols-outlined text-lg">dns</span>
+</div>
+<div>
+<p class="text-xs text-gray-400">Protocol</p>
+<p class="text-sm font-medium text-white">Cloudflare Argo (HTTP/3)</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-green-500 text-lg">check_circle</span>
+</div>
+<div class="h-px bg-white/5 w-full"></div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="p-1.5 rounded bg-surface-darker text-gray-400">
+<span class="material-symbols-outlined text-lg">speed</span>
+</div>
+<div>
+<p class="text-xs text-gray-400">Latency</p>
+<p class="text-sm font-medium text-white">24ms <span class="text-xs text-gray-500">(low_jitter)</span></p>
+</div>
+</div>
+<div class="flex gap-0.5 items-end h-4">
+<div class="w-1 bg-primary h-2 rounded-sm"></div>
+<div class="w-1 bg-primary h-3 rounded-sm"></div>
+<div class="w-1 bg-primary h-4 rounded-sm"></div>
+</div>
+</div>
+<div class="h-px bg-white/5 w-full"></div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="p-1.5 rounded bg-surface-darker text-gray-400">
+<span class="material-symbols-outlined text-lg">lock</span>
+</div>
+<div>
+<p class="text-xs text-gray-400">Encryption</p>
+<p class="text-sm font-medium text-white">E2E TLS 1.3 (ChaCha20)</p>
+</div>
+</div>
+<span class="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded border border-primary/20">AES-256</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Bottom Navigation -->
+<nav class="flex-none bg-surface-dark border-t border-white/5 px-6 pb-6 pt-3 safe-area-bottom z-50">
+<div class="flex items-center justify-between gap-2">
+<a class="flex flex-1 flex-col items-center justify-center gap-1 group" href="#">
+<div class="text-gray-400 group-hover:text-primary transition-colors duration-200">
+<span class="material-symbols-outlined text-2xl">qr_code_scanner</span>
+</div>
+<span class="text-[10px] font-medium text-gray-400 group-hover:text-primary tracking-wide">Scan</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 group" href="#">
+<div class="text-white relative">
+<div class="absolute -inset-2 bg-primary/20 blur-sm rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
+<span class="material-symbols-outlined text-2xl relative z-10 text-primary">inventory_2</span>
+</div>
+<span class="text-[10px] font-medium text-white tracking-wide">Items</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 group" href="#">
+<div class="text-gray-400 group-hover:text-primary transition-colors duration-200">
+<span class="material-symbols-outlined text-2xl">fact_check</span>
+</div>
+<span class="text-[10px] font-medium text-gray-400 group-hover:text-primary tracking-wide">Audits</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-center gap-1 group" href="#">
+<div class="text-gray-400 group-hover:text-primary transition-colors duration-200">
+<span class="material-symbols-outlined text-2xl">settings</span>
+</div>
+<span class="text-[10px] font-medium text-gray-400 group-hover:text-primary tracking-wide">Settings</span>
+</a>
+</div>
+</nav>
+</body></html>

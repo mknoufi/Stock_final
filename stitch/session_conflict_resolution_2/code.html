@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Session Conflict Resolution</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec1313",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#221010",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white h-screen flex flex-col overflow-hidden font-display antialiased selection:bg-primary selection:text-white">
+<!-- Top Status Bar Area (Mock) -->
+<div class="flex items-center justify-between px-6 pt-5 pb-2">
+<div class="text-sm font-semibold tracking-wide dark:text-gray-400">9:41</div>
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-lg dark:text-gray-400">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-lg dark:text-gray-400">wifi</span>
+<span class="material-symbols-outlined text-lg dark:text-gray-400">battery_full</span>
+</div>
+</div>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col px-6 pt-4 pb-8 overflow-y-auto">
+<!-- App Header (Mini) -->
+<div class="flex justify-center mb-8">
+<div class="flex items-center gap-2 opacity-60">
+<span class="material-symbols-outlined text-xl">inventory_2</span>
+<span class="text-xs font-bold uppercase tracking-widest">Stock Verify</span>
+</div>
+</div>
+<!-- Warning Icon & Title -->
+<div class="flex flex-col items-center text-center space-y-4 mb-8">
+<div class="relative">
+<div class="absolute inset-0 bg-primary/20 blur-xl rounded-full w-20 h-20 mx-auto"></div>
+<div class="relative flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 border border-primary/30 mx-auto">
+<span class="material-symbols-outlined text-primary text-4xl" style="font-variation-settings: 'FILL' 1;">warning</span>
+</div>
+</div>
+<div class="space-y-2">
+<h1 class="text-2xl font-bold leading-tight">Session Conflict Detected</h1>
+<p class="text-gray-600 dark:text-gray-400 text-sm leading-relaxed max-w-[280px] mx-auto">
+                    Your account is currently active on another device. Stock Verify enforces a single-device policy.
+                </p>
+</div>
+</div>
+<!-- Conflict Details Card -->
+<div class="bg-white dark:bg-[#2a1616] rounded-xl border border-gray-200 dark:border-[#422222] overflow-hidden shadow-sm mb-6">
+<div class="bg-gray-50 dark:bg-[#331a1a] px-4 py-3 border-b border-gray-100 dark:border-[#422222] flex items-center justify-between">
+<span class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Other Device Details</span>
+<span class="material-symbols-outlined text-gray-400 dark:text-gray-500 text-sm">devices_other</span>
+</div>
+<div class="p-4 grid gap-4">
+<!-- Row 1 -->
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col gap-1">
+<span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Device Name</span>
+<span class="text-sm font-semibold dark:text-gray-100 flex items-center gap-1.5">
+<span class="material-symbols-outlined text-base">phonelink_ring</span>
+                            Handheld-Zebra-04
+                        </span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Last Activity</span>
+<span class="text-sm font-medium dark:text-gray-200 text-primary">2 minutes ago</span>
+</div>
+</div>
+<div class="h-px bg-gray-100 dark:bg-[#422222] w-full"></div>
+<!-- Row 2 -->
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col gap-1">
+<span class="text-xs text-gray-500 dark:text-gray-400 font-medium">IP Mode</span>
+<span class="text-sm font-medium dark:text-gray-200 flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+                             LAN (Internal)
+                        </span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Security</span>
+<span class="text-sm font-medium dark:text-gray-200">Standard</span>
+</div>
+</div>
+<div class="h-px bg-gray-100 dark:bg-[#422222] w-full"></div>
+<!-- Row 3: Time Drift -->
+<div class="flex flex-col gap-2">
+<span class="text-xs text-gray-500 dark:text-gray-400 font-medium">Clock Synchronization (Time Drift)</span>
+<div class="flex items-center justify-between bg-gray-50 dark:bg-[#1a0c0c] rounded-lg p-2.5 border border-dashed border-gray-200 dark:border-[#422222]">
+<div class="flex flex-col">
+<span class="text-[10px] uppercase text-gray-400 tracking-wider">Server</span>
+<span class="text-sm font-mono dark:text-gray-300">10:05:00</span>
+</div>
+<div class="flex flex-col items-center px-2">
+<span class="text-[10px] text-primary font-bold bg-primary/10 px-1.5 rounded">+2s</span>
+<div class="h-px w-8 bg-primary/30 mt-1 relative">
+<div class="absolute right-0 top-1/2 -translate-y-1/2 w-1 h-1 bg-primary rounded-full"></div>
+</div>
+</div>
+<div class="flex flex-col text-right">
+<span class="text-[10px] uppercase text-gray-400 tracking-wider">Device</span>
+<span class="text-sm font-mono dark:text-white font-bold">10:05:02</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-auto space-y-3">
+<!-- Audit Disclaimer -->
+<div class="flex items-start gap-2 bg-yellow-500/10 dark:bg-yellow-500/5 p-3 rounded-lg border border-yellow-500/20 mb-4">
+<span class="material-symbols-outlined text-yellow-600 dark:text-yellow-500 text-lg shrink-0 mt-0.5">info</span>
+<p class="text-xs text-yellow-800 dark:text-yellow-400/90 leading-relaxed">
+                    Revocation will be permanently logged as a security audit event visible to supervisors.
+                </p>
+</div>
+<!-- Primary Action -->
+<button class="w-full relative overflow-hidden group bg-primary hover:bg-red-700 text-white font-bold py-4 px-6 rounded-lg transition-all shadow-lg shadow-primary/20 active:scale-[0.98]">
+<div class="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-100%] group-hover:animate-[shimmer_1s_infinite]"></div>
+<div class="flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">gpp_bad</span>
+<span>Revoke &amp; Bind This Device</span>
+</div>
+</button>
+<!-- Secondary Action -->
+<button class="w-full bg-transparent hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400 font-medium py-3 px-6 rounded-lg border border-transparent hover:border-gray-200 dark:hover:border-white/10 transition-colors">
+                Cancel &amp; Return
+            </button>
+</div>
+</main>
+<!-- Home Indicator -->
+<div class="flex justify-center pb-2 pt-2">
+<div class="w-32 h-1 bg-gray-300 dark:bg-gray-700 rounded-full"></div>
+</div>
+</body></html>

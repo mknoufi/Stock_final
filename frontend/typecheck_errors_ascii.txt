@@ -1,0 +1,29 @@
+
+> frontend@1.0.0 typecheck
+> tsc --noEmit
+
+app/admin/dashboard.tsx(15,3): error TS2305: Module '"../../src/components/ui"' has no exported member 'ActivePressable'.
+app/admin/dashboard.tsx(148,7): error TS2322: Type '{ children: Element; role: string; backgroundType: "aurora"; scrollable: true; refreshing: boolean; onRefresh: () => void; contentContainerStyle: { paddingBottom: number; }; header: { title: string; subtitle: string; showLogoutButton: true; showUsername: true; customRightContent: Element; }; }' is not assignable to type 'IntrinsicAttributes & ScreenContainerProps'.
+  Property 'role' does not exist on type 'IntrinsicAttributes & ScreenContainerProps'.
+app/admin/dashboard.tsx(225,82): error TS2339: Property 'contrast' does not exist on type '{ main: string; light: string; dark: string; 50: string; 700: string; }'.
+app/admin/unknown-items.tsx(53,52): error TS2345: Argument of type '{}' is not assignable to parameter of type 'string'.
+app/staff/item-detail.tsx(1000,9): error TS2322: Type '{ type: any; uri: string; capturedAt: string; base64: string; }[]' is not assignable to type 'PhotoProof[]'.
+  Type '{ type: any; uri: string; capturedAt: string; base64: string; }' is missing the following properties from type 'PhotoProof': id, url, timestamp
+app/staff/new-session.tsx(160,13): error TS2322: Type '{ children: Element[]; role: string; safeArea: true; statusBarStyle: "dark"; header: any; containerStyle: { backgroundColor: string; }; }' is not assignable to type 'IntrinsicAttributes & ScreenContainerProps'.
+  Property 'role' does not exist on type 'IntrinsicAttributes & ScreenContainerProps'.
+app/supervisor/dead-letter.tsx(319,15): error TS2322: Type '({ minWidth: number; } | { width: number; })[]' is not assignable to type 'ViewStyle'.
+  Types of property 'filter' are incompatible.
+    Type '{ <S extends { minWidth: number; } | { width: number; }>(predicate: (value: { minWidth: number; } | { width: number; }, index: number, array: ({ minWidth: number; } | { width: number; })[]) => value is S, thisArg?: any): S[]; (predicate: (value: { ...; } | { ...; }, index: number, array: ({ ...; } | { ...; })[]) => ...' is not assignable to type 'string | readonly FilterFunction[] | undefined'.
+app/supervisor/dead-letter.tsx(326,15): error TS2322: Type '({ minWidth: number; } | { width: number; })[]' is not assignable to type 'ViewStyle'.
+  Types of property 'filter' are incompatible.
+    Type '{ <S extends { minWidth: number; } | { width: number; }>(predicate: (value: { minWidth: number; } | { width: number; }, index: number, array: ({ minWidth: number; } | { width: number; })[]) => value is S, thisArg?: any): S[]; (predicate: (value: { ...; } | { ...; }, index: number, array: ({ ...; } | { ...; })[]) => ...' is not assignable to type 'string | readonly FilterFunction[] | undefined'.
+app/supervisor/items.tsx(85,23): error TS2345: Argument of type '{ total_items: number; verified_items: number; unverified_items: number; total_stock_qty: number; total_verified_qty: number; total_counted_cost: number; total_stock_cost: number; }' is not assignable to parameter of type 'SetStateAction<{ total_items: number; verified_items: number; unverified_items: number; total_qty: number; }>'.
+  Property 'total_qty' is missing in type '{ total_items: number; verified_items: number; unverified_items: number; total_stock_qty: number; total_verified_qty: number; total_counted_cost: number; total_stock_cost: number; }' but required in type '{ total_items: number; verified_items: number; unverified_items: number; total_qty: number; }'.
+app/supervisor/notes.tsx(53,21): error TS2339: Property 'items' does not exist on type 'Note[]'.
+src/components/auth/AuthScreenShell.tsx(46,7): error TS2322: Type '{ children: Element; backgroundType: "aurora"; role: string; containerStyle: { flex: number; }; header: { title: string; subtitle: string; showBackButton: boolean; showUsername: false; showSettingsButton: false; showLogoutButton: false; }; statusBarStyle: "light"; }' is not assignable to type 'IntrinsicAttributes & ScreenContainerProps'.
+  Property 'role' does not exist on type 'IntrinsicAttributes & ScreenContainerProps'.
+src/components/layout/CommandCenterLayout.tsx(43,21): error TS2322: Type '"primary" | UserRole' is not assignable to type 'AuroraVariant | undefined'.
+  Type '"staff"' is not assignable to type 'AuroraVariant | undefined'.
+temp_legacy_item_detail.tsx(3440,9): error TS2322: Type '(photo: CapturedPhoto) => void' is not assignable to type '(photoUri: string) => void'.
+  Types of parameters 'photo' and 'photoUri' are incompatible.
+    Type 'string' is not assignable to type 'CapturedPhoto'.

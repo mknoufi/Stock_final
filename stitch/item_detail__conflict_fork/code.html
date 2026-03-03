@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Item Detail: Conflict Fork</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New", "monospace"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        /* iOS Safe Area handling */
+        .safe-top {
+            padding-top: env(safe-area-inset-top, 20px);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+        
+        /* Blur backdrop utility */
+        .backdrop-blur-sm {
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white font-display overflow-hidden h-screen w-full relative">
+<!-- Background Content (Dimmed & Blurred) -->
+<div class="h-full w-full flex flex-col relative z-0 filter blur-[2px] opacity-40 select-none pointer-events-none transition-all duration-300">
+<!-- Top App Bar -->
+<div class="flex items-center bg-[#111418] p-4 pb-2 pt-6 safe-top justify-between border-b border-[#283039]">
+<div class="text-white flex size-12 shrink-0 items-center justify-start">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</div>
+<h2 class="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center truncate px-2">
+                Item Detail: MX-992-Alpha
+            </h2>
+<div class="flex w-12 items-center justify-end">
+<button class="flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-2xl">battery_charging_full</span>
+</button>
+</div>
+</div>
+<!-- Sticky Header Status -->
+<div class="flex gap-3 p-3 flex-wrap pr-4 bg-[#111418] border-b border-[#283039]">
+<div class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-red-500/10 border border-red-500/30 pl-2 pr-3">
+<span class="material-symbols-outlined text-red-500 text-[18px]">warning</span>
+<p class="text-red-500 text-xs font-bold uppercase tracking-wide font-mono">v12 (Outdated)</p>
+</div>
+<div class="flex h-8 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-green-500/10 border border-green-500/30 pl-2 pr-3">
+<span class="material-symbols-outlined text-green-500 text-[18px]">wifi</span>
+<p class="text-green-500 text-xs font-bold uppercase tracking-wide font-mono">ONLINE (TUNNEL)</p>
+</div>
+</div>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto bg-[#111418]">
+<!-- Data Grid -->
+<div class="p-4 grid grid-cols-[30%_1fr] gap-x-4">
+<div class="col-span-2 grid grid-cols-subgrid border-t border-t-[#3b4754] py-4">
+<p class="text-[#9dabb9] text-sm font-medium">SKU</p>
+<p class="text-white text-sm font-medium font-mono">MX-992-Alpha</p>
+</div>
+<div class="col-span-2 grid grid-cols-subgrid border-t border-t-[#3b4754] py-4">
+<p class="text-[#9dabb9] text-sm font-medium">Current Qty</p>
+<p class="text-white text-sm font-medium font-mono">42</p>
+</div>
+<div class="col-span-2 grid grid-cols-subgrid border-t border-t-[#3b4754] py-4">
+<p class="text-[#9dabb9] text-sm font-medium">Bin Location</p>
+<p class="text-white text-sm font-medium font-mono">A-12</p>
+</div>
+<div class="col-span-2 grid grid-cols-subgrid border-t border-t-[#3b4754] py-4">
+<p class="text-[#9dabb9] text-sm font-medium">Last Audit</p>
+<p class="text-white text-sm font-medium">Today, 10:15 AM</p>
+</div>
+</div>
+<!-- Timeline -->
+<div class="grid grid-cols-[40px_1fr] gap-x-2 px-4 pb-20">
+<!-- Timeline Item 1 -->
+<div class="flex flex-col items-center gap-1 pt-3">
+<div class="text-primary p-1.5 rounded-full bg-[#1e2732]">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</div>
+<div class="w-[2px] bg-[#283039] h-full grow rounded-full"></div>
+</div>
+<div class="flex flex-1 flex-col py-3 pb-6">
+<p class="text-white text-base font-medium leading-normal">Version 12 Created</p>
+<p class="text-[#9dabb9] text-sm font-normal leading-normal mt-1">Staff A • 10:00 AM</p>
+</div>
+<!-- Timeline Item 2 -->
+<div class="flex flex-col items-center gap-1">
+<div class="w-[2px] bg-[#283039] h-2 rounded-full"></div>
+<div class="text-[#9dabb9] p-1.5 rounded-full bg-[#1e2732]">
+<span class="material-symbols-outlined text-[20px]">update</span>
+</div>
+<div class="w-[2px] bg-[#283039] h-full grow rounded-full"></div>
+</div>
+<div class="flex flex-1 flex-col py-3 pb-6">
+<p class="text-white text-base font-medium leading-normal">Count Updated</p>
+<p class="text-[#9dabb9] text-sm font-normal leading-normal mt-1">Staff A • 10:05 AM</p>
+</div>
+<!-- Timeline Item 3 -->
+<div class="flex flex-col items-center gap-1">
+<div class="w-[2px] bg-[#283039] h-2 rounded-full"></div>
+<div class="text-[#9dabb9] p-1.5 rounded-full bg-[#1e2732]">
+<span class="material-symbols-outlined text-[20px]">move_up</span>
+</div>
+<div class="w-[2px] bg-transparent h-full grow"></div>
+</div>
+<div class="flex flex-1 flex-col py-3 pb-6">
+<p class="text-white text-base font-medium leading-normal">Bin Moved</p>
+<p class="text-[#9dabb9] text-sm font-normal leading-normal mt-1">Staff A • 10:15 AM</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Modal Overlay -->
+<div class="absolute inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+<div class="w-full max-w-sm bg-[#1e2732] border border-[#2d3b4a] rounded-xl shadow-2xl overflow-hidden animate-slide-up">
+<!-- Modal Header / Alert -->
+<div class="flex flex-col items-center p-6 text-center border-b border-[#2d3b4a] relative">
+<!-- Close X for dismissal (optional, often good UX) -->
+<button class="absolute top-4 right-4 text-[#6e7e8e] hover:text-white">
+<span class="material-symbols-outlined">close</span>
+</button>
+<div class="size-14 rounded-full bg-red-500/20 flex items-center justify-center mb-4 ring-1 ring-red-500/40">
+<span class="material-symbols-outlined text-red-500 text-3xl">error</span>
+</div>
+<h3 class="text-white text-xl font-bold mb-2">Version Conflict Detected</h3>
+<p class="text-[#9dabb9] text-sm leading-relaxed">
+                    A newer record (<span class="font-mono text-white font-semibold">v13</span>) was submitted by <span class="text-white font-medium">Staff B</span>. Your local version is outdated.
+                </p>
+</div>
+<!-- Modal Actions -->
+<div class="p-4 flex flex-col gap-3 bg-[#182029]">
+<!-- Primary Action -->
+<button class="w-full h-12 flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary/90 text-white font-semibold transition-colors shadow-lg shadow-blue-900/20">
+<span class="material-symbols-outlined text-[20px]">fork_right</span>
+                    Fork &amp; Continue
+                </button>
+<!-- Secondary Action -->
+<button class="w-full h-12 flex items-center justify-center gap-2 rounded-lg bg-[#2d3b4a] hover:bg-[#364658] text-white font-medium border border-[#3b4754] transition-colors">
+<span class="material-symbols-outlined text-[20px] text-[#9dabb9]">visibility</span>
+                    View Latest Version
+                </button>
+<!-- Destructive Action -->
+<button class="w-full h-10 mt-1 flex items-center justify-center gap-2 rounded-lg text-red-400 hover:text-red-300 font-medium text-sm transition-colors">
+                    Discard Draft
+                </button>
+</div>
+<!-- Footer Context (Optional tech detail) -->
+<div class="px-4 py-2 bg-[#111418] text-center border-t border-[#2d3b4a]">
+<p class="text-[10px] uppercase tracking-wider text-[#4e5e6e] font-mono">
+                    Conflict ID: CF-992-ALPHA-V12-V13
+                </p>
+</div>
+</div>
+</div>
+</body></html>

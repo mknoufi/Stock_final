@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Database Constraint Mapping Matrix | Lavanya Emart</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#0f172a",
+                        "slate-custom": "#1e293b",
+                        "emerald-custom": "#10b981",
+                        "amber-custom": "#f59e0b",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"],
+                        "mono": ["JetBrains Mono", "monospace"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .blueprint-grid {
+            background-image: radial-gradient(circle, #137fec22 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen">
+<!-- Top Navigation Bar -->
+<header class="border-b border-primary/20 bg-background-dark/80 backdrop-blur-md sticky top-0 z-50">
+<div class="max-w-[1440px] mx-auto px-6 h-16 flex items-center justify-between">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-3 text-primary">
+<span class="material-symbols-outlined text-3xl">account_tree</span>
+<h1 class="text-xl font-bold tracking-tight text-white uppercase italic">Lavanya <span class="text-primary-400">Emart</span></h1>
+</div>
+<nav class="hidden md:flex items-center gap-6 ml-8">
+<a class="text-sm font-medium text-primary border-b-2 border-primary pb-1" href="#">Architecture</a>
+<a class="text-sm font-medium text-slate-400 hover:text-white transition-colors" href="#">Matrices</a>
+<a class="text-sm font-medium text-slate-400 hover:text-white transition-colors" href="#">Validation Path</a>
+<a class="text-sm font-medium text-slate-400 hover:text-white transition-colors" href="#">Logs</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative hidden lg:block">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-lg">search</span>
+<input class="bg-slate-custom border-none rounded-lg pl-10 pr-4 py-1.5 text-sm w-64 focus:ring-1 focus:ring-primary text-white" placeholder="Search constraints..." type="text"/>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-custom/10 border border-emerald-custom/20">
+<span class="size-2 rounded-full bg-emerald-custom animate-pulse"></span>
+<span class="text-xs font-bold text-emerald-custom uppercase tracking-wider">System: Live</span>
+</div>
+<button class="p-2 text-slate-400 hover:text-white">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="size-8 rounded-full bg-primary/20 border border-primary/40 flex items-center justify-center overflow-hidden">
+<img alt="User profile avatar" data-alt="User profile avatar circle" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaUPG1I6dkkJ83PZ4YE8yv0Y8uSd-w8ZALdd_aqN-TdfRfqbm8JAXa_mGzOM_VPLrzu6dXnInRGlb12anh0J-rFs3fEJZ_Y0dm_DEpxKp2Ibpl6zKezAQDn9IZK3SJ9w-mwlhb7UWqH9srjHpeQEluPvAYbfpDxKN_hBWPHKA_Qq3StUgHlkVX0Jx8VHuOo3A1vaMT8lbnaydTZWh3LuxqvMM_oN3swT8mNQ1-DsMXHzPNhNABpRj0j10SlskuSGYHaAkfogsndKPX"/>
+</div>
+</div>
+</div>
+</header>
+<main class="max-w-[1440px] mx-auto p-6 lg:p-10">
+<!-- Dashboard Header -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-6 mb-10">
+<div class="space-y-2">
+<div class="flex items-center gap-2 text-primary font-mono text-sm">
+<span class="material-symbols-outlined text-sm">terminal</span>
+<span>DOC_ID: STK-V4-2024</span>
+</div>
+<h2 class="text-4xl font-bold text-white tracking-tight">Database Constraint Mapping Matrix</h2>
+<p class="text-slate-400 max-w-2xl">
+                    Technical documentation for synchronization and constraint logic across React Native (Frontend), 
+                    MongoDB (Source of Truth), and SQL Server (Analytical Observer).
+                </p>
+</div>
+<div class="flex gap-4">
+<div class="bg-slate-custom p-4 rounded-xl border border-primary/20 min-w-[200px]">
+<p class="text-xs text-slate-400 uppercase font-bold tracking-widest mb-1">Global Validation</p>
+<div class="flex items-center justify-between">
+<span class="text-xl font-bold text-emerald-custom">99.8% Healthy</span>
+<span class="material-symbols-outlined text-emerald-custom">verified</span>
+</div>
+</div>
+<div class="bg-slate-custom p-4 rounded-xl border border-primary/20 min-w-[200px]">
+<p class="text-xs text-slate-400 uppercase font-bold tracking-widest mb-1">Last Sync Hash</p>
+<div class="flex items-center justify-between">
+<span class="text-xl font-mono font-bold text-primary">0x7F2A...B91</span>
+<span class="material-symbols-outlined text-primary">sync</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Content Grid -->
+<div class="grid grid-cols-12 gap-8">
+<!-- Matrix Table Area -->
+<div class="col-span-12 xl:col-span-9 space-y-6">
+<div class="bg-slate-custom/50 border border-primary/30 rounded-xl overflow-hidden shadow-2xl blueprint-grid">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-primary/10 border-b border-primary/30">
+<th class="p-5 text-sm font-bold text-primary uppercase tracking-widest w-1/5">Feature</th>
+<th class="p-5 text-sm font-bold text-primary uppercase tracking-widest w-1/4">Frontend (React Native)</th>
+<th class="p-5 text-sm font-bold text-primary uppercase tracking-widest w-1/4">Mongo SoT (Write)</th>
+<th class="p-5 text-sm font-bold text-primary uppercase tracking-widest w-1/4">SQL Observer (Read)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-primary/10">
+<!-- Row 1: Version Control -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="p-5 align-top">
+<div class="font-bold text-white mb-1">Version Control</div>
+<span class="text-xs px-2 py-0.5 rounded bg-emerald-custom/20 text-emerald-custom border border-emerald-custom/30">Compliant</span>
+</td>
+<td class="p-5 align-top">
+<div class="code-font text-xs text-slate-300 bg-black/40 p-3 rounded border border-slate-700 group-hover:border-primary/40">
+                                            optimisticLocking: {<br/>
+                                              strategy: "JS-Logic",<br/>
+                                              retry: 3<br/>
+                                            }
+                                        </div>
+</td>
+<td class="p-5 align-top">
+<div class="code-font text-xs text-primary-300 bg-black/40 p-3 rounded border border-slate-700 group-hover:border-primary/40">
+                                            atomicUpdate: {<br/>
+                                              versionKey: "__v",<br/>
+                                              schema: "Strict"<br/>
+                                            }
+                                        </div>
+</td>
+<td class="p-5 align-top">
+<div class="code-font text-xs text-slate-400 bg-black/40 p-3 rounded border border-slate-700 group-hover:border-primary/40 italic">
+                                            RowVersion Tracking<br/>
+                                            Snapshot Parity: 1:1
+                                        </div>
+</td>
+</tr>
+<!-- Row 2: Locking -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="p-5 align-top">
+<div class="font-bold text-white mb-1">Locking</div>
+<span class="text-xs px-2 py-0.5 rounded bg-emerald-custom/20 text-emerald-custom border border-emerald-custom/30">Compliant</span>
+</td>
+<td class="p-5 align-top text-sm text-slate-300">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-sm mt-1">security</span>
+<span>Device ID Binding via SecureStore (Native)</span>
+</div>
+</td>
+<td class="p-5 align-top text-sm text-slate-300">
+<div class="flex items-start gap-2">
+<span class="material-symbols-outlined text-primary text-sm mt-1">timer</span>
+<span>TTL Indexes (Session Expiry 3600s)</span>
+</div>
+</td>
+<td class="p-5 align-top text-sm text-slate-300">
+<div class="flex items-start gap-2 italic text-slate-400">
+<span class="material-symbols-outlined text-sm mt-1">lock_open</span>
+<span>Read-Committed Isolation Level</span>
+</div>
+</td>
+</tr>
+<!-- Row 3: Conflict Management -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="p-5 align-top">
+<div class="font-bold text-white mb-1">Conflict Mgmt</div>
+<span class="text-xs px-2 py-0.5 rounded bg-amber-custom/20 text-amber-custom border border-amber-custom/30">Complex Logic</span>
+</td>
+<td class="p-5 align-top text-sm text-slate-300">
+<div class="bg-black/40 p-3 rounded border border-slate-700 group-hover:border-primary/40">
+<span class="text-amber-custom font-mono text-xs font-bold uppercase block mb-1">Fork UI Layer</span>
+                                            Visual resolution drawer for divergent data branches.
+                                        </div>
+</td>
+<td class="p-5 align-top text-sm text-slate-300">
+<div class="bg-black/40 p-3 rounded border border-slate-700 group-hover:border-primary/40">
+<span class="text-primary font-mono text-xs font-bold uppercase block mb-1">Supersedes Chain</span>
+                                            Oplog analysis for sequential document overwrites.
+                                        </div>
+</td>
+<td class="p-5 align-top text-sm text-slate-300">
+<div class="bg-black/40 p-3 rounded border border-slate-700 group-hover:border-primary/40">
+<span class="text-slate-500 font-mono text-xs font-bold uppercase block mb-1">Materialized Path</span>
+                                            Tree-based hierarchy for conflict auditing.
+                                        </div>
+</td>
+</tr>
+<!-- Row 4: Audit -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="p-5 align-top">
+<div class="font-bold text-white mb-1">Audit Trail</div>
+<span class="text-xs px-2 py-0.5 rounded bg-emerald-custom/20 text-emerald-custom border border-emerald-custom/30">Compliant</span>
+</td>
+<td class="p-5 align-top text-sm text-slate-300">
+                                        Append-only UI Drawer logs with local encryption.
+                                    </td>
+<td class="p-5 align-top text-sm text-slate-300">
+                                        Capped Collections (100MB) for high-velocity logs.
+                                    </td>
+<td class="p-5 align-top text-sm text-slate-300 italic text-slate-400">
+                                        Audit Triggers &amp; Shadow Table Archival.
+                                    </td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Snapshot Flow Diagram (Simplified list) -->
+<div class="bg-slate-custom p-6 rounded-xl border border-primary/20">
+<h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">route</span>
+                        Snapshot-Hash Validation Path
+                    </h3>
+<div class="flex flex-col lg:flex-row items-center gap-4 text-sm font-mono">
+<div class="flex flex-col items-center p-3 bg-black/40 rounded border border-slate-700 w-full lg:w-auto">
+<span class="text-primary mb-1">FRONTEND</span>
+<span class="text-white">HMAC_SHA256(Payload)</span>
+</div>
+<span class="material-symbols-outlined text-slate-600 rotate-90 lg:rotate-0">arrow_forward</span>
+<div class="flex flex-col items-center p-3 bg-black/40 rounded border border-slate-700 w-full lg:w-auto">
+<span class="text-primary mb-1">GATEWAY</span>
+<span class="text-white">Verify(Hash, Secret)</span>
+</div>
+<span class="material-symbols-outlined text-slate-600 rotate-90 lg:rotate-0">arrow_forward</span>
+<div class="flex flex-col items-center p-3 bg-primary/20 rounded border border-primary/40 w-full lg:w-auto">
+<span class="text-primary mb-1">MONGO SOT</span>
+<span class="text-white">Write_Ack(Commit_ID)</span>
+</div>
+<span class="material-symbols-outlined text-slate-600 rotate-90 lg:rotate-0">arrow_forward</span>
+<div class="flex flex-col items-center p-3 bg-black/40 rounded border border-slate-700 w-full lg:w-auto">
+<span class="text-primary mb-1">SQL OBSERVER</span>
+<span class="text-white">CDC_Sync(Global_Hash)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Sidebar Annotations -->
+<div class="col-span-12 xl:col-span-3 space-y-6">
+<div class="bg-slate-custom p-6 rounded-xl border border-primary/20 h-full">
+<h3 class="text-sm font-bold text-slate-400 uppercase tracking-widest mb-6">Technical Annotations</h3>
+<div class="space-y-8">
+<div class="relative pl-6 border-l-2 border-primary">
+<div class="absolute -left-[9px] top-0 size-4 rounded-full bg-primary border-4 border-slate-custom"></div>
+<h4 class="text-white font-bold text-sm mb-1">Optimistic Locking Policy</h4>
+<p class="text-xs text-slate-400 leading-relaxed">
+                                Frontend assumes success but caches the previous state hash. If Mongo returns a <code class="text-primary">E11000</code> or version mismatch, the Fork UI resolves the state.
+                            </p>
+</div>
+<div class="relative pl-6 border-l-2 border-amber-custom">
+<div class="absolute -left-[9px] top-0 size-4 rounded-full bg-amber-custom border-4 border-slate-custom"></div>
+<h4 class="text-white font-bold text-sm mb-1">Conflict Resolution Strategy</h4>
+<p class="text-xs text-slate-400 leading-relaxed">
+                                Manual intervention is required for stock quantity discrepancies between the Oplog and React Native's LocalStore when latency &gt; 5000ms.
+                            </p>
+</div>
+<div class="relative pl-6 border-l-2 border-emerald-custom">
+<div class="absolute -left-[9px] top-0 size-4 rounded-full bg-emerald-custom border-4 border-slate-custom"></div>
+<h4 class="text-white font-bold text-sm mb-1">Observer Parity</h4>
+<p class="text-xs text-slate-400 leading-relaxed">
+                                SQL Observer maintains a read-only shadow of all stock movements. Discrepancy checks run every 60s via the global hash comparison.
+                            </p>
+</div>
+<div class="mt-10 p-4 bg-primary/5 rounded-lg border border-primary/20">
+<div class="flex items-center gap-2 mb-3">
+<span class="material-symbols-outlined text-primary text-lg">info</span>
+<span class="text-xs font-bold text-primary uppercase">Quick Tip</span>
+</div>
+<p class="text-xs text-slate-300 leading-relaxed">
+                                Hover over any code block to reveal the direct link to the implementation in the GitHub Repository.
+                            </p>
+<button class="mt-4 w-full py-2 bg-primary hover:bg-primary/80 text-white text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">open_in_new</span>
+                                Open Spec Sheet
+                            </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Info -->
+<footer class="mt-12 py-8 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4">
+<div class="text-slate-500 text-xs">
+                © 2024 Lavanya Emart Systems. Confidential Technical Documentation.
+            </div>
+<div class="flex gap-6">
+<a class="text-slate-500 hover:text-primary text-xs flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-sm">description</span>
+                    PDF Export
+                </a>
+<a class="text-slate-500 hover:text-primary text-xs flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-sm">history</span>
+                    Revision History (v4.2.0)
+                </a>
+<a class="text-slate-500 hover:text-primary text-xs flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-sm">help</span>
+                    Support
+                </a>
+</div>
+</footer>
+</main>
+</body></html>

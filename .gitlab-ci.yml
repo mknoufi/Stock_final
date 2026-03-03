@@ -1,0 +1,56 @@
+stages:
+  - lint
+  - test
+  - security
+  - secret-detection
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.cache/npm"
+  SAST_STAGE: security
+  SECRET_DETECTION_STAGE: secret-detection
+  SECRET_DETECTION_ENABLED: "true"
+
+cache:
+  paths:
+    - .cache/pip
+    - .cache/npm
+
+backend-tests:
+  image: python:3.10
+  stage: test
+  services:
+    - name: mongo:6
+      alias: mongo
+  variables:
+    MONGO_URL: "mongodb://mongo:27017/stock_verification"
+    JWT_SECRET: "ci-jwt-secret-min-32-chars-1234567890"
+    JWT_REFRESH_SECRET: "ci-jwt-refresh-secret-min-32-chars-1234567890"
+    SQL_SERVER_HOST: ""
+    SQL_SERVER_DATABASE: ""
+    SQL_SERVER_USER: ""
+    SQL_SERVER_PASSWORD: ""
+  before_script:
+    - apt-get update
+    - apt-get install -y gcc unixodbc-dev
+    - python -m pip install --upgrade pip
+    - pip install -r backend/requirements.txt
+    - pip install pytest pytest-cov pytest-asyncio
+  script:
+    - cd backend
+    - pytest tests/ -v --tb=short
+
+frontend-tests:
+  image: node:18
+  stage: test
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm run lint
+    - npm run typecheck
+    - npm test -- --runInBand
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+  - template: Security/Secret-Detection.gitlab-ci.yml

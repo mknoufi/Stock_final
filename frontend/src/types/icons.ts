@@ -1,0 +1,22 @@
+// Icon type definition for accessible components
+export type IconName =
+  | "people"
+  | "person"
+  | "settings"
+  | "list"
+  | "server"
+  | "refresh"
+  | "checkmark"
+  | "close"
+  | "add"
+  | "remove"
+  | "search"
+  | "filter"
+  | "download"
+  | "upload"
+  | "chevron-forward"
+  | "chevron-back"
+  | "alert-circle"
+  | "information-circle"
+  | "help-circle"
+  | string; // Allow any Ionicons name

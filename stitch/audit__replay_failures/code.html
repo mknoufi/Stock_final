@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Audit: Replay Failures</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* iOS Safe Area spacing for bottom nav */
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen flex flex-col font-display overflow-hidden">
+<!-- Header -->
+<header class="flex items-center justify-between px-4 py-3 bg-[#1c2127] border-b border-[#283039] shrink-0 sticky top-0 z-50">
+<button class="flex items-center text-primary hover:text-blue-400 transition-colors">
+<span class="material-symbols-outlined text-2xl">arrow_back_ios_new</span>
+<span class="ml-1 text-base font-medium">Back</span>
+</button>
+<h1 class="text-base font-bold text-white truncate px-2">Audit Log</h1>
+<button class="flex items-center text-primary hover:text-blue-400 transition-colors">
+<span class="material-symbols-outlined text-2xl">filter_list</span>
+</button>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto pb-24">
+<!-- Filter Context -->
+<div class="px-4 pt-4 pb-2">
+<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400">
+<span class="material-symbols-outlined text-sm">error</span>
+<span class="text-xs font-bold uppercase tracking-wider">Event: REPLAY_FAILURE</span>
+<button class="ml-1 hover:text-white"><span class="material-symbols-outlined text-sm">close</span></button>
+</div>
+</div>
+<!-- Warning Banner -->
+<div class="px-4 py-2">
+<div class="flex flex-col gap-3 rounded-lg border border-amber-500/20 bg-amber-500/10 p-4">
+<div class="flex items-start gap-3">
+<div class="mt-0.5 text-amber-500 shrink-0">
+<span class="material-symbols-outlined">warning</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-semibold text-white leading-tight">Version Conflict Detected</p>
+<p class="mt-1 text-xs text-amber-200/80 leading-normal">
+                            System detected 5 failed replays from device <span class="font-mono text-white bg-white/10 px-1 rounded">Zebra-02</span> due to record version conflicts.
+                        </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Section Title -->
+<div class="px-4 py-3 flex items-center justify-between">
+<h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Failed Transactions (5)</h2>
+<span class="text-xs text-slate-500 font-mono">ID: #BATCH-8921</span>
+</div>
+<!-- List Items -->
+<div class="flex flex-col divide-y divide-[#283039]">
+<!-- Item 1 -->
+<div class="relative group active:bg-[#1c2127] transition-colors">
+<div class="px-4 py-3 flex items-start gap-3">
+<div class="pt-1">
+<div class="w-8 h-8 rounded-full bg-[#283039] flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-lg">sync_problem</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<h3 class="text-sm font-medium text-white truncate">REPLAY_RETRY</h3>
+<span class="text-xs font-mono text-slate-500">10:42:05.122</span>
+</div>
+<div class="flex items-center gap-2 mb-1.5">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                FORK_REQUIRED
+                            </span>
+<span class="text-xs text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">smartphone</span> Zebra-02
+                            </span>
+</div>
+<p class="text-xs text-slate-500 truncate font-mono">
+                            Payload: { "sku": "WX-992", "qty": 45, "ver": 12... }
+                        </p>
+</div>
+<div class="self-center text-slate-600">
+<span class="material-symbols-outlined">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- Item 2 -->
+<div class="relative group active:bg-[#1c2127] transition-colors">
+<div class="px-4 py-3 flex items-start gap-3">
+<div class="pt-1">
+<div class="w-8 h-8 rounded-full bg-[#283039] flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-lg">sync_problem</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<h3 class="text-sm font-medium text-white truncate">REPLAY_RETRY</h3>
+<span class="text-xs font-mono text-slate-500">10:42:04.890</span>
+</div>
+<div class="flex items-center gap-2 mb-1.5">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                FORK_REQUIRED
+                            </span>
+<span class="text-xs text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">smartphone</span> Zebra-02
+                            </span>
+</div>
+<p class="text-xs text-slate-500 truncate font-mono">
+                            Payload: { "sku": "WX-992", "qty": 45, "ver": 12... }
+                        </p>
+</div>
+<div class="self-center text-slate-600">
+<span class="material-symbols-outlined">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- Item 3 -->
+<div class="relative group active:bg-[#1c2127] transition-colors">
+<div class="px-4 py-3 flex items-start gap-3">
+<div class="pt-1">
+<div class="w-8 h-8 rounded-full bg-[#283039] flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-lg">sync_problem</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<h3 class="text-sm font-medium text-white truncate">REPLAY_RETRY</h3>
+<span class="text-xs font-mono text-slate-500">10:42:04.412</span>
+</div>
+<div class="flex items-center gap-2 mb-1.5">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                FORK_REQUIRED
+                            </span>
+<span class="text-xs text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">smartphone</span> Zebra-02
+                            </span>
+</div>
+<p class="text-xs text-slate-500 truncate font-mono">
+                            Payload: { "sku": "WX-992", "qty": 45, "ver": 12... }
+                        </p>
+</div>
+<div class="self-center text-slate-600">
+<span class="material-symbols-outlined">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- Item 4 -->
+<div class="relative group active:bg-[#1c2127] transition-colors">
+<div class="px-4 py-3 flex items-start gap-3">
+<div class="pt-1">
+<div class="w-8 h-8 rounded-full bg-[#283039] flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-lg">sync_problem</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<h3 class="text-sm font-medium text-white truncate">REPLAY_RETRY</h3>
+<span class="text-xs font-mono text-slate-500">10:42:04.105</span>
+</div>
+<div class="flex items-center gap-2 mb-1.5">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                FORK_REQUIRED
+                            </span>
+<span class="text-xs text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">smartphone</span> Zebra-02
+                            </span>
+</div>
+<p class="text-xs text-slate-500 truncate font-mono">
+                            Payload: { "sku": "WX-992", "qty": 45, "ver": 12... }
+                        </p>
+</div>
+<div class="self-center text-slate-600">
+<span class="material-symbols-outlined">chevron_right</span>
+</div>
+</div>
+</div>
+<!-- Item 5 -->
+<div class="relative group active:bg-[#1c2127] transition-colors">
+<div class="px-4 py-3 flex items-start gap-3">
+<div class="pt-1">
+<div class="w-8 h-8 rounded-full bg-[#283039] flex items-center justify-center text-slate-400">
+<span class="material-symbols-outlined text-lg">sync_problem</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between mb-1">
+<h3 class="text-sm font-medium text-white truncate">REPLAY_RETRY</h3>
+<span class="text-xs font-mono text-slate-500">10:42:03.998</span>
+</div>
+<div class="flex items-center gap-2 mb-1.5">
+<span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                                FORK_REQUIRED
+                            </span>
+<span class="text-xs text-slate-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">smartphone</span> Zebra-02
+                            </span>
+</div>
+<p class="text-xs text-slate-500 truncate font-mono">
+                            Payload: { "sku": "WX-992", "qty": 45, "ver": 12... }
+                        </p>
+</div>
+<div class="self-center text-slate-600">
+<span class="material-symbols-outlined">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Action Footer -->
+<div class="fixed bottom-[72px] left-0 w-full z-40 px-4 pb-4 pt-2 bg-gradient-to-t from-background-dark via-background-dark to-transparent">
+<div class="flex gap-3">
+<button class="flex-1 h-12 flex items-center justify-center rounded-lg bg-[#283039] border border-[#3b4754] text-white font-medium text-sm hover:bg-[#323b46] active:scale-[0.98] transition-all">
+                Assign to Supervisor
+            </button>
+<button class="flex-1 h-12 flex items-center justify-center rounded-lg bg-primary text-white font-medium text-sm shadow-lg shadow-blue-900/20 hover:bg-blue-600 active:scale-[0.98] transition-all">
+                Batch Resolve
+            </button>
+</div>
+</div>
+<!-- Bottom Navigation Bar -->
+<nav class="shrink-0 border-t border-[#283039] bg-[#1c2127] pb-safe z-50">
+<div class="flex px-4 pb-3 pt-2">
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-[#9dabb9] hover:text-white transition-colors" href="#">
+<div class="flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-2xl">home</span>
+</div>
+<span class="text-[10px] font-medium">Home</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-white" href="#">
+<div class="flex h-8 items-center justify-center relative">
+<span class="material-symbols-outlined text-2xl fill-current">list_alt</span>
+<span class="absolute top-1 right-[-4px] w-2 h-2 bg-red-500 rounded-full border border-[#1c2127]"></span>
+</div>
+<span class="text-[10px] font-medium">Audit</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-[#9dabb9] hover:text-white transition-colors" href="#">
+<div class="flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-2xl">settings</span>
+</div>
+<span class="text-[10px] font-medium">Settings</span>
+</a>
+<a class="flex flex-1 flex-col items-center justify-end gap-1 text-[#9dabb9] hover:text-white transition-colors" href="#">
+<div class="flex h-8 items-center justify-center">
+<span class="material-symbols-outlined text-2xl">person</span>
+</div>
+<span class="text-[10px] font-medium">Profile</span>
+</a>
+</div>
+</nav>
+</body></html>

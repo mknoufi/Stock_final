@@ -1,0 +1,16 @@
+
+> frontend@1.0.0 typecheck
+> tsc --noEmit
+
+app/admin/unknown-items.tsx(53,52): error TS2345: Argument of type '{}' is not assignable to parameter of type 'string'.
+app/staff/item-detail.tsx(1000,9): error TS2322: Type '{ type: any; uri: string; capturedAt: string; base64: string; }[]' is not assignable to type 'PhotoProof[]'.
+  Type '{ type: any; uri: string; capturedAt: string; base64: string; }' is missing the following properties from type 'PhotoProof': id, url, timestamp
+app/supervisor/items.tsx(85,23): error TS2345: Argument of type '{ total_items: number; verified_items: number; unverified_items: number; total_stock_qty: number; total_verified_qty: number; total_counted_cost: number; total_stock_cost: number; }' is not assignable to parameter of type 'SetStateAction<{ total_items: number; verified_items: number; unverified_items: number; total_qty: number; }>'.
+  Property 'total_qty' is missing in type '{ total_items: number; verified_items: number; unverified_items: number; total_stock_qty: number; total_verified_qty: number; total_counted_cost: number; total_stock_cost: number; }' but required in type '{ total_items: number; verified_items: number; unverified_items: number; total_qty: number; }'.
+app/supervisor/notes.tsx(53,21): error TS2339: Property 'items' does not exist on type 'Note[]'.
+temp_legacy_item_detail.tsx(51,37): error TS2307: Cannot find module '@/components/modals/VarianceReasonModal' or its corresponding type declarations.
+temp_legacy_item_detail.tsx(52,31): error TS2307: Cannot find module '@/components/common/BatchListCard' or its corresponding type declarations.
+temp_legacy_item_detail.tsx(2377,36): error TS7006: Parameter 'batch' implicitly has an 'any' type.
+temp_legacy_item_detail.tsx(3440,9): error TS2322: Type '(photo: CapturedPhoto) => void' is not assignable to type '(photoUri: string) => void'.
+  Types of parameters 'photo' and 'photoUri' are incompatible.
+    Type 'string' is not assignable to type 'CapturedPhoto'.

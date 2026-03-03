@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Stock Verify 2026 - Premium Authentication</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b7cee",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101822",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .flare-1 {
+            filter: blur(80px);
+            background: radial-gradient(circle, rgba(43, 124, 238, 0.3) 0%, rgba(43, 124, 238, 0) 70%);
+        }
+        .flare-2 {
+            filter: blur(100px);
+            background: radial-gradient(circle, rgba(0, 242, 254, 0.15) 0%, rgba(0, 242, 254, 0) 70%);
+        }
+        .floating-label-group input:focus ~ label,
+        .floating-label-group input:not(:placeholder-shown) ~ label {
+            transform: translateY(-1.25rem) scale(0.85);
+            color: #2b7cee;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen flex items-center justify-center font-display overflow-hidden">
+<!-- Background Decorative Elements -->
+<div class="fixed inset-0 pointer-events-none overflow-hidden">
+<div class="absolute -top-20 -left-20 w-[400px] h-[400px] flare-1 rounded-full"></div>
+<div class="absolute top-1/2 -right-40 w-[500px] h-[500px] flare-2 rounded-full"></div>
+<div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full h-[300px] flare-1 opacity-20"></div>
+</div>
+<!-- Main Auth Card Container -->
+<main class="relative z-10 w-full max-w-[400px] px-6">
+<div class="glass-card rounded-xl p-8 shadow-2xl">
+<!-- Logo Section -->
+<div class="flex flex-col items-center mb-10">
+<div class="w-16 h-16 mb-4 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20">
+<span class="material-icons text-primary text-4xl">verified_user</span>
+</div>
+<h1 class="text-white text-2xl font-bold tracking-tight">Stock Verify <span class="text-primary">2026</span></h1>
+<p class="text-white/50 text-sm mt-1">Secure Enterprise Access</p>
+</div>
+<!-- Login Form -->
+<form action="#" class="space-y-6" method="POST">
+<!-- Email Field -->
+<div class="relative floating-label-group">
+<input class="block w-full px-4 pt-6 pb-2 text-white bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200" id="email" name="email" placeholder=" " required="" type="email"/>
+<label class="absolute left-4 top-4 text-white/40 pointer-events-none transition-all duration-200 origin-left" for="email">Email Address</label>
+</div>
+<!-- Password Field -->
+<div class="relative floating-label-group">
+<input class="block w-full px-4 pt-6 pb-2 text-white bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200" id="password" name="password" placeholder=" " required="" type="password"/>
+<label class="absolute left-4 top-4 text-white/40 pointer-events-none transition-all duration-200 origin-left" for="password">Password</label>
+<button class="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white transition-colors" type="button">
+<span class="material-icons text-xl">visibility</span>
+</button>
+</div>
+<!-- Forgot Password -->
+<div class="flex justify-end">
+<a class="text-sm text-primary/80 hover:text-primary transition-colors font-medium" href="#">Forgot Password?</a>
+</div>
+<!-- Sign In Button -->
+<button class="w-full py-4 bg-gradient-to-r from-primary to-[#00f2fe] hover:opacity-90 text-white font-semibold rounded-lg shadow-lg shadow-primary/20 transform transition-all active:scale-[0.98]" type="submit">
+                    Sign In
+                </button>
+</form>
+<!-- Register Footer -->
+<div class="mt-8 pt-6 border-t border-white/5 text-center">
+<p class="text-white/50 text-sm">
+                    Don't have an account? 
+                    <a class="text-primary font-semibold hover:underline decoration-2 underline-offset-4 ml-1" href="#">Register</a>
+</p>
+</div>
+</div>
+<!-- System Status/Metadata -->
+<div class="mt-8 flex justify-between items-center px-2">
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+<span class="text-xs text-white/30 uppercase tracking-widest font-bold">Systems Online</span>
+</div>
+<div class="text-[10px] text-white/20 font-medium">
+                v2.4.0.12-PROD
+            </div>
+</div>
+</main>
+<!-- Footer Security Badges -->
+<footer class="fixed bottom-8 left-0 right-0 text-center opacity-30 select-none">
+<div class="flex justify-center space-x-6">
+<div class="flex items-center space-x-1">
+<span class="material-icons text-sm">lock</span>
+<span class="text-[10px] font-bold tracking-widest uppercase">AES-256 Bit Encryption</span>
+</div>
+<div class="flex items-center space-x-1">
+<span class="material-icons text-sm">security</span>
+<span class="text-[10px] font-bold tracking-widest uppercase">Biometric Verified</span>
+</div>
+</div>
+</footer>
+</body></html>

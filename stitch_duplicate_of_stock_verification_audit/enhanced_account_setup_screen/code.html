@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Stock Verify 2026 - Enhanced Account Setup</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#2b7cee",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101822",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.5rem",
+                        "lg": "1rem",
+                        "xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(16, 24, 34, 0.6);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(43, 124, 238, 0.15);
+        }
+        .input-underlined {
+            border: none;
+            border-bottom: 2px solid rgba(43, 124, 238, 0.2);
+            background: transparent !important;
+            border-radius: 0;
+            padding-left: 0;
+            padding-right: 0;
+        }
+        .input-underlined:focus {
+            outline: none;
+            box-shadow: none;
+            border-bottom-color: #2b7cee;
+        }
+        .electric-glow {
+            box-shadow: 0 0 20px rgba(43, 124, 238, 0.4);
+        }
+        body {
+            background-image: radial-gradient(circle at 50% -20%, #1e3a8a 0%, #101822 60%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-white min-h-screen flex items-center justify-center p-4">
+<!-- Background Decoration -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none">
+<div class="absolute top-1/4 -left-20 w-80 h-80 bg-primary/10 rounded-full blur-[100px]"></div>
+<div class="absolute bottom-1/4 -right-20 w-80 h-80 bg-primary/10 rounded-full blur-[100px]"></div>
+</div>
+<div class="w-full max-w-md z-10">
+<!-- Logo Area -->
+<div class="flex flex-col items-center mb-8">
+<div class="w-16 h-16 bg-primary rounded-xl flex items-center justify-center mb-4 electric-glow">
+<span class="material-icons text-4xl text-white">verified_user</span>
+</div>
+<h1 class="text-2xl font-bold tracking-tight">Stock Verify <span class="text-primary">2026</span></h1>
+<p class="text-primary/60 text-sm mt-1">Professional Inventory Authentication</p>
+</div>
+<!-- Registration Card -->
+<div class="glass-card rounded-xl p-8 shadow-2xl">
+<div class="mb-8">
+<h2 class="text-xl font-semibold mb-2">Create Account</h2>
+<p class="text-primary/40 text-xs flex items-center">
+<span class="material-icons text-xs mr-1">security</span>
+                    End-to-End Encrypted Registration
+                </p>
+</div>
+<!-- Role Selection -->
+<div class="mb-8">
+<label class="block text-xs uppercase tracking-widest text-primary/60 font-bold mb-4">Select Your Role</label>
+<div class="grid grid-cols-2 gap-4">
+<!-- Supervisor Card -->
+<div class="group relative flex flex-col items-center justify-center p-4 rounded-lg bg-primary/10 border border-primary/40 cursor-pointer ring-2 ring-primary">
+<span class="material-icons text-3xl text-primary mb-2">admin_panel_settings</span>
+<span class="text-sm font-semibold">Supervisor</span>
+<div class="absolute top-2 right-2">
+<span class="material-icons text-primary text-sm">check_circle</span>
+</div>
+</div>
+<!-- Staff Card -->
+<div class="group relative flex flex-col items-center justify-center p-4 rounded-lg bg-background-dark/50 border border-white/5 hover:border-primary/40 cursor-pointer">
+<span class="material-icons text-3xl text-white/40 group-hover:text-primary mb-2">assignment_ind</span>
+<span class="text-sm font-semibold text-white/60 group-hover:text-white">Staff</span>
+</div>
+</div>
+</div>
+<!-- Form -->
+<form action="#" class="space-y-6">
+<div class="relative">
+<label class="text-xs text-primary/60 uppercase tracking-tighter font-bold" for="full_name">Full Name</label>
+<input class="w-full input-underlined text-white text-lg py-2 focus:ring-0" id="full_name" placeholder="Johnathan Doe" type="text"/>
+</div>
+<div class="relative">
+<label class="text-xs text-primary/60 uppercase tracking-tighter font-bold" for="email">Email Address</label>
+<input class="w-full input-underlined text-white text-lg py-2 focus:ring-0" id="email" placeholder="j.doe@company.com" type="email"/>
+</div>
+<div class="grid grid-cols-2 gap-6">
+<div class="relative">
+<label class="text-xs text-primary/60 uppercase tracking-tighter font-bold" for="employee_id">Employee ID</label>
+<input class="w-full input-underlined text-white text-lg py-2 focus:ring-0" id="employee_id" placeholder="SV-2026-X" type="text"/>
+</div>
+<div class="relative">
+<label class="text-xs text-primary/60 uppercase tracking-tighter font-bold" for="password">Password</label>
+<div class="flex items-center">
+<input class="w-full input-underlined text-white text-lg py-2 focus:ring-0" id="password" placeholder="••••••••" type="password"/>
+<span class="material-icons text-primary/40 text-sm absolute right-0 cursor-pointer">visibility</span>
+</div>
+</div>
+</div>
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 rounded-lg electric-glow transition-all active:scale-[0.98] mt-4" type="button">
+                    CREATE ACCOUNT
+                </button>
+</form>
+<!-- Social/Secondary Info -->
+<div class="mt-8 flex items-center justify-between text-[10px] text-white/20 uppercase tracking-[2px]">
+<div class="h-px bg-white/10 flex-grow mr-4"></div>
+                OR
+                <div class="h-px bg-white/10 flex-grow ml-4"></div>
+</div>
+<div class="mt-6 flex justify-center space-x-4">
+<button class="flex items-center justify-center w-12 h-12 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+<img class="w-5 h-5 opacity-80" data-alt="Apple logo minimalist" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHmgxJTyoxKDbgtnQFjGUaYPkOi5cDUV3pEctzWEBc3rYmd-CaCPc-ZjgGbgy7kr0sCfoTv1XYw3pBFLqciq_s-Xcv8ljgAKmhxqxhW6JSmND0ECApB6SmdWbCPBRsFy24UaW3pdOxHxN9nZau0VTRFzFv2hhHVavkH6nd-HxoqrOItHfMYQtTBtnvPm6YooDFaH3deHnmAZ_i_YTJi_DxWwkEXBTeaKfKzhwhmU-bSb573ek6DcltjNTvHJpQpNkLKLvA-i7qHTE"/>
+</button>
+<button class="flex items-center justify-center w-12 h-12 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors">
+<img class="w-5 h-5 opacity-80" data-alt="Google logo minimalist" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDFN6jVKfOWHacQVxT2U5ztmTpNoU_wX8VE3kV3vGvrTO8CM1KNH3C_vsrRyJmpXroym1isM_UH-ngnEXjGr7VQehAbUryX6gSKkiBZ0XkYpsTijCQHf4dYxlw-LTM650faxhVGYG500mkMvKTN7C8hHrk2u0K81I-UBJ4uH52b2hy4XMlJ3KxvOqF1Snhz4sZ2n_Wb9DH4sdfb5t7sRG1BILCQXvUEfC5-uSD3f6smdM6rWVC89hWyNRkGcL5vwo6anucNSUgnQDQ"/>
+</button>
+</div>
+</div>
+<!-- Footer -->
+<div class="mt-8 text-center">
+<p class="text-primary/60 text-sm">
+                Already have an account? 
+                <a class="text-white font-semibold hover:text-primary transition-colors" href="#">Log In</a>
+</p>
+<div class="mt-12 flex justify-center space-x-6 text-[10px] text-white/30 uppercase tracking-widest">
+<a class="hover:text-primary" href="#">Help Center</a>
+<a class="hover:text-primary" href="#">Privacy Policy</a>
+<a class="hover:text-primary" href="#">Terms</a>
+</div>
+</div>
+</div>
+<!-- Background Pattern/Texture (Subtle overlay) -->
+<div class="fixed inset-0 pointer-events-none opacity-[0.03]" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDdvZipR-YCbFmiQosbl37hCALZRbPojy02TBSoev_teRgtRSqB4ZjFt9mLl-gZvt8WiOeNukTQF87qJoGfqTUIONKzRjerS0oUyXvqmTFrgvRJzsazXokKBUN9eJqzXLJW6awuai408sNwJtzMrrWmsoop1Ci7VDV-LddDFPHA6byVMQyu1D_5qg2cNCOr403g5A_RL_HlV1km5iL6kTf0kXz6en5Sjx_jrNiucWxd7tU7jLpH2w_KzJmMx7LtG38N5nYvZHEMSzM');"></div>
+</body></html>

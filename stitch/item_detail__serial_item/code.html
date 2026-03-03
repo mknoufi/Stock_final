@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Item Detail: Serial Item</title>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#137fec",
+              "background-light": "#f6f7f8",
+              "background-dark": "#101922",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display text-slate-900 dark:text-white">
+<!-- Top App Bar -->
+<header class="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
+<button class="flex items-center justify-center p-2 -ml-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="text-lg font-bold tracking-tight">Item Detail</h1>
+<button class="flex items-center justify-center p-2 -mr-2 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</header>
+<main class="flex-1 flex flex-col pb-24">
+<!-- Item Identity -->
+<div class="px-4 pt-6 pb-2">
+<h2 class="text-3xl font-bold tracking-tight mb-3 text-slate-900 dark:text-white">MacBook Pro M3</h2>
+<div class="flex flex-wrap gap-2">
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20 tracking-wide uppercase">
+<span class="material-symbols-outlined text-[16px] mr-1">qr_code_scanner</span>
+                    Serial
+                </span>
+<span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/20 tracking-wide uppercase">
+<span class="material-symbols-outlined text-[16px] mr-1">map</span>
+                    Location Overlay
+                </span>
+</div>
+</div>
+<!-- Truth Matrix -->
+<div class="grid grid-cols-2 gap-3 px-4 py-4">
+<div class="flex flex-col p-4 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-sm">
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">System Expected</span>
+<span class="text-2xl font-bold text-slate-900 dark:text-white">5</span>
+</div>
+<div class="flex flex-col p-4 rounded-xl bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 shadow-sm">
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1">Staff Current</span>
+<div class="flex items-center gap-2">
+<span class="text-2xl font-bold text-primary">3</span>
+<span class="text-xs font-medium text-yellow-500 bg-yellow-500/10 px-1.5 py-0.5 rounded ml-auto">Pending</span>
+</div>
+</div>
+</div>
+<!-- Scanning Progress -->
+<div class="px-4 pb-6">
+<div class="flex justify-between items-end mb-2">
+<span class="text-sm font-semibold text-slate-700 dark:text-slate-300">Scanning Progress</span>
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400">3 of 5 scanned</span>
+</div>
+<div class="h-3 w-full bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 60%"></div>
+</div>
+</div>
+<div class="w-full h-px bg-slate-200 dark:bg-slate-800 mb-6"></div>
+<!-- Serial Management Panel -->
+<div class="px-4 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<h3 class="text-lg font-bold text-slate-900 dark:text-white">Serial Numbers</h3>
+<span class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">2 Remaining</span>
+</div>
+<!-- Main Scan Action -->
+<button class="flex items-center justify-center gap-3 w-full p-4 rounded-xl bg-primary hover:bg-blue-600 active:bg-blue-700 text-white shadow-lg shadow-primary/20 transition-all group">
+<span class="material-symbols-outlined text-2xl group-active:scale-90 transition-transform">barcode_reader</span>
+<span class="text-base font-bold">Scan Next Serial</span>
+</button>
+<!-- Manual Entry Text Link -->
+<button class="text-sm text-primary font-medium hover:underline self-center mb-2">
+                Type serial manually
+            </button>
+<!-- Serial List -->
+<div class="flex flex-col gap-3">
+<!-- Duplicate Error Item -->
+<div class="flex items-center p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/20 text-red-500 mr-3">
+<span class="material-symbols-outlined">warning</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-bold text-slate-900 dark:text-white truncate font-mono tracking-tight">SN_88192</p>
+<p class="text-xs text-red-400 font-medium">Duplicate Detected</p>
+</div>
+<button class="p-2 text-slate-400 hover:text-red-400 transition-colors">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+<!-- Valid Item 1 -->
+<div class="flex items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-green-500 mr-3">
+<span class="material-symbols-outlined">check_circle</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-slate-900 dark:text-slate-200 truncate font-mono tracking-tight">SN_88193</p>
+<p class="text-xs text-slate-500 dark:text-slate-500">Scanned 10:42 AM</p>
+</div>
+<button class="p-2 text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Valid Item 2 -->
+<div class="flex items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700">
+<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-500/10 text-green-500 mr-3">
+<span class="material-symbols-outlined">check_circle</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm font-medium text-slate-900 dark:text-slate-200 truncate font-mono tracking-tight">SN_88194</p>
+<p class="text-xs text-slate-500 dark:text-slate-500">Scanned 10:41 AM</p>
+</div>
+<button class="p-2 text-slate-400 hover:text-white transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Empty Slots (Ghost Rows) -->
+<div class="flex items-center p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 opacity-60">
+<div class="h-10 w-10 shrink-0 rounded-full bg-slate-200 dark:bg-slate-800 mr-3 animate-pulse"></div>
+<div class="h-4 w-24 bg-slate-200 dark:bg-slate-800 rounded animate-pulse"></div>
+</div>
+<div class="flex items-center p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 opacity-60">
+<div class="h-10 w-10 shrink-0 rounded-full bg-slate-200 dark:bg-slate-800 mr-3 animate-pulse"></div>
+<div class="h-4 w-24 bg-slate-200 dark:bg-slate-800 rounded animate-pulse"></div>
+</div>
+</div>
+</div>
+</main>
+<!-- Sticky Bottom Bar -->
+<footer class="fixed bottom-0 left-0 right-0 p-4 bg-background-light dark:bg-background-dark border-t border-slate-200 dark:border-slate-800 pb-8 safe-area-bottom">
+<div class="flex gap-3 max-w-xl mx-auto">
+<button class="flex-1 h-12 rounded-lg border border-slate-300 dark:border-slate-600 font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                Save Draft
+            </button>
+<div class="flex-1 relative group">
+<button class="w-full h-12 rounded-lg bg-primary/50 text-white/50 font-bold cursor-not-allowed flex items-center justify-center gap-2" disabled="">
+                    Submit
+                    <span class="material-symbols-outlined text-sm">lock</span>
+</button>
+<!-- Tooltip for disabled state -->
+<div class="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-max px-3 py-1 bg-slate-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
+                    Scan 2 more items to submit
+                </div>
+</div>
+</div>
+</footer>
+</body></html>

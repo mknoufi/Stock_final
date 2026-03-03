@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Stock Verify - Item Detail</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .tabular-nums {
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-gray-900 dark:text-white min-h-screen flex justify-center">
+<!-- Mobile Container -->
+<div class="w-full max-w-md bg-background-light dark:bg-background-dark flex flex-col h-screen overflow-hidden shadow-2xl relative">
+<!-- Header -->
+<header class="bg-[#111418] shrink-0">
+<div class="flex items-center justify-between p-4 pb-2">
+<button class="text-white flex size-12 shrink-0 items-center justify-center hover:bg-white/10 rounded-full transition-colors">
+<span class="material-symbols-outlined text-[24px]">arrow_back</span>
+</button>
+<h1 class="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center pr-12">Stock Verify</h1>
+</div>
+</header>
+<!-- Main Content (Scrollable) -->
+<main class="flex-1 overflow-y-auto custom-scrollbar">
+<!-- Item Header Section -->
+<div class="bg-[#111418] px-5 pt-2 pb-6 rounded-b-3xl shadow-lg z-10 relative border-b border-gray-800">
+<h2 class="text-white tracking-light text-[28px] font-bold leading-tight pb-3">Amoxicillin 500mg</h2>
+<div class="flex gap-2 flex-wrap mb-4">
+<div class="flex h-7 items-center justify-center px-3 rounded-full bg-primary/20 border border-primary/40">
+<span class="material-symbols-outlined text-[16px] text-primary mr-1">qr_code_2</span>
+<p class="text-primary text-xs font-bold uppercase tracking-wider">BATCH</p>
+</div>
+<div class="flex h-7 items-center justify-center px-3 rounded-full bg-purple-500/20 border border-purple-500/40">
+<span class="material-symbols-outlined text-[16px] text-purple-400 mr-1">payments</span>
+<p class="text-purple-400 text-xs font-bold uppercase tracking-wider">MULTI-MRP</p>
+</div>
+</div>
+<!-- Quick Stats Row -->
+<div class="flex gap-4 mt-2">
+<div class="flex-1 bg-white/5 p-3 rounded-xl border border-white/5">
+<p class="text-gray-400 text-xs font-medium uppercase mb-1">SKU ID</p>
+<p class="text-white text-sm font-semibold tabular-nums">AMX-500-T</p>
+</div>
+<div class="flex-1 bg-white/5 p-3 rounded-xl border border-white/5">
+<p class="text-gray-400 text-xs font-medium uppercase mb-1">Last Count</p>
+<p class="text-white text-sm font-semibold tabular-nums">12/10/2023</p>
+</div>
+</div>
+</div>
+<!-- Batch Management Panel -->
+<div class="px-4 py-6">
+<div class="flex justify-between items-end mb-4 px-1">
+<h3 class="text-white text-lg font-bold leading-tight">Batch Management</h3>
+<button class="text-primary text-sm font-medium hover:text-primary/80 flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]">add</span> Add Batch
+                    </button>
+</div>
+<div class="flex flex-col gap-3">
+<!-- Batch Row 1 -->
+<div class="bg-[#1c252e] rounded-xl p-4 border border-gray-800 shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+<div class="flex justify-between items-start mb-3">
+<div>
+<div class="flex items-center gap-2">
+<span class="text-gray-400 text-xs font-medium uppercase tracking-wider">Batch ID</span>
+<span class="material-symbols-outlined text-[14px] text-green-500">verified</span>
+</div>
+<p class="text-white text-lg font-bold font-mono tracking-tight">B-101</p>
+</div>
+<div class="text-right">
+<span class="text-gray-400 text-xs font-medium uppercase tracking-wider">Expiry</span>
+<p class="text-red-400 text-sm font-semibold tabular-nums flex items-center justify-end gap-1">
+<span class="material-symbols-outlined text-[14px]">event_busy</span> 12/25
+                                </p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 bg-black/20 rounded-lg p-3">
+<div>
+<p class="text-gray-500 text-xs font-medium uppercase">MRP</p>
+<p class="text-white font-semibold tabular-nums">$12.50</p>
+</div>
+<div class="text-right">
+<p class="text-gray-500 text-xs font-medium uppercase">Quantity</p>
+<p class="text-white text-lg font-bold tabular-nums text-primary">50</p>
+</div>
+</div>
+</div>
+<!-- Batch Row 2 -->
+<div class="bg-[#1c252e] rounded-xl p-4 border border-gray-800 shadow-sm relative overflow-hidden group">
+<div class="absolute top-0 left-0 w-1 h-full bg-primary/50"></div>
+<div class="flex justify-between items-start mb-3">
+<div>
+<div class="flex items-center gap-2">
+<span class="text-gray-400 text-xs font-medium uppercase tracking-wider">Batch ID</span>
+</div>
+<p class="text-white text-lg font-bold font-mono tracking-tight">B-102</p>
+</div>
+<div class="text-right">
+<span class="text-gray-400 text-xs font-medium uppercase tracking-wider">Expiry</span>
+<p class="text-emerald-400 text-sm font-semibold tabular-nums flex items-center justify-end gap-1">
+<span class="material-symbols-outlined text-[14px]">event_available</span> 06/26
+                                </p>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4 bg-black/20 rounded-lg p-3">
+<div>
+<p class="text-gray-500 text-xs font-medium uppercase">MRP</p>
+<p class="text-white font-semibold tabular-nums">$14.00</p>
+</div>
+<div class="text-right">
+<p class="text-gray-500 text-xs font-medium uppercase">Quantity</p>
+<p class="text-white text-lg font-bold tabular-nums text-primary">30</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="h-24"></div> <!-- Spacer for fixed footer -->
+</main>
+<!-- Sticky Footer / Truth Matrix -->
+<div class="absolute bottom-0 left-0 w-full bg-[#111418] border-t border-gray-800 p-4 pb-8 z-20">
+<!-- Truth Matrix Summary -->
+<div class="flex items-center justify-between mb-5 bg-[#1c252e] p-3 rounded-lg border border-emerald-500/20 relative overflow-hidden">
+<div class="absolute inset-0 bg-emerald-500/5 pointer-events-none"></div>
+<div class="flex flex-col">
+<span class="text-gray-400 text-xs font-medium uppercase">System Total</span>
+<span class="text-white text-xl font-bold tabular-nums">80</span>
+</div>
+<div class="flex items-center justify-center size-8 rounded-full bg-emerald-500/10 text-emerald-400">
+<span class="material-symbols-outlined">check</span>
+</div>
+<div class="flex flex-col text-right">
+<span class="text-gray-400 text-xs font-medium uppercase">Staff Count</span>
+<div class="flex items-center justify-end gap-2">
+<span class="text-emerald-400 text-xl font-bold tabular-nums">80</span>
+<button class="bg-gray-700 hover:bg-gray-600 rounded p-1 transition-colors">
+<span class="material-symbols-outlined text-[16px] text-gray-300 block">edit</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex gap-3">
+<button class="flex-1 bg-white/5 hover:bg-white/10 text-white font-medium py-3.5 px-4 rounded-xl transition-all border border-white/10 flex justify-center items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">flag</span>
+                    Discrepancy
+                </button>
+<button class="flex-[2] bg-primary hover:bg-primary/90 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-primary/25 transition-all flex justify-center items-center gap-2">
+<span class="material-symbols-outlined text-[20px]">verified_user</span>
+                    Verify Stock
+                </button>
+</div>
+</div>
+</div>
+</body></html>

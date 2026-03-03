@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Session Conflict Resolution</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#ec1313",
+                        "background-light": "#f8f6f6",
+                        "background-dark": "#1a0f0f", /* Slightly adjusted dark theme for better contrast with red */
+                        "surface-dark": "#2a1a1a", /* Card background */
+                        "surface-darker": "#110707", /* Deep background */
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1a0f0f;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 2px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white min-h-screen flex items-center justify-center p-0 sm:p-4">
+<!-- Mobile Container -->
+<div class="relative w-full max-w-md bg-background-light dark:bg-background-dark sm:dark:bg-surface-darker sm:dark:border sm:dark:border-white/10 sm:rounded-3xl h-screen sm:h-[800px] overflow-hidden flex flex-col shadow-2xl">
+<!-- Status Bar Area (Mock) -->
+<div class="w-full h-12 flex items-end justify-between px-6 pb-2 select-none z-10">
+<span class="text-xs font-semibold dark:text-white/80">9:41</span>
+<div class="flex gap-1.5 items-center">
+<span class="material-symbols-outlined text-[18px] dark:text-white/80">signal_cellular_alt</span>
+<span class="material-symbols-outlined text-[18px] dark:text-white/80">wifi</span>
+<span class="material-symbols-outlined text-[18px] dark:text-white/80">battery_full</span>
+</div>
+</div>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col px-6 pt-4 pb-8 overflow-y-auto scrollbar-hide">
+<!-- Header Section -->
+<div class="flex flex-col items-center justify-center mt-6 mb-8 text-center animate-fade-in-up">
+<div class="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6 ring-1 ring-primary/30 shadow-[0_0_30px_-10px_rgba(236,19,19,0.3)]">
+<span class="material-symbols-outlined text-primary text-4xl">warning</span>
+</div>
+<h1 class="text-2xl font-bold tracking-tight mb-3 dark:text-white">
+                    Session Conflict
+                </h1>
+<p class="text-sm dark:text-gray-400 leading-relaxed max-w-[280px]">
+                    Your account is currently active on another device. Stock Verify enforces a strict <span class="text-primary font-medium">single-device policy</span>.
+                </p>
+</div>
+<!-- Conflict Details Card -->
+<div class="w-full bg-white dark:bg-surface-dark rounded-2xl border border-gray-100 dark:border-white/5 p-5 shadow-lg mb-6 relative overflow-hidden group">
+<!-- Subtle red accent line at top -->
+<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary/0 via-primary to-primary/0 opacity-50"></div>
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-primary/80 text-lg">devices</span>
+<h3 class="text-xs font-bold uppercase tracking-wider text-primary/80">Active Session Details</h3>
+</div>
+<div class="space-y-4">
+<!-- Device Row -->
+<div class="flex items-start justify-between pb-3 border-b border-gray-100 dark:border-white/5">
+<div class="flex flex-col">
+<span class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Device Name</span>
+<span class="text-sm font-medium dark:text-gray-200">Handheld-Zebra-04</span>
+</div>
+<div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+<span class="material-symbols-outlined text-gray-400 text-lg">smartphone</span>
+</div>
+</div>
+<!-- Last Activity Row -->
+<div class="flex items-start justify-between pb-3 border-b border-gray-100 dark:border-white/5">
+<div class="flex flex-col">
+<span class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">Last Activity</span>
+<span class="text-sm font-medium dark:text-gray-200">2 minutes ago</span>
+</div>
+<div class="flex items-center gap-1.5 px-2 py-1 rounded bg-green-500/10 border border-green-500/20">
+<div class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+<span class="text-[10px] font-semibold text-green-500 uppercase">Live</span>
+</div>
+</div>
+<!-- IP Mode Row -->
+<div class="flex items-start justify-between pb-3 border-b border-gray-100 dark:border-white/5">
+<div class="flex flex-col">
+<span class="text-xs text-gray-500 dark:text-gray-400 mb-0.5">IP Mode</span>
+<span class="text-sm font-medium dark:text-gray-200 font-mono text-xs tracking-tight">LAN (Internal) 192.168.1.14</span>
+</div>
+<span class="material-symbols-outlined text-gray-400 text-lg mt-1">router</span>
+</div>
+<!-- Time Drift Row -->
+<div class="flex flex-col gap-2 pt-1">
+<div class="flex justify-between items-center">
+<span class="text-xs text-gray-500 dark:text-gray-400">Time Sync Status</span>
+<span class="text-[10px] text-orange-400 font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">schedule</span>
+                                +2s Drift
+                            </span>
+</div>
+<div class="grid grid-cols-2 gap-2 bg-black/20 rounded-lg p-2.5">
+<div class="flex flex-col border-r border-white/5 pr-2">
+<span class="text-[10px] text-gray-500 uppercase">Server</span>
+<span class="text-xs font-mono text-gray-300">10:05:00</span>
+</div>
+<div class="flex flex-col pl-2">
+<span class="text-[10px] text-gray-500 uppercase">Device</span>
+<span class="text-xs font-mono text-orange-300">10:05:02</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Spacer to push footer down if needed -->
+<div class="flex-grow"></div>
+<!-- Actions -->
+<div class="flex flex-col gap-3 mt-4">
+<button class="w-full group relative flex items-center justify-center gap-2 bg-primary hover:bg-red-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-red-900/20 active:scale-[0.98]">
+<span class="material-symbols-outlined text-[20px]">gavel</span>
+<span>Revoke &amp; Bind This Device</span>
+<!-- Shine effect -->
+<div class="absolute inset-0 rounded-xl overflow-hidden pointer-events-none">
+<div class="absolute top-0 -left-[100%] w-[50%] h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[-20deg] animate-[shimmer_3s_infinite]"></div>
+</div>
+</button>
+<button class="w-full flex items-center justify-center gap-2 bg-transparent dark:text-gray-400 dark:hover:text-white text-gray-600 hover:text-gray-900 font-medium py-3 px-6 rounded-xl border border-transparent dark:hover:bg-white/5 hover:bg-black/5 transition-all duration-200 active:scale-[0.98]">
+                    Cancel &amp; Return
+                </button>
+</div>
+<!-- Audit Footer -->
+<div class="mt-6 flex items-start gap-2 justify-center opacity-60">
+<span class="material-symbols-outlined text-[14px] text-gray-400 mt-[2px]">lock_clock</span>
+<p class="text-[11px] text-center text-gray-400 max-w-[240px]">
+                    This revocation will be logged as audit event <span class="font-mono">ID-9924X</span> for security compliance.
+                </p>
+</div>
+</div>
+</div>
+<!-- Shimmer Animation Definition -->
+<style>
+        @keyframes shimmer {
+            0% { left: -100%; opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { left: 200%; opacity: 0; }
+        }
+    </style>
+</body></html>

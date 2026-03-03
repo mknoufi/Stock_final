@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Intelligent Serial Scanner</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#258cf4",
+                        "background-light": "#f5f7f8",
+                        "background-dark": "#060a0e",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "1rem",
+                        "lg": "2rem",
+                        "xl": "3rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .scanning-glow {
+            box-shadow: 0 0 20px rgba(37, 140, 244, 0.4), inset 0 0 15px rgba(37, 140, 244, 0.3);
+        }
+        .glass-panel {
+            background: rgba(16, 25, 34, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+        .camera-overlay {
+            background: radial-gradient(circle, transparent 40%, rgba(6, 10, 14, 0.7) 100%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-dark text-white overflow-hidden h-screen flex flex-col font-display">
+<!-- Main Camera Viewport Simulation -->
+<div class="fixed inset-0 z-0">
+<div class="w-full h-full bg-cover bg-center opacity-80" data-alt="Warehouse shelves with boxes and barcodes" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAbGxXcOHwTxyesu_M9zOHo8N_R7SJ2bYQ4NBXjOTtSVhkBNuk4IQvr_BoOhnaFpREQjT031_LtKM1NTvyDlvAOruWIWep3HCu4y2xGyQ5PJGnZwYZL_Wz_FFNLJRdTadBEPfHvomqKlMOZU9SqBQuf4dFi0sj4lOICM6wLQ8eBofLUDJmVBRc0Uyl7Eu9_yimkLh-mzIr9VMk388MLC42TEA62XUYSb-I5Tk9B2UKr6iKXk8L7zND4FGz2YDOm4i36ltKcF6wpepA')">
+</div>
+<div class="absolute inset-0 camera-overlay"></div>
+</div>
+<!-- Top Navigation / Status Bar -->
+<header class="relative z-10 p-4 pt-8">
+<div class="flex items-center justify-between mb-6">
+<button class="size-10 flex items-center justify-center bg-black/40 rounded-full text-white backdrop-blur-md">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h1 class="text-sm font-bold tracking-widest uppercase">Intelligent Scanner</h1>
+<button class="size-10 flex items-center justify-center bg-black/40 rounded-full text-white backdrop-blur-md">
+<span class="material-symbols-outlined">flash_on</span>
+</button>
+</div>
+<!-- Mode Toggle Segmented Control -->
+<div class="flex h-12 w-full max-w-sm mx-auto items-center justify-center rounded-full bg-black/50 backdrop-blur-xl p-1 border border-white/10">
+<label class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-full px-2 has-[:checked]:bg-primary has-[:checked]:text-white text-white/50 text-xs font-bold leading-normal transition-all">
+<span class="truncate">SERIAL</span>
+<input checked="" class="invisible w-0" name="scan-mode" type="radio" value="SERIAL"/>
+</label>
+<label class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-full px-2 has-[:checked]:bg-primary has-[:checked]:text-white text-white/50 text-xs font-bold leading-normal transition-all">
+<span class="truncate">ITEM</span>
+<input class="invisible w-0" name="scan-mode" type="radio" value="ITEM"/>
+</label>
+<label class="flex cursor-pointer h-full grow items-center justify-center overflow-hidden rounded-full px-2 has-[:checked]:bg-primary has-[:checked]:text-white text-white/50 text-xs font-bold leading-normal transition-all">
+<span class="truncate">AUTO</span>
+<input class="invisible w-0" name="scan-mode" type="radio" value="AUTO"/>
+</label>
+</div>
+</header>
+<!-- Scanning HUD -->
+<main class="relative z-10 flex-1 flex flex-col items-center justify-center p-6">
+<!-- Floating Toast Notification -->
+<div class="absolute top-0 left-1/2 -translate-x-1/2 mt-4 animate-bounce">
+<div class="flex items-center gap-3 bg-green-500/90 text-white px-5 py-2.5 rounded-full backdrop-blur-lg shadow-lg border border-green-400/20">
+<span class="material-symbols-outlined text-[20px]">check_circle</span>
+<p class="text-sm font-bold">SKU #8291 Verified</p>
+<button class="text-[10px] font-bold uppercase tracking-tighter ml-2 bg-white/20 px-2 py-0.5 rounded-full">Undo</button>
+</div>
+</div>
+<!-- Scanning Frame -->
+<div class="relative w-72 h-44 rounded-xl border-2 border-primary scanning-glow flex items-center justify-center">
+<!-- Corner Accents -->
+<div class="absolute -top-1 -left-1 size-6 border-t-4 border-l-4 border-primary rounded-tl-lg"></div>
+<div class="absolute -top-1 -right-1 size-6 border-t-4 border-r-4 border-primary rounded-tr-lg"></div>
+<div class="absolute -bottom-1 -left-1 size-6 border-b-4 border-l-4 border-primary rounded-bl-lg"></div>
+<div class="absolute -bottom-1 -right-1 size-6 border-b-4 border-r-4 border-primary rounded-br-lg"></div>
+<div class="flex flex-col items-center gap-2 opacity-60">
+<span class="material-symbols-outlined text-4xl text-primary">barcode_scanner</span>
+<span class="text-[10px] font-medium tracking-[0.2em] uppercase text-primary">Align Barcode</span>
+</div>
+<!-- Scanning Line -->
+<div class="absolute top-1/2 left-2 right-2 h-0.5 bg-primary/50 shadow-[0_0_10px_#258cf4]"></div>
+</div>
+</main>
+<!-- Bottom Log Panel -->
+<section class="relative z-20 glass-panel rounded-t-xl border-t border-white/10 flex flex-col h-[35%]">
+<div class="p-4 flex items-center justify-between border-b border-white/5">
+<div class="flex items-center gap-2">
+<div class="size-2 rounded-full bg-primary animate-pulse"></div>
+<h3 class="text-lg font-bold">Scanned: <span class="text-primary">5</span></h3>
+</div>
+<button class="text-xs font-medium text-primary/80 uppercase tracking-widest">Clear List</button>
+</div>
+<!-- Scrolled List -->
+<div class="flex-1 overflow-y-auto px-4 py-2 space-y-3 custom-scrollbar">
+<!-- Entry 1 (Latest) -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+<div class="flex flex-col">
+<span class="text-xs text-white/40 uppercase font-bold tracking-tighter">SKU #8291</span>
+<span class="text-sm font-medium tracking-wide">SN: 4492-X90-BQ</span>
+</div>
+<span class="text-[10px] text-white/30">14:22:01</span>
+</div>
+<!-- Entry 2 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+<div class="flex flex-col">
+<span class="text-xs text-white/40 uppercase font-bold tracking-tighter">SKU #1024</span>
+<span class="text-sm font-medium tracking-wide">SN: 9918-A12-KL</span>
+</div>
+<span class="text-[10px] text-white/30">14:21:45</span>
+</div>
+<!-- Entry 3 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+<div class="flex flex-col">
+<span class="text-xs text-white/40 uppercase font-bold tracking-tighter">SKU #7721</span>
+<span class="text-sm font-medium tracking-wide">SN: 1102-W44-ZZ</span>
+</div>
+<span class="text-[10px] text-white/30">14:20:12</span>
+</div>
+<!-- Entry 4 -->
+<div class="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+<div class="flex flex-col">
+<span class="text-xs text-white/40 uppercase font-bold tracking-tighter">SKU #8291</span>
+<span class="text-sm font-medium tracking-wide">SN: 5581-M12-PP</span>
+</div>
+<span class="text-[10px] text-white/30">14:19:58</span>
+</div>
+</div>
+<!-- Bottom Action Buttons -->
+<div class="p-4 pt-2 pb-8 flex gap-3">
+<button class="flex-1 h-14 rounded-full border border-white/10 bg-white/5 text-white font-bold flex items-center justify-center gap-2 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]">add_a_photo</span>
+                Scan Next
+            </button>
+<button class="flex-1 h-14 rounded-full bg-gradient-to-r from-primary to-[#1d70c4] text-white font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[20px]">check</span>
+                Done
+            </button>
+</div>
+</section>
+<!-- iOS Home Indicator Spacing -->
+<div class="h-1 bg-background-dark"></div>
+</body></html>

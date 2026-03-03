@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Supervisor Session Manager</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#25d1f4",
+                        "background-light": "#f5f8f8",
+                        "background-dark": "#101f22",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            -webkit-tap-highlight-color: transparent;
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .ios-blur {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen pb-24">
+<!-- Header Section -->
+<header class="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 ios-blur pt-8 pb-4 px-5 border-b border-primary/10">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h1 class="text-2xl font-bold tracking-tight">Sessions</h1>
+<p class="text-xs text-primary/70 uppercase tracking-widest font-semibold">Warehouse Hub</p>
+</div>
+<button class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-icons text-xl">search</span>
+</button>
+</div>
+<!-- Segmented Control -->
+<div class="bg-slate-200 dark:bg-slate-800/50 p-1 rounded-xl flex items-center">
+<button class="flex-1 py-2 text-sm font-medium rounded-lg bg-white dark:bg-primary shadow-lg text-primary dark:text-background-dark transition-all">
+                All
+            </button>
+<button class="flex-1 py-2 text-sm font-medium rounded-lg text-slate-500 dark:text-slate-400 hover:text-primary transition-all">
+                Active
+            </button>
+<button class="flex-1 py-2 text-sm font-medium rounded-lg text-slate-500 dark:text-slate-400 hover:text-primary transition-all">
+                Completed
+            </button>
+</div>
+</header>
+<!-- Content List -->
+<main class="px-5 py-6 space-y-4">
+<!-- Active Session Card -->
+<div class="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-primary/20 rounded-xl p-5 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-lg font-bold">North Wing - Row B</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">Started: Today, 08:45 AM</p>
+</div>
+<span class="px-3 py-1 bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider rounded-full border border-primary/30">
+                    Active
+                </span>
+</div>
+<div class="space-y-2 mb-6">
+<div class="flex justify-between items-end">
+<span class="text-xs font-semibold text-primary">85% Progress</span>
+<span class="text-[10px] text-slate-500 uppercase">1,240 / 1,450 Items</span>
+</div>
+<div class="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 85%"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assigned Staff</span>
+<div class="flex -space-x-2">
+<img alt="Alex" class="w-8 h-8 rounded-full border-2 border-background-dark" data-alt="Portrait of warehouse staff member Alex" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAVwSTkgzH7J1p7X7YAZwjZvmPg_FruzYye_6wlo5FTXa_8XoTxD_DCn_1OyhBG5e7c47kUUN9Hon0o2EqTZd4oY5mdu8I93qola1iBJDb8oVGpJIjd0gDE7BsmZAx2WkJmbdA578ePGhliRkuVifPTksGyFNSy3oj-A3i7LGNWDoLf47MYiFYL0ux2XPpMFi-aXvVmkxuGr4GbO808hcI4s2M-L5Lc0J6CoAlPOGg5qUhQah5mT1Wr8dom_4soSYo8bvwltr3_Pzw"/>
+<img alt="Sarah" class="w-8 h-8 rounded-full border-2 border-background-dark" data-alt="Portrait of warehouse staff member Sarah" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAdmG93zCtVTx79bGWdpOfnxXMwmUiZUJ3PI5_dGctuWXew308cHTL_LjNR4YXPN9yhdfNP7VWG5auth53peHsIC5XALJxL77qzoHCCWYpfYzu_USxmsNS3tOHLa77QFqd2kNeej8AZNLYKr90EqNzmJiaYdbZXqXQuaw0DPeVRHwfMTX3jkWOhRSkYietRVZ-60G6v9N9iroFej01fmL3cB5Rn6G9N8gZlsliXN6-MYHDJ6VbsUPejcGAcltFPCxTqv6Ki3XcKxgU"/>
+<img alt="Mike" class="w-8 h-8 rounded-full border-2 border-background-dark" data-alt="Portrait of warehouse staff member Mike" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_Fulz3zQsg5vztr9gSz83oOJil6Tw2efvgMpSGYzz460nkLo3P_N2ModbfDm9_0Dty1X4NoR2dYfwlLa4olsA8KMU8w7o_53C5LmRXHseGSO6o68xHLglV_CQA4rS-nmXWcpKC5IKTyPthRuuaPgs6LzOV6z-c0Qu4Su-5b-ypVZz_wuB9x6Zs21lM6VZd24vFIQ_1rc1I7g-QvC9EOi8Z1rEkixLsfbJjoxeAuFvy752z6tnEn8WJ2Stj-zK7KhzY8ztTepnzoI"/>
+<div class="w-8 h-8 rounded-full border-2 border-background-dark bg-slate-800 flex items-center justify-center text-[10px] font-bold text-primary">
+                        +2
+                    </div>
+</div>
+</div>
+</div>
+<!-- Completed Session Card -->
+<div class="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-white/5 rounded-xl p-5 shadow-sm opacity-90">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-lg font-bold">Cold Storage Unit A</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">Ended: Today, 06:15 AM</p>
+</div>
+<span class="px-3 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold uppercase tracking-wider rounded-full border border-emerald-500/30">
+                    Completed
+                </span>
+</div>
+<div class="space-y-2 mb-6">
+<div class="flex justify-between items-end">
+<span class="text-xs font-semibold text-emerald-400">100% Progress</span>
+<span class="text-[10px] text-slate-500 uppercase">800 / 800 Items</span>
+</div>
+<div class="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-emerald-500 rounded-full w-full"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assigned Staff</span>
+<div class="flex -space-x-2">
+<img alt="David" class="w-8 h-8 rounded-full border-2 border-background-dark" data-alt="Portrait of warehouse staff member David" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIqxzEahXHKE4TEXkMj7lvpzHAt-XXfTWyBG40PzsIuOVfWZIL43ztaWU-dDERGVgN3R29RMAzLM-SivUqA8gl9TkA2lrteDwZM1ekXdZFqZrxadNxYanBSO9AGDzM-6rdYbcxo7RzC5D4tZXGWAV_NtnF_gBBbqky6xhDbcuaH2v6BeKJf5aufxrT2qKzBevGipduBdw-aDF7zQwPSdOFlWlS9bEqVEhmJ2LgUimFYfwQ0gYsHZtP1C6S6i3LznS9PP4dLgNzGPE"/>
+<img alt="Emma" class="w-8 h-8 rounded-full border-2 border-background-dark" data-alt="Portrait of warehouse staff member Emma" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAEpqUjHitRpa9NgJNDBDH_pHhtXANQiKNRAetM9MF9eLZfSL2wliPLbk3cK4c635dKGxjYoN25_ZO2iFq7Otz8cnIVpK2oPRUHs4nr54I8-59PdsodhUGKgKSB7FF18TGM7_x7MVSvgi14czKCsLSeoSvPseGWLPy9x9Q1qFxPD1QiiMS8RumEt50Qs9dDDcHWGSo_XuXCuAxxMwdjCSxDbPiI-vq2kFtWNG1AXLCqELI6oUobY4U5pjKd_E0GqutmTOLl9PaOnA"/>
+</div>
+</div>
+</div>
+<!-- Active Session Card 2 -->
+<div class="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-primary/20 rounded-xl p-5 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="text-lg font-bold">Loading Dock 4</h3>
+<p class="text-xs text-slate-500 dark:text-slate-400">Started: 2h ago</p>
+</div>
+<span class="px-3 py-1 bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider rounded-full border border-primary/30">
+                    Active
+                </span>
+</div>
+<div class="space-y-2 mb-6">
+<div class="flex justify-between items-end">
+<span class="text-xs font-semibold text-primary">32% Progress</span>
+<span class="text-[10px] text-slate-500 uppercase">450 / 1,400 Items</span>
+</div>
+<div class="h-1.5 w-full bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+<div class="h-full bg-primary rounded-full" style="width: 32%"></div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Assigned Staff</span>
+<div class="flex -space-x-2">
+<img alt="Marcus" class="w-8 h-8 rounded-full border-2 border-background-dark" data-alt="Portrait of warehouse staff member Marcus" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCTVubUKHdfqpAo3DfhtL0ouyrSGEZK2W4qZxkYek8ilysJRsZJ8CNbznlmY624Tj62ItGJodEMJ-oD9KJTbXdm1zvzzQJFP--XDLGpmLR_KAqHKXUNboDT6SzE2sUn4_3mMU7_zqlocJYoLgm3CbNleDuag_vi1TJ4SjHSQApTgmRGv4Ajsf7grA5c4xtqcHd5DDBs8RYyo6xj4DvyThZVI90fOaLfQGHpTs6Ed_J8XdQfFjWejWjsNFxYaegDxM8iaRNsCEd_G_4"/>
+<div class="w-8 h-8 rounded-full border-2 border-background-dark bg-slate-800 flex items-center justify-center text-[10px] font-bold text-primary">
+                        +1
+                    </div>
+</div>
+</div>
+</div>
+<!-- Empty State Filler / Future item hint -->
+<div class="pt-8 flex flex-col items-center justify-center text-slate-500">
+<span class="material-icons text-4xl mb-2 opacity-20">inventory_2</span>
+<p class="text-xs font-medium opacity-40">End of Session List</p>
+</div>
+</main>
+<!-- Floating Action Button -->
+<button class="fixed bottom-8 right-6 w-16 h-16 rounded-full bg-gradient-to-tr from-primary to-cyan-300 shadow-[0_10px_30px_-5px_rgba(37,209,244,0.5)] flex items-center justify-center text-background-dark active:scale-95 transition-transform">
+<span class="material-icons text-3xl">add</span>
+</button>
+<!-- Tab Bar -->
+<nav class="fixed bottom-0 left-0 right-0 bg-background-light dark:bg-background-dark/90 ios-blur border-t border-slate-200 dark:border-white/5 px-6 pt-3 pb-6 flex justify-between items-center">
+<div class="flex flex-col items-center text-primary">
+<span class="material-icons">dashboard</span>
+<span class="text-[10px] mt-1 font-bold">Sessions</span>
+</div>
+<div class="flex flex-col items-center text-slate-400">
+<span class="material-icons">analytics</span>
+<span class="text-[10px] mt-1 font-medium">Stats</span>
+</div>
+<div class="flex flex-col items-center text-slate-400">
+<span class="material-icons">people</span>
+<span class="text-[10px] mt-1 font-medium">Staff</span>
+</div>
+<div class="flex flex-col items-center text-slate-400">
+<span class="material-icons">settings</span>
+<span class="text-[10px] mt-1 font-medium">Settings</span>
+</div>
+</nav>
+</body></html>

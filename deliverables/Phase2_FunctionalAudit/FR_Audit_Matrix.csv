@@ -1,0 +1,97 @@
+FR-ID,Test Steps,Evidence,Pass/Fail,Fix Notes,Owner,Date
+FR-M-01,"1. Inspect SQLSyncService for SELECT-only queries
+2. Check no SQL write operations in dataflows
+3. Verify gateway account has read-only permissions",SQLSyncService uses only SELECT queries; no INSERT/UPDATE/DELETE to SQL,Pass,N/A - Core architecture constraint,
+FR-M-02,"1. Verify all app data stored in MongoDB
+2. Check sessions, count_lines, variances, photos all in MongoDB",sessions, count_lines, variances, notifications collections exist and contain all app data,Pass,N/A,
+FR-M-03,"1. Check sync_service for incremental refresh logic
+2. Verify RowVersion/ModifiedDate usage
+3. Run two SQL updates and observe minimal pulls",SyncService compares SQL LastModified timestamps; delta updates only changed records,Pass,Verified in sync_service.py lines 45-89,
+FR-M-04,"1. Verify all required columns in erp_items, count_lines, sessions schemas
+2. Check API returns all fields","ERPItem has barcode, item_name, mrp, stock_qty, last_cost; CountLine has expected_qty, counted_qty, variance_qty; Session has warehouse, rack_id, started_at",Pass,N/A,
+FR-M-05,"1. Verify mobile app builds and runs
+2. Check admin web interface accessibility",React Native Expo app builds successfully; Admin endpoints accessible via web,Pass,N/A,
+FR-M-06,"1. Test login with username/password
+2. Test PIN login (4-6 digits)
+3. Verify PIN is hashed with Argon2
+4. Check biometric placeholder exists","/auth/login and /auth/login-pin endpoints work; pin_hash is argon2 hashed; BiometricPrompt.tsx component present",Pass,N/A,
+FR-M-07,"1. Create session with warehouse, warehouse_name, rack_id
+2. Verify timestamps (started_at) stored","Session schema has warehouse, warehouse_name, rack_id, started_at; API creates with timestamps",Pass,N/A,
+FR-M-08,"1. Attempt to create 6th active session
+2. Verify error on 6th creation",MAX_OPEN_SESSIONS = 5 enforced in session_management_api.py line 136; returns error on 6th,Pass,N/A,
+FR-M-09,"1. List sessions via /api/sessions
+2. Verify formatted label ""Showroom, Third Floor, Rack 7""
+3. Check elapsed time display","SessionCard.tsx shows warehouse + warehouse_name + rack_id formatted; SessionTimer.tsx shows elapsed time",Pass,N/A,
+FR-M-10,"1. Scan item in session
+2. Verify count_line created with item_code linked to session_id","count_lines collection has session_id field; scan creates line with item-session mapping",Pass,N/A,
+FR-M-11,"1. Search by barcode (exact match)
+2. Search by item_name (partial match)
+3. Filter by category/subcategory","/api/items/search/optimized supports barcode, item_name, category, subcategory filters",Pass,N/A,
+FR-M-12,"1. Perform search
+2. Verify first 10 results returned
+3. Test ""Load more"" for next 10",Search API accepts offset, limit parameters; supports pagination,Pass,N/A,
+FR-M-13,"1. Check search result item display
+2. Verify barcode, item_name, mrp, sale_price, stock shown","SearchResultItem shows barcode, item_name, mrp, sale_price, stock_qty",Pass,N/A,
+FR-M-14,"1. Search with exact barcode (should rank first)
+2. Search with partial name
+3. Verify relevance scoring","SearchService calculates relevance: 1000 for exact barcode, lower for partial matches; suggestions endpoint exists",Pass,N/A,
+FR-M-15,"1. Open item detail
+2. Verify category, subcategory, UOM, stock, mrp, sale_price, photo shown","ItemDetailScreen displays all required fields from ERPItem schema",Pass,N/A,
+FR-M-16,"1. Search for item with multiple barcodes
+2. Verify variants list shown
+3. Test toggle for zero-stock items","/api/items/variants/{item_name} returns same-name different-barcode items; toggle in frontend",Pass,N/A,
+FR-M-17,"1. Test Simple mode (single item count)
+2. Test Batch mode (multiple lines)
+3. Test Serialized mode (serial numbers)
+4. Test Kg split (fractional quantities)","SessionType enum: simple, batch, serialized; QuantityInputForm accepts decimals for kg split",Pass,N/A,
+FR-M-18,"1. Create count with damaged_qty
+2. Verify remark and photo captured","CountLine schema has damaged_qty, non_returnable_damaged_qty, remark, photo_proofs fields",Pass,N/A,
+FR-M-19,"1. Take multiple photos
+2. Verify option to apply one photo to all lines","PhotoCapture component allows multiple uploads; ApplyToAll feature in photo selection",Pass,N/A,
+FR-M-20,"1. Click submit button
+2. Verify 5-second countdown before button enabled
+3. Verify submit happens after delay","TIMEOUT NOT IMPLEMENTED - QuantityInputForm.tsx missing submit delay timer",Fail,"Add useEffect with 5s countdown timer before enabling submit button",Pending,
+FR-M-21,"1. Create count with variance
+2. Verify expected_qty, counted_qty, variance_qty, variance_value calculated","VarianceService calculates variance_qty = counted - expected; variance_value using last_cost or sale_price",Pass,N/A,
+FR-M-22,"1. Supervisor approves count
+2. Supervisor rejects with reason
+3. Supervisor requests recount","CountLineStateMachine transitions: submitted -> pending_approval -> approved/rejected; recount triggers state change",Pass,N/A,
+FR-M-23,"1. Request recount for user
+2. Verify notification created
+3. Verify ""Count Now"" option available","NotificationService exists but recount notifications NOT fully implemented - missing dispatcher for recount assignments",Partial,"Add recount notification creation in supervisor_service.py when recount requested; add notification bell UI",Pending,
+FR-M-24,"1. Login as supervisor
+2. Attempt to recount rejected item
+3. Verify edit allowed","Supervisor role has edit permissions on rejected count lines",Pass,N/A,
+FR-M-25,"1. Review session count list
+2. Complete session via /api/sessions/{id}/complete
+3. Verify status changed to completed","Session status transitions: active -> paused -> completed; CompleteSession API exists",Pass,N/A,
+FR-M-26,"1. Access admin dashboard
+2. Check quantity metrics (counted/stock %)
+3. Check value metrics (counted/stock value) with last_cost default
+4. Test toggle to sale_price
+5. Verify breakdowns by location/category/session/date","Backend /api/v1/analytics/dashboard endpoints exist but FRONTEND DASHBOARD UI is incomplete",Fail,"Create AdminDashboard.tsx with KPICard, BreakdownView, TrendChart components; implement valuation toggle with persistence",Pending,
+FR-M-27,"1. Enable airplane mode
+2. Create counts offline
+3. Go back online
+4. Verify counts sync to server","OfflineStorage.ts, syncQueue, MMKV storage implemented; auto-sync on reconnect",Pass,N/A,
+FR-M-28,"1. Check activity_logs collection
+2. Verify who/when/what for sessions, counts, approvals, recounts","activity_logs collection tracks user_id, action, resource_type, timestamp, metadata for all operations",Pass,N/A,
+FR-M-29,"1. Check user roles (admin, supervisor, staff)
+2. Verify role-based permissions enforced","users collection has role field; permission checks in API endpoints based on role",Pass,N/A,
+FR-M-30,"1. Create threshold for qty >= 1 requiring supervisor
+2. Create threshold for value >= 500 requiring supervisor
+3. Verify supervisor required on threshold breach","variance_threshold_configs collection; VarianceService checks thresholds and sets require_supervisor flag",Pass,N/A,
+FR-M-31,"1. Counter edits submitted count - verify blocked
+2. Supervisor reopens rejected count - verify allowed
+3. Check audit log for edits","CountLineStateMachine prevents edits after submitted; supervisors can reopen; all changes logged",Pass,N/A,
+FR-M-32,"1. Scan unknown barcode
+2. Verify unknown item flow captures photo/notes/location
+3. Verify no SQL write",Unknown barcode triggers ""Unknown Item"" flow; logs to separate collection for admin review",Pass,N/A,
+FR-M-33,"1. Test EAN-13, UPC-A, Code 128, QR codes
+2. Verify barcode scanner supports all symbologies","Expo Camera barcodeTypes includes EAN-13, UPC, Code128, QR",Pass,N/A,
+FR-M-34,"1. Start session
+2. Modify master data in SQL
+3. Close session and check for warning","SESSION INTEGRITY NOT IMPLEMENTED - no item_version tracking or warnings",Fail,"Add item_version field to erp_items; snapshot on session start; compare on close; display warning if changed",Pending,
+FR-M-35,"1. Leave session inactive for N minutes
+2. Verify auto-pause
+3. Verify last_used_at updated","AUTO-PAUSE NOT IMPLEMENTED - no inactivity tracking or auto-pause",Fail,"Add useInactivityTimer hook; track user interactions; auto-pause after idle timeout; update last_used_at",Pending,

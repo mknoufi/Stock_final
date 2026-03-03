@@ -1,0 +1,28 @@
+# Build output
+dist/
+build/
+coverage/
+.expo/
+.metro-cache/
+web-build/
+dist-analysis/
+
+# Bundled / generated files
+**/*.bundle.js
+**/*.min.js
+**/*.map
+**/generated/**
+
+# E2E
+e2e/
+
+# Tooling
+scripts/
+typescript-plugin-filter-text-errors.js
+
+# Jest runtime
+jest.setup.js
+jest.polyfills.js
+
+# Expo / Metro internals
+node_modules/

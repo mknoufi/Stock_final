@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Confirm Policy Update</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#137fec",
+              "background-light": "#f6f7f8",
+              "background-dark": "#101922",
+            },
+            fontFamily: {
+              "display": ["Inter", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        /* Custom scrollbar for the modal content if it gets too long */
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display antialiased overflow-hidden">
+<!-- Main Background Content (Dimmed) -->
+<div aria-hidden="true" class="relative flex h-screen w-full flex-col bg-[#111418] dark overflow-hidden filter blur-[2px] opacity-40 pointer-events-none">
+<!-- Reusing provided TopAppBar structure as background context -->
+<div class="flex items-center bg-[#111418] p-4 pb-2 justify-between">
+<div class="text-white flex size-12 shrink-0 items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-size: 24px;">arrow_back</span>
+</div>
+<h2 class="text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">Governance Rules</h2>
+<div class="flex w-12 items-center justify-end"><p class="text-[#9dabb9] text-base font-bold leading-normal tracking-[0.015em] shrink-0">Save</p></div>
+</div>
+<h1 class="text-white tracking-light text-[32px] font-bold leading-tight px-4 text-left pb-3 pt-6">Stock Verification Rules</h1>
+<p class="text-white text-base font-normal leading-normal pb-3 pt-1 px-4">Configure automated thresholds and approval workflows.</p>
+<h3 class="text-white text-lg font-bold leading-tight tracking-[-0.015em] px-4 pb-2 pt-4">Variance Thresholds</h3>
+<div class="px-4">
+<div class="relative flex w-full flex-col items-start justify-between gap-3 py-4 border-b border-[#293038]">
+<div class="flex w-full shrink-[3] items-center justify-between">
+<p class="text-white text-base font-medium leading-normal">Maximum allowed variance</p>
+<p class="text-white text-sm font-normal leading-normal">3%</p>
+</div>
+<div class="flex h-4 w-full items-center gap-4">
+<div class="flex h-1 flex-1 rounded-sm bg-[#3b4754]">
+<div class="h-full w-[32%] rounded-sm bg-white"></div>
+<div class="relative"><div class="absolute -left-2 -top-1.5 size-4 rounded-full bg-white"></div></div>
+</div>
+</div>
+</div>
+<div class="relative flex w-full flex-col items-start justify-between gap-3 py-4 border-b border-[#293038]">
+<div class="flex w-full shrink-[3] items-center justify-between">
+<p class="text-white text-base font-medium leading-normal">Auto-approval limit</p>
+<p class="text-white text-sm font-normal leading-normal">$500</p>
+</div>
+<div class="w-full text-[#9dabb9] text-sm">Requires manager override above this amount.</div>
+</div>
+</div>
+</div>
+<!-- Modal Overlay -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+<!-- Modal Card -->
+<div class="bg-[#1C252E] border border-[#2D3642] w-full max-w-sm rounded-xl shadow-2xl flex flex-col max-h-[90vh]">
+<!-- Modal Header -->
+<div class="p-5 border-b border-[#2D3642] flex items-center gap-3">
+<div class="flex items-center justify-center size-10 rounded-full bg-amber-500/10 shrink-0">
+<span class="material-symbols-outlined text-amber-500" style="font-size: 24px;">warning</span>
+</div>
+<div>
+<h3 class="text-white text-lg font-bold leading-tight">Confirm Policy Update</h3>
+<p class="text-[#9CA3AF] text-xs mt-0.5">Admin Governance</p>
+</div>
+</div>
+<!-- Scrollable Content -->
+<div class="p-5 overflow-y-auto scrollbar-hide">
+<!-- Warning Banner -->
+<div class="bg-amber-900/20 border border-amber-900/30 rounded-lg p-3 mb-5 flex gap-3">
+<span class="material-symbols-outlined text-amber-500 shrink-0 mt-0.5" style="font-size: 20px;">info</span>
+<p class="text-amber-100/90 text-sm leading-snug">
+                        Updating governance rules will increment policy version to <span class="font-bold text-amber-400">v4.3</span>. This change is <span class="font-semibold text-white">immutable</span> and will be broadcast to all devices immediately.
+                    </p>
+</div>
+<!-- Changes Preview -->
+<div class="mb-5">
+<h4 class="text-[#9CA3AF] text-xs font-bold uppercase tracking-wider mb-3">Modified Rules</h4>
+<div class="bg-[#11161B] rounded-lg divide-y divide-[#2D3642] border border-[#2D3642]">
+<!-- Change Item 1 -->
+<div class="p-3 flex flex-col gap-1">
+<span class="text-white text-sm font-medium">Variance Threshold</span>
+<div class="flex items-center text-xs gap-2">
+<span class="text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded line-through decoration-red-400/50">5%</span>
+<span class="material-symbols-outlined text-[#6B7280]" style="font-size: 14px;">arrow_forward</span>
+<span class="text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded font-bold">3%</span>
+</div>
+</div>
+<!-- Change Item 2 -->
+<div class="p-3 flex flex-col gap-1">
+<span class="text-white text-sm font-medium">Auto-Approve</span>
+<div class="flex items-center text-xs gap-2">
+<span class="text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded">Enabled</span>
+<span class="material-symbols-outlined text-[#6B7280]" style="font-size: 14px;">arrow_forward</span>
+<span class="text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded font-bold">Disabled</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Audit Requirement -->
+<div>
+<label class="block text-white text-sm font-medium mb-2" for="reason">
+                        Reason for Change <span class="text-red-500">*</span>
+</label>
+<textarea class="w-full bg-[#11161B] border border-[#3b4754] rounded-lg p-3 text-white text-sm placeholder-[#4B5563] focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none" id="reason" placeholder="Enter ticket ID or brief justification (Required)..." rows="3"></textarea>
+</div>
+</div>
+<!-- Actions Footer -->
+<div class="p-5 pt-2 flex flex-col gap-3 border-t border-[#2D3642] bg-[#1C252E] rounded-b-xl z-10">
+<button class="flex items-center justify-center w-full bg-primary hover:bg-blue-600 text-white font-bold py-3.5 px-4 rounded-lg transition-colors shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed">
+                    Authorize &amp; Publish
+                </button>
+<button class="flex items-center justify-center w-full bg-transparent hover:bg-[#2D3642] text-[#9CA3AF] hover:text-white font-medium py-3 px-4 rounded-lg transition-colors">
+                    Cancel
+                </button>
+</div>
+</div>
+</div>
+</body></html>

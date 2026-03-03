@@ -1,0 +1,93 @@
+import { test, expect } from "@playwright/test";
+
+test.describe("Core User Flow", () => {
+  test("Login -> Create Session -> Scan -> Verify -> Logout", async ({ page }) => {
+    test.setTimeout(300000); // 5 minutes
+
+    // Debug Network & Errors
+    page.on("requestfailed", (request) =>
+      console.log(`Request failed: ${request.url()} ${request.failure()?.errorText}`)
+    );
+    page.on("pageerror", (exception) => console.log(`Page Error: ${exception}`));
+    page.on("console", (msg) => console.log(`Browser console: ${msg.text()}`));
+    page.on("dialog", async (dialog) => {
+      await dialog.accept();
+    });
+
+    // Mock Permissions API to prevent Safari errors with Expo Camera
+    await page.addInitScript(() => {
+      if (navigator.permissions) {
+        // @ts-ignore
+        navigator.permissions.query = async () => ({
+          state: "granted",
+          onchange: null,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        });
+      }
+    });
+
+    // 1. Login
+    await page.goto("/login?e2e=1");
+    await expect(page.getByRole("button", { name: "Sign In" })).toBeVisible();
+
+    await page.getByPlaceholder("Enter your username").fill("staff1");
+    await page.getByPlaceholder("Enter your password").fill("staff123");
+    await page.getByRole("button", { name: "Sign In" }).click();
+
+    await page.waitForURL("**/staff/home**", { timeout: 30000 });
+    await expect(page.getByText(/Start New Session/)).toBeVisible();
+
+    // 2. Create Session
+    await page.getByText(/Start New Session/).click({ force: true });
+    await page.waitForTimeout(2000);
+    // await expect(page.getByText(/New Session/)).toBeVisible();
+
+    // Wait for animation
+    await page.waitForTimeout(1000);
+    await page.getByText("🛍️ Showroom").click();
+    const modal = page.getByRole("dialog");
+    await modal.getByText(/Ground Floor/).click({ force: true });
+    await page.waitForTimeout(1000);
+    await modal.getByPlaceholder("e.g. A-123").fill("A-123");
+    await page.getByText(/Start Session/).click({ force: true });
+
+    await page.waitForURL("**/staff/scan?sessionId=**", { timeout: 30000 });
+    await expect(page.getByPlaceholder("Enter barcode or item code...")).toBeVisible();
+    await expect(page.getByText("Recent Items")).toBeVisible();
+
+    // 3. Search/Lookup item
+    await page.getByPlaceholder("Enter barcode or item code...").fill("513456");
+    await page.getByTestId("scan-search-submit").click();
+
+    await page.waitForURL("**/staff/item-detail?**", { timeout: 30000 });
+    await expect(page.getByText(/Verify Item/)).toBeVisible();
+    await expect(page.getByText("Counted Quantity")).toBeVisible();
+
+    // 4. Enter quantity
+    const qtyInput = page.locator(
+      'xpath=//*[contains(normalize-space(.),"Counted Quantity")]/following::input[@placeholder="0"][1]'
+    );
+    await expect(qtyInput).toBeVisible();
+    await qtyInput.fill("10");
+    await page.getByPlaceholder("Variance reason (if any)").fill("E2E variance");
+
+    // 5. Save & Verify (wait for countdown submit to finish and navigate back)
+    await page.getByRole("button", { name: "Save & Verify" }).click();
+    await expect(page.getByText(/Undo \(\d+s\)/)).toBeVisible({
+      timeout: 5000,
+    });
+    await page.waitForURL("**/staff/scan?sessionId=**", { timeout: 60000 });
+    await expect(page.getByText("Start scanning")).toBeVisible();
+
+    // 6. Logout via Settings page
+    await page.goto("/staff/settings");
+    await expect(page.getByText("Sign Out", { exact: true })).toBeVisible();
+    await page.getByText("Sign Out", { exact: true }).click();
+    await page.waitForURL("**/welcome", { timeout: 30000 });
+    await expect(page.getByText("Lavanya E-Mart")).toBeVisible();
+
+    console.log("Flow Completed Successfully");
+  });
+});

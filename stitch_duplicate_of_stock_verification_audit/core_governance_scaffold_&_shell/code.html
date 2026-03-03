@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Core Governance Scaffold - Lavanya Emart</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#16222e",
+                        "border-dark": "#243447",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .mismatch-pulse {
+            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex flex-col font-display overflow-hidden">
+<!-- StatusRail (Top Bar) -->
+<header class="h-10 bg-background-light dark:bg-background-dark border-b border-slate-200 dark:border-border-dark flex items-center justify-between px-4 z-50">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-green-500"></span>
+<span class="text-[10px] font-bold tracking-widest uppercase text-green-500">Local Connection</span>
+</div>
+<div class="h-4 w-[1px] bg-slate-200 dark:bg-border-dark"></div>
+<div class="flex items-center gap-2">
+<span class="material-icons-round text-amber-500 text-sm">cloud_off</span>
+<span class="text-[10px] font-bold tracking-widest uppercase text-amber-500">12 Pending in Queue</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-100 dark:bg-surface-dark border border-slate-200 dark:border-border-dark">
+<span class="material-icons-round text-[12px] text-slate-400">fingerprint</span>
+<span class="text-[10px] font-mono text-slate-400">#DEV-82X</span>
+</div>
+<div class="text-[10px] text-slate-400 font-mono">
+                LAST SYNC: 2023-10-24 14:22:01
+            </div>
+</div>
+</header>
+<!-- GovernanceBanner -->
+<section class="bg-white dark:bg-surface-dark border-b border-slate-200 dark:border-border-dark px-4 py-3 flex items-center gap-8">
+<div class="flex flex-col">
+<span class="text-[9px] uppercase tracking-tighter text-slate-500 font-bold">Session Identifier</span>
+<span class="text-sm font-mono font-semibold text-primary">SESS-2023-09-AF</span>
+</div>
+<div class="h-8 w-[1px] bg-slate-200 dark:bg-border-dark"></div>
+<div class="flex flex-col flex-1 max-w-md">
+<span class="text-[9px] uppercase tracking-tighter text-slate-500 font-bold">Snapshot Hash (SHA-256)</span>
+<span class="text-xs font-mono truncate text-slate-400">8a3f821b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f</span>
+</div>
+<div class="h-8 w-[1px] bg-slate-200 dark:bg-border-dark"></div>
+<div class="flex items-center gap-3 px-4 py-1.5 rounded-lg border border-red-500/30 bg-red-500/5">
+<div class="w-2.5 h-2.5 bg-red-500 rounded-full mismatch-pulse"></div>
+<div class="flex flex-col">
+<span class="text-[9px] uppercase tracking-tighter text-red-500 font-bold">SQL Sync Status</span>
+<div class="flex items-center gap-1 text-red-500">
+<span class="material-icons-round text-sm">warning</span>
+<span class="text-xs font-bold uppercase tracking-widest">Mismatch Detected</span>
+</div>
+</div>
+</div>
+<div class="ml-auto">
+<button class="bg-primary hover:bg-primary/90 text-white text-[11px] font-bold py-2 px-4 rounded uppercase tracking-wider transition-colors">
+                Initiate Integrity Check
+            </button>
+</div>
+</section>
+<!-- Main Layout Shell -->
+<div class="flex flex-1 overflow-hidden">
+<!-- Navigation Rail (Left) -->
+<nav class="w-16 bg-slate-50 dark:bg-background-dark border-r border-slate-200 dark:border-border-dark flex flex-col items-center py-6 gap-8">
+<div class="p-2 rounded-xl bg-primary/10 text-primary">
+<span class="material-icons-round">inventory_2</span>
+</div>
+<div class="flex flex-col gap-6">
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-icons-round">account_tree</span></button>
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-icons-round">history_edu</span></button>
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-icons-round">security</span></button>
+<button class="text-slate-400 hover:text-primary transition-colors"><span class="material-icons-round">settings_input_component</span></button>
+</div>
+<div class="mt-auto flex flex-col gap-6">
+<button class="text-slate-400 hover:text-white transition-colors"><span class="material-icons-round">help_outline</span></button>
+<button class="text-slate-400 hover:text-white transition-colors"><span class="material-icons-round">settings</span></button>
+</div>
+</nav>
+<!-- Main Content (Verification Ledger) -->
+<main class="flex-1 overflow-auto bg-slate-50/50 dark:bg-background-dark/50 p-6">
+<div class="max-w-6xl mx-auto h-full flex flex-col">
+<div class="flex items-center justify-between mb-6">
+<h1 class="text-xl font-bold tracking-tight">Verification Ledger</h1>
+<div class="flex gap-2">
+<div class="flex items-center bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark rounded px-3 py-1.5">
+<span class="material-icons-round text-sm text-slate-400 mr-2">search</span>
+<input class="bg-transparent border-none p-0 text-xs focus:ring-0 w-48 font-mono" placeholder="Filter Ledger..." type="text"/>
+</div>
+<button class="bg-white dark:bg-surface-dark border border-slate-200 dark:border-border-dark px-3 py-1.5 rounded flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-border-dark transition-colors">
+<span class="material-icons-round text-sm">filter_list</span>
+<span class="text-xs font-bold uppercase">Filter</span>
+</button>
+</div>
+</div>
+<!-- Ledger Placeholder Grid -->
+<div class="flex-1 border-2 border-dashed border-slate-200 dark:border-border-dark rounded-xl flex flex-col items-center justify-center text-slate-400 relative overflow-hidden">
+<!-- Background Pattern -->
+<div class="absolute inset-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(circle at 2px 2px, currentColor 1px, transparent 0); background-size: 24px 24px;"></div>
+<span class="material-icons-round text-6xl mb-4 opacity-20">storage</span>
+<h2 class="text-lg font-medium">Verification Ledger</h2>
+<p class="text-sm font-mono mt-1 opacity-60">Awaiting Data Stream from Local Repository...</p>
+<div class="mt-8 flex gap-4">
+<div class="animate-pulse flex space-x-4">
+<div class="rounded-full bg-slate-200 dark:bg-border-dark h-3 w-3"></div>
+<div class="rounded-full bg-slate-200 dark:bg-border-dark h-3 w-3"></div>
+<div class="rounded-full bg-slate-200 dark:bg-border-dark h-3 w-3"></div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- NotificationCenter (Right Sidebar) -->
+<aside class="w-80 bg-white dark:bg-surface-dark border-l border-slate-200 dark:border-border-dark flex flex-col">
+<div class="p-4 border-b border-slate-200 dark:border-border-dark flex items-center justify-between">
+<span class="text-xs font-bold uppercase tracking-widest text-slate-500">Audit Log &amp; Alerts</span>
+<span class="text-[10px] bg-red-500 text-white px-1.5 py-0.5 rounded font-bold">2 CRITICAL</span>
+</div>
+<div class="flex-1 overflow-y-auto p-4 space-y-4">
+<!-- Critical Alert -->
+<div class="p-3 rounded bg-red-500/10 border-l-4 border-red-500 space-y-2">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-red-500 uppercase tracking-tighter">Conflict Detected</span>
+<span class="text-[9px] font-mono text-slate-500">14:42:05</span>
+</div>
+<p class="text-xs leading-relaxed font-medium">Data mismatch found in Row 442 during pre-sync validation.</p>
+<div class="flex gap-2 pt-1">
+<button class="text-[10px] font-bold uppercase text-red-500 hover:underline">Inspect</button>
+<button class="text-[10px] font-bold uppercase text-slate-500 hover:underline">Ignore</button>
+</div>
+</div>
+<!-- Status Alert -->
+<div class="p-3 rounded bg-amber-500/10 border-l-4 border-amber-500 space-y-2">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-amber-500 uppercase tracking-tighter">Session Frozen</span>
+<span class="text-[9px] font-mono text-slate-500">14:40:12</span>
+</div>
+<p class="text-xs leading-relaxed font-medium">Automatic sync paused due to unresolved mismatch. Manual action required.</p>
+<button class="bg-amber-500 text-white text-[9px] font-bold uppercase px-2 py-1 rounded w-full mt-1">Re-authenticate Session</button>
+</div>
+<!-- Info Alert -->
+<div class="p-3 rounded bg-primary/10 border-l-4 border-primary space-y-2">
+<div class="flex items-center justify-between">
+<span class="text-[10px] font-bold text-primary uppercase tracking-tighter">Ledger Update</span>
+<span class="text-[9px] font-mono text-slate-500">14:35:55</span>
+</div>
+<p class="text-xs leading-relaxed font-medium text-slate-400">Inventory batch #882 successfully committed to local storage.</p>
+</div>
+<!-- Low Priority Log -->
+<div class="p-3 space-y-1">
+<div class="flex items-center justify-between text-[9px] font-mono text-slate-500 uppercase">
+<span>Device Heartbeat</span>
+<span>14:30:00</span>
+</div>
+<p class="text-[10px] text-slate-400 italic">Pinging primary gateway... Success (4ms)</p>
+</div>
+</div>
+<div class="p-4 bg-slate-50 dark:bg-background-dark/50 border-t border-slate-200 dark:border-border-dark">
+<div class="flex items-center justify-between text-[10px] text-slate-500 font-mono mb-2">
+<span>STORAGE UTILIZATION</span>
+<span>42.8 MB / 512 MB</span>
+</div>
+<div class="w-full bg-slate-200 dark:bg-border-dark h-1 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[8%]"></div>
+</div>
+</div>
+</aside>
+</div>
+<!-- Footer System Status -->
+<footer class="h-6 bg-slate-100 dark:bg-surface-dark border-t border-slate-200 dark:border-border-dark flex items-center justify-between px-4 text-[9px] font-mono text-slate-500">
+<div class="flex items-center gap-4">
+<span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> ENGINE ACTIVE</span>
+<span>Uptime: 04h 22m 11s</span>
+</div>
+<div class="flex items-center gap-4">
+<span>THREAD_ID: 0x8A22F</span>
+<span class="text-primary">LAVANYA EMART v4.2-STABLE</span>
+</div>
+</footer>
+</body></html>

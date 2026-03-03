@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Item Detail: SQL Offline</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                        "surface-dark": "#1c2630",
+                        "surface-darker": "#151e26",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        /* Custom scrollbar hide for clean mobile look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white antialiased overflow-hidden h-screen flex flex-col">
+<!-- Sticky Connection Status Header -->
+<div class="flex items-center justify-between px-4 py-2 bg-surface-darker dark:bg-black/40 border-b border-white/5 backdrop-blur-md z-50">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-slate-500 text-[18px]">database_off</span>
+<span class="text-xs font-bold text-slate-500 line-through tracking-wider">SQL: UNAVAILABLE</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-xs font-bold text-primary tracking-wider">ONLINE (TUNNEL)</span>
+</div>
+</div>
+<!-- Main Scrollable Content -->
+<main class="flex-1 overflow-y-auto no-scrollbar pb-24 relative">
+<!-- Top App Bar -->
+<div class="flex items-center p-4 sticky top-0 z-40 bg-background-light/95 dark:bg-background-dark/95 backdrop-blur-sm">
+<button class="text-white flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10 active:scale-95 transition-all">
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+<h2 class="text-white text-lg font-bold leading-tight tracking-tight flex-1 text-center">Item #492-AC</h2>
+<button class="flex size-10 shrink-0 items-center justify-center rounded-full hover:bg-white/10 active:scale-95 transition-all text-primary">
+<span class="material-symbols-outlined">cloud_sync</span>
+</button>
+</div>
+<div class="px-4 pb-6 space-y-6">
+<!-- Degraded Mode Banner -->
+<div class="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-500/10 to-amber-900/10 border border-amber-500/20 p-4">
+<div class="absolute top-0 right-0 -mt-2 -mr-2 w-16 h-16 bg-amber-500/20 blur-2xl rounded-full"></div>
+<div class="flex gap-3 items-start">
+<span class="material-symbols-outlined text-amber-500 mt-0.5">warning</span>
+<div class="flex flex-col gap-1">
+<h3 class="text-amber-500 text-sm font-bold uppercase tracking-wide">Degraded Mode</h3>
+<p class="text-amber-100/80 text-sm leading-snug font-medium">Variance calculated against Snapshot only due to SQL outage.</p>
+</div>
+</div>
+</div>
+<!-- Item Image & Context -->
+<div class="bg-cover bg-center flex flex-col items-stretch justify-end rounded-xl h-48 relative overflow-hidden group shadow-lg shadow-black/20" data-alt="Industrial warehouse shelving with inventory boxes" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuB2EcVHfYfLpEN4aWl_pXhuW3J8YeGTmohyAzXVPkxlfcB4ojRAQ1z-8ukBYb22a7lrXDX2LFVJiMnyzBcJjW_hBbRH9zSEHsD2G_pqWtR57jgzQvTMl9Y3Yqc4lPVMG4qMs9_Qsu6rcTcBYoJcQ8wVBkRVgT8AGG98RB_6TuUI7f6aLkmT63P-q-tho-BVOtXIDBYEr0qQBFljRCseDLUuEXdU3R4VTmpBocBYFpt01FIbZ6KBfCtUK80Gjymx78HLdss38mqfQRyi");'>
+<div class="absolute inset-0 bg-gradient-to-t from-background-dark via-background-dark/50 to-transparent"></div>
+<div class="relative p-4 flex justify-between items-end">
+<div>
+<p class="text-white/60 text-xs font-semibold uppercase tracking-wider mb-1">Category</p>
+<p class="text-white text-xl font-bold">Industrial Parts</p>
+</div>
+<div class="bg-primary/20 backdrop-blur-md px-3 py-1 rounded-full border border-primary/30">
+<span class="text-primary text-xs font-bold">High Value</span>
+</div>
+</div>
+</div>
+<!-- Truth Matrix -->
+<div class="bg-surface-dark rounded-xl border border-white/5 overflow-hidden">
+<div class="px-4 py-3 border-b border-white/5 bg-surface-darker/50">
+<h3 class="text-white text-sm font-bold tracking-wide uppercase opacity-80">Truth Matrix</h3>
+</div>
+<div class="grid grid-cols-2 divide-x divide-white/5">
+<!-- Row 1 -->
+<div class="p-4 flex flex-col gap-1 border-b border-white/5 bg-white/[0.02]">
+<span class="text-slate-400 text-xs font-medium uppercase tracking-wide">ERP Observed</span>
+<div class="flex items-center gap-2">
+<span class="text-slate-600 text-xl font-mono font-bold">--</span>
+<span class="material-symbols-outlined text-slate-600 text-[16px]">cloud_off</span>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-1 border-b border-white/5 bg-primary/5">
+<span class="text-blue-200/70 text-xs font-medium uppercase tracking-wide">Snapshot</span>
+<span class="text-primary text-xl font-mono font-bold">80</span>
+</div>
+<!-- Row 2 -->
+<div class="p-4 flex flex-col gap-1 border-b border-white/5">
+<span class="text-slate-400 text-xs font-medium uppercase tracking-wide">Verified</span>
+<span class="text-white text-xl font-mono font-bold">80</span>
+</div>
+<div class="p-4 flex flex-col gap-1 border-b border-white/5">
+<span class="text-slate-400 text-xs font-medium uppercase tracking-wide">Staff</span>
+<span class="text-white text-xl font-mono font-bold">80</span>
+</div>
+<!-- Row 3: Variance (Full Width) -->
+<div class="col-span-2 p-4 flex items-center justify-between bg-emerald-500/10 border-t border-emerald-500/20">
+<span class="text-emerald-400 text-sm font-bold uppercase tracking-wide">Variance</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-emerald-500">check_circle</span>
+<span class="text-emerald-400 text-2xl font-mono font-bold">0</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Location Breakdown -->
+<div class="bg-surface-dark rounded-xl border border-white/5 p-4">
+<div class="flex items-center justify-between mb-4">
+<h3 class="text-white text-sm font-bold tracking-wide uppercase opacity-80">Location Breakdown</h3>
+<span class="text-xs text-primary font-medium">View Map</span>
+</div>
+<div class="space-y-3">
+<div class="flex items-center justify-between p-3 rounded-lg bg-surface-darker border border-white/5">
+<div class="flex items-center gap-3">
+<div class="bg-slate-700 w-8 h-8 rounded flex items-center justify-center text-white font-bold text-xs">A1</div>
+<span class="text-slate-300 text-sm font-medium">Shelf A, Row 1</span>
+</div>
+<span class="text-white font-mono font-bold">80</span>
+</div>
+<div class="h-px w-full bg-white/5"></div>
+<div class="flex items-center justify-between px-1">
+<span class="text-slate-400 text-sm">Total Sum</span>
+<span class="text-white font-mono font-bold text-lg">80</span>
+</div>
+</div>
+</div>
+<!-- Count Entry Stepper -->
+<div class="pt-2 pb-8">
+<label class="block text-slate-400 text-xs font-bold uppercase tracking-wide mb-3 text-center">Adjust Count</label>
+<div class="flex items-center justify-center gap-6">
+<button class="size-16 rounded-full bg-surface-dark border border-white/10 text-white flex items-center justify-center hover:bg-white/5 active:scale-90 transition-all shadow-lg shadow-black/20">
+<span class="material-symbols-outlined text-3xl">remove</span>
+</button>
+<div class="w-24 h-20 flex items-center justify-center bg-surface-dark rounded-xl border border-primary/30 shadow-[0_0_15px_rgba(19,127,236,0.15)]">
+<span class="text-4xl font-bold text-white font-mono">80</span>
+</div>
+<button class="size-16 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90 active:scale-90 transition-all shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-3xl">add</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Sticky Bottom Action -->
+<div class="bg-surface-darker/80 backdrop-blur-xl border-t border-white/10 p-4 safe-area-pb z-50">
+<button class="w-full h-14 bg-primary hover:bg-primary/90 active:scale-[0.98] transition-all rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-primary/25 group">
+<span class="text-white text-base font-bold tracking-wide">Submit Count</span>
+<span class="material-symbols-outlined text-white group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+</div>
+</body></html>

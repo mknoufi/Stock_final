@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Conflict Fork &amp; Lineage Viewer - Stock Verify 2026</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#0df259",
+                        "background-light": "#f5f8f6",
+                        "background-dark": "#102216",
+                        "governance-purple": "#a855f7",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .glossy-primary {
+            background: linear-gradient(180deg, rgba(13, 242, 89, 1) 0%, rgba(10, 190, 70, 1) 100%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 4px 12px rgba(13, 242, 89, 0.3);
+        }
+        .tree-line {
+            background: repeating-linear-gradient(to bottom, transparent, transparent 4px, #316843 4px, #316843 8px);
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-white min-h-screen selection:bg-primary/30">
+<div class="relative flex h-auto min-h-screen w-full flex-col overflow-x-hidden">
+<div class="layout-container flex h-full grow flex-col">
+<!-- Navigation Header -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-white/10 px-6 lg:px-20 py-4 bg-background-dark/80 backdrop-blur-md sticky top-0 z-50">
+<div class="flex items-center gap-4 text-white">
+<div class="size-8 text-primary">
+<svg fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path clip-rule="evenodd" d="M12.0799 24L4 19.2479L9.95537 8.75216L18.04 13.4961L18.0446 4H29.9554L29.96 13.4961L38.0446 8.75216L44 19.2479L35.92 24L44 28.7521L38.0446 39.2479L29.96 34.5039L29.9554 44H18.0446L18.04 34.5039L9.95537 39.2479L4 28.7521L12.0799 24Z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+<h2 class="text-xl font-bold tracking-tight uppercase">Stock Verify 2026</h2>
+</div>
+<div class="flex flex-1 justify-end gap-6 items-center">
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-white/70 hover:text-primary text-sm font-medium transition-colors" href="#">Dashboard</a>
+<a class="text-white/70 hover:text-primary text-sm font-medium transition-colors" href="#">Inventory</a>
+<a class="text-primary text-sm font-medium border-b-2 border-primary pb-1" href="#">Governance</a>
+<a class="text-white/70 hover:text-primary text-sm font-medium transition-colors" href="#">History</a>
+</nav>
+<div class="flex gap-3">
+<div class="bg-primary/10 border border-primary/30 rounded px-3 py-1 flex items-center gap-2">
+<span class="text-[10px] text-primary font-bold uppercase tracking-widest">Snapshot</span>
+<span class="text-sm font-mono text-white">0xAF32</span>
+</div>
+<div class="bg-governance-purple/10 border border-governance-purple/30 rounded px-3 py-1 flex items-center gap-2">
+<span class="text-[10px] text-governance-purple font-bold uppercase tracking-widest">Status</span>
+<span class="text-sm font-mono text-white">FORKED</span>
+</div>
+</div>
+<div class="size-10 rounded-full border border-white/20 bg-center bg-cover" data-alt="User profile avatar placeholder" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBf1EBNb2n16-y8miw0uDUOQDbTu6KmDeZi5A_6ZaaRXP7R83MMAWJrKHrmzsT0ZeQ8oyVuu6llQZcK9_fzqdUQB3t0fnHxTK-YjU-X6j8YNYeTi7DJEwo4lAcJ2JQ38k1njVBZ5dgBlS-cTqjIdGKAtuX0OJ7kZef8KRZY2F8_vGIQErdNSxp3kIjCW6klcH1lgo8hGf0fMLffPtUexEfDTGXVX4OK8jomBHjQ1c0CVQb4rH5lGzRAJ8zxYF9ISI3NOqkpwJoAsCsr");'></div>
+</div>
+</header>
+<main class="flex-1 flex flex-col items-center px-6 lg:px-20 py-8 max-w-7xl mx-auto w-full gap-8">
+<!-- Main Header Title -->
+<div class="w-full flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-l-4 border-primary pl-6">
+<div>
+<h1 class="text-4xl lg:text-5xl font-black tracking-tighter uppercase leading-none">Conflict Fork &amp; Lineage Viewer</h1>
+<p class="text-white/50 text-lg mt-2 font-light">Resolving parent_line_id chain inconsistencies for secure audit trails.</p>
+</div>
+<button class="bg-white/5 hover:bg-white/10 text-white border border-white/20 px-6 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-all">
+<span class="material-symbols-outlined text-sm">history_edu</span>
+                        View Full Audit Log
+                    </button>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-8 w-full">
+<!-- Left: Version Tree (Lineage) -->
+<div class="lg:col-span-5 bg-white/[0.02] border border-white/10 rounded-xl p-8 flex flex-col">
+<div class="flex items-center gap-3 mb-8">
+<span class="material-symbols-outlined text-primary">account_tree</span>
+<h3 class="text-lg font-bold uppercase tracking-widest">Version Lineage Tree</h3>
+</div>
+<!-- Tree Visualization -->
+<div class="relative space-y-12 ml-6">
+<!-- Baseline Node -->
+<div class="relative flex items-start gap-6 group">
+<div class="absolute -left-[31px] top-6 w-px h-full tree-line"></div>
+<div class="relative z-10 size-12 rounded-full bg-zinc-800 border-4 border-zinc-700 flex items-center justify-center">
+<span class="material-symbols-outlined text-zinc-500 text-xl">database</span>
+</div>
+<div class="flex-1 bg-zinc-900/50 border border-zinc-800 p-4 rounded-lg group-hover:border-zinc-700 transition-colors">
+<div class="flex justify-between items-center mb-1">
+<span class="text-zinc-400 font-bold text-xs tracking-widest">VERSION 0</span>
+<span class="bg-zinc-800 text-zinc-500 text-[10px] px-2 py-0.5 rounded">BASELINE</span>
+</div>
+<p class="font-bold text-lg">System Root (v0)</p>
+<div class="flex items-center gap-4 mt-2 text-xs text-zinc-500 font-mono">
+<span>TS: 2026-05-12 09:00</span>
+<span>ID: SYSTEM_ROOT</span>
+</div>
+</div>
+</div>
+<!-- Staff Fork Node -->
+<div class="relative flex items-start gap-6 group">
+<div class="absolute -left-[31px] top-6 w-px h-full tree-line"></div>
+<div class="relative z-10 size-12 rounded-full bg-blue-900/30 border-4 border-blue-500/50 flex items-center justify-center">
+<span class="material-symbols-outlined text-blue-400 text-xl">person</span>
+</div>
+<div class="flex-1 bg-blue-900/10 border border-blue-500/30 p-4 rounded-lg group-hover:border-blue-500/50 transition-colors">
+<div class="flex justify-between items-center mb-1">
+<span class="text-blue-400 font-bold text-xs tracking-widest uppercase">Version 1</span>
+<span class="bg-blue-900/40 text-blue-400 text-[10px] px-2 py-0.5 rounded">STAFF ADJUSTMENT</span>
+</div>
+<p class="font-bold text-lg">Staff Fork v1</p>
+<div class="flex items-center gap-4 mt-2 text-xs text-blue-400/70 font-mono">
+<span>TS: 2026-05-12 10:15</span>
+<span>ID: EMP_4421</span>
+</div>
+</div>
+</div>
+<!-- Supervisor Fork Node (Active/Proposed) -->
+<div class="relative flex items-start gap-6 group">
+<div class="relative z-10 size-12 rounded-full bg-primary/20 border-4 border-primary flex items-center justify-center shadow-[0_0_15px_rgba(13,242,89,0.3)]">
+<span class="material-symbols-outlined text-primary text-xl">verified_user</span>
+</div>
+<div class="flex-1 bg-primary/10 border border-primary/40 p-4 rounded-lg group-hover:border-primary transition-colors">
+<div class="flex justify-between items-center mb-1">
+<span class="text-primary font-bold text-xs tracking-widest uppercase">Version 2</span>
+<span class="bg-primary/20 text-primary text-[10px] px-2 py-0.5 rounded">PROPOSED RESOLUTION</span>
+</div>
+<p class="font-bold text-lg">Supervisor Fork v2</p>
+<div class="flex items-center gap-4 mt-2 text-xs text-primary/70 font-mono">
+<span>TS: 2026-05-12 11:30</span>
+<span>ID: SUP_9921</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right: Comparison and Resolution -->
+<div class="lg:col-span-7 flex flex-col gap-8">
+<!-- Stock Triptych Comparison -->
+<div class="bg-white/[0.02] border border-white/10 rounded-xl p-6">
+<h3 class="text-lg font-bold uppercase tracking-widest mb-6 flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">analytics</span>
+                                Item Stock Triptych Comparison
+                            </h3>
+<div class="grid grid-cols-3 gap-4">
+<div class="flex flex-col gap-2 rounded-lg p-5 border border-white/10 bg-white/[0.01]">
+<p class="text-white/50 text-xs font-bold uppercase tracking-tighter leading-normal">SQL Source (v0)</p>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="text-3xl font-black">100</span>
+<span class="text-[10px] text-white/30 uppercase">units</span>
+</div>
+<div class="flex items-center gap-1 mt-2 text-white/40 text-xs">
+<span class="material-symbols-outlined text-sm">remove</span>
+<span>Baseline</span>
+</div>
+</div>
+<div class="flex flex-col gap-2 rounded-lg p-5 border border-red-500/20 bg-red-500/5">
+<p class="text-red-400/70 text-xs font-bold uppercase tracking-tighter leading-normal">Staff Entry (v1)</p>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="text-3xl font-black text-red-400">98</span>
+<span class="text-[10px] text-red-400/30 uppercase">units</span>
+</div>
+<div class="flex items-center gap-1 mt-2 text-red-500 text-xs font-bold">
+<span class="material-symbols-outlined text-sm">trending_down</span>
+<span>-2.0%</span>
+</div>
+</div>
+<div class="flex flex-col gap-2 rounded-lg p-5 border border-primary/30 bg-primary/5">
+<p class="text-primary/70 text-xs font-bold uppercase tracking-tighter leading-normal">Supervisor (v2)</p>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="text-3xl font-black text-primary">102</span>
+<span class="text-[10px] text-primary/30 uppercase">units</span>
+</div>
+<div class="flex items-center gap-1 mt-2 text-primary text-xs font-bold">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span>+4.0%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Resolution Reason & Actions -->
+<div class="bg-white/[0.02] border border-white/10 rounded-xl p-6 flex flex-col gap-6">
+<div>
+<h3 class="text-lg font-bold uppercase tracking-widest mb-1 flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">gavel</span>
+                                    Resolution Protocol
+                                </h3>
+<p class="text-white/40 text-sm">Mandatory reason required for overriding supersedes_line_id.</p>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-xs font-bold uppercase text-white/60 tracking-widest" for="reason">Resolution Reason</label>
+<textarea class="w-full bg-black/40 border border-white/10 rounded-lg p-4 text-white placeholder:text-white/20 focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none font-sans" id="reason" placeholder="Enter detailed technical justification for version 2 selection... (e.g. Correction of delivery miscount 0x442, verified by loading dock CCTV)" rows="4"></textarea>
+</div>
+<div class="flex flex-col sm:flex-row gap-4 mt-2">
+<button class="flex-1 glossy-primary text-background-dark text-base font-black uppercase tracking-widest py-4 px-8 rounded-lg flex items-center justify-center gap-3 hover:scale-[1.01] transition-transform active:scale-[0.99]">
+<span class="material-symbols-outlined font-bold">verified</span>
+                                    Resolve with Version 2
+                                </button>
+<button class="px-8 py-4 border border-white/10 rounded-lg text-white/60 hover:text-white hover:bg-white/5 font-bold uppercase tracking-widest transition-colors">
+                                    Reject All
+                                </button>
+</div>
+<div class="flex items-center gap-3 p-3 bg-zinc-900/50 rounded border border-white/5">
+<span class="material-symbols-outlined text-amber-500 text-sm">info</span>
+<p class="text-[11px] text-white/40 uppercase tracking-tight">Governance alert: Finalizing this resolution will deprecate v1 and v0 lineage branches for snapshot 0xAF32.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Details -->
+<footer class="border-t border-white/10 px-6 lg:px-20 py-6 bg-background-dark flex flex-col md:flex-row justify-between items-center gap-4 text-[10px] text-white/30 uppercase tracking-[0.2em]">
+<div class="flex gap-8">
+<span>Terminal Session: LV-2928-8</span>
+<span>Server: NODE-DELTA-04</span>
+<span>System Integrity: 99.98%</span>
+</div>
+<div>
+                    © 2026 Stock Verify Governance Layer
+                </div>
+</footer>
+</div>
+</div>
+</body></html>

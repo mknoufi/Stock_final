@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Conflict Merge Interface</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Theme Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#8c2bee",
+                        "background-light": "#f7f6f8",
+                        "background-dark": "#141118", // Darker background to match the provided snippet
+                        "surface-dark": "#1E1A24", // Slightly lighter for cards
+                        "conflict": "#FFB020", // Amber for conflicts
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar hide for cleaner mobile look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-white h-full min-h-screen flex justify-center">
+<!-- Mobile Container -->
+<div class="w-full max-w-md bg-background-light dark:bg-background-dark flex flex-col relative h-full min-h-screen shadow-2xl overflow-hidden">
+<!-- Top App Bar -->
+<header class="flex items-center bg-background-dark p-4 pb-2 justify-between sticky top-0 z-20 border-b border-white/5">
+<button class="text-white flex size-10 shrink-0 items-center justify-center rounded-full active:bg-white/10 transition-colors">
+<span class="material-symbols-outlined text-2xl">arrow_back</span>
+</button>
+<div class="flex flex-col items-center flex-1 mx-2">
+<h2 class="text-white text-base font-bold leading-tight tracking-tight text-center">Merge Conflict</h2>
+<p class="text-white/50 text-xs font-medium tracking-wide">#S-9021 • Sony WH-1000XM5</p>
+</div>
+<button class="flex size-10 items-center justify-center text-primary font-bold text-sm tracking-wide">
+                Help
+            </button>
+</header>
+<!-- Main Content Scroll Area -->
+<main class="flex-1 overflow-y-auto no-scrollbar pb-32">
+<!-- Governance Header / Warning -->
+<div class="bg-surface-dark p-6 border-b border-white/5 relative overflow-hidden">
+<!-- Abstract background decoration -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+<div class="flex gap-3 relative z-10">
+<div class="bg-red-500/20 text-red-400 p-2 rounded-lg h-min shrink-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">lock_clock</span>
+</div>
+<div class="flex flex-col gap-1">
+<h1 class="text-white text-lg font-bold leading-tight">Optimistic Lock Mismatch</h1>
+<p class="text-white/60 text-sm leading-relaxed">
+                            Record updated by <span class="text-white font-medium">Staff B (v13)</span> while you were editing <span class="text-white font-medium">(v12)</span>. 
+                        </p>
+<div class="flex items-center gap-2 mt-2">
+<span class="text-xs font-mono bg-white/10 px-2 py-0.5 rounded text-white/80">v12 vs v13</span>
+<span class="text-xs text-conflict font-medium flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">warning</span>
+                                Action Required
+                            </span>
+</div>
+</div>
+</div>
+</div>
+<div class="p-4 flex flex-col gap-6">
+<!-- Section Header -->
+<div class="flex items-center justify-between px-1">
+<h3 class="text-white/90 text-sm font-bold uppercase tracking-wider">Unresolved Differences (3)</h3>
+<span class="text-xs text-white/40">Tap source to resolve</span>
+</div>
+<!-- CONFLICT CARD 1: Staff Count -->
+<div class="bg-surface-dark rounded-xl border border-conflict/30 overflow-hidden shadow-lg shadow-black/20">
+<div class="bg-gradient-to-r from-conflict/10 to-transparent p-3 px-4 border-b border-white/5 flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-conflict text-lg">inventory_2</span>
+<span class="text-white font-semibold text-sm">Physical Count</span>
+</div>
+<span class="text-conflict text-xs font-bold px-2 py-1 bg-conflict/10 rounded-full border border-conflict/20">Mismatch</span>
+</div>
+<!-- Comparison Grid -->
+<div class="grid grid-cols-2 gap-px bg-white/5">
+<!-- Server Side -->
+<div class="bg-surface-dark p-4 group relative cursor-pointer hover:bg-white/5 transition-colors">
+<div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white/40 text-lg">check_circle</span>
+</div>
+<span class="text-xs text-primary font-medium mb-1 block">Server (v13)</span>
+<div class="text-2xl font-bold text-white mb-1">110</div>
+<div class="text-xs text-white/50 flex items-center gap-1">
+<span class="size-4 bg-purple-500 rounded-full text-[8px] flex items-center justify-center text-white">B</span>
+                                Staff B
+                            </div>
+</div>
+<!-- Local Side -->
+<div class="bg-surface-dark p-4 group relative cursor-pointer hover:bg-white/5 transition-colors border-l border-white/5">
+<div class="absolute top-3 right-3 text-primary">
+<span class="material-symbols-outlined text-lg fill-current">check_circle</span>
+</div>
+<span class="text-xs text-emerald-400 font-medium mb-1 block">Your Fork (v12)</span>
+<div class="text-2xl font-bold text-white mb-1">105</div>
+<div class="text-xs text-white/50 flex items-center gap-1">
+<span class="size-4 bg-emerald-600 rounded-full text-[8px] flex items-center justify-center text-white">A</span>
+                                You
+                            </div>
+</div>
+</div>
+<!-- Resolution Area -->
+<div class="p-4 bg-[#141118]/50 border-t border-white/5">
+<label class="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wide">Resolved Value (Final)</label>
+<div class="flex gap-2">
+<div class="relative flex-1">
+<input class="w-full bg-surface-dark border border-primary/50 text-white font-bold rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all shadow-[0_0_15px_rgba(140,43,238,0.15)]" type="number" value="105"/>
+<div class="absolute right-3 top-3.5 text-primary">
+<span class="material-symbols-outlined text-lg">edit</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- CONFLICT CARD 2: Location -->
+<div class="bg-surface-dark rounded-xl border border-white/10 overflow-hidden">
+<div class="p-3 px-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white/60 text-lg">location_on</span>
+<span class="text-white font-semibold text-sm">Storage Zone</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-px bg-white/5">
+<!-- Server Side -->
+<div class="bg-surface-dark p-4 group cursor-pointer relative hover:bg-white/5 transition-colors">
+<div class="absolute top-3 right-3 text-primary">
+<span class="material-symbols-outlined text-lg fill-current">check_circle</span>
+</div>
+<span class="text-xs text-primary font-medium mb-1 block">Server (v13)</span>
+<div class="text-sm font-bold text-white mb-1 leading-tight">Zone A-12</div>
+<div class="text-xs text-white/40">Main Warehouse</div>
+</div>
+<!-- Local Side -->
+<div class="bg-surface-dark p-4 group cursor-pointer relative hover:bg-white/5 transition-colors border-l border-white/5">
+<div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-white/40 text-lg">check_circle</span>
+</div>
+<span class="text-xs text-emerald-400 font-medium mb-1 block">Your Fork (v12)</span>
+<div class="text-sm font-bold text-white mb-1 leading-tight">Zone B-04</div>
+<div class="text-xs text-white/40">Retail Floor</div>
+</div>
+</div>
+<div class="p-4 bg-[#141118]/50 border-t border-white/5">
+<label class="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wide">Resolved Value</label>
+<div class="relative flex-1">
+<input class="w-full bg-surface-dark border border-primary/50 text-white font-bold rounded-lg px-4 py-3 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-all" type="text" value="Zone A-12"/>
+</div>
+</div>
+</div>
+<!-- CONFLICT CARD 3: Serial Numbers -->
+<div class="bg-surface-dark rounded-xl border border-white/10 overflow-hidden">
+<div class="p-3 px-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-white/60 text-lg">qr_code</span>
+<span class="text-white font-semibold text-sm">Serial Numbers</span>
+</div>
+<span class="text-white/40 text-xs font-medium px-2 py-1 bg-white/5 rounded">List Match: 98%</span>
+</div>
+<!-- Accordion Header Style for List -->
+<div class="flex flex-col">
+<div class="flex w-full">
+<!-- Option 1 -->
+<button class="flex-1 p-3 text-left border-r border-b border-white/5 hover:bg-white/5 transition-colors bg-primary/10">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[10px] uppercase text-primary font-bold">Server</span>
+<span class="material-symbols-outlined text-primary text-base">radio_button_checked</span>
+</div>
+<div class="text-xs text-white truncate font-mono">SN-9921...88X</div>
+<div class="text-[10px] text-white/40 mt-1">+11 more items</div>
+</button>
+<!-- Option 2 -->
+<button class="flex-1 p-3 text-left border-b border-white/5 hover:bg-white/5 transition-colors">
+<div class="flex items-center justify-between mb-1">
+<span class="text-[10px] uppercase text-emerald-400 font-bold">Local</span>
+<span class="material-symbols-outlined text-white/30 text-base">radio_button_unchecked</span>
+</div>
+<div class="text-xs text-white truncate font-mono">SN-9921...42Z</div>
+<div class="text-[10px] text-white/40 mt-1">+8 more items</div>
+</button>
+</div>
+<!-- Diff Viewer (Simplified) -->
+<div class="p-4 bg-[#141118]/50 text-xs font-mono space-y-2">
+<div class="flex items-center gap-2 text-white/50 border-b border-white/5 pb-2 mb-2">
+<span class="material-symbols-outlined text-sm">difference</span>
+<span>Found 1 missing serial in Local</span>
+</div>
+<div class="flex items-center justify-between bg-red-500/10 p-2 rounded border border-red-500/20">
+<span class="text-red-300">- SN-8822-XJ9</span>
+<span class="text-[10px] text-red-400">Missing locally</span>
+</div>
+</div>
+<div class="p-4 pt-2">
+<label class="text-xs text-white/40 mb-2 block font-medium uppercase tracking-wide">Resolved List</label>
+<div class="w-full bg-surface-dark border border-primary/50 text-white text-sm rounded-lg px-4 py-3 flex justify-between items-center cursor-pointer hover:bg-primary/5">
+<span>Use Server List (12 items)</span>
+<span class="material-symbols-outlined text-white/40 text-lg">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Spacer for fixed footer -->
+<div class="h-24"></div>
+</main>
+<!-- Fixed Action Footer -->
+<footer class="absolute bottom-0 w-full bg-surface-dark border-t border-white/10 p-4 pb-6 z-30 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
+<div class="flex flex-col gap-3">
+<div class="flex items-center justify-between px-1 mb-1">
+<span class="text-xs text-white/50">Conflicts Remaining:</span>
+<span class="text-xs font-bold text-emerald-400 flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">check</span>
+                        Ready to Merge
+                    </span>
+</div>
+<button class="w-full bg-primary hover:bg-primary/90 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-primary/25 transition-all active:scale-[0.98]">
+<span class="material-symbols-outlined">cloud_sync</span>
+                    Authorize &amp; Merge to Mongo SoT
+                </button>
+<button class="w-full bg-transparent hover:bg-white/5 text-red-400 font-medium py-3 px-6 rounded-xl flex items-center justify-center gap-2 text-sm transition-colors border border-transparent hover:border-red-500/20">
+<span class="material-symbols-outlined text-lg">delete_forever</span>
+                    Discard Fork (Lose Local Changes)
+                </button>
+</div>
+</footer>
+</div>
+</body></html>

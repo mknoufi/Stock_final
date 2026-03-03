@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login Restricted: Offline</title>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind Config -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#137fec",
+                        "background-light": "#f6f7f8",
+                        "background-dark": "#101922",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar hiding for clean mobile look */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Gradient text util */
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-white h-screen flex flex-col overflow-hidden selection:bg-primary/30">
+<!-- Main Content Wrapper -->
+<div class="flex-1 flex flex-col relative w-full max-w-md mx-auto h-full px-6 pt-12 pb-6">
+<!-- Status Header (Centered) -->
+<div class="flex flex-col items-center justify-center pt-8 pb-8 space-y-4">
+<div class="relative">
+<div class="absolute inset-0 bg-red-500/20 blur-xl rounded-full"></div>
+<div class="relative size-20 rounded-full bg-background-dark border border-red-500/30 flex items-center justify-center shadow-lg shadow-red-900/20">
+<span class="material-symbols-outlined text-red-500" style="font-size: 40px;">wifi_off</span>
+</div>
+</div>
+<div class="text-center space-y-1">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20">
+<div class="size-2 rounded-full bg-red-500 animate-pulse"></div>
+<span class="text-red-500 text-xs font-bold tracking-wider uppercase">Offline Restricted</span>
+</div>
+<h1 class="text-2xl font-bold tracking-tight text-white mt-2">Connection Lost</h1>
+</div>
+</div>
+<!-- Notification Banner -->
+<div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-8 flex gap-3 items-start backdrop-blur-sm">
+<span class="material-symbols-outlined text-red-400 shrink-0 mt-0.5" style="font-size: 20px;">gpp_bad</span>
+<div class="space-y-1">
+<p class="text-red-200 text-sm font-medium leading-snug">
+                    Login disabled
+                </p>
+<p class="text-red-300/80 text-xs leading-relaxed">
+                    Authentication requires a secure connection to Cloudflare Tunnel or LAN for initial device binding.
+                </p>
+</div>
+</div>
+<!-- Disabled Form -->
+<div class="space-y-5 flex-1">
+<!-- Username Field -->
+<div class="space-y-2 opacity-50 pointer-events-none select-none grayscale">
+<label class="text-sm font-medium text-slate-400 ml-1">Username</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-500">person</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-3.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-500 placeholder-slate-600 focus:outline-none focus:ring-0 cursor-not-allowed" disabled="" placeholder="Enter your username" type="text"/>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+<span class="material-symbols-outlined text-slate-600" style="font-size: 18px;">lock</span>
+</div>
+</div>
+</div>
+<!-- Password Field -->
+<div class="space-y-2 opacity-50 pointer-events-none select-none grayscale">
+<label class="text-sm font-medium text-slate-400 ml-1">Password</label>
+<div class="relative">
+<div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+<span class="material-symbols-outlined text-slate-500">key</span>
+</div>
+<input class="block w-full pl-10 pr-3 py-3.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-500 placeholder-slate-600 focus:outline-none focus:ring-0 cursor-not-allowed" disabled="" placeholder="••••••••••••" type="password"/>
+<div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+<span class="material-symbols-outlined text-slate-600" style="font-size: 18px;">lock</span>
+</div>
+</div>
+</div>
+<!-- Disabled Action Button -->
+<button class="w-full flex items-center justify-center space-x-2 bg-slate-800 text-slate-500 font-semibold py-3.5 px-4 rounded-lg cursor-not-allowed border border-slate-700 opacity-60 mt-4" disabled="">
+<span>Login Disabled</span>
+</button>
+<!-- Alternative Info -->
+<p class="text-center text-slate-500 text-xs px-4 leading-relaxed">
+                Offline mode is only available for already authenticated sessions. Please connect to a secure network to proceed.
+            </p>
+</div>
+<!-- Footer: Device ID -->
+<div class="mt-auto pt-6 pb-2">
+<div class="flex flex-col items-center justify-center space-y-2">
+<div class="h-px w-full bg-gradient-to-r from-transparent via-slate-700 to-transparent"></div>
+<div class="pt-2 flex items-center gap-2 text-slate-500 font-mono text-xs">
+<span class="material-symbols-outlined" style="font-size: 14px;">perm_device_information</span>
+<span>Device ID: <span class="text-slate-400 font-semibold tracking-wider">8A2F-991C-X7B2</span></span>
+</div>
+</div>
+</div>
+</div>
+</body></html>

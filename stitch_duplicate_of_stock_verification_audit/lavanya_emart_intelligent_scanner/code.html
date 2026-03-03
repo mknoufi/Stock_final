@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lavanya eMart | Intelligent Scanner</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet"/>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#00509d",
+                        "background-light": "#f8fafc",
+                        "background-dark": "#0a0a0a",
+                        "brand-blue": "#01529d",
+                    },
+                    fontFamily: {
+                        sans: ["Inter", "sans-serif"],
+                        display: ["Inter", "sans-serif"],
+                        mono: ["JetBrains Mono", "monospace"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                    },
+                },
+            },
+        };
+    </script>
+<style>
+        .scanner-frame {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            border: 2px solid rgba(1, 82, 157, 0.3);
+            border-radius: 24px;
+        }
+        .scanner-corner {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #01529d;
+        }
+        .scanner-tl { top: -2px; left: -2px; border-right: none; border-bottom: none; border-top-left-radius: 24px; }
+        .scanner-tr { top: -2px; right: -2px; border-left: none; border-bottom: none; border-top-right-radius: 24px; }
+        .scanner-bl { bottom: -2px; left: -2px; border-right: none; border-top: none; border-bottom-left-radius: 24px; }
+        .scanner-br { bottom: -2px; right: -2px; border-left: none; border-top: none; border-bottom-right-radius: 24px; }
+        .scan-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #01529d, transparent);
+            box-shadow: 0 0 15px #01529d;
+            animation: scan 2.5s infinite ease-in-out;
+        }
+        @keyframes scan {
+            0%, 100% { top: 10%; }
+            50% { top: 90%; }
+        }
+        .pulse-ring {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.05); }
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex items-center justify-center font-sans antialiased">
+<div class="relative w-full max-w-[420px] h-[850px] bg-white dark:bg-[#0f1115] rounded-[3rem] shadow-2xl border-[8px] border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+<div class="bg-white dark:bg-[#0f1115] pt-4 pb-2 px-6 flex justify-between items-center border-b border-slate-100 dark:border-slate-800">
+<div class="flex items-center gap-2">
+<span class="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+<span class="text-[10px] font-mono tracking-wider font-bold text-slate-500 dark:text-slate-400">EDGE_REACHABLE</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-[10px] font-mono tracking-wider font-bold text-slate-500 dark:text-slate-400">DEVICE_BOUND: 822A-FX</span>
+<span class="material-icons-outlined text-[14px] text-emerald-500">verified_user</span>
+</div>
+</div>
+<header class="p-6 flex flex-col items-center">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+<svg class="w-7 h-7 fill-white" viewBox="0 0 100 100">
+<path d="M50,15 C30.6,15 15,30.6 15,50 C15,69.4 30.6,85 50,85 C69.4,85 85,69.4 85,50 L85,45 L40,45 L40,55 L75,55 C73,66 63,75 50,75 C36.2,75 25,63.8 25,50 C25,36.2 36.2,25 50,25 C60,25 68,31 72,39 L83,34 C76,22 64,15 50,15 Z"></path>
+</svg>
+</div>
+<div>
+<h1 class="text-xl font-bold leading-none text-slate-900 dark:text-white">Lavanya <span class="text-primary">eMart</span></h1>
+<p class="text-[9px] uppercase tracking-[0.2em] font-medium text-slate-400 dark:text-slate-500">Solutions for modern living</p>
+</div>
+</div>
+</header>
+<main class="flex-grow relative bg-slate-100 dark:bg-black overflow-hidden flex items-center justify-center">
+<div class="absolute inset-0 opacity-40 dark:opacity-60">
+<div class="absolute inset-0 bg-gradient-to-tr from-slate-900 via-slate-800 to-primary/20"></div>
+<div class="absolute top-1/4 left-10 w-32 h-32 border border-slate-700 rounded-lg"></div>
+<div class="absolute top-2/3 right-8 w-24 h-24 border border-slate-700 rounded-lg"></div>
+<div class="absolute bottom-20 left-12 w-40 h-16 border border-slate-700 rounded-lg"></div>
+</div>
+<div class="absolute top-8 z-10 animate-bounce">
+<div class="bg-emerald-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2">
+<span class="material-icons-outlined text-sm">check_circle</span>
+<span class="text-xs font-bold font-mono tracking-tight">SERIAL #8291 VERIFIED</span>
+</div>
+</div>
+<div class="scanner-frame z-10 flex items-center justify-center">
+<div class="scanner-tl scanner-corner"></div>
+<div class="scanner-tr scanner-corner"></div>
+<div class="scanner-bl scanner-corner"></div>
+<div class="scanner-br scanner-corner"></div>
+<div class="scan-line"></div>
+<div class="w-16 h-16 opacity-20 pulse-ring">
+<svg class="w-full h-full fill-white" viewBox="0 0 100 100">
+<path d="M50,15 C30.6,15 15,30.6 15,50 C15,69.4 30.6,85 50,85 C69.4,85 85,69.4 85,50 L85,45 L40,45 L40,55 L75,55 C73,66 63,75 50,75 C36.2,75 25,63.8 25,50 C25,36.2 36.2,25 50,25 C60,25 68,31 72,39 L83,34 C76,22 64,15 50,15 Z"></path>
+</svg>
+</div>
+</div>
+<div class="absolute bottom-12 left-0 right-0 flex justify-center gap-4">
+<button class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+<span class="material-icons-outlined text-white">flash_off</span>
+</button>
+<button class="w-12 h-12 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+<span class="material-icons-outlined text-white">zoom_in</span>
+</button>
+</div>
+</main>
+<footer class="bg-white dark:bg-[#121418] p-6 border-t border-slate-100 dark:border-slate-800">
+<div class="grid grid-cols-2 gap-4 mb-6">
+<div class="bg-slate-50 dark:bg-[#1a1d23] p-4 rounded-2xl">
+<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1 uppercase tracking-wider">Total Scanned</p>
+<p class="text-3xl font-mono font-bold text-primary">24</p>
+</div>
+<div class="bg-slate-50 dark:bg-[#1a1d23] p-4 rounded-2xl">
+<p class="text-[10px] font-bold text-slate-400 dark:text-slate-500 mb-1 uppercase tracking-wider">PolicyGate</p>
+<div class="flex items-center gap-2 mt-2">
+<div class="px-2 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-mono font-bold">EXECUTE_NOW</div>
+</div>
+</div>
+</div>
+<button class="w-full bg-primary hover:bg-blue-700 text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
+<span class="material-icons-outlined">sync</span>
+<span>FINALIZE BATCH</span>
+</button>
+<div class="mt-4 flex justify-between items-center px-1">
+<span class="text-[9px] font-mono text-slate-400">SESSION: ID-992-B82</span>
+<span class="text-[9px] font-mono text-slate-400">VER: 4.2.0-STABLE</span>
+</div>
+</footer>
+<div class="h-1.5 w-32 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto my-4 shrink-0"></div>
+</div>
+
+</body></html>
