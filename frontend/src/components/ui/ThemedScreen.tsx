@@ -12,7 +12,7 @@ import {
   ViewStyle,
   Text,
   TextStyle,
-  Pressable,
+  TouchableWithoutFeedback,
   Keyboard,
   Platform,
 } from "react-native";
@@ -75,12 +75,11 @@ export const ThemedScreen: React.FC<ThemedScreenProps> = ({
   };
 
   return (
-    <Pressable
+    <TouchableWithoutFeedback
       onPress={Keyboard.dismiss}
       accessible={false}
-      style={{ flex: 1 }}
     >
-      <View style={[containerStyle, style]}>
+      <View style={[containerStyle, { flex: 1 }, style]}>
         {/* Pattern Background */}
         {showPattern && pattern !== "none" && (
           <PatternBackground
@@ -105,7 +104,7 @@ export const ThemedScreen: React.FC<ThemedScreenProps> = ({
         {/* Content */}
         <View style={contentStyle}>{children}</View>
       </View>
-    </Pressable>
+    </TouchableWithoutFeedback>
   );
 };
 

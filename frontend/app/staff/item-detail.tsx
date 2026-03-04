@@ -1221,6 +1221,9 @@ export default function ItemDetailScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          bounces={true}
+          alwaysBounceVertical={true}
         >
           {/* Misplaced Item Warning Badge */}
           {item.is_misplaced && (
