@@ -446,7 +446,8 @@ async def get_count_lines(
     }
 
 # Register all routers with the app
-app.include_router(health_router, prefix="/api", tags=["health"])  # Also at /api/health
+app.include_router(health_router, prefix="/api", tags=["health_api"])  # Also at /api/health
+app.include_router(health_router, tags=["health"])  # Root level /health
 app.include_router(info_router)  # Version check and info endpoints at /api/*
 
 

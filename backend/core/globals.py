@@ -7,6 +7,7 @@ sync_conflicts_service: Optional[Any] = None
 monitoring_service: Optional[Any] = None
 database_health_service: Optional[Any] = None
 auto_sync_manager: Optional[Any] = None
+sql_sync_service: Optional[Any] = None
 connection_pool: Optional[Any] = None
 enterprise_router: Optional[Any] = None
 init_enrichment_api: Optional[Any] = None
