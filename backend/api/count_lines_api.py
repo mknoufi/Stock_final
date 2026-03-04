@@ -1021,7 +1021,9 @@ async def bulk_reject_count_lines(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/item-batches/{item_identifier}")
+# Canonical /api/item-batches/* route is served by erp_api.
+# Keep this endpoint for count-lines specific workflows to avoid route shadowing.
+@router.get("/count-lines/item-batches/{item_identifier}")
 async def get_item_batches(
     item_identifier: str,
     current_user: dict = Depends(get_current_user),
@@ -1039,6 +1041,7 @@ async def get_item_batches(
 
         batches = []
         fetch_success = False
+        source = "mongodb_offline_fallback"
 
         # 1. Try fetching from SQL Server if available
         if sql_connector:
@@ -1047,6 +1050,7 @@ async def get_item_batches(
                 if getattr(sql_connector, "connection", None):
                     batches = sql_connector.get_item_batches(item_identifier)
                     fetch_success = True
+                    source = "sql_server"
                 else:
                     logger.info(
                         f"SQL connector available but not connected for '{item_identifier}'"
@@ -1077,6 +1081,7 @@ async def get_item_batches(
                         "mfg_date": item.get("mfg_date"),
                         "expiry_date": item.get("expiry_date"),
                         "stock_qty": item.get("stock_qty", 0),
+                        "mrp": item.get("mrp"),
                         "warehouse_id": item.get("warehouse_id"),
                         "warehouse_name": item.get("warehouse_name", "Cached"),
                         "item_code": item.get("item_code"),
@@ -1097,6 +1102,7 @@ async def get_item_batches(
                 "mfg_date": batch.get("mfg_date"),
                 "expiry_date": batch.get("expiry_date"),
                 "stock_qty": batch.get("stock_qty", 0),
+                "mrp": batch.get("mrp"),
                 "opening_stock": batch.get("opening_stock", 0),
                 "warehouse_id": batch.get("warehouse_id"),
                 "warehouse_name": batch.get("warehouse_name"),
@@ -1107,8 +1113,23 @@ async def get_item_batches(
             }
             transformed_batches.append(transformed_batch)
 
+        def _stock_value(value: Any) -> float:
+            try:
+                return float(value or 0)
+            except (TypeError, ValueError):
+                return 0.0
+
+        transformed_batches = sorted(
+            transformed_batches,
+            key=lambda batch: (
+                -_stock_value(batch.get("stock_qty")),
+                str(batch.get("batch_no") or ""),
+            ),
+        )
+
         return {
             "success": True,
+            "source": source,
             "batches": transformed_batches,
             "total_batches": len(transformed_batches),
             "item_identifier": item_identifier,

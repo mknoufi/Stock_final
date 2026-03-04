@@ -129,7 +129,7 @@ interface ThemeContextType {
       xl: number;
       round: number;
     };
-    shadows: Record<string, string>;
+    shadows: Record<string, any>;
     animations: Record<string, any>;
     componentSizes: Record<string, any>;
     layout: Record<string, any>;
@@ -574,8 +574,8 @@ export const useThemeContext = (): ThemeContextType => {
       setPattern: () => { },
       setLayout: () => { },
       toggleDarkMode: () => { },
-      getThemeColor: (colorPath: string) => "#6366F1",
-      getFontSize: (scale?: number | "xs" | "sm" | "md" | "lg" | "xl" | "xxl") => 16,
+      getThemeColor: (_colorPath: string) => "#6366F1",
+      getFontSize: (_scale?: number | "xs" | "sm" | "md" | "lg" | "xl" | "xxl") => 16,
       availableThemes: THEME_METADATA,
       availablePatterns: PATTERN_METADATA,
       availableLayouts: LAYOUT_METADATA,

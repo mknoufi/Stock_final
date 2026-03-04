@@ -1081,7 +1081,8 @@ async def get_sessions_analytics(current_user: dict = Depends(get_current_user))
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@api_router.get("/sessions/{session_id}")
+# Legacy route retained under explicit namespace to avoid duplicate /api/sessions/{session_id}.
+@api_router.get("/legacy/sessions/{session_id}")
 async def get_session_by_id(
     session_id: str,
     current_user: dict = Depends(get_current_user),
@@ -1185,7 +1186,8 @@ def calculate_financial_impact(erp_mrp: float, counted_mrp: float, counted_qty: 
 
 
 # Count Line routes
-@api_router.post("/count-lines")
+# Legacy route retained under explicit namespace to avoid duplicate /api/count-lines.
+@api_router.post("/legacy/count-lines")
 async def create_count_line(
     request: Request,
     line_data: CountLineCreate,

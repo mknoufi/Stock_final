@@ -49,6 +49,7 @@ import {
   validateSerialNumber,
   validateSerialNumbers,
 } from "@/utils/scanUtils";
+import { getStockQty, sortItemsByStockDesc } from "@/utils/itemBatchUtils";
 import { SerialScannerModal } from "@/components/modals/SerialScannerModal";
 
 import ModernHeader from "@/components/ui/ModernHeader";
@@ -119,16 +120,13 @@ export default function ItemDetailScreen() {
 
   const sameNameVariants = useMemo(() => {
     if (!rawVariants.length || !item?.item_code) return [];
-    return rawVariants.filter((v: any) => {
-      // Only show variants with the same item code (batch criteria)
+    const filtered = rawVariants.filter((v: any) => {
       if (v.item_code !== item.item_code) return false;
-      // Exclude current item (same barcode)
       if (v.barcode === item?.barcode) return false;
-      // Filter by stock if not showing zero stock
-      if (!showZeroStock && (v.stock_qty || v.current_stock || 0) <= 0)
-        return false;
+      if (!showZeroStock && getStockQty(v) <= 0) return false;
       return true;
     });
+    return sortItemsByStockDesc(filtered);
   }, [rawVariants, showZeroStock, item]);
 
   const handleBackPress = useCallback(() => {
@@ -306,13 +304,14 @@ export default function ItemDetailScreen() {
         const data = response.data || {};
         const batches = Array.isArray(data.batches) ? data.batches : [];
         const mappedBatches = batches.map((batch: any) => {
-          const stockQty = batch.stock_qty ?? batch.current_stock ?? 0;
+          const stockQty = getStockQty(batch);
           return {
             ...batch,
             item_code: batch.item_code ?? item.item_code,
             barcode: batch.barcode ?? batch.auto_barcode ?? "",
             stock_qty: stockQty,
             current_stock: stockQty,
+            mrp: batch.mrp ?? null,
             manufacturing_date:
               batch.manufacturing_date ?? batch.mfg_date ?? null,
           };
@@ -478,15 +477,6 @@ export default function ItemDetailScreen() {
     }
   }, [splitCounts, isSplitMode, formatQuantity]);
 
-  const formatBatchDate = useCallback((value?: string | null): string => {
-    if (!value) return "-";
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) {
-      return String(value);
-    }
-    return parsed.toLocaleDateString();
-  }, []);
-
   // Sync quantity with serial entries count for serialized items
   // When serials are scanned, quantity auto-updates
   useEffect(() => {
@@ -515,14 +505,14 @@ export default function ItemDetailScreen() {
     [],
   );
 
-  // Handle scanned serial from SerialScannerModal (auto-increments quantity)
+  // Handle scanned serial from SerialScannerModal
   const handleSerialScanned = useCallback(
     async (data: {
       serial_number: string;
       mrp?: number;
       manufacturing_date?: string;
     }) => {
-      const normalized = data.serial_number.trim().toUpperCase();
+      const normalized = normalizeSerialValue(data.serial_number);
 
       // local duplicate check
       const isLocalDuplicate = serialEntries.some(
@@ -533,7 +523,7 @@ export default function ItemDetailScreen() {
           "Duplicate Serial",
           "This serial number is already in your list.",
         );
-        return;
+        return false;
       }
 
       // global uniqueness check
@@ -548,13 +538,13 @@ export default function ItemDetailScreen() {
             `Counted by: ${result.counted_by}`,
             [{ text: "OK" }],
           );
-          return;
+          return false;
         }
       }
 
       const newEntry: SerialEntryData = {
         id: `serial_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        serial_number: data.serial_number,
+        serial_number: normalized,
         mrp: data.mrp ?? parseFloat(mrp) ?? item?.mrp,
         manufacturing_date: data.manufacturing_date ?? item?.manufacturing_date,
         scanned_at: new Date().toISOString(),
@@ -562,7 +552,7 @@ export default function ItemDetailScreen() {
       };
 
       setSerialEntries((prev) => [...prev, newEntry]);
-      // Quantity auto-increments via useEffect above
+      return true;
     },
     [mrp, item, serialEntries, sessionId],
   );
@@ -596,6 +586,80 @@ export default function ItemDetailScreen() {
       setSerialEntries((prev) => prev.filter((_, i) => i !== index));
     },
     [serialEntries.length, mrp, item],
+  );
+
+  const serialValidationMessages = useMemo(
+    () =>
+      serialEntries.map((entry) =>
+        entry.serial_number.trim() ? validateSerialNumber(entry.serial_number) : null,
+      ),
+    [serialEntries],
+  );
+
+  const renderSerialEntry = useCallback(
+    ({ item: entry, index }: { item: SerialEntryData; index: number }) => {
+      const validationError = serialValidationMessages[index];
+      const hasValue = entry.serial_number.trim().length > 0;
+
+      return (
+        <View style={styles.serialEntryCard}>
+          <View style={styles.serialEntryHeader}>
+            <Text
+              style={[
+                styles.serialLabel,
+                { color: semanticColors.text.secondary },
+              ]}
+            >
+              Unit #{index + 1}
+            </Text>
+            <TouchableOpacity
+              style={styles.removeSerialButton}
+              onPress={() => handleRemoveSerial(index)}
+            >
+              <Ionicons
+                name="trash-outline"
+                size={18}
+                color={colors.error[500]}
+              />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.serialInputContainer}>
+            <TextInput
+              style={[
+                styles.serialTextInput,
+                {
+                  color: semanticColors.text.primary,
+                  backgroundColor: semanticColors.background.paper,
+                  borderColor: hasValue
+                    ? validationError
+                      ? colors.error[500]
+                      : colors.success[500]
+                    : colors.neutral[300],
+                },
+              ]}
+              value={entry.serial_number}
+              onChangeText={(text) =>
+                handleSerialChange(index, "serial_number", text)
+              }
+              placeholder="Serial number"
+              placeholderTextColor={semanticColors.text.disabled}
+              autoCapitalize="characters"
+              autoCorrect={false}
+            />
+          </View>
+
+          {validationError && (
+            <Text style={styles.serialErrorText}>{validationError}</Text>
+          )}
+        </View>
+      );
+    },
+    [
+      handleRemoveSerial,
+      handleSerialChange,
+      serialValidationMessages,
+    ],
   );
 
   // Date format options for flexible date input
@@ -1770,13 +1834,16 @@ export default function ItemDetailScreen() {
                   ) : (
                     <View style={styles.batchList}>
                       {sameNameVariants.map((variant, index) => {
-                        const stockQty =
-                          variant.stock_qty ?? variant.current_stock ?? 0;
+                        const stockQty = getStockQty(variant);
                         const batchTitle =
                           variant.batch_no || variant.item_code || "N/A";
-                        const showDates = Boolean(
-                          variant.expiry_date || variant.manufacturing_date,
+                        const numericMrp = Number.parseFloat(
+                          String(variant.mrp ?? ""),
                         );
+                        const mrpDisplay = Number.isFinite(numericMrp)
+                          ? numericMrp.toFixed(2)
+                          : "-";
+                        const barcodeText = variant.barcode || "-";
                         const variantKey =
                           variant._id ??
                           [
@@ -1809,43 +1876,33 @@ export default function ItemDetailScreen() {
                             <ModernCard style={styles.batchCard}>
                               <View style={styles.batchRow}>
                                 <View style={styles.batchInfo}>
+                                  <View style={styles.batchTitleRow}>
+                                    <Text
+                                      style={[
+                                        styles.batchTitle,
+                                        { color: semanticColors.text.primary },
+                                      ]}
+                                    >
+                                      Batch {batchTitle}
+                                    </Text>
+                                    <Text
+                                      style={[
+                                        styles.batchMrp,
+                                        { color: semanticColors.text.secondary },
+                                      ]}
+                                    >
+                                      MRP Rs.{mrpDisplay}
+                                    </Text>
+                                  </View>
                                   <Text
                                     style={[
-                                      styles.batchTitle,
-                                      { color: semanticColors.text.primary },
+                                      styles.batchMeta,
+                                      { color: semanticColors.text.secondary },
                                     ]}
+                                    numberOfLines={1}
                                   >
-                                    Batch {batchTitle}
+                                    Barcode: {barcodeText}
                                   </Text>
-                                  {variant.batch_no && variant.item_code && (
-                                    <Text
-                                      style={[
-                                        styles.batchSub,
-                                        {
-                                          color: semanticColors.text.secondary,
-                                        },
-                                      ]}
-                                    >
-                                      {variant.item_code}
-                                    </Text>
-                                  )}
-                                  {showDates && (
-                                    <Text
-                                      style={[
-                                        styles.batchMeta,
-                                        {
-                                          color: semanticColors.text.secondary,
-                                        },
-                                      ]}
-                                    >
-                                      Exp:{" "}
-                                      {formatBatchDate(variant.expiry_date)}{" "}
-                                      Mfg:{" "}
-                                      {formatBatchDate(
-                                        variant.manufacturing_date,
-                                      )}
-                                    </Text>
-                                  )}
                                 </View>
                                 <View style={styles.batchStock}>
                                   <Text
@@ -2323,61 +2380,20 @@ export default function ItemDetailScreen() {
                     </View>
                   )}
 
-                  {serialEntries.map((entry, index) => (
-                    <View key={entry.id} style={styles.serialEntryCard}>
-                      <View style={styles.serialEntryHeader}>
-                        <Text
-                          style={[
-                            styles.serialLabel,
-                            { color: semanticColors.text.secondary },
-                          ]}
-                        >
-                          Unit #{index + 1}
-                        </Text>
-                        <TouchableOpacity
-                          style={styles.removeSerialButton}
-                          onPress={() => handleRemoveSerial(index)}
-                        >
-                          <Ionicons
-                            name="trash-outline"
-                            size={18}
-                            color={colors.error[500]}
-                          />
-                        </TouchableOpacity>
-                      </View>
-
-                      <View style={styles.serialInputContainer}>
-                        <TextInput
-                          style={[
-                            styles.serialTextInput,
-                            {
-                              color: semanticColors.text.primary,
-                              backgroundColor: semanticColors.background.paper,
-                              borderColor: entry.serial_number.trim()
-                                ? validateSerialNumber(entry.serial_number)
-                                  ? colors.error[500]
-                                  : colors.success[500]
-                                : colors.neutral[300],
-                            },
-                          ]}
-                          value={entry.serial_number}
-                          onChangeText={(text) =>
-                            handleSerialChange(index, "serial_number", text)
-                          }
-                          placeholder="Serial number"
-                          placeholderTextColor={semanticColors.text.disabled}
-                          autoCapitalize="characters"
-                          autoCorrect={false}
-                        />
-                      </View>
-                      {entry.serial_number.trim() &&
-                        validateSerialNumber(entry.serial_number) && (
-                          <Text style={styles.serialErrorText}>
-                            {validateSerialNumber(entry.serial_number)}
-                          </Text>
-                        )}
-                    </View>
-                  ))}
+                  <FlatList
+                    data={serialEntries}
+                    keyExtractor={(entry) => entry.id}
+                    renderItem={renderSerialEntry}
+                    extraData={serialValidationMessages}
+                    style={styles.serialEntriesList}
+                    contentContainerStyle={styles.serialEntriesContent}
+                    nestedScrollEnabled
+                    scrollEnabled={serialEntries.length > 4}
+                    initialNumToRender={8}
+                    maxToRenderPerBatch={10}
+                    windowSize={5}
+                    removeClippedSubviews={Platform.OS === "android"}
+                  />
 
                   <TouchableOpacity
                     style={styles.addSerialButton}
@@ -2950,12 +2966,22 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: fontWeight.semiBold,
   },
+  batchTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm,
+  },
+  batchMrp: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semiBold,
+  },
   batchSub: {
     fontSize: fontSize.xs,
   },
   batchMeta: {
     fontSize: fontSize.xs,
-    marginTop: 2,
+    marginTop: 4,
   },
   batchStock: {
     alignItems: "flex-end",
@@ -3288,6 +3314,12 @@ const styles = StyleSheet.create({
     fontSize: fontSize.xs,
     color: colors.error[500],
     marginTop: 4,
+  },
+  serialEntriesList: {
+    maxHeight: 320,
+  },
+  serialEntriesContent: {
+    paddingBottom: spacing.xs,
   },
   addSerialButton: {
     flexDirection: "row",

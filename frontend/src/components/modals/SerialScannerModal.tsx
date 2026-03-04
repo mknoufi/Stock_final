@@ -1,7 +1,7 @@
 /**
  * SerialScannerModal - Dedicated scanner for serial numbers
  * Validates scanned codes as serial numbers (not barcodes)
- * Auto-increments quantity when new serials are scanned
+ * Collects detected candidates and lets user tap the correct serial to add
  */
 import React, { useRef, useCallback, useState } from "react";
 import {
@@ -30,6 +30,16 @@ import {
   radius as borderRadius,
 } from "../../theme/unified";
 
+type DetectedCodeStatus = "ready" | "invalid" | "duplicate";
+
+type DetectedCode = {
+  code: string;
+  status: DetectedCodeStatus;
+  message: string;
+};
+
+const MAX_DETECTED_CODES = 20;
+
 interface SerialScannerModalProps {
   visible: boolean;
   existingSerials: string[];
@@ -39,7 +49,7 @@ interface SerialScannerModalProps {
     serial_number: string;
     mrp?: number;
     manufacturing_date?: string;
-  }) => void;
+  }) => boolean | Promise<boolean>;
   onClose: () => void;
 }
 
@@ -60,33 +70,37 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
     type: "success" | "error" | "warning";
     message: string;
   } | null>(null);
+  const [detectedCodes, setDetectedCodes] = useState<DetectedCode[]>([]);
 
   // Manual Input State
   const [showManualInput, setShowManualInput] = useState(false);
   const [manualText, setManualText] = useState("");
 
-  const handleBulkProcess = useCallback(() => {
+  const handleBulkProcess = useCallback(async () => {
     if (!manualText.trim()) return;
 
     const tokens = manualText
       .split(/[\n, \t]+/)
       .filter((t) => t.trim().length > 0);
+    const localExisting = [...existingSerials];
     let addedCount = 0;
 
-    tokens.forEach((token) => {
-      const validation = validateScannedSerial(token, [
-        ...existingSerials,
-        ...tokens.slice(0, addedCount),
-      ]); // Approximate check
+    for (const token of tokens) {
+      const validation = validateScannedSerial(token, localExisting);
       if (validation.valid) {
         const normalized = normalizeSerialValue(token);
-        onSerialScanned({
-          serial_number: normalized,
-          mrp: defaultMrp,
-        });
-        addedCount++;
+        const wasAdded = await Promise.resolve(
+          onSerialScanned({
+            serial_number: normalized,
+            mrp: defaultMrp,
+          }),
+        );
+        if (wasAdded) {
+          localExisting.push(normalized);
+          addedCount++;
+        }
       }
-    });
+    }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setScanFeedback({
@@ -97,11 +111,57 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
     setShowManualInput(false);
   }, [manualText, existingSerials, defaultMrp, onSerialScanned]);
 
+  const upsertDetectedCode = useCallback((entry: DetectedCode) => {
+    setDetectedCodes((prev) => {
+      const deduped = prev.filter((candidate) => candidate.code !== entry.code);
+      return [entry, ...deduped].slice(0, MAX_DETECTED_CODES);
+    });
+  }, []);
+
+  const handleDetectedCodePress = useCallback(
+    async (candidate: DetectedCode) => {
+      if (candidate.status !== "ready") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        setScanFeedback({
+          type: "warning",
+          message: candidate.message,
+        });
+        return;
+      }
+
+      const wasAdded = await Promise.resolve(
+        onSerialScanned({
+          serial_number: candidate.code,
+          mrp: defaultMrp,
+          manufacturing_date: undefined,
+        }),
+      );
+
+      if (!wasAdded) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        setScanFeedback({
+          type: "warning",
+          message: `Could not add ${candidate.code}`,
+        });
+        return;
+      }
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setScanFeedback({
+        type: "success",
+        message: `Serial added: ${candidate.code}`,
+      });
+      setDetectedCodes((prev) => prev.filter((entry) => entry.code !== candidate.code));
+    },
+    [defaultMrp, onSerialScanned],
+  );
+
   // Reset state when modal opens
   React.useEffect(() => {
     if (visible) {
       setLastScanned(null);
       setScanFeedback(null);
+      setDetectedCodes([]);
     }
   }, [visible]);
 
@@ -116,7 +176,10 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
 
   const handleBarcodeScanned = useCallback(
     (data: { data: string }) => {
-      const scannedValue = data.data;
+      const scannedValue = normalizeSerialValue(data.data);
+      if (!scannedValue) {
+        return;
+      }
 
       // Check throttle
       if (!throttleManagerRef.current.shouldProcessScan(scannedValue)) {
@@ -125,34 +188,41 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
 
       // Validate as serial number (not barcode)
       const validation = validateScannedSerial(scannedValue, existingSerials);
+      const status: DetectedCodeStatus = validation.valid
+        ? "ready"
+        : validation.error?.includes("already been added")
+          ? "duplicate"
+          : "invalid";
+      const message = validation.valid
+        ? "Tap to add"
+        : validation.error || "Invalid serial number";
+      upsertDetectedCode({
+        code: scannedValue,
+        status,
+        message,
+      });
+      setLastScanned(scannedValue);
 
       if (!validation.valid) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Haptics.notificationAsync(
+          validation.error?.includes("barcode")
+            ? Haptics.NotificationFeedbackType.Warning
+            : Haptics.NotificationFeedbackType.Error,
+        );
         setScanFeedback({
           type: validation.error?.includes("barcode") ? "warning" : "error",
-          message: validation.error || "Invalid serial number",
+          message,
         });
         return;
       }
 
-      // Valid serial - success feedback
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const normalizedSerial = normalizeSerialValue(scannedValue);
-
-      setLastScanned(normalizedSerial);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setScanFeedback({
-        type: "success",
-        message: `Serial added: ${normalizedSerial}`,
-      });
-
-      // Pass to parent with default values
-      onSerialScanned({
-        serial_number: normalizedSerial,
-        mrp: defaultMrp,
-        manufacturing_date: undefined,
+        type: "warning",
+        message: "Code detected. Tap it below to add.",
       });
     },
-    [existingSerials, defaultMrp, onSerialScanned],
+    [existingSerials, upsertDetectedCode],
   );
 
   const getFeedbackStyle = () => {
@@ -252,10 +322,53 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
                 color={colors.primary[400]}
               />
               <Text style={styles.infoText}>
-                Scan serial numbers on product labels.{"\n"}
-                Quantity auto-increments with each scan.
+                Scan product labels and select the correct serial code.{"\n"}
+                Stickers with multiple barcodes are supported.
               </Text>
             </View>
+
+            {detectedCodes.length > 0 && (
+              <View style={styles.detectedList}>
+                <Text style={styles.detectedLabel}>
+                  Detected Codes ({detectedCodes.length})
+                </Text>
+                {detectedCodes.map((candidate) => (
+                  <TouchableOpacity
+                    key={candidate.code}
+                    style={[
+                      styles.detectedRow,
+                      candidate.status !== "ready" && styles.detectedRowDisabled,
+                    ]}
+                    activeOpacity={0.8}
+                    onPress={() => handleDetectedCodePress(candidate)}
+                    disabled={candidate.status !== "ready"}
+                  >
+                    <View style={styles.detectedRowContent}>
+                      <Text style={styles.detectedCode}>{candidate.code}</Text>
+                      <Text style={styles.detectedMessage}>{candidate.message}</Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.detectedBadge,
+                        candidate.status === "ready"
+                          ? styles.detectedBadgeReady
+                          : candidate.status === "duplicate"
+                            ? styles.detectedBadgeDuplicate
+                            : styles.detectedBadgeInvalid,
+                      ]}
+                    >
+                      <Text style={styles.detectedBadgeText}>
+                        {candidate.status === "ready"
+                          ? "Add"
+                          : candidate.status === "duplicate"
+                            ? "Dup"
+                            : "Skip"}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
 
             {existingSerials.length > 0 && (
               <View style={styles.serialsList}>
@@ -479,6 +592,69 @@ const styles = StyleSheet.create({
     fontSize: fontSize.sm,
     color: colors.neutral[300],
     lineHeight: 20,
+  },
+  detectedList: {
+    backgroundColor: "rgba(0,0,0,0.65)",
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.xs,
+  },
+  detectedLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    color: colors.neutral[300],
+    marginBottom: spacing.xs,
+    textTransform: "uppercase",
+  },
+  detectedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+  },
+  detectedRowDisabled: {
+    opacity: 0.65,
+  },
+  detectedRowContent: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  detectedCode: {
+    color: colors.white,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semiBold,
+  },
+  detectedMessage: {
+    marginTop: 2,
+    color: colors.neutral[300],
+    fontSize: fontSize.xs,
+  },
+  detectedBadge: {
+    minWidth: 50,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    alignItems: "center",
+  },
+  detectedBadgeReady: {
+    backgroundColor: colors.success[600],
+  },
+  detectedBadgeDuplicate: {
+    backgroundColor: colors.warning[600],
+  },
+  detectedBadgeInvalid: {
+    backgroundColor: colors.error[600],
+  },
+  detectedBadgeText: {
+    color: colors.white,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
   },
   serialsList: {
     backgroundColor: "rgba(0,0,0,0.6)",

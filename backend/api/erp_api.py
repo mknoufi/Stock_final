@@ -274,57 +274,76 @@ async def get_item_batches(
         raise HTTPException(status_code=503, detail="Service not initialized")
 
     normalized_code = _normalize_barcode_input(item_code, strict_numeric=False)
+    source = "mongodb_offline_fallback"
+    batches: list[dict[str, Any]] = []
 
-    # 1. Try to fetch from SQL Server (if connected)
-    # Since we can't easily access the SQL connector here efficiently without a service,
-    # and we know it's likely offline, we'll implement a "Try SQL, else Mongo" logic.
+    sql_connector = getattr(router, "sql_connector", None)
+    if sql_connector is None:
+        try:
+            from backend.api.count_lines_api import router as count_lines_router
 
-    # Check SQL Health explicitly to decide whether to try specific SQL query
-    # For now, we'll assume SQL is "offline" based on global state or timeouts,
-    # but we can check if data_health_service is connected.
+            sql_connector = getattr(count_lines_router, "sql_connector", None)
+        except Exception:
+            sql_connector = None
 
-    from backend.core.globals import database_health_service
+    if sql_connector is not None:
+        try:
+            if getattr(sql_connector, "connection", None):
+                sql_batches = sql_connector.get_item_batches(normalized_code)
+                if isinstance(sql_batches, list):
+                    batches = sql_batches
+                    source = "sql_server"
+        except Exception as sql_err:
+            logger.warning(f"SQL batch fetch failed for '{normalized_code}': {sql_err}")
 
-    if database_health_service:
-        # Light check - check cached status
-        # In a real impl, we'd use the SQL Sync Service to fetch batches.
-        pass
+    if not batches:
+        regex_match = {"$regex": f"^{re.escape(normalized_code)}$", "$options": "i"}
+        query = {"$or": [{"item_code": normalized_code}, {"item_code": regex_match}]}
+        cursor = _db.erp_items.find(query)
+        mongo_batches = await cursor.to_list(length=100)
+        batches = mongo_batches if isinstance(mongo_batches, list) else []
+        source = "mongodb_offline_fallback"
 
-    # 2. Fallback: Search in MongoDB (Offline/Local Mode)
-    # We look for all items that share the same item_code.
-    # This supports the "Offline Mode" where we might have synced multiple batches.
-
-    regex_match = {"$regex": f"^{re.escape(normalized_code)}$", "$options": "i"}
-    query = {"$or": [{"item_code": normalized_code}, {"item_code": regex_match}]}
-
-    cursor = _db.erp_items.find(query)
-    mongo_batches = await cursor.to_list(length=100)
-
-    if not mongo_batches:
-        # If absolutely nothing found, return empty matches
-        # But usually we at least have the item itself.
-        # If the item code doesn't match, maybe we should 404?
-        # But returning empty batches is safer for the UI.
-        return {"batches": []}
-
-    # Format for frontend
     formatted_batches = []
-    for batch in mongo_batches:
+    for batch in batches:
+        barcode = batch.get("barcode") or batch.get("auto_barcode") or ""
         formatted_batches.append(
             {
+                "batch_id": batch.get("batch_id"),
+                "batch_no": batch.get("batch_no", "DEFAULT"),
                 "item_code": batch.get("item_code"),
-                "barcode": batch.get("barcode"),
+                "barcode": barcode,
                 "item_name": batch.get("item_name"),
-                "batch_no": batch.get("batch_no", "DEFAULT"),  # Fallback if no batch info
                 "stock_qty": batch.get("stock_qty", 0),
-                "mrp": batch.get("mrp", 0),
+                "mrp": batch.get("mrp"),
                 "manufacturing_date": batch.get("mfg_date") or batch.get("manufacturing_date"),
                 "expiry_date": batch.get("expiry_date"),
-                "warehouse": batch.get("warehouse"),
+                "warehouse_id": batch.get("warehouse_id"),
+                "warehouse_name": batch.get("warehouse_name"),
+                "warehouse": batch.get("warehouse") or batch.get("warehouse_name"),
             }
         )
 
-    return {"batches": formatted_batches, "source": "mongodb_offline_fallback"}
+    def _stock_value(value: Any) -> float:
+        try:
+            return float(value or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    formatted_batches = sorted(
+        formatted_batches,
+        key=lambda batch: (
+            -_stock_value(batch.get("stock_qty")),
+            str(batch.get("batch_no") or ""),
+        ),
+    )
+
+    return {
+        "batches": formatted_batches,
+        "source": source,
+        "total_batches": len(formatted_batches),
+        "item_identifier": normalized_code,
+    }
 
 
 @router.post("/erp/test")

@@ -296,6 +296,7 @@ SQL_TEMPLATES = {
             PB.MfgDate as mfg_date,
             PB.ExpiryDate as expiry_date,
             PB.Stock as stock_qty,
+            PB.MRP as mrp,
             PB.OpeningStock as opening_stock,
             W.WarehouseID as warehouse_id,
             W.WarehouseName as warehouse_name,

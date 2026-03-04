@@ -122,7 +122,8 @@ async def _get_health_data() -> ApiResponse[HealthCheckResponse]:
         )
 
 
-@router.get("/detailed", response_model=ApiResponse[dict[str, Any]])
+# Keep richer metrics route on a distinct path to avoid duplicate /detailed route registration.
+@router.get("/metrics-detailed", response_model=ApiResponse[dict[str, Any]])
 async def detailed_health_check(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> ApiResponse[dict[str, Any]]:
@@ -141,11 +142,11 @@ async def detailed_health_check(
         health_data: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
             "services": {
-                "mongodb": _safe_service_check(database_health_service, "check_mongodb_health"),
-                "sql_server_pool": _safe_service_check(connection_pool, "get_stats"),
-                "cache": _safe_service_check(cache_service, "get_status"),
+                "mongodb": await _safe_service_check(database_health_service, "check_mongo_health"),
+                "sql_server_pool": await _safe_service_check(connection_pool, "get_stats"),
+                "cache": await _safe_service_check(cache_service, "get_status"),
             },
-            "metrics": _safe_service_check(monitoring_service, "get_metrics"),
+            "metrics": await _safe_service_check(monitoring_service, "get_metrics"),
         }
 
         return ApiResponse.success_response(

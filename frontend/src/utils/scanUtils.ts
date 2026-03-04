@@ -72,9 +72,15 @@ export const isSerialNumberFormat = (code: string): boolean => {
 
   // Barcode pattern: 6 digits starting with 51, 52, or 53
   const barcodePattern = /^5[123]\d{4}$/;
+  const numericOnlyPattern = /^\d+$/;
 
   // If it matches barcode pattern, it's NOT a serial number
   if (barcodePattern.test(normalized)) {
+    return false;
+  }
+
+  // In serial scan mode, long numeric-only values are usually UAN/barcode-like labels.
+  if (numericOnlyPattern.test(normalized) && normalized.length >= 10) {
     return false;
   }
 
