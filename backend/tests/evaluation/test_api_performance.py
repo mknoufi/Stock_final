@@ -12,6 +12,7 @@ Run with: pytest backend/tests/evaluation/test_api_performance.py -v
 """
 
 import asyncio
+import os
 import random
 import time
 
@@ -163,9 +164,9 @@ class TestAPIThroughput:
         collector.record_success_rate("concurrent", success_count / len(results), threshold=0.95)
 
         assert throughput > 5.0, f"Throughput {throughput} req/s is too low"
-        assert (
-            success_count == concurrent_requests
-        ), f"Only {success_count}/{concurrent_requests} succeeded"
+        assert success_count == concurrent_requests, (
+            f"Only {success_count}/{concurrent_requests} succeeded"
+        )
 
     @pytest.mark.asyncio
     @pytest.mark.performance
@@ -293,6 +294,10 @@ class TestFullAPIEvaluation:
 
     @pytest.mark.asyncio
     @pytest.mark.performance
+    @pytest.mark.skipif(
+        not os.environ.get("RUN_SEEDED_E2E"),
+        reason="Requires pre-seeded test DB with 'test' user and ERP items. Set RUN_SEEDED_E2E=1 to run.",
+    )
     async def test_full_evaluation(
         self,
         async_client: AsyncClient,
