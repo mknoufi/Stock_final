@@ -66,7 +66,6 @@ async def test_get_item_by_barcode_cache_hit(setup_mocks):
     response = await get_item_by_barcode(barcode="510001", current_user=current_user)
 
     assert response.item_code == "CODE123"
-    # Fix: find_one is async, so we check the async mock
     mock_db.erp_items.find_one.assert_not_called()
 
 
