@@ -18,6 +18,12 @@ interface User {
   has_pin?: boolean;
 }
 
+type AuthResult = {
+  success: boolean;
+  message?: string;
+  code?: string;
+};
+
 export interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -31,11 +37,11 @@ export interface AuthState {
     username: string,
     password: string,
     rememberMe?: boolean,
-  ) => Promise<{ success: boolean; message?: string }>;
+  ) => Promise<AuthResult>;
   loginWithPin: (
     pin: string,
     username?: string,
-  ) => Promise<{ success: boolean; message?: string }>;
+  ) => Promise<AuthResult>;
   authenticateWithBiometrics: () => Promise<{
     success: boolean;
     message?: string;
@@ -46,11 +52,11 @@ export interface AuthState {
   logout: () => Promise<void>;
   logoutAll: (
     username?: string,
-  ) => Promise<{ success: boolean; message?: string }>;
+  ) => Promise<AuthResult>;
   pinSetup: (
     pin: string,
     confirmPin: string,
-  ) => Promise<{ success: boolean; message?: string }>;
+  ) => Promise<AuthResult>;
   setLoading: (loading: boolean) => void;
   loadStoredAuth: () => Promise<void>;
   lastLoggedUser: {
@@ -72,6 +78,74 @@ const LAST_USER_STORAGE_KEY = "last_logged_user";
 
 const log = createLogger("authStore");
 let heartbeatInterval: NodeJS.Timeout | null = null;
+
+const parseAuthError = (error: any, fallbackMessage: string): AuthResult => {
+  const status = error?.response?.status;
+  const detail = error?.response?.data?.detail;
+  const code = detail?.error || error?.response?.data?.code;
+  const apiMessage = detail?.message || error?.response?.data?.message;
+
+  if (status === 409) {
+    return {
+      success: false,
+      code: "AUTH_SESSION_CONFLICT",
+      message:
+        apiMessage ||
+        "This account is already active on another device.",
+    };
+  }
+
+  if (status === 401) {
+    return {
+      success: false,
+      code: "AUTH_INVALID_CREDENTIALS",
+      message: apiMessage || "Incorrect username or password",
+    };
+  }
+
+  if (status === 422) {
+    return {
+      success: false,
+      code: "AUTH_VALIDATION_ERROR",
+      message: "Invalid login data. Please check username and password.",
+    };
+  }
+
+  if (status === 403 && code === "NETWORK_NOT_ALLOWED") {
+    return {
+      success: false,
+      code: "NETWORK_NOT_ALLOWED",
+      message: "Network not allowed. Connect to the permitted network.",
+    };
+  }
+
+  if (error?.code === "ECONNABORTED") {
+    return {
+      success: false,
+      code: "NETWORK_TIMEOUT",
+      message: "Server timeout. Please check your connection and try again.",
+    };
+  }
+
+  if (error?.request && !error?.response) {
+    return {
+      success: false,
+      code: "NETWORK_CONNECTION_ERROR",
+      message:
+        "Unable to connect to server. Check internet connection and backend status.",
+    };
+  }
+
+  if (typeof status === "number" && status >= 500) {
+    return {
+      success: false,
+      code: "SERVER_ERROR",
+      message: "Server error. Please try again in a moment.",
+    };
+  }
+
+  return { success: false, message: apiMessage || fallbackMessage, code };
+};
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
@@ -103,7 +177,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     username: string,
     password: string,
     _rememberMe?: boolean,
-  ): Promise<{ success: boolean; message?: string }> => {
+  ): Promise<AuthResult> => {
     set({ isLoading: true });
     try {
       const response = await apiClient.post("/api/auth/login", {
@@ -167,18 +241,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
     } catch (_error: any) {
       set({ isLoading: false });
-      const message =
-        _error.response?.data?.detail?.message ||
-        _error.response?.data?.message ||
-        "Login failed";
-      return { success: false, message };
+      return parseAuthError(_error, "Login failed");
     }
   },
 
   loginWithPin: async (
     pin: string,
     username?: string,
-  ): Promise<{ success: boolean; message?: string }> => {
+  ): Promise<AuthResult> => {
     set({ isLoading: true });
     try {
       const response = await apiClient.post("/api/auth/login-pin", {
@@ -240,11 +310,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
     } catch (_error: any) {
       set({ isLoading: false });
-      const message =
-        _error.response?.data?.detail?.message ||
-        _error.response?.data?.message ||
-        "PIN login failed";
-      return { success: false, message };
+      return parseAuthError(_error, "PIN login failed");
     }
   },
 
@@ -328,7 +394,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logoutAll: async (
     username?: string,
-  ): Promise<{ success: boolean; message?: string }> => {
+  ): Promise<AuthResult> => {
     set({ isLoading: true });
     try {
       const response = await apiClient.post("/api/sessions/logout-all", {
@@ -345,7 +411,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   pinSetup: async (
     pin: string,
     confirmPin: string,
-  ): Promise<{ success: boolean; message?: string }> => {
+  ): Promise<AuthResult> => {
     set({ isLoading: true });
     try {
       const response = await apiClient.post("/api/auth/pin-setup", {
