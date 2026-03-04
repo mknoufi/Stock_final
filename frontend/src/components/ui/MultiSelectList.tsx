@@ -22,7 +22,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+
   TouchableOpacity,
   Platform as _Platform,
   FlatListProps,
@@ -34,6 +34,7 @@ import Animated, {
   withTiming,
   interpolateColor,
 } from "react-native-reanimated";
+import { VirtualList } from "../common/VirtualList";
 import { Ionicons } from "@expo/vector-icons";
 import {
   colors,
@@ -265,7 +266,8 @@ export function MultiSelectList<T extends SelectableItem>({
       )}
 
       {/* List */}
-      <FlatList
+              {/* ⚡ Bolt: Replaced FlatList with VirtualList to ensure smooth scrolling and quick rendering even with large datasets in multi-select modals. */}
+        <VirtualList estimatedItemSize={60}
         data={items}
         renderItem={renderItemWrapper}
         keyExtractor={keyExtractor}
