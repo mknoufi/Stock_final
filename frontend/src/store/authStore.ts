@@ -79,7 +79,11 @@ const LAST_USER_STORAGE_KEY = "last_logged_user";
 const log = createLogger("authStore");
 let heartbeatInterval: NodeJS.Timeout | null = null;
 
-const parseAuthError = (error: any, fallbackMessage: string): AuthResult => {
+const parseAuthError = (
+  error: any,
+  fallbackMessage: string,
+  invalidCredentialsMessage = "Incorrect username or password",
+): AuthResult => {
   const status = error?.response?.status;
   const detail = error?.response?.data?.detail;
   const code = detail?.error || error?.response?.data?.code;
@@ -99,7 +103,7 @@ const parseAuthError = (error: any, fallbackMessage: string): AuthResult => {
     return {
       success: false,
       code: "AUTH_INVALID_CREDENTIALS",
-      message: apiMessage || "Incorrect username or password",
+      message: apiMessage || invalidCredentialsMessage,
     };
   }
 
@@ -241,7 +245,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
     } catch (_error: any) {
       set({ isLoading: false });
-      return parseAuthError(_error, "Login failed");
+      return parseAuthError(
+        _error,
+        "Login failed",
+        "Incorrect username or password",
+      );
     }
   },
 
@@ -310,7 +318,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       };
     } catch (_error: any) {
       set({ isLoading: false });
-      return parseAuthError(_error, "PIN login failed");
+      return parseAuthError(_error, "PIN login failed", "Incorrect PIN");
     }
   },
 
