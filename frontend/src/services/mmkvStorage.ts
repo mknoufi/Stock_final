@@ -39,7 +39,8 @@ if (!storage) {
   const memoryCache = new Map<string, string>();
 
   // Try to hydrate cache from AsyncStorage on start (best effort)
-  AsyncStorage.getAllKeys().then((keys: string[]) => {
+  if (AsyncStorage && AsyncStorage.getAllKeys) {
+    AsyncStorage.getAllKeys().then((keys: string[]) => {
     if (keys.length > 0) {
       AsyncStorage.multiGet(keys).then((pairs: [string, string | null][]) => {
         pairs.forEach(([key, value]) => {
@@ -48,6 +49,7 @@ if (!storage) {
       });
     }
   });
+  }
 
   storage = {
     set: (key: string, value: string) => {

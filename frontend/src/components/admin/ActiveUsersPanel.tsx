@@ -10,11 +10,12 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+
   ViewStyle,
   TextStyle,
   TouchableOpacity,
 } from "react-native";
+import { VirtualList } from "../common/VirtualList";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   modernColors,
@@ -271,7 +272,8 @@ export function ActiveUsersPanel({
           <Text style={styles.emptyText}>No active personnel</Text>
         </View>
       ) : (
-        <FlatList
+                // ⚡ Bolt: Replaced FlatList with VirtualList (FlashList under the hood) to significantly improve rendering performance and reduce memory usage for potentially long lists of active users.
+        <VirtualList estimatedItemSize={80}
           data={users}
           keyExtractor={(item) => item.user_id}
           renderItem={({ item }) => (

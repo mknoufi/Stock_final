@@ -11,13 +11,14 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+
   TouchableOpacity,
   Modal,
   ScrollView,
   ViewStyle,
   TextStyle,
 } from "react-native";
+import { VirtualList } from "../common/VirtualList";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import {
   modernColors,
@@ -513,7 +514,8 @@ export function ErrorLogsPanel({
           <Text style={styles.emptyText}>System Healthy</Text>
         </View>
       ) : (
-        <FlatList
+                // ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve scrolling performance and reduce frame drops when viewing many error logs.
+        <VirtualList estimatedItemSize={80}
           data={logs}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
