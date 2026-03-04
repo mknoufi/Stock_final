@@ -53,6 +53,66 @@ const SafeAnimatedView = ({ children, style, entering, ...props }: any) => {
 
 type LoginMode = "pin" | "credentials";
 
+type LoginResult = {
+  success: boolean;
+  message?: string;
+  code?: string;
+};
+
+const getLoginErrorAlert = (
+  result: LoginResult,
+  mode: LoginMode,
+): { title: string; message: string } => {
+  if (result.code === "AUTH_SESSION_CONFLICT") {
+    return {
+      title: "Session Conflict",
+      message:
+        "This account is already active on another device.\n\nPlease ask your administrator to logout all existing sessions before you can sign in here.",
+    };
+  }
+
+  if (result.code === "AUTH_INVALID_CREDENTIALS") {
+    return mode === "credentials"
+      ? {
+        title: "Invalid Credentials",
+        message: result.message || "Incorrect username or password.",
+      }
+      : {
+        title: "Invalid PIN",
+        message: result.message || "Incorrect PIN. Please try again.",
+      };
+  }
+
+  if (
+    result.code === "NETWORK_CONNECTION_ERROR" ||
+    result.code === "NETWORK_TIMEOUT" ||
+    result.code === "NETWORK_NOT_ALLOWED"
+  ) {
+    return {
+      title: "Connection Issue",
+      message:
+        result.message ||
+        "Unable to connect to server. Check internet and backend connection, then try again.",
+    };
+  }
+
+  if (result.code === "SERVER_ERROR") {
+    return {
+      title: "Server Error",
+      message: result.message || "Server issue. Please try again in a moment.",
+    };
+  }
+
+  return {
+    title: "Login Failed",
+    message:
+      result.message ||
+      (mode === "credentials"
+        ? "Unable to sign in. Please try again."
+        : "PIN login failed. Please try again."),
+  };
+};
+
 export default function LoginScreen() {
   const router = useRouter();
   const { login, loginWithPin, isLoading, lastLoggedUser } = useAuthStore();
@@ -120,19 +180,17 @@ export default function LoginScreen() {
           try {
             const result = await loginWithPin(newPin, lastLoggedUser?.username);
             if (!result.success) {
-              if ((result as any).code === "AUTH_SESSION_CONFLICT") {
-                Alert.alert(
-                  "Session Conflict",
-                  "This account is already active on another device.\n\nPlease ask your administrator to logout all existing sessions before you can sign in here.",
-                  [{ text: "OK" }],
-                );
-              } else {
-                Alert.alert("Login Failed", result.message || "Invalid PIN");
-              }
+              const alertConfig = getLoginErrorAlert(result, "pin");
+              Alert.alert(alertConfig.title, alertConfig.message, [
+                { text: "OK" },
+              ]);
               setPin("");
             }
           } catch (_error) {
-            Alert.alert("Login Failed", "Please check your PIN and try again.");
+            Alert.alert(
+              "Connection Issue",
+              "Unable to connect to server. Please try again.",
+            );
             setPin("");
           }
         }, 100);
@@ -171,7 +229,8 @@ export default function LoginScreen() {
         }
         const result = await loginWithPin(pin, lastLoggedUser?.username);
         if (!result.success) {
-          Alert.alert("Login Failed", result.message || "Invalid PIN");
+          const alertConfig = getLoginErrorAlert(result, "pin");
+          Alert.alert(alertConfig.title, alertConfig.message);
           setPin("");
         }
       } else {
@@ -185,23 +244,16 @@ export default function LoginScreen() {
         }
         const result = await login(username, password);
         if (!result.success) {
-          if ((result as any).code === "AUTH_SESSION_CONFLICT") {
-            Alert.alert(
-              "Session Conflict",
-              "This account is already active on another device.\n\nPlease ask your administrator to logout all existing sessions before you can sign in here.",
-              [{ text: "OK" }],
-            );
-          } else {
-            Alert.alert(
-              "Login Failed",
-              result.message || "Invalid credentials",
-            );
-          }
+          const alertConfig = getLoginErrorAlert(result, "credentials");
+          Alert.alert(alertConfig.title, alertConfig.message);
           setPassword("");
         }
       }
     } catch (_error) {
-      Alert.alert("Error", "An unexpected error occurred. Please try again.");
+      Alert.alert(
+        "Connection Issue",
+        "Unable to connect to server. Please try again.",
+      );
     }
   }, [loginMode, pin, username, password, login, loginWithPin, lastLoggedUser]);
 
@@ -242,7 +294,7 @@ export default function LoginScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
-          keyboardDismissMode="none"
+          keyboardDismissMode="on-drag"
         >
           <View style={styles.contentContainer}>
             {/* Welcome Section */}

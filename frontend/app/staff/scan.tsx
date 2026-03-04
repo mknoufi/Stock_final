@@ -48,6 +48,10 @@ import { RecentItemsService } from "../../src/services/enhancedFeatures";
 import { toastService } from "../../src/services/utils/toastService";
 import { localDb } from "../../src/db/localDb";
 import { validateBarcode } from "../../src/utils/validation";
+import {
+  dedupeItemsKeepingHighestStock,
+  getStockQty,
+} from "../../src/utils/itemBatchUtils";
 
 import ModernHeader from "../../src/components/ui/ModernHeader";
 import ModernCard from "../../src/components/ui/ModernCard";
@@ -122,27 +126,6 @@ const ScanScreen = React.memo(function ScanScreen() {
     { code: string; count: number; timestamp: number }[]
   >([]);
 
-  const dedupeSearchResults = useCallback((items: any[]) => {
-    const seen = new Set<string>();
-    const unique: any[] = [];
-
-    for (const item of items) {
-      const keySource =
-        item?.item_code ?? item?.barcode ?? item?.item_name ?? item?.name;
-      if (!keySource) {
-        unique.push(item);
-        continue;
-      }
-
-      const key = String(keySource).trim().toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      unique.push(item);
-    }
-
-    return unique;
-  }, []);
-
   const loadRecentItems = useCallback(async () => {
     try {
       const items = await safeAsync(() => RecentItemsService.getRecentItems());
@@ -172,13 +155,16 @@ const ScanScreen = React.memo(function ScanScreen() {
         const results = await safeAsync(() => searchItems(query));
         if (results) {
           const items = Array.isArray(results.items) ? results.items : [];
-          safeSetState(setSearchResults, dedupeSearchResults(items));
+          safeSetState(
+            setSearchResults,
+            dedupeItemsKeepingHighestStock(items),
+          );
         }
       } catch (error) {
         console.error("Search failed", error);
       }
     },
-    [dedupeSearchResults, safeAsync, safeSetState],
+    [safeAsync, safeSetState],
   );
 
   const loadInitialData = useCallback(async () => {
@@ -251,26 +237,18 @@ const ScanScreen = React.memo(function ScanScreen() {
     }
   }, [isFinishing, lastMessage, loadSessionStats, router, safeSetState]);
 
-  // Load initial data
-  useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
-
   // Start performance monitoring when component mounts
   useEffect(() => {
     startMonitoring();
     return () => stopMonitoring();
   }, [startMonitoring, stopMonitoring]);
 
-  // Load initial data (legacy - kept for compatibility)
+  // Canonical startup path: initial load + periodic stat refresh
   useEffect(() => {
-    loadRecentItems();
-    loadSessionStats();
-
-    // Poll stats every 30s
+    loadInitialData();
     const interval = setInterval(loadSessionStats, 30000);
     return () => clearInterval(interval);
-  }, [loadRecentItems, loadSessionStats]);
+  }, [loadInitialData, loadSessionStats]);
 
   // Search effect with proper cleanup
   useEffect(() => {
@@ -627,7 +605,9 @@ const ScanScreen = React.memo(function ScanScreen() {
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="always"
-        keyboardDismissMode="none"
+        keyboardDismissMode="on-drag"
+        bounces={true}
+        alwaysBounceVertical={true}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -990,6 +970,7 @@ const SearchResultItem = React.memo(function SearchResultItem(
   props: SearchResultItemProps,
 ) {
   const { item, onPress } = props;
+  const stockQty = getStockQty(item);
   return (
     <TouchableOpacity
       style={styles.resultItem}
@@ -1000,6 +981,7 @@ const SearchResultItem = React.memo(function SearchResultItem(
       <View style={styles.resultInfo}>
         <Text style={styles.resultName}>{item.item_name}</Text>
         <Text style={styles.resultCode}>{item.item_code}</Text>
+        <Text style={styles.resultStock}>Stock: {stockQty}</Text>
       </View>
       <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
     </TouchableOpacity>
@@ -1117,6 +1099,12 @@ const styles = StyleSheet.create({
   resultCode: {
     fontSize: typography.fontSize.xs,
     color: colors.gray[500],
+  },
+  resultStock: {
+    marginTop: 2,
+    fontSize: typography.fontSize.xs,
+    color: colors.primary[700],
+    fontWeight: typography.fontWeight.semibold,
   },
   fabContainer: {
     display: "none",

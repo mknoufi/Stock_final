@@ -608,6 +608,9 @@ const StaffHome = React.memo(function StaffHome() {
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        keyboardDismissMode="on-drag"
+        bounces={true}
+        alwaysBounceVertical={true}
         refreshControl={
           <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
         }
@@ -671,7 +674,7 @@ const StaffHome = React.memo(function StaffHome() {
                       style={[
                         styles.chip,
                         selectedFloor === wh.warehouse_name &&
-                          styles.chipActive,
+                        styles.chipActive,
                       ]}
                       onPress={() => setSelectedFloor(wh.warehouse_name)}
                     >
@@ -679,7 +682,7 @@ const StaffHome = React.memo(function StaffHome() {
                         style={[
                           styles.chipText,
                           selectedFloor === wh.warehouse_name &&
-                            styles.chipTextActive,
+                          styles.chipTextActive,
                         ]}
                       >
                         {wh.warehouse_name}

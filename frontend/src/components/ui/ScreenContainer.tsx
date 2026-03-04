@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   ScrollView,
-  Pressable,
+  TouchableWithoutFeedback,
   Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -108,7 +108,10 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
           progressBackgroundColor={theme.colors.surfaceElevated}
         />
       ) : undefined,
-      keyboardShouldPersistTaps: "handled",
+      keyboardShouldPersistTaps: "handled" as const,
+      keyboardDismissMode: "on-drag" as const,
+      bounces: true,
+      alwaysBounceVertical: true,
     }
     : {
       style: [styles.content, style],
@@ -156,16 +159,15 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
           {children}
         </Container>
       ) : (
-        <Pressable
+        <TouchableWithoutFeedback
           onPress={Keyboard.dismiss}
           accessible={false}
-          style={styles.flex}
         >
           {/* @ts-ignore */}
           <Container style={[styles.flex, style]} {...containerProps}>
             {children}
           </Container>
-        </Pressable>
+        </TouchableWithoutFeedback>
       )}
       {overlay ? (
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
