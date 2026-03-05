@@ -9,11 +9,12 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Keyboard,
 } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { VirtualList } from "../common/VirtualList";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../hooks/useTheme";
 import {
@@ -46,7 +47,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<TextInput>(null);
-  const listRef = useRef<FlatList>(null);
+  const listRef = useRef<FlashList<SearchResult>>(null);
 
   // Search function
   const performSearch = React.useCallback(
@@ -406,7 +407,8 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   {results.length === 1 ? "ITEM" : "ITEMS"}
                 </Text>
               </View>
-              <FlatList
+              {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve rendering performance and avoid frame drops when there are many search results. */}
+              <VirtualList
                 ref={listRef}
                 data={results}
                 renderItem={renderResultItem}
@@ -416,6 +418,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                 maxToRenderPerBatch={10}
                 windowSize={5}
                 showsVerticalScrollIndicator={true}
+                estimatedItemSize={80}
               />
             </>
           ) : query.trim().length >= minChars ? (
