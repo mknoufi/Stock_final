@@ -9,7 +9,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
@@ -17,6 +16,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SearchResult } from "../../services/enhancedSearchService";
 import { Skeleton } from "../ui/Skeleton";
 import { BatchDetailsModal } from "./BatchDetailsModal";
+import { VirtualList } from "../common/VirtualList";
 
 interface ItemSearchProps {
   manualBarcode: string;
@@ -294,10 +294,11 @@ export const ItemSearch: React.FC<ItemSearchProps> = ({
               {totalResults > searchResults.length ? ` of ${totalResults}` : ""}
             </Text>
           </View>
-          <FlatList
+          {/* ⚡ Bolt: Replaced FlatList with VirtualList (uses FlashList under the hood) to improve rendering and scrolling performance for infinite search results. */}
+          <VirtualList
             data={searchResults}
-            renderItem={renderSearchResultItem}
-            keyExtractor={(item, index) =>
+            renderItem={renderSearchResultItem as any}
+            keyExtractor={(item: any, index: number) =>
               `search-${index}-${item.item_code || "no-code"}-${item.barcode || "no-barcode"}`
             }
             style={styles.searchResultsFlatList}
@@ -306,9 +307,7 @@ export const ItemSearch: React.FC<ItemSearchProps> = ({
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.3}
             ListFooterComponent={renderFooter}
-            initialNumToRender={10}
-            maxToRenderPerBatch={10}
-            windowSize={5}
+            estimatedItemSize={85}
           />
         </View>
       )}
