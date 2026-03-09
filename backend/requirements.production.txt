@@ -28,7 +28,7 @@ cryptography>=43.0.3  # Security: CVE fixes
 # Monitoring & Logging
 prometheus-client==0.21.0
 python-json-logger==2.0.7
-sentry-sdk[fastapi]==2.18.0
+sentry-sdk[fastapi]==2.54.0
 
 # Performance
 aiocache==0.12.2  # TODO: Update to 0.12.3
