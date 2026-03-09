@@ -4,7 +4,7 @@
 
 # Core Framework
 fastapi==0.115.8  # Latest stable
-uvicorn[standard]==0.34.1  # Latest stable
+uvicorn[standard]==0.41.0  # Latest stable
 gunicorn==23.0.0
 python-dotenv==1.0.1
 pydantic==2.12.5  # v2 stable
