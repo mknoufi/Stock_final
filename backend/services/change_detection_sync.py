@@ -361,7 +361,12 @@ class ChangeDetectionSyncService:
             self._running = True
             self._task = asyncio.create_task(self._run())
             logger.info("Change detection sync service started")
-            return Ok({"status": "started", "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()})
+            return Ok(
+                {
+                    "status": "started",
+                    "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+                }
+            )
 
         except Exception as e:
             self._running = False
@@ -394,7 +399,12 @@ class ChangeDetectionSyncService:
                 return Fail(error)
 
         logger.info("Change detection sync service stopped")
-        return Ok({"status": "stopped", "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat()})
+        return Ok(
+            {
+                "status": "stopped",
+                "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+            }
+        )
 
     async def _run(self) -> None:
         """Background loop for the sync service."""
@@ -421,7 +431,9 @@ class ChangeDetectionSyncService:
         if not self._running or not self._last_sync:
             return None
 
-        elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - self._last_sync).total_seconds()
+        elapsed = (
+            datetime.now(timezone.utc).replace(tzinfo=None) - self._last_sync
+        ).total_seconds()
         next_in = max(0, int(self.sync_interval - elapsed))
         return next_in
 

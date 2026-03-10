@@ -49,7 +49,9 @@ class OTPService:
         await self.otp_collection.delete_many({"user_id": user_id})
 
         otp_code = self.generate_otp_code()
-        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=self.otp_expiry_minutes)
+        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+            minutes=self.otp_expiry_minutes
+        )
 
         await self.otp_collection.insert_one(
             {
@@ -91,7 +93,9 @@ class OTPService:
         This is returned after successful OTP verification.
         """
         token = secrets.token_urlsafe(32)
-        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=self.token_expiry_minutes)
+        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+            minutes=self.token_expiry_minutes
+        )
 
         await self.reset_tokens_collection.insert_one(
             {

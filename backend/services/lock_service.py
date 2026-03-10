@@ -46,7 +46,9 @@ class LockService:
         Acquire a lock for a given key.
         Raises ResourceLockedError if lock is already held by another owner.
         """
-        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(seconds=ttl_seconds)
+        expires_at = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+            seconds=ttl_seconds
+        )
 
         try:
             # Try to insert lock

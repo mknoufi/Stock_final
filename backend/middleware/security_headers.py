@@ -5,7 +5,6 @@ Implements OWASP security headers recommendations
 
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 

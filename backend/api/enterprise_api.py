@@ -177,7 +177,9 @@ async def add_to_ip_list(
 
     list_type = IPListType.WHITELIST if entry.list_type == "whitelist" else IPListType.BLACKLIST
     expires_at = (
-        datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=entry.expires_hours) if entry.expires_hours else None
+        datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(hours=entry.expires_hours)
+        if entry.expires_hours
+        else None
     )
 
     success = await security_service.add_to_ip_list(

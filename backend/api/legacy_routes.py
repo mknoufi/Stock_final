@@ -26,7 +26,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 
-from backend.api.schemas import (  # noqa: E402
+from backend.api.schemas import (  # noqa: E402,F401
     ApiResponse,
     CountLineCreate,
     Session,
@@ -37,11 +37,11 @@ from backend.api.schemas import (  # noqa: E402
 # New feature API routers
 # Phase 1-3: New Upgrade APIs
 # New feature services
-from backend.config import settings  # noqa: E402
-from backend.error_messages import get_error_message  # noqa: E402
+from backend.config import settings  # noqa: E402,F401
+from backend.error_messages import get_error_message  # noqa: E402,F401
 from backend.exceptions import AuthenticationError, NotFoundError
 from backend.exceptions import RateLimitError as RateLimitExceededError
-from backend.exceptions import (  # noqa: E402; Using base class as generic database error for now
+from backend.exceptions import (  # noqa: E402,F401
     StockVerifyException as DatabaseError,
 )
 from backend.exceptions import ValidationError
@@ -49,7 +49,7 @@ from backend.exceptions import ValidationError
 # Service type imports
 # Production services
 # from backend.services.connection_pool import SQLServerConnectionPool  # Legacy pool removed
-from backend.services.database_optimizer import DatabaseOptimizer  # noqa: E402
+from backend.services.database_optimizer import DatabaseOptimizer  # noqa: E402,F401
 
 # Global service instances (injected by main.py)
 db: Any = None
@@ -74,12 +74,12 @@ enterprise_security_service: Any = None
 
 # Phase 1-3: New Services
 # Utils
-from backend.utils.api_utils import result_to_response  # noqa: E402
-from backend.utils.api_utils import sanitize_for_logging  # noqa: E402
-from backend.utils.auth_utils import get_password_hash  # noqa: E402
-from backend.utils.logging_config import setup_logging  # noqa: E402
-from backend.utils.result import Fail, Ok, Result  # noqa: E402
-from backend.utils.tracing import init_tracing  # noqa: E402
+from backend.utils.api_utils import result_to_response  # noqa: E402,F401
+from backend.utils.api_utils import sanitize_for_logging  # noqa: E402,F401
+from backend.utils.auth_utils import get_password_hash  # noqa: E402,F401
+from backend.utils.logging_config import setup_logging  # noqa: E402,F401
+from backend.utils.result import Fail, Ok, Result  # noqa: E402,F401
+from backend.utils.tracing import init_tracing  # noqa: E402,F401
 
 # Initialize a fallback logger early so optional import blocks can log safely
 logger = logging.getLogger("stock-verify")
@@ -628,7 +628,8 @@ async def log_successful_login(user: dict[str, Any], ip_address: str, request: R
 
         # Update last login timestamp
         await db.users.update_one(
-            {"_id": user["_id"]}, {"$set": {"last_login_at": datetime.now(timezone.utc).replace(tzinfo=None)}}
+            {"_id": user["_id"]},
+            {"$set": {"last_login_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
         )
 
         # Log to monitoring
@@ -843,7 +844,12 @@ async def bulk_close_sessions(
             try:
                 result = await db.sessions.update_one(
                     {"id": session_id},
-                    {"$set": {"status": "CLOSED", "closed_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
+                    {
+                        "$set": {
+                            "status": "CLOSED",
+                            "closed_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                        }
+                    },
                 )
                 if result.modified_count > 0:
                     updated_count += 1
