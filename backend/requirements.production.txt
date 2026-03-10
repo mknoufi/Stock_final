@@ -20,7 +20,7 @@ redis==5.2.1  # Redis client
 # NOTE: python-jose removed due to CVE-2024-33663/33664 and ecdsa vulnerabilities
 # Using PyJWT + cryptography instead (see backend/auth/jwt_provider.py)
 passlib[argon2]==1.7.4
-bcrypt==4.2.1  # TODO: Update to 5.0.0 (test compatibility first)
+bcrypt==5.0.0  # TODO: Update to 5.0.0 (test compatibility first)
 python-multipart==0.0.18
 authlib==1.6.0  # JWT provider (authlib.jose)
 PyJWT==2.10.1  # Secure JWT implementation
