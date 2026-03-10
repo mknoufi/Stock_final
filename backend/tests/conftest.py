@@ -22,6 +22,7 @@ os.environ.update(
         "JWT_SECRET": "test-jwt-secret-key-for-testing-only",
         "JWT_REFRESH_SECRET": "test-jwt-refresh-secret-key-for-testing-only",
         "JWT_ALGORITHM": "HS256",
+        "PIN_SALT": "test-pin-salt-for-testing-only",
         "REDIS_URL": "redis://localhost:6379/15",  # Use database 15 for testing
         # 'SQL_SERVER_HOST': 'localhost',  # Disabled to prevent connection pool hang
         # 'SQL_SERVER_DATABASE': 'stockdb_test',

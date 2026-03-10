@@ -464,6 +464,7 @@ if FRONTEND_DIST.exists():
 
         # Default to index.html for SPA routing
         return FileResponse(FRONTEND_DIST / "index.html")
+
 else:
     logger.warning(
         f"Frontend dist not found at {FRONTEND_DIST}. Run 'npm run build:web' in frontend/."

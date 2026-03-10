@@ -39,8 +39,12 @@ class FeatureFlag(BaseModel):
     allowed_roles: list[str] = Field(default_factory=list)
 
     # Metadata
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
     created_by: Optional[str] = None
     updated_by: Optional[str] = None
 
@@ -97,7 +101,9 @@ class FeatureFlagService:
         """Check if cache is still valid"""
         if not self._cache_time:
             return False
-        elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - self._cache_time).total_seconds()
+        elapsed = (
+            datetime.now(timezone.utc).replace(tzinfo=None) - self._cache_time
+        ).total_seconds()
         return elapsed < self.cache_ttl
 
     async def is_enabled(

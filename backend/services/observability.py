@@ -37,7 +37,9 @@ class LogLevel(str, Enum):
 class StructuredLogEntry(BaseModel):
     """Structured log entry for enterprise logging"""
 
-    timestamp: str = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None).isoformat())
+    timestamp: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+    )
     level: str
     message: str
 

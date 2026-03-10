@@ -168,7 +168,9 @@ class AdvancedERPSyncService:
                     )
 
             # Calculate performance metrics
-            duration = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+            duration = (
+                datetime.now(timezone.utc).replace(tzinfo=None) - start_time
+            ).total_seconds()
             stats["duration"] = duration
 
             # Update service stats
@@ -288,7 +290,9 @@ class AdvancedERPSyncService:
                             "filter": {"barcode": item_doc["barcode"]},
                             "update": {
                                 "$set": item_doc,
-                                "$setOnInsert": {"created_at": datetime.now(timezone.utc).replace(tzinfo=None)},
+                                "$setOnInsert": {
+                                    "created_at": datetime.now(timezone.utc).replace(tzinfo=None)
+                                },
                             },
                             "upsert": True,
                         }

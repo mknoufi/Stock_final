@@ -84,9 +84,9 @@ class TestAPIPerformance:
                 json={"username": user_data["username"], "password": user_data["password"]},
             )
 
-        assert (
-            login_response.status_code == status.HTTP_200_OK
-        ), f"Login failed: {login_response.text}"
+        assert login_response.status_code == status.HTTP_200_OK, (
+            f"Login failed: {login_response.text}"
+        )
         login_payload = login_response.json()
         token = login_payload.get("access_token") or login_payload.get("data", {}).get(
             "access_token"

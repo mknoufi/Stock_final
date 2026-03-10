@@ -1,6 +1,7 @@
 """
 Script to verify Multi-Location Reconciliation Logic.
 """
+
 from datetime import timezone
 
 import sys
@@ -46,7 +47,11 @@ async def run_verification():
         # 2. Setup Data
         print(f"Creating Test Session: {session_id}", flush=True)
         await db.sessions.insert_one(
-            {"id": session_id, "status": "ACTIVE", "created_at": str(datetime.now(timezone.utc).replace(tzinfo=None))}
+            {
+                "id": session_id,
+                "status": "ACTIVE",
+                "created_at": str(datetime.now(timezone.utc).replace(tzinfo=None)),
+            }
         )
 
         print(f"Creating Test Item: {item_code} (Stock: 10)", flush=True)

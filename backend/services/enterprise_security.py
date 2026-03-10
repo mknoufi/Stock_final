@@ -37,7 +37,9 @@ class IPListType(str, Enum):
 class SecurityEvent(BaseModel):
     """Security event for monitoring"""
 
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
     event_type: str
     ip_address: str
     username: Optional[str] = None

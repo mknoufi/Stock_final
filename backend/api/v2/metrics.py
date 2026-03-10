@@ -2,6 +2,7 @@
 API v2 Metrics Endpoints
 Connection pool and system metrics monitoring
 """
+
 from datetime import timezone
 
 from typing import Any

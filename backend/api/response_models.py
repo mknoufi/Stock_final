@@ -24,7 +24,10 @@ class ApiResponse(BaseModel, Generic[T]):
     )
     message: Optional[str] = Field(None, description="Human-readable message")
     payload_version: str = Field("1.0", description="API Payload Version")
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None), description="Response timestamp")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        description="Response timestamp",
+    )
     request_id: Optional[str] = Field(None, description="Request ID for tracking")
 
     @classmethod
@@ -102,7 +105,8 @@ class HealthCheckResponse(BaseModel):
         ..., description="Individual service health statuses"
     )
     timestamp: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None), description="Health check timestamp"
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None),
+        description="Health check timestamp",
     )
     version: Optional[str] = Field(None, description="Application version")
 

@@ -72,7 +72,9 @@ async def get_sessions_v2(
                 status=session.get("status", "active"),
                 type=session.get("type", "STANDARD"),
                 created_by=session.get("created_by", ""),
-                created_at=session.get("created_at", datetime.now(timezone.utc).replace(tzinfo=None)),
+                created_at=session.get(
+                    "created_at", datetime.now(timezone.utc).replace(tzinfo=None)
+                ),
                 updated_at=session.get("updated_at"),
             )
             for session in sessions
@@ -228,7 +230,11 @@ async def get_watchtower_stats(
         active_sessions_count = await db.sessions.count_documents({"status": "OPEN"})
 
         # 2. Total Scans Today
-        today_start = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = (
+            datetime.now(timezone.utc)
+            .replace(tzinfo=None)
+            .replace(hour=0, minute=0, second=0, microsecond=0)
+        )
         total_scans_today = await db.count_lines.count_documents(
             {"counted_at": {"$gte": today_start.isoformat()}}
         )
@@ -237,7 +243,9 @@ async def get_watchtower_stats(
         # Assuming we track 'last_active' in users or have an activity log.
         # For now, we'll approximate active users based on recent count_lines or activity logs if available.
         # Fallback: Count unique users who added a count_line in the last 15 mins.
-        fifteen_mins_ago = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=15)).isoformat()
+        fifteen_mins_ago = (
+            datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=15)
+        ).isoformat()
         active_users_pipeline = [
             {"$match": {"counted_at": {"$gte": fifteen_mins_ago}}},
             {"$group": {"_id": "$counted_by"}},

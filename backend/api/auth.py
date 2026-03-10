@@ -1144,7 +1144,12 @@ async def password_reset_confirm(data: PasswordResetConfirm):
 
         await db.users.update_one(
             {"_id": ObjectId(user_id)},
-            {"$set": {"hashed_password": hashed_password, "updated_at": datetime.now(timezone.utc)}},
+            {
+                "$set": {
+                    "hashed_password": hashed_password,
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
         )
 
         # Optional: Send confirmation

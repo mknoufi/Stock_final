@@ -123,7 +123,9 @@ class AuditEntry(BaseModel):
     """Immutable audit log entry"""
 
     id: Optional[str] = None
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
     event_type: AuditEventType
     severity: AuditSeverity = AuditSeverity.INFO
 
@@ -445,7 +447,9 @@ class EnterpriseAuditService:
 
     async def apply_retention_policy(self) -> dict[str, int]:
         """Delete audit logs older than retention period"""
-        cutoff_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=self.retention_days)
+        cutoff_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+            days=self.retention_days
+        )
 
         # Archive before deletion (optional)
         # ... archival logic here ...
