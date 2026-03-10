@@ -2390,8 +2390,9 @@ export default function ItemDetailScreen() {
                     extraData={serialValidationMessages}
                     style={styles.serialEntriesList}
                     contentContainerStyle={styles.serialEntriesContent}
-                    nestedScrollEnabled
-                    scrollEnabled={serialEntries.length > 4}
+                    nestedScrollEnabled={Platform.OS === "android"}
+                    // Let the parent screen ScrollView own vertical scrolling to avoid gesture lockups.
+                    scrollEnabled={false}
                     initialNumToRender={8}
                     maxToRenderPerBatch={10}
                     windowSize={5}
@@ -3319,7 +3320,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   serialEntriesList: {
-    maxHeight: 320,
+    flexGrow: 0,
   },
   serialEntriesContent: {
     paddingBottom: spacing.xs,
