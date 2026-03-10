@@ -12,7 +12,6 @@ import {
   StyleSheet,
   Platform,
   Modal,
-  FlatList,
   ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +19,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { ItemVerificationAPI } from "@/domains/inventory/services/itemVerificationApi";
 import { getRackProgress } from "@/services/api/api";
 import { RackProgressCard } from "@/components/scan/RackProgressCard";
+import { VirtualList } from "@/components/common/VirtualList";
 
 export interface FilterValues {
   category?: string;
@@ -169,7 +169,9 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
                 style={{ margin: 20 }}
               />
             ) : (
-              <FlatList
+              // ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to optimize rendering performance for potentially large lists of floors or racks. Estimated size (75) based on average height of modal items and RackProgressCards.
+              <VirtualList
+                estimatedItemSize={75}
                 data={data}
                 keyExtractor={(item) =>
                   typeof item === "string" ? item : item.rack
