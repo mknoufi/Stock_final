@@ -4,6 +4,7 @@ Centralized controls for SQL Verification policy enforcement.
 """
 
 import os
+from typing import Any
 
 
 def _env_bool(key: str, default: bool) -> bool:
@@ -28,7 +29,7 @@ SQL_MAX_VARIANCE = max(0, min(int(os.getenv("SQL_MAX_VARIANCE", "10000")), 10000
 SQL_MAX_LATENCY_MS = max(100, min(int(os.getenv("SQL_MAX_LATENCY_MS", "5000")), 60000))
 
 # Audit Fingerprint - Include in all compliance logs
-GOVERNANCE_FINGERPRINT = {
+GOVERNANCE_FINGERPRINT: dict[str, Any] = {
     "strict": SQL_VERIFY_STRICT,
     "max_variance": SQL_MAX_VARIANCE,
     "max_latency_ms": SQL_MAX_LATENCY_MS,

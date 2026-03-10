@@ -6,9 +6,9 @@ import {
   checkItemCounted,
   createCountLine,
   addQuantityToCountLine,
-} from "@/services/api";
-import { normalizeSerialValue } from "@/utils/scanUtils";
-import { Item, CreateCountLinePayload } from "@/types/scan";
+} from "../../../../services/api";
+import { normalizeSerialValue } from "../../../../utils/scanUtils";
+import { Item, CreateCountLinePayload } from "../../../../types/scan";
 import { useItemForm } from "./useItemForm";
 
 interface UseItemSubmissionProps {
@@ -58,7 +58,7 @@ export const useItemSubmission = ({
                 onPress: () => resolve(true),
                 style: "destructive",
               },
-            ],
+            ]
           );
         });
         if (!confirmed) return;
@@ -67,10 +67,7 @@ export const useItemSubmission = ({
 
     // Check for existing count
     try {
-      const checkResult = await checkItemCounted(
-        sessionId as string,
-        item.item_code,
-      );
+      const checkResult = await checkItemCounted(sessionId as string, item.item_code);
       if (
         checkResult.already_counted &&
         checkResult.count_lines &&
@@ -78,23 +75,21 @@ export const useItemSubmission = ({
       ) {
         const existingLine = checkResult.count_lines[0];
 
-        const userChoice = await new Promise<"ADD" | "CANCEL" | "NEW">(
-          (resolve) => {
-            Alert.alert(
-              "Item Already Counted",
-              `This item has already been counted (Qty: ${existingLine.counted_qty}). Do you want to add to the existing count?`,
-              [
-                {
-                  text: "Cancel",
-                  onPress: () => resolve("CANCEL"),
-                  style: "cancel",
-                },
-                { text: "Add to Existing", onPress: () => resolve("ADD") },
-                { text: "Create New Entry", onPress: () => resolve("NEW") },
-              ],
-            );
-          },
-        );
+        const userChoice = await new Promise<"ADD" | "CANCEL" | "NEW">((resolve) => {
+          Alert.alert(
+            "Item Already Counted",
+            `This item has already been counted (Qty: ${existingLine.counted_qty}). Do you want to add to the existing count?`,
+            [
+              {
+                text: "Cancel",
+                onPress: () => resolve("CANCEL"),
+                style: "cancel",
+              },
+              { text: "Add to Existing", onPress: () => resolve("ADD") },
+              { text: "Create New Entry", onPress: () => resolve("NEW") },
+            ]
+          );
+        });
 
         if (userChoice === "CANCEL") return;
 
@@ -104,7 +99,7 @@ export const useItemSubmission = ({
             await addQuantityToCountLine(
               existingLine.line_id,
               finalQty,
-              form.isBatchMode ? form.batches : undefined,
+              form.isBatchMode ? form.batches : undefined
             );
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert("Success", "Quantity added successfully", [
@@ -112,8 +107,7 @@ export const useItemSubmission = ({
             ]);
             return;
           } catch (error: unknown) {
-            const errorMessage =
-              error instanceof Error ? error.message : "Failed to add quantity";
+            const errorMessage = error instanceof Error ? error.message : "Failed to add quantity";
             Alert.alert("Error", errorMessage);
             setLoading(false);
             return;
@@ -131,27 +125,22 @@ export const useItemSubmission = ({
       const payload: CreateCountLinePayload = {
         session_id: sessionId as string,
         item_code: item.item_code,
+        batch_id: item.batch_id || undefined,
         counted_qty: finalQty,
         batches: form.isBatchMode ? form.batches : undefined,
         damaged_qty: form.isDamageEnabled ? Number(form.damageQty) : 0,
         item_condition: form.condition,
-        condition_details:
-          form.condition === "Other" ? form.conditionDetails : undefined,
+        condition_details: form.condition === "Other" ? form.conditionDetails : undefined,
         remark: form.remark || undefined,
         photo_base64: form.itemPhoto?.base64,
-        mrp_counted:
-          form.mrpEditable && form.mrp ? Number(form.mrp) : undefined,
+        mrp_counted: form.mrpEditable && form.mrp ? Number(form.mrp) : undefined,
         category_correction: form.categoryEditable ? form.category : undefined,
-        subcategory_correction: form.categoryEditable
-          ? form.subCategory
-          : undefined,
+        subcategory_correction: form.categoryEditable ? form.subCategory : undefined,
         manufacturing_date: form.mfgDate || undefined,
       };
 
       if (form.isSerialEnabled) {
-        payload.serial_numbers = form.serialNumbers.map((sn) =>
-          normalizeSerialValue(sn),
-        );
+        payload.serial_numbers = form.serialNumbers.map((sn) => normalizeSerialValue(sn));
       }
 
       await createCountLine(payload);
@@ -161,8 +150,7 @@ export const useItemSubmission = ({
         { text: "OK", onPress: () => router.back() },
       ]);
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to submit count";
+      const errorMessage = error instanceof Error ? error.message : "Failed to submit count";
       Alert.alert("Error", errorMessage);
     } finally {
       setLoading(false);

@@ -28,7 +28,6 @@ import {
   stopSyncService,
 } from "../src/services/offline/syncService";
 import apiClient, { updateBaseURL } from "../src/services/httpClient";
-import { initSentry } from "../src/services/sentry";
 import { mmkvStorage } from "../src/services/mmkvStorage";
 import { AuthGuard } from "../src/components/auth/AuthGuard";
 import {
@@ -123,12 +122,13 @@ export default function RootLayout() {
 
       // Initialize react-scan only on Web
       if (Platform.OS === "web") {
-        try {
-          const { scan } = require("react-scan");
-          scan({ enabled: true, log: true });
-        } catch (e) {
-          console.warn("React Scan init failed", e);
-        }
+        import("react-scan")
+          .then(({ scan }) => {
+            scan({ enabled: true, log: true });
+          })
+          .catch((e) => {
+            console.warn("React Scan init failed", e);
+          });
       }
     }
 

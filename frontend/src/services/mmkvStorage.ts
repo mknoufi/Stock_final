@@ -1,72 +1,61 @@
 import { createLogger } from "./logging";
-import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const log = createLogger("mmkvStorage");
 
-// Storage initialization
-let storage: any;
+// Use AsyncStorage with an in-memory cache for synchronous-like access.
+// react-native-mmkv v4 requires react-native-nitro-modules which cannot be
+// resolved in Expo Go (Metro resolves imports statically), so we use
+// AsyncStorage exclusively for maximum compatibility.
 
-// Detect if we are likely in a native environment that supports MMKV
-const isNative = Platform.OS === "ios" || Platform.OS === "android";
+log.info("Using AsyncStorage storage engine (Expo Go compatible)");
 
-if (isNative) {
-  try {
-    // Dynamic require prevents top-level import crashes in environments where NitroModules aren't linked (like Expo Go)
-    const { MMKV } = require("react-native-mmkv");
-    storage = new MMKV({
-      id: "stock-verify-storage",
-    });
-    log.info("MMKV native storage initialized");
-  } catch (e) {
-    log.warn(
-      "MMKV native initialization failed (likely Expo Go). Falling back to memory storage.",
-      { error: String(e) }
-    );
-  }
-}
+// Simple in-memory cache to mimic sync behavior for current session
+const memoryCache = new Map<string, string>();
 
-// Fallback logic if native storage is unavailable or failed
-// Fallback logic if native storage is unavailable or failed (e.g. Expo Go)
-if (!storage) {
-  const AsyncStorage = require("@react-native-async-storage/async-storage").default;
-  // Create a synchronous-like wrapper for AsyncStorage (async operations will be fire-and-forget or handled gracefully)
-  // NOTE: This shim is imperfect because AsyncStorage is async, but MMKV API is sync.
-  // For critical config, this means initial load might need to be awaited elsewhere or accept defaults.
+// Hydrate only small, essential keys from AsyncStorage on start (best effort).
+// Skip large cache blobs (sessions_cache, items_cache, count_lines_cache, etc.)
+// to avoid blocking the JS thread at startup.
+const LARGE_CACHE_KEYS = new Set([
+  "sessions_cache",
+  "items_cache",
+  "count_lines_cache",
+  "offline_queue",
+]);
 
-  log.warn("Using AsyncStorage fallback (Expo Go mode). Note: Data persistence is async.");
-
-  // Simple in-memory cache to mimic sync behavior for current session
-  const memoryCache = new Map<string, string>();
-
-  // Try to hydrate cache from AsyncStorage on start (best effort)
-  if (AsyncStorage && AsyncStorage.getAllKeys) {
-    AsyncStorage.getAllKeys().then((keys: string[]) => {
-    if (keys.length > 0) {
-      AsyncStorage.multiGet(keys).then((pairs: [string, string | null][]) => {
-        pairs.forEach(([key, value]) => {
-          if (value) memoryCache.set(key, value);
-        });
-      });
+AsyncStorage.getAllKeys()
+  .then((keys: readonly string[]) => {
+    const smallKeys = (keys as string[]).filter((k) => !LARGE_CACHE_KEYS.has(k));
+    if (smallKeys.length > 0) {
+      return AsyncStorage.multiGet(smallKeys);
     }
-  });
-  }
+    return [];
+  })
+  .then((pairs) => {
+    if (pairs && pairs.length > 0) {
+      pairs.forEach(([key, value]) => {
+        if (value) memoryCache.set(key, value);
+      });
+      log.info(`Hydrated ${pairs.length} keys from AsyncStorage`);
+    }
+  })
+  .catch((e) => log.warn("Failed to hydrate from AsyncStorage", { error: String(e) }));
 
-  storage = {
-    set: (key: string, value: string) => {
-      memoryCache.set(key, value);
-      AsyncStorage.setItem(key, value).catch((e: any) => log.error("AsyncStorage set failed", e));
-    },
-    getString: (key: string) => memoryCache.get(key),
-    remove: (key: string) => {
-      memoryCache.delete(key);
-      AsyncStorage.removeItem(key).catch((e: any) => log.error("AsyncStorage remove failed", e));
-    },
-    clearAll: () => {
-      memoryCache.clear();
-      AsyncStorage.clear().catch((e: any) => log.error("AsyncStorage clear failed", e));
-    },
-  };
-}
+const storage = {
+  set: (key: string, value: string) => {
+    memoryCache.set(key, value);
+    AsyncStorage.setItem(key, value).catch((e: any) => log.error("AsyncStorage set failed", e));
+  },
+  getString: (key: string) => memoryCache.get(key),
+  remove: (key: string) => {
+    memoryCache.delete(key);
+    AsyncStorage.removeItem(key).catch((e: any) => log.error("AsyncStorage remove failed", e));
+  },
+  clearAll: () => {
+    memoryCache.clear();
+    AsyncStorage.clear().catch((e: any) => log.error("AsyncStorage clear failed", e));
+  },
+};
 
 /**
  * MMKV Storage engine

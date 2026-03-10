@@ -434,7 +434,7 @@ async def get_session_stats(
                 "_id": None,
                 "total": {"$sum": 1},
                 "verified": {"$sum": {"$cond": [{"$eq": ["$status", "finalized"]}, 1, 0]}},
-                "damage": {"$sum": "$damage_qty"},
+                "damage": {"$sum": "$damaged_qty"},
             }
         },
     ]
@@ -570,11 +570,11 @@ async def update_session_status(
             "type": "session_update",
             "payload": {
                 "session_id": session_id,
-                    "status": normalized_status,
-                    "updated_by": user_id,
-                    "updated_at": time.time(),
-                },
+                "status": normalized_status,
+                "updated_by": user_id,
+                "updated_at": time.time(),
             },
+        },
         session_id=session_id,
     )
 

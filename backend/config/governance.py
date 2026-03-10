@@ -19,6 +19,16 @@ __all__ = [
     "SQL_VERIFY_STRICT",
 ]
 
+import os
+
+
+def _env_bool(key: str, default: bool) -> bool:
+    val = os.getenv(key)
+    if val is None:
+        return default
+    return val.strip().lower() in ("1", "true", "yes", "on")
+
+
 # ==============================================================================
 # Feature Flags (Kill Switches)
 # ==============================================================================

@@ -12,18 +12,19 @@ pydantic-settings==2.7.0
 
 # Database Drivers
 motor==3.7.0  # MongoDB async driver
-pymongo>=4.10.0  # MongoDB sync driver
+pymongo==4.10.1  # MongoDB sync driver
 pyodbc==5.2.0  # SQL Server ODBC driver
-redis>=5.2.1  # Redis client
+redis==5.2.1  # Redis client
 
 # Security
 # NOTE: python-jose removed due to CVE-2024-33663/33664 and ecdsa vulnerabilities
 # Using PyJWT + cryptography instead (see backend/auth/jwt_provider.py)
 passlib[argon2]==1.7.4
 bcrypt==4.2.1  # TODO: Update to 5.0.0 (test compatibility first)
-python-multipart>=0.0.18
-PyJWT>=2.10.1  # Secure JWT implementation
-cryptography>=43.0.3  # Security: CVE fixes
+python-multipart==0.0.18
+authlib==1.6.0  # JWT provider (authlib.jose)
+PyJWT==2.10.1  # Secure JWT implementation
+cryptography==43.0.3  # Security: CVE fixes
 
 # Monitoring & Logging
 prometheus-client==0.21.0
@@ -45,11 +46,11 @@ python-dateutil==2.9.0
 email-validator==2.2.0
 
 # For production stability
-setuptools>=65.0.0
-wheel>=0.40.0
+setuptools==75.6.0
+wheel==0.45.1
 
 # Additional packages for system monitoring and report generation
 psutil==6.1.0
 pandas==2.2.3
 xlsxwriter==3.2.0
-reportlab>=4.2.5
+reportlab==4.2.5

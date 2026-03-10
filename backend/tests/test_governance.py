@@ -9,9 +9,8 @@ class TestGovernance:
         Verify that updating settings creates an immutable config version.
         """
         # 1. Update Settings
-        payload = {"api_timeout": 60, "cache_enabled": True, "sync_interval": 3600}
-        # Note: Using partial update might fail pydantic validation if we don't provide all SystemParameters
-        # or if we don't use the correct endpoint.
+        # Note: Using partial update might fail pydantic validation if we don't provide all
+        # SystemParameters or if we don't use the correct endpoint.
         # API expects SystemParameters which has defaults.
         # Let's construct a valid full payload based on defaults + change.
         full_payload = {
@@ -47,7 +46,8 @@ class TestGovernance:
         assert response.status_code == 200, f"Update failed: {response.text}"
 
         # 2. Verify Config Version Created
-        # We need to access the underlying collection. test_db is InMemoryDatabase which behaves like Motor IDB?
+        # We need to access the underlying collection. test_db is InMemoryDatabase which behaves
+        # like Motor IDB?
         # Assuming test_db is the database object.
         latest_version = await test_db.config_versions.find_one(sort=[("created_at", -1)])
 

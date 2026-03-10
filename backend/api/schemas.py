@@ -211,6 +211,12 @@ class CountLineCreate(BaseModel):
     session_id: str
     item_code: str
     barcode: Optional[str] = None
+    batch_id: Optional[str] = None
+    batches: Optional[list[dict[str, Any]]] = None
+    variant_id: Optional[str] = None
+    variant_barcode: Optional[str] = None
+    mrp_source: Optional[str] = None
+    condition_details: Optional[str] = None
     counted_qty: float
     damaged_qty: Optional[float] = 0
     non_returnable_damaged_qty: Optional[float] = 0
@@ -257,7 +263,9 @@ class Session(BaseModel):
     staff_name: str
     status: str = "OPEN"  # OPEN, ACTIVE, CLOSED
     type: str = "STANDARD"  # STANDARD, BLIND, STRICT
-    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    started_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
     closed_at: Optional[datetime] = None
     reconciled_at: Optional[datetime] = None
     total_items: int = 0
@@ -309,7 +317,9 @@ class UnknownItem(BaseModel):
     photo_base64: Optional[str] = None
     remark: Optional[str] = None
     reported_by: str
-    reported_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    reported_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
     item_name: Optional[str] = None
     mrp: Optional[float] = None
     stock: Optional[float] = None

@@ -16,7 +16,7 @@ async def test_modern_batch_sync_success(async_client: AsyncClient, authenticate
                 "session_id": session_id,
                 "item_code": "ITEM-100",
                 "verified_qty": 10.0,
-                "damage_qty": 2.0,
+                "damaged_qty": 2.0,
                 "serial_numbers": ["SN-100-1", "SN-100-2"],
                 "created_at": "2024-01-01T10:00:00Z",
                 "updated_at": "2024-01-01T10:05:00Z",

@@ -1,64 +1,84 @@
-# Sync .project/sourceTexts/ folder (source text files)
+# =============================================================================
+# Stock Verification System — .gitignore
+# =============================================================================
 
-# Don't sync user-specific SQLite databases
-.project/*.sqlite
+# Environment files (secrets)
+.env
+.env.bak
+.env.local
+.env.production
 
-# Don't sync SQLite auxiliary files
-.project/*.sqlite-wal
-.project/*.sqlite-shm
+# Keep example templates
+!.env.example
+!.env.production.example
 
-# Don't sync user-specific files
-.project/complete_drafts.txt
-.project/localProjectSettings.json
-copilot-messages.log
-
-# Archive formats
-*.zip
-*.rar
-*.7z
-*.tar
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.gz
-*.bz2
-*.xz
-
-# Windows executables and installers
-*.exe
-*.msi
-*.bat
-*.cmd
-*.com
-*.scr
-*.dll
-
-# macOS executables and disk images
-*.dmg
-*.pkg
-
-# Disk images and virtual machine files
-*.iso
-*.img
-*.vhd
-*.vmdk
-
-# System files
-.DS_Store
-.project/attachments/files/**
-
-# Dependencies
-node_modules/
+# Python
 __pycache__/
 *.py[cod]
-*.pyc.*
 *.pyo
-*.pyd
+*.egg-info/
+dist/
+build/
+*.spec
+.coverage
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+htmlcov/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
 *.log
-.env
-dist/
+*.log.*
+app.log
+
+# Build artifacts
+*.exe
+*.dll
+*.so
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
+# Agent / AI assistant config leftovers
+.aider*
+.autogpt.yml
+.autopilot.json
+.clinerules
+.cursorrules
+.devon.yml
+.interpreter.yml
+.kilocodemodes
+.swe-agent.yml
+.secrets.baseline
+cooking_agent/
+
+# Test output
+*_output.txt
+*_results.txt
+*_results_*.txt
+test_failures.txt
+pre_commit_output.txt
+
+# Docker
+.dockerignore
+
+# Expo
 .expo/
-.cloudflared/

@@ -12,11 +12,13 @@ import {
   cacheItem,
   searchItemsInCache,
   cacheSession,
+  cacheSessions,
   removeSessionFromCache,
   getSessionsCache,
   getSessionFromCache,
   getItemFromCache,
   cacheCountLine,
+  cacheCountLines,
   getCountLinesBySessionFromCache,
   isCacheStale,
   type DataSource,
@@ -222,11 +224,9 @@ export const getSessions = async (page: number = 1, pageSize: number = 20) => {
         has_prev: false,
       };
 
-    // Cache sessions
-    if (Array.isArray(sessions)) {
-      for (const session of sessions) {
-        await cacheSession(session);
-      }
+    // Cache sessions in a single batch write (avoids N+1 reads/writes)
+    if (Array.isArray(sessions) && sessions.length > 0) {
+      await cacheSessions(sessions);
     }
 
     // Merge in cached sessions not returned by the API (e.g., offline-created)
@@ -1406,16 +1406,15 @@ export const getCountLines = async (
     log.debug("Fetching count lines from API", { sessionId, page, pageSize });
     const response = await api.get(url);
 
-    // Cache count lines
-    if (response.data?.items && Array.isArray(response.data.items)) {
-      for (const countLine of response.data.items) {
-        await cacheCountLine(countLine);
-      }
-    } else if (Array.isArray(response.data)) {
-      // Handle legacy format
-      for (const countLine of response.data) {
-        await cacheCountLine(countLine);
-      }
+    // Batch cache count lines in a single write (avoids N+1 reads/writes)
+    const countLinesToCache =
+      response.data?.items && Array.isArray(response.data.items)
+        ? response.data.items
+        : Array.isArray(response.data)
+          ? response.data
+          : [];
+    if (countLinesToCache.length > 0) {
+      await cacheCountLines(countLinesToCache);
     }
 
     return {

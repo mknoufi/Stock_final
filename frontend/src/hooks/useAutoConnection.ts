@@ -6,9 +6,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { Platform } from "react-native";
 import { createLogger } from "../services/logging";
-import ConnectionManager, {
-  ConnectionInfo,
-} from "../services/connectionManager";
+import ConnectionManager, { ConnectionInfo } from "../services/connectionManager";
 // import EnvironmentConfig from "../config/environment";
 
 const log = createLogger("AutoConnectionHook");
@@ -31,7 +29,7 @@ interface UseAutoConnectionReturn {
 }
 
 export const useAutoConnection = (
-  options: UseAutoConnectionOptions = {},
+  options: UseAutoConnectionOptions = {}
 ): UseAutoConnectionReturn => {
   const {
     onConnectionChange,
@@ -88,9 +86,7 @@ export const useAutoConnection = (
       setError(err instanceof Error ? err : new Error("Reconnection failed"));
 
       if (onConnectionError) {
-        onConnectionError(
-          err instanceof Error ? err : new Error("Reconnection failed"),
-        );
+        onConnectionError(err instanceof Error ? err : new Error("Reconnection failed"));
       }
     } finally {
       setIsReconnecting(false);
@@ -98,6 +94,10 @@ export const useAutoConnection = (
   }, [connectionManager, onConnectionError]);
 
   // Auto-reconnect on network/app foreground
+  // Use a ref for isReconnecting to avoid re-running the effect every time it changes
+  const isReconnectingRef = useRef(isReconnecting);
+  isReconnectingRef.current = isReconnecting;
+
   useEffect(() => {
     if (!enableAutoReconnect) {
       return;
@@ -108,35 +108,17 @@ export const useAutoConnection = (
       const currentConnection = connectionManager.getConnection();
 
       // Only attempt reconnection if we have a connection but it's unhealthy
-      if (
-        currentConnection &&
-        !currentConnection.isHealthy &&
-        !isReconnecting
-      ) {
+      if (currentConnection && !currentConnection.isHealthy && !isReconnectingRef.current) {
         log.info("Auto-reconnection: detected unhealthy connection");
         await reconnect();
       }
     }, reconnectInterval);
 
-    // Set up app state change listeners for reconnect
-    // Set up app state change listeners for reconnect
-    // const handleAppStateChange = (nextAppState: string) => {
-    //   if (nextAppState === "active") {
-    //     const currentConnection = connectionManager.getConnection();
-    //     if (currentConnection && !currentConnection.isHealthy) {
-    //       log.info("App became active, checking connection...");
-    //       setTimeout(reconnect, 1000); // Small delay for app to fully load
-    //     }
-    //   }
-    // };
-
     // Platform-specific app state listening
     if (Platform.OS === "ios") {
       // iOS app state listener would go here
-      // For simplicity, we're using a periodic check instead
     } else if (Platform.OS === "android") {
       // Android app state listener would go here
-      // For simplicity, we're using a periodic check instead
     }
 
     return () => {
@@ -150,13 +132,7 @@ export const useAutoConnection = (
         clearInterval(interval);
       }
     };
-  }, [
-    enableAutoReconnect,
-    reconnectInterval,
-    isReconnecting,
-    reconnect,
-    connectionManager,
-  ]);
+  }, [enableAutoReconnect, reconnectInterval, reconnect, connectionManager]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -208,16 +184,10 @@ export const useAutoConnection = (
       }
     } catch (err) {
       log.error("Enhanced reconnection failed", { error: err });
-      setError(
-        err instanceof Error ? err : new Error("Enhanced reconnection failed"),
-      );
+      setError(err instanceof Error ? err : new Error("Enhanced reconnection failed"));
 
       if (onConnectionError) {
-        onConnectionError(
-          err instanceof Error
-            ? err
-            : new Error("Enhanced reconnection failed"),
-        );
+        onConnectionError(err instanceof Error ? err : new Error("Enhanced reconnection failed"));
       }
     } finally {
       setIsReconnecting(false);

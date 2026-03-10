@@ -3,7 +3,7 @@
  * Modern, unified status indicator for synchronization state
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import Animated, {
   useAnimatedStyle,
@@ -13,7 +13,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { getSyncStatus, forceSync } from "../../services/syncService";
-import { useNetworkStore } from "../../store/networkStore";
 import {
   modernColors,
   modernBorderRadius,
@@ -30,25 +29,24 @@ interface SyncStatus {
 export const SyncStatusPill = () => {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const isOnline = useNetworkStore((state: any) => state.isOnline);
 
   // Animation for sync rotation
   const rotation = useSharedValue(0);
 
-  const loadStatus = async () => {
+  const loadStatus = useCallback(async () => {
     try {
       const s = await getSyncStatus();
       setStatus(s);
     } catch (e) {
       console.error(e);
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadStatus();
     const interval = setInterval(loadStatus, 5000);
     return () => clearInterval(interval);
-  }, [isOnline]);
+  }, [loadStatus]);
 
   const handleSync = async () => {
     if (!status?.isOnline || isSyncing) return;

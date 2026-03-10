@@ -1,0 +1,61 @@
+# =============================================================================
+# docker-compose.production.yml — Production Deployment
+# =============================================================================
+# Usage: docker compose -f docker-compose.production.yml up -d
+# =============================================================================
+
+version: '3.8'
+
+services:
+  backend:
+    container_name: stock-verify-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    env_file:
+      - backend/.env
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=false
+      - HOT_RELOAD=false
+      - DEBUG_ENDPOINTS=false
+      - WORKERS=4
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  mongo:
+    container_name: stock-verify-mongo
+    image: mongo:6.0.19
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  mongo_data:
+    driver: local

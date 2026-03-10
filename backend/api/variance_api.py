@@ -1,6 +1,4 @@
-from datetime import timezone
 from typing import Any
-
 from fastapi import APIRouter, Depends
 
 from backend.auth.dependencies import get_current_user

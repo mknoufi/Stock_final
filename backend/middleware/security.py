@@ -37,7 +37,7 @@ ALLOWED_FILTER_KEYS: set[str] = {
     # Verification filters
     "verified",
     "verified_qty",
-    "damage_qty",
+    "damaged_qty",
     "counted_qty",
     # Report filters
     "report_type",

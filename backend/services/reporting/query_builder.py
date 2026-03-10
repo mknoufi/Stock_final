@@ -61,7 +61,7 @@ class QueryBuilder:
         "verification_records": [
             "item_code",
             "verified_qty",
-            "damage_qty",
+            "damaged_qty",
             "rack_id",
             "floor",
             "session_id",
@@ -180,7 +180,7 @@ class QueryBuilder:
         "updated_at",
         "verified",
         "verified_qty",
-        "damage_qty",
+        "damaged_qty",
         "counted_qty",
     }
 
@@ -298,7 +298,7 @@ EXAMPLE_QUERIES = {
     "items_by_floor": {
         "collection": "verification_records",
         "group_by": ["floor"],
-        "aggregations": {"verified_qty": "sum", "damage_qty": "sum"},
+        "aggregations": {"verified_qty": "sum", "damaged_qty": "sum"},
         "sort": {"verified_qty_sum": -1},
     },
     "session_performance": {
@@ -313,7 +313,7 @@ EXAMPLE_QUERIES = {
         "group_by": ["rack_id", "floor"],
         "aggregations": {
             "verified_qty": "sum",
-            "damage_qty": "sum",
+            "damaged_qty": "sum",
             "item_code": "count",
         },
     },

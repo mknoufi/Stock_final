@@ -511,3 +511,50 @@ def perform_security_checks(settings_obj):
 
 
 perform_security_checks(settings)
+
+
+# ============================================================================
+# PRODUCTION RUNTIME GUARDS
+# ============================================================================
+def _enforce_production_guards(settings_obj):
+    """Fail-fast if dangerous configuration combinations are detected."""
+    env = getattr(settings_obj, "ENVIRONMENT", "development").lower()
+    is_prod = env == "production"
+    is_staging = env == "staging"
+
+    # Guard 1: Validate ENVIRONMENT value
+    valid_envs = {"development", "staging", "production"}
+    if env not in valid_envs:
+        raise RuntimeError(
+            f"Invalid ENVIRONMENT='{env}'. Must be one of: {', '.join(sorted(valid_envs))}"
+        )
+
+    # Guard 2: HOT_RELOAD must not be enabled in production/staging
+    hot_reload = os.getenv("HOT_RELOAD", "false").lower() in ("true", "1", "yes")
+    if (is_prod or is_staging) and hot_reload:
+        raise RuntimeError(
+            "CRITICAL: HOT_RELOAD=true is not allowed in production/staging. "
+            "Set HOT_RELOAD=false or remove it from your environment."
+        )
+
+    # Guard 3: DEBUG must be false in production
+    debug_mode = getattr(settings_obj, "DEBUG", False)
+    if is_prod and debug_mode:
+        raise RuntimeError(
+            "CRITICAL: DEBUG=true is not allowed in production. "
+            "Set DEBUG=false in your environment."
+        )
+
+    # Guard 4: DEBUG_ENDPOINTS must be disabled in production
+    debug_endpoints = os.getenv("DEBUG_ENDPOINTS", "false").lower() in ("true", "1", "yes")
+    if is_prod and debug_endpoints:
+        raise RuntimeError(
+            "CRITICAL: DEBUG_ENDPOINTS=true is not allowed in production. "
+            "Set DEBUG_ENDPOINTS=false in your environment."
+        )
+
+    if is_prod:
+        logger.info("✅ Production runtime guards passed")
+
+
+_enforce_production_guards(settings)

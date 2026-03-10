@@ -54,7 +54,7 @@ class SyncRecord(BaseModel):
     floor: Optional[str] = Field(None, description="Floor")
     item_code: str = Field(..., description="Item code")
     verified_qty: float = Field(..., description="Verified quantity")
-    damage_qty: float = Field(0, description="Damage quantity")
+    damaged_qty: float = Field(0, description="Damage quantity")
     serial_numbers: list[str] = Field(default_factory=list, description="Serial numbers")
     mfg_date: Optional[str] = Field(None, description="Manufacturing date")
     mrp: Optional[float] = Field(None, description="MRP")
@@ -183,14 +183,14 @@ async def validate_record(
                 )
 
     # Validate damage qty <= verified qty
-    if record.damage_qty > record.verified_qty:
+    if record.damaged_qty > record.verified_qty:
         return SyncConflict(
             client_record_id=record.client_record_id,
             conflict_type="invalid_quantity",
             message="Damage quantity cannot exceed verified quantity",
             details={
                 "verified_qty": record.verified_qty,
-                "damage_qty": record.damage_qty,
+                "damaged_qty": record.damaged_qty,
             },
         )
 
@@ -224,7 +224,7 @@ async def sync_single_record(record: SyncRecord, db, user_id: str) -> tuple[bool
             "floor": record.floor,
             "item_code": record.item_code,
             "verified_qty": record.verified_qty,
-            "damage_qty": record.damage_qty,
+            "damaged_qty": record.damaged_qty,
             "serial_numbers": record.serial_numbers,
             "mfg_date": record.mfg_date,
             "mrp": record.mrp,
@@ -514,7 +514,9 @@ async def _process_session_op(
         session_doc["offline_id"] = offline_id
         id_mapping[str(offline_id)] = session.id
 
-    session_doc.update({"created_offline": True, "synced_at": datetime.now(timezone.utc).replace(tzinfo=None)})
+    session_doc.update(
+        {"created_offline": True, "synced_at": datetime.now(timezone.utc).replace(tzinfo=None)}
+    )
     await db.sessions.insert_one(session_doc)
     return "Session synced"
 
@@ -535,8 +537,135 @@ async def _process_count_line_op(
     line_data.setdefault("counted_by", current_user.get("username"))
     line_data.setdefault("counted_at", datetime.now(timezone.utc).replace(tzinfo=None))
     line_data.setdefault("synced_at", datetime.now(timezone.utc).replace(tzinfo=None))
+
+    # Calculate missing backend fields like variance and risk_flags for offline counts
+    try:
+        erp_item = None
+        barcode = line_data.get("barcode")
+        item_code = line_data.get("item_code")
+
+        if barcode:
+            erp_item_res = db.erp_items.find_one({"barcode": barcode})
+            if hasattr(erp_item_res, "__await__"):
+                erp_item_res = await erp_item_res
+            erp_item = erp_item_res
+
+        if not erp_item and item_code:
+            erp_item_res = db.erp_items.find_one({"item_code": item_code})
+            if hasattr(erp_item_res, "__await__"):
+                erp_item_res = await erp_item_res
+            erp_item = erp_item_res
+
+        # Calculate variance
+        erp_qty = erp_item.get("stock_qty", 0) if erp_item else 0
+        erp_mrp = erp_item.get("mrp", 0.0) if erp_item else 0.0
+
+        counted_qty = float(line_data.get("counted_qty", 0.0))
+        # Frontend might send mrp_counted or counted_mrp
+        mrp_c = line_data.get("mrp_counted") or line_data.get("counted_mrp") or erp_mrp
+        counted_mrp = float(mrp_c)
+
+        variance = counted_qty - erp_qty
+        financial_impact = (counted_mrp * counted_qty) - (erp_mrp * counted_qty)
+
+        # Manually invoke risk flags because line_data is a dict
+        # (CountLineCreate expects strict types)
+        risk_flags = []
+        variance_percent = (abs(variance) / erp_qty * 100) if erp_qty > 0 else 100
+        mrp_change_percent = ((counted_mrp - erp_mrp) / erp_mrp * 100) if erp_mrp > 0 else 0
+
+        if abs(variance) > 100 or variance_percent > 50:
+            risk_flags.append("LARGE_VARIANCE")
+        if mrp_change_percent < -20:
+            risk_flags.append("MRP_REDUCED_SIGNIFICANTLY")
+        if erp_mrp > 10000 and variance_percent > 5:
+            risk_flags.append("HIGH_VALUE_VARIANCE")
+
+        has_serials = bool(line_data.get("serial_numbers"))
+        has_serials = has_serials or bool(line_data.get("serial_entries"))
+        if erp_mrp > 5000 and not has_serials:
+            risk_flags.append("SERIAL_MISSING_HIGH_VALUE")
+
+        has_reason = bool(line_data.get("correction_reason")) or bool(
+            line_data.get("variance_reason")
+        )
+        if abs(variance) > 0 and not has_reason:
+            risk_flags.append("MISSING_CORRECTION_REASON")
+
+        if abs(mrp_change_percent) > 5 and not has_reason:
+            risk_flags.append("MRP_CHANGE_WITHOUT_REASON")
+
+        photo_required = (
+            abs(variance) > 100
+            or variance_percent > 50
+            or abs(mrp_change_percent) > 20
+            or erp_mrp > 10000
+        )
+        has_photo = bool(line_data.get("photo_base64")) or bool(line_data.get("photo_proofs"))
+        if photo_required and not has_photo:
+            risk_flags.append("PHOTO_PROOF_REQUIRED")
+
+        # Check for misplacements
+        is_misplaced = False
+        if erp_item:
+            found_floor = (line_data.get("floor_no") or "").strip().upper()
+            found_rack = (line_data.get("rack_no") or "").strip().upper()
+            expected_floor = (erp_item.get("floor") or "").strip().upper()
+            expected_rack = (erp_item.get("rack") or "").strip().upper()
+            if expected_floor or expected_rack:
+                if (found_floor and expected_floor and found_floor != expected_floor) or (
+                    found_rack and expected_rack and found_rack != expected_rack
+                ):
+                    is_misplaced = True
+                    risk_flags.append("MISPLACED_ITEM")
+                    line_data["expected_location"] = f"{expected_floor}/{expected_rack}"
+                    line_data["found_location"] = f"{found_floor}/{found_rack}"
+                    line_data["relocation_status"] = "PENDING"
+
+        line_data["variance"] = variance
+        line_data["erp_qty"] = erp_qty
+        line_data["mrp_erp"] = erp_mrp
+        line_data["mrp_counted"] = counted_mrp
+        line_data["financial_impact"] = financial_impact
+        # To avoid duplicating risk flags if sent by client
+        existing_flags = set(line_data.get("risk_flags", []))
+        existing_flags.update(risk_flags)
+        line_data["risk_flags"] = list(existing_flags)
+        line_data["is_misplaced"] = line_data.get("is_misplaced", False) or is_misplaced
+
+        # Approval logic
+        if line_data["risk_flags"] and line_data.get("approval_status") not in [
+            "APPROVED",
+            "REJECTED",
+        ]:
+            line_data["approval_status"] = "NEEDS_REVIEW"
+        elif not line_data.get("approval_status"):
+            line_data["approval_status"] = "PENDING"
+
+    except Exception as e:
+        logger.error(f"Failed to calculate missing stats for offline count: {e}")
+        line_data.setdefault("approval_status", "PENDING")
+
+    # Final status fallback
+    line_data.setdefault("status", "pending")
+    line_data.setdefault("verified", False)
+
     await db.count_lines.insert_one(line_data)
-    return "Count line synced"
+
+    # Update session aggregate stats
+    try:
+        session_id = line_data.get("session_id")
+        if session_id:
+            db_session = await db.sessions.find_one({"id": session_id})
+            if db_session:
+                await db.sessions.update_one(
+                    {"id": session_id},
+                    {"$inc": {"total_items": 1, "total_variance": line_data.get("variance", 0)}},
+                )
+    except Exception as e:
+        logger.error(f"Failed to update session stats during offline sync: {e}")
+
+    return "Count line synced with missing details calculated"
 
 
 async def _process_unknown_item_op(

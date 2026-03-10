@@ -10,7 +10,7 @@ export interface SyncRecord {
   floor?: string | null;
   item_code: string;
   verified_qty: number;
-  damage_qty: number;
+  damaged_qty: number;
   serial_numbers: string[];
   mfg_date?: string | null;
   mrp?: number | null;

@@ -245,14 +245,18 @@ else:
             "requests may be blocked"
         )
 
+_cors_origin_regex = None
+if _env == "development":
+    # Allow local network IPs for development only (Expo Go, LAN access)
+    _cors_origin_regex = (
+        r"(https?|exp)://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
+        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?"
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    # Allow local network IPs for development (Expo Go, LAN access)
-    allow_origin_regex=(
-        r"(https?|exp)://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
-        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?"
-    ),
+    allow_origin_regex=_cors_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=[
@@ -789,7 +793,8 @@ async def log_successful_login(user: dict[str, Any], ip_address: str, request: R
 
         # Update last login timestamp
         await db.users.update_one(
-            {"_id": user["_id"]}, {"$set": {"last_login_at": datetime.now(timezone.utc).replace(tzinfo=None)}}
+            {"_id": user["_id"]},
+            {"$set": {"last_login_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
         )
 
         # Log to monitoring
@@ -873,7 +878,12 @@ async def bulk_close_sessions(
             try:
                 result = await db.sessions.update_one(
                     {"id": session_id},
-                    {"$set": {"status": "closed", "ended_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
+                    {
+                        "$set": {
+                            "status": "closed",
+                            "ended_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                        }
+                    },
                 )
                 if result.modified_count > 0:
                     updated_count += 1
