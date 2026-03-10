@@ -58,8 +58,16 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.production.txt
+          pip install -r backend/requirements.production.txt
           pip install pytest pytest-asyncio pytest-cov httpx
+
+      - name: Runtime import guard
+        env:
+          JWT_SECRET: ci-import-guard-jwt-secret-32-chars
+          JWT_REFRESH_SECRET: ci-import-guard-refresh-secret-32
+          ENVIRONMENT: test
+        run: |
+          python -c "import backend.server"
 
       - name: Run tests
         env:
@@ -122,7 +130,7 @@ jobs:
         continue-on-error: true
 
       - name: Dependency vulnerability check
-        run: safety check -r requirements.production.txt --full-report
+        run: safety check -r backend/requirements.production.txt --full-report
         continue-on-error: true
 
   # ==========================================
@@ -182,6 +190,16 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Backend image import smoke test
+        run: |
+          docker build --no-cache -f backend/Dockerfile -t backend-import-smoke ./backend
+          docker run --rm \
+            -e JWT_SECRET=ci-import-guard-jwt-secret-32-chars \
+            -e JWT_REFRESH_SECRET=ci-import-guard-refresh-secret-32 \
+            -e ENVIRONMENT=production \
+            backend-import-smoke \
+            python -c "import backend.server"
 
       - name: Login to Container Registry
         uses: docker/login-action@v3

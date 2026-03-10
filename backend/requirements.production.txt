@@ -36,14 +36,13 @@ aiocache==0.12.2  # TODO: Update to 0.12.3
 ujson==5.10.0
 orjson==3.10.0
 
-# Testing (Optional in production)
-pytest==8.3.0
-pytest-asyncio==0.24.0
-httpx==0.28.1
-
 # Utilities
+httpx==0.28.1
 python-dateutil==2.9.0
 email-validator==2.2.0
+rapidfuzz==3.14.1
+tenacity==9.1.2
+zeroconf==0.133.0
 
 # For production stability
 setuptools==75.6.0
@@ -52,5 +51,6 @@ wheel==0.45.1
 # Additional packages for system monitoring and report generation
 psutil==6.1.0
 pandas==2.2.3
+openpyxl==3.1.5
 xlsxwriter==3.2.0
 reportlab==4.2.5
