@@ -1,6 +1,6 @@
 import logging
 import httpx
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from typing import Any, Dict
 from backend.auth.dependencies import get_current_user
@@ -107,7 +107,7 @@ async def chat_with_pi(request: Request, current_user: Dict[str, Any] = Depends(
                     await db.chat_history.insert_one(
                         {
                             "username": current_user["username"],
-                            "timestamp": datetime.now(UTC),
+                            "timestamp": datetime.now(timezone.utc),
                             "user_message": user_msg["content"],
                             "assistant_response": assistant_completion["content"],
                             "model": result.get("model", "unknown"),

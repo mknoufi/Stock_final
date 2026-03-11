@@ -4,7 +4,12 @@ module.exports = {
   settings: {
     "import/resolver": {
       typescript: {
-        project: "./tsconfig.json",
+        project: [
+          "./tsconfig.json",
+          "frontend/tsconfig.json",
+          __dirname + "/tsconfig.json"
+        ],
+        alwaysTryTypes: true,
       },
       node: {
         extensions: [".ts", ".tsx", ".js", ".jsx"],
@@ -23,4 +28,21 @@ module.exports = {
       },
     ],
   },
+  overrides: [
+    {
+      files: ["*.test.js", "*.test.tsx", "*.spec.js", "*.spec.tsx", "jest.setup.js", "jest.polyfills.js", "**/__tests__/**"],
+      env: {
+        jest: true,
+      },
+    },
+    {
+      files: ["scripts/**", "jest.setup.js", "jest.polyfills.js", ".eslintrc.js", "babel.config.js", "metro.config.js"],
+      env: {
+        node: true,
+      },
+      rules: {
+        "@typescript-eslint/no-var-requires": "off",
+      },
+    },
+  ],
 };

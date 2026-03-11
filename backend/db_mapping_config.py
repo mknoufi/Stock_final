@@ -23,7 +23,8 @@ TABLE_MAPPINGS = {
 PRODUCTS_COLUMN_MAP = {
     "item_code": "ProductCode",
     "item_name": "ProductName",
-    "barcode": "ProductCode",  # Default to ProductCode, will be enhanced with ProductBarcodes
+    # Default to ProductCode, will be enhanced with ProductBarcodes
+    "barcode": "ProductCode",
     "uom_code": "BasicUnitID",  # FK to UnitOfMeasures
     "category": "ProductGroupID",  # FK to ProductGroups
     "subcategory": "ProductCategoryID",  # FK to ProductCategory
@@ -38,8 +39,9 @@ BATCH_COLUMN_MAP = {
     "batch_id": "ProductBatchID",
     "item_code": "ProductID",
     "batch_no": "BatchNo",
+    # primary barcode
     "barcode": "AutoBarcode",  # Use AutoBarcode (6-digit) as primary barcode
-    # "manual_barcode": "MannualBarcode",  # Removed - not used
+    # "manual_barcode": "ManualBarcode",  # Removed - not used
     "mfg_date": "MfgDate",
     "expiry_date": "ExpiryDate",
     "stock_qty": "Stock",
@@ -59,7 +61,8 @@ LAST_PURCHASE_CTE = """
             Pa.PartyName as last_purchase_supplier,
             ROW_NUMBER() OVER (
                 PARTITION BY ITD.ProductBatchID
-                ORDER BY ITM.TransactionDate DESC, ITM.InvTransactionMasterID DESC
+                ORDER BY ITM.TransactionDate DESC,
+                ITM.InvTransactionMasterID DESC
             ) as rn
         FROM InvTransactionDetails ITD
         LEFT JOIN InvTransactionMaster ITM ON ITD.InvTransactionMasterID = ITM.InvTransactionMasterID
@@ -93,7 +96,8 @@ SQL_TEMPLATES = {
             PC.ProductCategoryName as subcategory,
             P.HSNCode as hsn_code,
             GST.GSTCategoryName as gst_category,
-            COALESCE(GST.Sales_SGSTPerc, 0) + COALESCE(GST.Sales_CGSTPerc, 0) as gst_percent,
+            (COALESCE(GST.Sales_SGSTPerc, 0) +
+             COALESCE(GST.Sales_CGSTPerc, 0)) as gst_percent,
             GST.Sales_SGSTPerc as sgst_percent,
             GST.Sales_CGSTPerc as cgst_percent,
             GST.Sales_IGSTPerc as igst_percent,
@@ -110,14 +114,18 @@ SQL_TEMPLATES = {
         FROM dbo.Products P
         LEFT JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID
         LEFT JOIN dbo.UnitOfMeasures UOM ON P.BasicUnitID = UOM.UnitID
-        LEFT JOIN dbo.ProductGroups PG ON P.ProductGroupID = PG.ProductGroupID
-        LEFT JOIN dbo.ProductCategory PC ON P.ProductCategoryID = PC.ProductCategoryID
-        LEFT JOIN dbo.GSTCategory GST ON P.GSTTaxCategoryID = GST.GSTCategoryID
-        LEFT JOIN dbo.Brands B ON PB.BrandID = B.BrandID
-        LEFT JOIN dbo.Shelfs S ON PB.ShelfID = S.ShelfID
-        LEFT JOIN dbo.Zone Z ON S.ZoneID = Z.ZoneID
-        LEFT JOIN dbo.Warehouses W ON PB.WarehouseID = W.WarehouseID
-        LEFT JOIN LastPurchase LP ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
+            LEFT JOIN dbo.ProductGroups PG
+                ON P.ProductGroupID = PG.ProductGroupID
+            LEFT JOIN dbo.ProductCategory PC
+                ON P.ProductCategoryID = PC.ProductCategoryID
+            LEFT JOIN dbo.GSTCategory GST
+                ON P.GSTTaxCategoryID = GST.GSTCategoryID
+            LEFT JOIN dbo.Brands B ON PB.BrandID = B.BrandID
+            LEFT JOIN dbo.Shelfs S ON PB.ShelfID = S.ShelfID
+            LEFT JOIN dbo.Zone Z ON S.ZoneID = Z.ZoneID
+            LEFT JOIN dbo.Warehouses W ON PB.WarehouseID = W.WarehouseID
+            LEFT JOIN LastPurchase LP
+                ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
         {optional_joins}
         WHERE CAST(PB.AutoBarcode AS VARCHAR(50)) = ?
           AND LEN(CAST(PB.AutoBarcode AS VARCHAR(50))) = 6
@@ -146,7 +154,8 @@ SQL_TEMPLATES = {
             PC.ProductCategoryName as subcategory,
             P.HSNCode as hsn_code,
             GST.GSTCategoryName as gst_category,
-            COALESCE(GST.Sales_SGSTPerc, 0) + COALESCE(GST.Sales_CGSTPerc, 0) as gst_percent,
+            (COALESCE(GST.Sales_SGSTPerc, 0) +
+             COALESCE(GST.Sales_CGSTPerc, 0)) as gst_percent,
             GST.Sales_SGSTPerc as sgst_percent,
             GST.Sales_CGSTPerc as cgst_percent,
             GST.Sales_IGSTPerc as igst_percent,
@@ -163,14 +172,18 @@ SQL_TEMPLATES = {
         FROM dbo.Products P
         LEFT JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID
         LEFT JOIN dbo.UnitOfMeasures UOM ON P.BasicUnitID = UOM.UnitID
-        LEFT JOIN dbo.ProductGroups PG ON P.ProductGroupID = PG.ProductGroupID
-        LEFT JOIN dbo.ProductCategory PC ON P.ProductCategoryID = PC.ProductCategoryID
-        LEFT JOIN dbo.GSTCategory GST ON P.GSTTaxCategoryID = GST.GSTCategoryID
-        LEFT JOIN dbo.Brands B ON PB.BrandID = B.BrandID
-        LEFT JOIN dbo.Shelfs S ON PB.ShelfID = S.ShelfID
-        LEFT JOIN dbo.Zone Z ON S.ZoneID = Z.ZoneID
-        LEFT JOIN dbo.Warehouses W ON PB.WarehouseID = W.WarehouseID
-        LEFT JOIN LastPurchase LP ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
+            LEFT JOIN dbo.ProductGroups PG
+                ON P.ProductGroupID = PG.ProductGroupID
+            LEFT JOIN dbo.ProductCategory PC
+                ON P.ProductCategoryID = PC.ProductCategoryID
+            LEFT JOIN dbo.GSTCategory GST
+                ON P.GSTTaxCategoryID = GST.GSTCategoryID
+            LEFT JOIN dbo.Brands B ON PB.BrandID = B.BrandID
+            LEFT JOIN dbo.Shelfs S ON PB.ShelfID = S.ShelfID
+            LEFT JOIN dbo.Zone Z ON S.ZoneID = Z.ZoneID
+            LEFT JOIN dbo.Warehouses W ON PB.WarehouseID = W.WarehouseID
+            LEFT JOIN LastPurchase LP
+                ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
         {optional_joins}
         WHERE P.ProductCode = ?
           AND PB.AutoBarcode IS NOT NULL
@@ -199,7 +212,8 @@ SQL_TEMPLATES = {
             PC.ProductCategoryName as subcategory,
             P.HSNCode as hsn_code,
             GST.GSTCategoryName as gst_category,
-            COALESCE(GST.Sales_SGSTPerc, 0) + COALESCE(GST.Sales_CGSTPerc, 0) as gst_percent,
+            (COALESCE(GST.Sales_SGSTPerc, 0) +
+             COALESCE(GST.Sales_CGSTPerc, 0)) as gst_percent,
             GST.Sales_SGSTPerc as sgst_percent,
             GST.Sales_CGSTPerc as cgst_percent,
             GST.Sales_IGSTPerc as igst_percent,
@@ -216,14 +230,18 @@ SQL_TEMPLATES = {
         FROM dbo.Products P
         LEFT JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID
         LEFT JOIN dbo.UnitOfMeasures UOM ON P.BasicUnitID = UOM.UnitID
-        LEFT JOIN dbo.ProductGroups PG ON P.ProductGroupID = PG.ProductGroupID
-        LEFT JOIN dbo.ProductCategory PC ON P.ProductCategoryID = PC.ProductCategoryID
-        LEFT JOIN dbo.GSTCategory GST ON P.GSTTaxCategoryID = GST.GSTCategoryID
-        LEFT JOIN dbo.Brands B ON PB.BrandID = B.BrandID
-        LEFT JOIN dbo.Shelfs S ON PB.ShelfID = S.ShelfID
-        LEFT JOIN dbo.Zone Z ON S.ZoneID = Z.ZoneID
-        LEFT JOIN dbo.Warehouses W ON PB.WarehouseID = W.WarehouseID
-        LEFT JOIN LastPurchase LP ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
+            LEFT JOIN dbo.ProductGroups PG
+                ON P.ProductGroupID = PG.ProductGroupID
+            LEFT JOIN dbo.ProductCategory PC
+                ON P.ProductCategoryID = PC.ProductCategoryID
+            LEFT JOIN dbo.GSTCategory GST
+                ON P.GSTTaxCategoryID = GST.GSTCategoryID
+            LEFT JOIN dbo.Brands B ON PB.BrandID = B.BrandID
+            LEFT JOIN dbo.Shelfs S ON PB.ShelfID = S.ShelfID
+            LEFT JOIN dbo.Zone Z ON S.ZoneID = Z.ZoneID
+            LEFT JOIN dbo.Warehouses W ON PB.WarehouseID = W.WarehouseID
+            LEFT JOIN LastPurchase LP
+                ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
         {optional_joins}
         WHERE P.IsActive = 1
           AND PB.AutoBarcode IS NOT NULL
@@ -254,7 +272,8 @@ SQL_TEMPLATES = {
             PC.ProductCategoryName as subcategory,
             P.HSNCode as hsn_code,
             GST.GSTCategoryName as gst_category,
-            COALESCE(GST.Sales_SGSTPerc, 0) + COALESCE(GST.Sales_CGSTPerc, 0) as gst_percent,
+            (COALESCE(GST.Sales_SGSTPerc, 0) +
+             COALESCE(GST.Sales_CGSTPerc, 0)) as gst_percent,
             GST.Sales_SGSTPerc as sgst_percent,
             GST.Sales_CGSTPerc as cgst_percent,
             GST.Sales_IGSTPerc as igst_percent,
@@ -271,14 +290,18 @@ SQL_TEMPLATES = {
         FROM dbo.Products P
         LEFT JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID
         LEFT JOIN dbo.UnitOfMeasures UOM ON P.BasicUnitID = UOM.UnitID
-        LEFT JOIN dbo.ProductGroups PG ON P.ProductGroupID = PG.ProductGroupID
-        LEFT JOIN dbo.ProductCategory PC ON P.ProductCategoryID = PC.ProductCategoryID
-        LEFT JOIN dbo.GSTCategory GST ON P.GSTTaxCategoryID = GST.GSTCategoryID
-        LEFT JOIN dbo.Brands B ON PB.BrandID = B.BrandID
-        LEFT JOIN dbo.Shelfs S ON PB.ShelfID = S.ShelfID
-        LEFT JOIN dbo.Zone Z ON S.ZoneID = Z.ZoneID
-        LEFT JOIN dbo.Warehouses W ON PB.WarehouseID = W.WarehouseID
-        LEFT JOIN LastPurchase LP ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
+            LEFT JOIN dbo.ProductGroups PG
+                ON P.ProductGroupID = PG.ProductGroupID
+            LEFT JOIN dbo.ProductCategory PC
+                ON P.ProductCategoryID = PC.ProductCategoryID
+            LEFT JOIN dbo.GSTCategory GST
+                ON P.GSTTaxCategoryID = GST.GSTCategoryID
+            LEFT JOIN dbo.Brands B ON PB.BrandID = B.BrandID
+            LEFT JOIN dbo.Shelfs S ON PB.ShelfID = S.ShelfID
+            LEFT JOIN dbo.Zone Z ON S.ZoneID = Z.ZoneID
+            LEFT JOIN dbo.Warehouses W ON PB.WarehouseID = W.WarehouseID
+            LEFT JOIN LastPurchase LP
+                ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
         {optional_joins}
         WHERE (P.ProductName LIKE ?
            OR P.ProductCode LIKE ?
@@ -291,7 +314,7 @@ SQL_TEMPLATES = {
         SELECT
             PB.ProductBatchID as batch_id,
             PB.BatchNo as batch_no,
-            PB.MannualBarcode as barcode,
+            PB.ManualBarcode as barcode,
             PB.AutoBarcode as auto_barcode,
             PB.MfgDate as mfg_date,
             PB.ExpiryDate as expiry_date,
@@ -326,7 +349,8 @@ SQL_TEMPLATES = {
             PB.StdSalesPrice as sale_price,
             PB.LastPurchaseRate as last_purchase_price,
             PB.LastPurchaseCost as last_purchase_cost,
-            COALESCE(GST.Sales_SGSTPerc, 0) + COALESCE(GST.Sales_CGSTPerc, 0) as gst_percent,
+            (COALESCE(GST.Sales_SGSTPerc, 0) +
+             COALESCE(GST.Sales_CGSTPerc, 0)) as gst_percent,
             GST.Sales_SGSTPerc as sgst_percent,
             GST.Sales_CGSTPerc as cgst_percent,
             GST.Sales_IGSTPerc as igst_percent,
@@ -349,14 +373,18 @@ SQL_TEMPLATES = {
         FROM ProductBatches PB
         LEFT JOIN Products P ON PB.ProductID = P.ProductID
         LEFT JOIN UnitOfMeasures UOM ON P.BasicUnitID = UOM.UnitID
-        LEFT JOIN ProductGroups PG ON P.ProductGroupID = PG.ProductGroupID
-        LEFT JOIN ProductCategory PC ON P.ProductCategoryID = PC.ProductCategoryID
-        LEFT JOIN GSTCategory GST ON P.GSTTaxCategoryID = GST.GSTCategoryID
+        LEFT JOIN ProductGroups PG
+            ON P.ProductGroupID = PG.ProductGroupID
+        LEFT JOIN ProductCategory PC
+            ON P.ProductCategoryID = PC.ProductCategoryID
+        LEFT JOIN GSTCategory GST
+            ON P.GSTTaxCategoryID = GST.GSTCategoryID
         LEFT JOIN Brands B ON PB.BrandID = B.BrandID
         LEFT JOIN Shelfs S ON PB.ShelfID = S.ShelfID
         LEFT JOIN Zone Z ON S.ZoneID = Z.ZoneID
         LEFT JOIN Warehouses W ON PB.WarehouseID = W.WarehouseID
-        LEFT JOIN LastPurchase LP ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
+        LEFT JOIN LastPurchase LP
+            ON PB.ProductBatchID = LP.ProductBatchID AND LP.rn = 1
         WHERE PB.AutoBarcode IS NOT NULL
           AND LEN(CAST(PB.AutoBarcode AS VARCHAR(50))) = 6
           AND ISNUMERIC(CAST(PB.AutoBarcode AS VARCHAR(50))) = 1
@@ -373,7 +401,7 @@ SQL_TEMPLATES = {
         ORDER BY ZoneName
     """,
     "get_item_quantity": """
-        SELECT 
+        SELECT
             COALESCE(SUM(PB.Stock), 0) as verified_qty
         FROM dbo.Products P
         LEFT JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID

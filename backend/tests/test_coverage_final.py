@@ -23,11 +23,11 @@ from backend.exceptions import (
 def test_result_initialization_errors():
     """Test invalid Result initializations"""
     # Test line 84: Cannot create Ok(None)
-    with pytest.raises(ValueError, match="Cannot create Ok\(None\)"):
+    with pytest.raises(ValueError, match=r"Cannot create Ok\(None\)"):
         Result.ok(None)
 
     # Test line 94: Cannot create Fail(None)
-    with pytest.raises(ValueError, match="Cannot create Fail\(None\)"):
+    with pytest.raises(ValueError, match=r"Cannot create Fail\(None\)"):
         Result.fail(None)
 
 

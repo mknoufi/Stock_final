@@ -19,6 +19,7 @@ import {
   ActivityIndicator,
   Platform,
   ScrollView,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -1217,13 +1218,17 @@ export default function ItemDetailScreen() {
         onBackPress={handleBackPress}
       />
 
-      <View style={{ flex: 1 }}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
           keyboardDismissMode="on-drag"
-          bounces={true}
-          alwaysBounceVertical={true}
+          nestedScrollEnabled
+          bounces
+          alwaysBounceVertical
         >
           {/* Misplaced Item Warning Badge */}
           {item.is_misplaced && (
@@ -2767,7 +2772,7 @@ export default function ItemDetailScreen() {
             fullWidth
           />
         </View>
-      </View>
+      </KeyboardAvoidingView>
 
       {/* Global Modals & Selection */}
       <Modal visible={selectVisible} transparent animationType="slide">

@@ -82,3 +82,4 @@ pre_commit_output.txt
 
 # Expo
 .expo/
+backend/venv/

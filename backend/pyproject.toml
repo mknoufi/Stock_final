@@ -31,3 +31,15 @@ ignore = ["E402"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --ignore=tests/evaluation"
+
+[tool.mypy]
+explicit_package_bases = true
+mypy_path = "."
+
+[[tool.mypy.overrides]]
+module = [
+    "copilotkit.*",
+    "psutil.*",
+    "pandas.*"
+]
+ignore_missing_imports = true

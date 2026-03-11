@@ -3,7 +3,7 @@ Config Version Service - Handles versioning and history for configurations
 """
 
 import logging
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -46,7 +46,7 @@ class ConfigVersionService:
                 "version": next_version,
                 "data": data,
                 "changed_by": changed_by,
-                "changed_at": datetime.now(UTC),
+                "changed_at": datetime.now(timezone.utc),
                 "change_type": change_type,
                 "notes": notes,
             }

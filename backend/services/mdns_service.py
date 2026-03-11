@@ -41,7 +41,13 @@ class MDNSService:
 
             # Run blocking registration in executor
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self.zeroconf.register_service, self.info)
+            await asyncio.wait_for(
+                loop.run_in_executor(None, self.zeroconf.register_service, self.info),
+                timeout=3.0,
+            )
+
+        except TimeoutError:
+            logger.warning("mDNS registration timed out; continuing without blocking startup")
 
         except Exception as e:
             logger.error(f"Failed to register mDNS service: {e}", exc_info=True)
@@ -50,7 +56,13 @@ class MDNSService:
         if self.info:
             logger.info(f"Unregistering mDNS service: {self.service_name}")
             loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self.zeroconf.unregister_service, self.info)
+            try:
+                await asyncio.wait_for(
+                    loop.run_in_executor(None, self.zeroconf.unregister_service, self.info),
+                    timeout=3.0,
+                )
+            except TimeoutError:
+                logger.warning("mDNS unregistration timed out")
 
         self.zeroconf.close()
 
@@ -77,6 +89,5 @@ async def start_mdns(port: int = 8001):
 
 
 async def stop_mdns():
-    global mdns_service
     if mdns_service:
         await mdns_service.unregister()

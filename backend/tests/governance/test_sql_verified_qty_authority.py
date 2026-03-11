@@ -24,8 +24,8 @@ def iter_python_files(root_dir: str):
 
 
 def contains_sql_verified_qty_token(path: str) -> bool:
-    with open(path, "r", encoding="utf-8") as handle:
-        tokens = tokenize.generate_tokens(handle.readline)
+    with open(path, "rb") as handle:
+        tokens = tokenize.tokenize(handle.readline)
         for token in tokens:
             if token.string == "sql_verified_qty":
                 return True

@@ -106,10 +106,10 @@ class QueryBuilder:
     def build_pipeline(
         self,
         collection: str,
-        filters: dict[str, Optional[Any]] = None,
+        filters: Optional[dict[str, Optional[Any]]] = None,
         group_by: Optional[list[str]] = None,
-        aggregations: dict[str, Optional[str]] = None,
-        sort: dict[str, Optional[int]] = None,
+        aggregations: Optional[dict[str, Optional[str]]] = None,
+        sort: Optional[dict[str, Optional[int]]] = None,
         limit: Optional[int] = None,
         skip: Optional[int] = None,
     ) -> list[dict[str, Any]]:
@@ -225,7 +225,7 @@ class QueryBuilder:
     def _build_group_stage(
         self,
         group_by: Optional[list[str]] = None,
-        aggregations: dict[str, Optional[str]] = None,
+        aggregations: Optional[dict[str, Optional[str]]] = None,
     ) -> dict[str, Any]:
         """
         Build group stage

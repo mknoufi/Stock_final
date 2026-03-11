@@ -7,7 +7,7 @@ async def test_pin_login_success(async_client: AsyncClient):
     """
     Verify 'staff1' login with CORRECT PIN '1234'.
     """
-    payload = {"pin": "1234", "device_id": "test_device_001"}
+    payload = {"username": "staff1", "pin": "1234", "device_id": "test_device_001"}
     response = await async_client.post("/api/auth/login-pin", json=payload)
 
     if response.status_code != 200:

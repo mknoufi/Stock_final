@@ -209,7 +209,7 @@ async def test_self_diagnosing_error_handler_execute(mock_diagnosis_service):
 @pytest.mark.asyncio
 async def test_self_diagnosing_error_handler_execute_fail(mock_diagnosis_service):
     mock_diagnosis_service.diagnose_error.return_value = MockDiagnosis(root_cause="exec fail")
-    _handler = SelfDiagnosingErrorHandler()
+    SelfDiagnosingErrorHandler()
 
     async def fail_coro():
         raise ValueError("fail")

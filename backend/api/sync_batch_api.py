@@ -139,7 +139,7 @@ async def validate_record(
     record: SyncRecord,
     db,
     lock_manager: LockManager,
-    sync_service: SyncConflictsService = None,
+    sync_service: Optional[SyncConflictsService] = None,
     user_id: Optional[str] = None,
 ) -> Optional[SyncConflict]:
     """

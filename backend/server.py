@@ -424,8 +424,8 @@ if reconciliation_router:
 # ============================================================================
 # Frontend Static Files Serving (Single Executable Mode)
 # ============================================================================
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles  # noqa: E402
+from fastapi.responses import FileResponse  # noqa: E402
 
 # Path to frontend build artifacts
 FRONTEND_DIST = ROOT_DIR.parent / "frontend" / "dist"
@@ -1383,7 +1383,7 @@ async def verify_stock(
     line_id: str,
     current_user: dict,
     *,
-    request: Request = None,
+    request: Optional[Request] = None,
     db_override=None,
 ):
     """Mark a count line as verified. Exposed for direct test usage."""
@@ -1421,7 +1421,7 @@ async def unverify_stock(
     line_id: str,
     current_user: dict,
     *,
-    request: Request = None,
+    request: Optional[Request] = None,
     db_override=None,
 ):
     """Remove verification metadata from a count line."""
