@@ -180,6 +180,26 @@ async def check_for_active_session(username: str) -> Result[bool, Exception]:
         return Ok(False)
 
 
+async def _resolve_session_conflict(username: str) -> bool:
+    """
+    Revoke existing refresh tokens for a user so they can log in again.
+
+    This preserves single-session semantics by allowing the newest login
+    and invalidating older sessions.
+    """
+    try:
+        refresh_token_service = get_refresh_token_service()
+        revoked_count = await refresh_token_service.revoke_all_user_tokens(username)
+        logger.warning(
+            "Recovered login session conflict by revoking existing refresh tokens",
+            extra={"username": sanitize_for_logging(username), "revoked_count": revoked_count},
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Failed to resolve session conflict for {username}: {str(e)}")
+        return False
+
+
 async def log_failed_login_attempt(
     username: str, ip_address: str, user_agent: Optional[str], error: str
 ) -> None:
@@ -458,13 +478,17 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
         if getattr(settings, "AUTH_SINGLE_SESSION", True):
             session_check = await check_for_active_session(credentials.username)
             if session_check.is_ok and session_check.unwrap():
-                raise HTTPException(
-                    status_code=409,
-                    detail={
-                        "error": "User already has an active session",
-                        "message": "Please log out from the other session before logging in again",
-                    },
-                )
+                resolved = await _resolve_session_conflict(credentials.username)
+                if not resolved:
+                    raise HTTPException(
+                        status_code=409,
+                        detail={
+                            "error": "User already has an active session",
+                            "message": (
+                                "Please log out from the other session before logging in again"
+                            ),
+                        },
+                    )
 
         # Generate tokens
         logger.info("Generating tokens...")
@@ -571,6 +595,14 @@ async def login_with_pin(
     if not pin or len(pin) != 4 or not pin.isdigit():
         logger.warning(f"Invalid PIN format from IP: {client_ip}")
         return Fail(AuthenticationError("Invalid PIN format. PIN must be 4 digits."))
+    if not credentials.username:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "USERNAME_REQUIRED_FOR_PIN_LOGIN",
+                "message": "Username is required for PIN login. Login with credentials first.",
+            },
+        )
 
     try:
         # Check rate limiting
@@ -605,13 +637,17 @@ async def login_with_pin(
         if getattr(settings, "AUTH_SINGLE_SESSION", True):
             session_check = await check_for_active_session(found_user["username"])
             if session_check.is_ok and session_check.unwrap():
-                raise HTTPException(
-                    status_code=409,
-                    detail={
-                        "error": "User already has an active session",
-                        "message": "Please log out from the other session before logging in again",
-                    },
-                )
+                resolved = await _resolve_session_conflict(found_user["username"])
+                if not resolved:
+                    raise HTTPException(
+                        status_code=409,
+                        detail={
+                            "error": "User already has an active session",
+                            "message": (
+                                "Please log out from the other session before logging in again"
+                            ),
+                        },
+                    )
 
         # Generate tokens
         logger.info("Generating tokens...")

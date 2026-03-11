@@ -153,7 +153,7 @@ export default function LoginScreen() {
     if (isE2E) {
       return;
     }
-    if (lastLoggedUser) {
+    if (lastLoggedUser?.has_pin) {
       setLoginMode("pin");
     }
   }, [lastLoggedUser]);
@@ -173,12 +173,20 @@ export default function LoginScreen() {
 
       // Auto-login when 4 digits entered
       if (newPin.length === 4) {
+        if (!lastLoggedUser?.username) {
+          Alert.alert(
+            "First Login Required",
+            "Please sign in with username and password first, then set your PIN.",
+          );
+          setPin("");
+          return;
+        }
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
         // Small delay to ensure UI updates before freezing for network request
         setTimeout(async () => {
           try {
-            const result = await loginWithPin(newPin, lastLoggedUser?.username);
+            const result = await loginWithPin(newPin, lastLoggedUser.username);
             if (!result.success) {
               const alertConfig = getLoginErrorAlert(result, "pin");
               Alert.alert(alertConfig.title, alertConfig.message, [
@@ -223,11 +231,18 @@ export default function LoginScreen() {
     setErrors(newErrors);
     try {
       if (loginMode === "pin") {
+        if (!lastLoggedUser?.username) {
+          Alert.alert(
+            "First Login Required",
+            "Please sign in with username and password first.",
+          );
+          return;
+        }
         if (pin.length !== 4) {
           setErrors({ pin: "Please enter a 4-digit PIN" });
           return;
         }
-        const result = await loginWithPin(pin, lastLoggedUser?.username);
+        const result = await loginWithPin(pin, lastLoggedUser.username);
         if (!result.success) {
           const alertConfig = getLoginErrorAlert(result, "pin");
           Alert.alert(alertConfig.title, alertConfig.message);
@@ -258,10 +273,10 @@ export default function LoginScreen() {
   }, [loginMode, pin, username, password, login, loginWithPin, lastLoggedUser]);
 
   const toggleLoginMode = useCallback(() => {
-    if (loginMode === "credentials" && !lastLoggedUser) {
+    if (loginMode === "credentials" && (!lastLoggedUser || !lastLoggedUser.has_pin)) {
       Alert.alert(
         "First Login Required",
-        "Please login with username and password first to enable PIN login for this device.",
+        "Please login with username/password and set a PIN first.",
       );
       return;
     }

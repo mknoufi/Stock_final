@@ -428,17 +428,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       set({ isLoading: false });
       if (response.data.success) {
-        // Clear cached PIN to force re-entry if needed, or update it
-        await secureStorage.setItem(BIOMETRIC_PIN_KEY, pin);
+        // Persist biometric PIN only when biometric auth is enabled.
+        const settings = useSettingsStore.getState().settings;
+        if (settings.biometricAuth) {
+          await secureStorage.setItem(BIOMETRIC_PIN_KEY, pin);
+        }
+
+        // Mark last logged user as PIN-enabled so PIN login mode is available next launch.
+        const currentUser = get().user;
+        const lastUser = get().lastLoggedUser;
+        if (currentUser) {
+          const updatedLastUser = {
+            username: currentUser.username,
+            full_name: currentUser.full_name,
+            has_pin: true,
+          };
+          await secureStorage.setItem(
+            LAST_USER_STORAGE_KEY,
+            JSON.stringify(updatedLastUser),
+          );
+          set({
+            lastLoggedUser: updatedLastUser,
+            user: { ...currentUser, has_pin: true },
+          });
+        } else if (lastUser) {
+          const updatedLastUser = { ...lastUser, has_pin: true };
+          await secureStorage.setItem(
+            LAST_USER_STORAGE_KEY,
+            JSON.stringify(updatedLastUser),
+          );
+          set({ lastLoggedUser: updatedLastUser });
+        }
         return { success: true, message: "PIN updated" };
       }
       return {
         success: false,
         message: response.data.message || "PIN setup failed",
       };
-    } catch (_error) {
+    } catch (_error: any) {
       set({ isLoading: false });
-      return { success: false, message: "Server error during PIN setup" };
+      const detail = _error?.response?.data?.detail;
+      return {
+        success: false,
+        message: detail?.message || "Server error during PIN setup",
+      };
     }
   },
 

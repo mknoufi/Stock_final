@@ -103,7 +103,6 @@ class ERPItem(BaseModel):
     # SQL Verification fields
     sql_verified_qty: Optional[float] = None
     last_sql_verified_at: Optional[datetime] = None
-    variance: Optional[float] = None
     mongo_cached_qty_previous: Optional[float] = None
     sql_qty_mismatch_flag: Optional[bool] = None
     sql_verification_status: Optional[str] = None
@@ -119,6 +118,7 @@ class UserInfo(BaseModel):
     phone: Optional[str] = None
     is_active: bool = True
     permissions: list[str] = Field(default_factory=list)
+    has_pin: bool = False
 
 
 class TokenResponse(BaseModel):
@@ -156,10 +156,26 @@ class PinSetup(BaseModel):
 
     @model_validator(mode="after")
     def validate_pins_match(self) -> "PinSetup":
+        weak_pins = {
+            "1234",
+            "0000",
+            "1111",
+            "2222",
+            "3333",
+            "4444",
+            "5555",
+            "6666",
+            "7777",
+            "8888",
+            "9999",
+            "4321",
+        }
         if self.pin != self.confirm_pin:
             raise ValueError("PINs do not match")
         if not self.pin.isdigit() or len(self.pin) != 4:
             raise ValueError("PIN must be 4 digits")
+        if self.pin in weak_pins:
+            raise ValueError("PIN is too weak")
         return self
 
 
@@ -276,7 +292,8 @@ class Session(BaseModel):
     # Governance Fields
     config_version_id: Optional[str] = None
     snapshot_hash: Optional[str] = None
-    snapshot_items_ref: Optional[str] = None  # Reference to external storage if too large
+    # Reference to external storage if too large
+    snapshot_items_ref: Optional[str] = None
 
     @field_validator("status", mode="before")
     @classmethod

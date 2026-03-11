@@ -71,8 +71,7 @@ export function ChangePinModal({
   const validateLocalPin = useCallback((pin: string): string | null => {
     if (!pin) return "PIN is required";
     if (!/^\d+$/.test(pin)) return "PIN must contain only digits";
-    if (pin.length < 4) return "PIN must be at least 4 digits";
-    if (pin.length > 6) return "PIN must be at most 6 digits";
+    if (pin.length !== 4) return "PIN must be exactly 4 digits";
     return null;
   }, []);
 

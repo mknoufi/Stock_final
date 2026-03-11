@@ -15,6 +15,7 @@ from backend.auth.permissions import ROLE_PERMISSIONS, Permission
 from backend.db.runtime import get_db
 from backend.utils.api_utils import sanitize_for_logging
 from backend.utils.auth_utils import get_password_hash
+from backend.utils.crypto_utils import get_pin_lookup_hash
 
 logger = logging.getLogger(__name__)
 
@@ -79,7 +80,7 @@ class CreateUserRequest(BaseModel):
     email: Optional[EmailStr] = None
     full_name: Optional[str] = Field(None, max_length=100)
     password: str = Field(..., min_length=6, max_length=128)
-    pin: Optional[str] = Field(None, pattern=r"^\d{4,6}$")
+    pin: Optional[str] = Field(None, pattern=r"^\d{4}$")
     role: str = Field(
         default="staff",
         pattern=r"^(staff|supervisor|admin)$",
@@ -97,7 +98,7 @@ class UpdateUserRequest(BaseModel):
         min_length=6,
         max_length=128,
     )
-    pin: Optional[str] = Field(None, pattern=r"^\d{4,6}$")
+    pin: Optional[str] = Field(None, pattern=r"^\d{4}$")
     role: Optional[str] = Field(
         None,
         pattern=r"^(staff|supervisor|admin)$",
@@ -361,6 +362,7 @@ async def create_user(
     # Add PIN if provided
     if request.pin:
         user_doc["pin_hash"] = get_password_hash(request.pin)
+        user_doc["pin_lookup_hash"] = get_pin_lookup_hash(request.pin)
 
     result = await db.users.insert_one(user_doc)
     user_doc["_id"] = result.inserted_id
@@ -448,6 +450,7 @@ async def update_user(
 
     if request.pin is not None:
         update["pin_hash"] = get_password_hash(request.pin)
+        update["pin_lookup_hash"] = get_pin_lookup_hash(request.pin)
 
     if request.role is not None:
         # Prevent admin from demoting themselves
@@ -779,7 +782,7 @@ async def reset_user_password(
 @user_management_router.post("/{user_id}/reset-pin")
 async def reset_user_pin(
     user_id: str,
-    new_pin: str = Query(..., pattern=r"^\d{4,6}$"),
+    new_pin: str = Query(..., pattern=r"^\d{4}$"),
     current_user: dict = Depends(require_admin),
 ):
     """
@@ -822,6 +825,7 @@ async def reset_user_pin(
         {
             "$set": {
                 "pin_hash": get_password_hash(new_pin),
+                "pin_lookup_hash": get_pin_lookup_hash(new_pin),
                 "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
             }
         },
