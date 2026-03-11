@@ -1,0 +1,3 @@
+## 2024-05-24 - Calculating estimatedItemSize for VirtualList
+**Learning:** When replacing `FlatList` with `VirtualList` (FlashList), guessing the `estimatedItemSize` can lead to layout thrashing and poor performance. It's crucial to calculate this value precisely by inspecting the theme file (`modernDesign.ts`) for explicit `spacing` (padding, margin) and `typography` (fontSize, lineHeight) metrics, combined with explicit container heights.
+**Action:** Always derive `estimatedItemSize` mathematically from the design tokens and layout structure (e.g., `paddingTop` + `paddingBottom` + `max(iconHeight, textContainerHeight)` + `marginBottom`) instead of using generic or approximate values.
