@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent, screen } from '@testing-library/react-native';
+import { render, screen } from '@testing-library/react-native';
 import { PinKeypad } from '../src/components/auth/PinKeypad';
 import { AccessibilityInfo } from 'react-native';
 

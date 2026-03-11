@@ -4,7 +4,8 @@
  */
 
 function init(modules) {
-  const ts = modules.typescript;
+  // eslint-disable-next-line no-unused-vars
+  const _ts = modules.typescript;
 
   function create(info) {
     // Get the original language service

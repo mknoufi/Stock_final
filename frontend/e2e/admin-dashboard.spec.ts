@@ -21,7 +21,7 @@ test.describe("Admin Dashboard Access", () => {
     // Adjust based on actual UI if needed, but "Dashboard" is common
     try {
       await expect(page.getByText("Dashboard")).toBeVisible();
-    } catch (e) {
+    } catch (_e) {
       console.log("Dashboard text not found, checking for alternative admin indicators");
       await expect(page.locator("text=Control Panel")).toBeVisible();
     }

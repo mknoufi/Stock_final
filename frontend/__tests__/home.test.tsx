@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from "react";
-import { render, fireEvent, waitFor } from "@testing-library/react-native";
+import { render } from "@testing-library/react-native";
 
 // Mock ConnectionManager
 jest.mock("../src/services/connectionManager", () => ({
@@ -78,9 +78,9 @@ jest.mock("../src/store/scanSessionStore", () => ({
 
 jest.mock("../src/store/authStore", () => ({
   useAuthStore: () => ({
-    user: { 
+    user: {
       id: "test-id",
-      username: "staff1", 
+      username: "staff1",
       role: "staff",
       full_name: "Test Staff",
       is_active: true,
@@ -103,16 +103,17 @@ describe("Staff Home Screen - Change Impact Guardrails", () => {
 
   // 🔴 Guardrail 1: Contract Shape Enforcement
   it("should enforce session store contract shape", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useScanSessionStore } = require("../src/store/scanSessionStore");
     const sessionStore = useScanSessionStore();
-    
+
     // Critical fields that must exist
     expect(sessionStore.currentFloor).toBeDefined();
     expect(sessionStore.currentRack).toBeDefined();
     expect(sessionStore.isSectionActive).toBeDefined();
     expect(sessionStore.activeSessionId).toBeDefined();
     expect(sessionStore.sessionType).toBeDefined();
-    
+
     // Actions must be callable
     expect(typeof sessionStore.setFloor).toBe("function");
     expect(typeof sessionStore.setRack).toBe("function");
@@ -124,9 +125,10 @@ describe("Staff Home Screen - Change Impact Guardrails", () => {
 
   // 🔴 Guardrail 2: Navigation Outcome Enforcement
   it("should NOT navigate when session is NOT active", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useScanSessionStore } = require("../src/store/scanSessionStore");
     const sessionStore = useScanSessionStore();
-    
+
     // When no active session, navigation should not occur
     expect(sessionStore.activeSessionId).toBeNull();
     expect(mockPush).not.toHaveBeenCalledWith("/staff/scan");
@@ -134,9 +136,10 @@ describe("Staff Home Screen - Change Impact Guardrails", () => {
 
   it("should navigate ONLY when session is active", () => {
     // Simulate active session
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useScanSessionStore } = require("../src/store/scanSessionStore");
     const sessionStore = useScanSessionStore();
-    
+
     // In real component, active session would enable navigation
     expect(sessionStore.setActiveSession).toBeDefined();
   });
@@ -149,9 +152,10 @@ describe("Staff Home Screen - Change Impact Guardrails", () => {
   });
 
   it("should handle missing session gracefully", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useScanSessionStore } = require("../src/store/scanSessionStore");
     const sessionStore = useScanSessionStore();
-    
+
     // Missing session should not crash
     expect(sessionStore.activeSessionId).toBeNull();
     expect(sessionStore.currentFloor).toBeNull();
@@ -159,9 +163,10 @@ describe("Staff Home Screen - Change Impact Guardrails", () => {
   });
 
   it("should handle invalid session type", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useScanSessionStore } = require("../src/store/scanSessionStore");
     const sessionStore = useScanSessionStore();
-    
+
     // Session type should be valid enum value
     expect(["STANDARD", "BLIND", "STRICT"]).toContain(sessionStore.sessionType);
   });
@@ -170,7 +175,9 @@ describe("Staff Home Screen - Change Impact Guardrails", () => {
   it("should not have side effects during import", () => {
     // Test that importing stores doesn't trigger side effects
     expect(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require("../src/store/scanSessionStore");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       require("../src/store/authStore");
     }).not.toThrow();
   });

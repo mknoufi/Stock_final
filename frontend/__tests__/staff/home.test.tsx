@@ -1,5 +1,5 @@
 import React from "react";
-import { render, fireEvent } from "@testing-library/react-native";
+import { render } from "@testing-library/react-native";
 import HomeScreen from "../../app/staff/home";
 
 jest.mock("expo-haptics", () => ({
@@ -9,12 +9,16 @@ jest.mock("expo-haptics", () => ({
 }));
 
 jest.mock("react-native-modal", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require("react-native");
-  return (props: any) =>
+  const MockModal = (props: any) =>
     props.isVisible
       ? React.createElement(View, { testID: "modal-view" }, props.children)
       : null;
+  MockModal.displayName = "MockModal";
+  return MockModal;
 });
 
 jest.mock("@tanstack/react-query", () => ({

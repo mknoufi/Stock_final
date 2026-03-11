@@ -10,4 +10,4 @@ try {
   if (typeof window !== "undefined") {
     delete global.window;
   }
-} catch (e) {}
+} catch { /* ignored */ }

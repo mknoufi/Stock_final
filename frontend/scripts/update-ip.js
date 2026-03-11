@@ -106,7 +106,7 @@ try {
       console.log(`Detected Dynamic Backend Port: ${port}`);
     }
   }
-} catch (e) {
+} catch (_e) {
   console.log("Could not read backend_port.json, using default port");
 }
 
