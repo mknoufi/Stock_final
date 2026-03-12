@@ -2819,294 +2819,38 @@ export const settingsApi = {
   updateSystemSettings,
 };
 
-// Advanced Analytics API
-export const getVarianceTrend = async (days: number = 30) => {
-  try {
-    const response = await api.get(`/api/variance/trend?days=${days}`);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get variance trend error:", error);
-    throw error;
-  }
-};
-
-export const getStaffPerformance = async (days: number = 30) => {
-  try {
-    const response = await api.get(`/api/metrics/staff-performance?days=${days}`);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get staff performance error:", error);
-    throw error;
-  }
-};
-
-// ==========================================
-// DYNAMIC FIELDS API
-// ==========================================
-
-export const getFieldDefinitions = async (
-  enabledOnly: boolean = true,
-  visibleOnly: boolean = false
-) => {
-  try {
-    const params = new URLSearchParams({
-      enabled_only: enabledOnly.toString(),
-      visible_only: visibleOnly.toString(),
-    });
-    const response = await api.get(`/api/dynamic-fields/definitions?${params.toString()}`);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get field definitions error:", error);
-    throw error;
-  }
-};
-
-export const createFieldDefinition = async (fieldData: Record<string, unknown>) => {
-  try {
-    const response = await api.post("/api/dynamic-fields/definitions", fieldData);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Create field definition error:", error);
-    throw error;
-  }
-};
-
-export const updateFieldDefinition = async (fieldId: string, updates: Record<string, unknown>) => {
-  try {
-    const response = await api.put(`/api/dynamic-fields/definitions/${fieldId}`, updates);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Update field definition error:", error);
-    throw error;
-  }
-};
-
-export const deleteFieldDefinition = async (fieldId: string) => {
-  try {
-    const response = await api.delete(`/api/dynamic-fields/definitions/${fieldId}`);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Delete field definition error:", error);
-    throw error;
-  }
-};
-
-export const setFieldValue = async (itemCode: string, fieldName: string, value: unknown) => {
-  try {
-    const response = await api.post("/api/dynamic-fields/values", {
-      item_code: itemCode,
-      field_name: fieldName,
-      value,
-    });
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Set field value error:", error);
-    throw error;
-  }
-};
-
-export const setBulkFieldValues = async (
-  itemCodes: string[],
-  fieldValues: Record<string, unknown>
-) => {
-  try {
-    const response = await api.post("/api/dynamic-fields/values/bulk", {
-      item_codes: itemCodes,
-      field_values: fieldValues,
-    });
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Set bulk field values error:", error);
-    throw error;
-  }
-};
-
-export const getItemFieldValues = async (itemCode: string) => {
-  try {
-    const response = await api.get(`/api/dynamic-fields/values/${itemCode}`);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get item field values error:", error);
-    throw error;
-  }
-};
-
-export const getItemsWithFields = async (
-  fieldName?: string,
-  fieldValue?: string,
-  limit: number = 100,
-  skip: number = 0
-) => {
-  try {
-    const params = new URLSearchParams({
-      limit: limit.toString(),
-      skip: skip.toString(),
-    });
-    if (fieldName) params.append("field_name", fieldName);
-    if (fieldValue) params.append("field_value", fieldValue);
-
-    const response = await api.get(`/api/dynamic-fields/items?${params.toString()}`);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get items with fields error:", error);
-    throw error;
-  }
-};
-
-export const getFieldStatistics = async (fieldName: string) => {
-  try {
-    const response = await api.get(`/api/dynamic-fields/statistics/${fieldName}`);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get field statistics error:", error);
-    throw error;
-  }
-};
-
-// ==========================================
-// SELF-DIAGNOSIS API
-// ==========================================
-
-/**
- * Get comprehensive health status with auto-diagnosis
- */
-export const getDiagnosisHealth = async () => {
-  try {
-    const response = await api.get("/api/diagnosis/health");
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get diagnosis health error:", error);
-    throw error;
-  }
-};
-
-/**
- * Get error statistics with analysis
- * @param hours Time window in hours
- */
-export const getDiagnosisStats = async (hours: number = 24) => {
-  try {
-    const response = await api.get(`/api/diagnosis/statistics?hours=${hours}`);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get diagnosis stats error:", error);
-    throw error;
-  }
-};
-
-/**
- * Manually diagnose an error
- * @param errorInfo Error details (type, message, context)
- */
-export const diagnoseError = async (errorInfo: {
-  error_type: string;
-  error_message: string;
-  context?: Record<string, any>;
-}) => {
-  try {
-    const response = await api.post("/api/diagnosis/diagnose", errorInfo);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Diagnose error failed:", error);
-    throw error;
-  }
-};
+export {
+  getVarianceTrend,
+  getStaffPerformance,
+} from "./api.advancedAnalytics";
+export {
+  getFieldDefinitions,
+  createFieldDefinition,
+  updateFieldDefinition,
+  deleteFieldDefinition,
+  setFieldValue,
+  setBulkFieldValues,
+  getItemFieldValues,
+  getItemsWithFields,
+  getFieldStatistics,
+} from "./api.dynamicFields";
+export {
+  getDiagnosisHealth,
+  getDiagnosisStats,
+  diagnoseError,
+} from "./api.diagnosis";
+export {
+  syncBatch,
+  getWatchtowerStats,
+  getZones,
+  getWarehouses,
+} from "./api.misc";
+export type { Notification } from "./api.notifications";
+export {
+  getNotifications,
+  getUnreadNotificationCount,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+} from "./api.notifications";
 
 export default api;
-
-// Batch sync offline queue
-export const syncBatch = async (operations: Record<string, unknown>[]) => {
-  try {
-    const response = await api.post("/api/sync/batch", { operations });
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.warn("Sync batch error:", error);
-    throw error;
-  }
-};
-
-// Get Watchtower stats
-export const getWatchtowerStats = async () => {
-  try {
-    const response = await api.get("/api/v2/sessions/watchtower");
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get watchtower stats error:", error);
-    throw error;
-  }
-};
-
-// Get Zones
-export const getZones = async () => {
-  try {
-    const response = await api.get("/api/locations/zones");
-    return response.data;
-  } catch (error: any) {
-    if (error?.response?.status !== 401) {
-      console.error("Error fetching zones:", error);
-    }
-    throw error;
-  }
-};
-
-// Get Warehouses
-export const getWarehouses = async (zone?: string) => {
-  try {
-    const url = zone
-      ? `/api/locations/warehouses?zone=${encodeURIComponent(zone)}`
-      : "/api/locations/warehouses";
-    const response = await api.get(url);
-    return response.data;
-  } catch (error: any) {
-    if (error?.response?.status !== 401) {
-      console.error("Error fetching warehouses:", error);
-    }
-    throw error;
-  }
-};
-
-// ============================================================================
-// Notifications API (FR-M-23)
-// ============================================================================
-
-export interface Notification {
-  _id: string;
-  id?: string;
-  type: string;
-  title: string;
-  message: string;
-  priority?: string;
-  action_url?: string | null;
-  read: boolean;
-  created_at: string;
-  read_at?: string | null;
-}
-
-type NotificationListResponse = {
-  notifications: Notification[];
-  total: number;
-  unread_count: number;
-};
-
-export const getNotifications = async (
-  unreadOnly: boolean = false,
-  limit: number = 50
-): Promise<Notification[]> => {
-  const response = await api.get<NotificationListResponse>("/api/notifications", {
-    params: { unread_only: unreadOnly, limit },
-  });
-  return response.data.notifications || [];
-};
-
-export const getUnreadNotificationCount = async (): Promise<number> => {
-  const response = await api.get<{ unread_count: number }>("/api/notifications/unread-count");
-  return response.data.unread_count ?? 0;
-};
-
-export const markNotificationAsRead = async (notificationId: string): Promise<void> => {
-  await api.post(`/api/notifications/${encodeURIComponent(notificationId)}/read`);
-};
-
-export const markAllNotificationsAsRead = async (): Promise<void> => {
-  await api.post("/api/notifications/mark-all-read");
-};

@@ -323,7 +323,7 @@ class TestFullAPIEvaluation:
             json={"username": user_data["username"], "password": user_data["password"]},
         )
 
-        auth_headers = {}
+        auth_headers: dict[str, str | None] = {}
         if login_response.status_code == 200:
             token = login_response.json().get("data", {}).get("access_token")
             if token:

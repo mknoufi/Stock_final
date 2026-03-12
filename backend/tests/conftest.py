@@ -90,11 +90,17 @@ async def async_client(test_db, monkeypatch) -> AsyncGenerator[AsyncClient, None
 @pytest_asyncio.fixture
 async def mongo_client() -> AsyncGenerator[AsyncIOMotorClient, None]:
     """Provide MongoDB test client."""
-    client = AsyncIOMotorClient(os.getenv("MONGO_URL"))
+    mongo_url = os.getenv("MONGO_URL")
+    if not mongo_url:
+        raise ValueError("MONGO_URL environment variable is not set")
+    client: AsyncIOMotorClient = AsyncIOMotorClient(mongo_url)
     yield client
 
     # Cleanup test database
-    await client.drop_database(os.getenv("DB_NAME"))
+    db_name = os.getenv("DB_NAME")
+    if not db_name:
+        raise ValueError("DB_NAME environment variable is not set")
+    await client.drop_database(db_name)
     client.close()
 
 
@@ -138,10 +144,16 @@ async def authenticated_headers(test_db: InMemoryDatabase) -> dict:
         # Fallback if seeding didn't work or changed
         user = {"username": "testuser", "role": "admin"}
 
+    jwt_secret = os.getenv("JWT_SECRET")
+    jwt_algorithm = os.getenv("JWT_ALGORITHM")
+
+    if not jwt_secret or not jwt_algorithm:
+        raise ValueError("JWT_SECRET or JWT_ALGORITHM environment variable is not set")
+
     token = encode(
         {"sub": user["username"], "role": user["role"]},
-        os.getenv("JWT_SECRET"),
-        algorithm=os.getenv("JWT_ALGORITHM"),
+        jwt_secret,
+        algorithm=jwt_algorithm,
     )
 
     return {"Authorization": f"Bearer {token}"}

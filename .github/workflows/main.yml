@@ -65,6 +65,10 @@ jobs:
           pip install -r backend/requirements.production.txt
           pip install pytest pytest-asyncio pytest-cov httpx
 
+      - name: Duplicate route registration guard
+        run: |
+          python scripts/check_duplicate_routes.py
+
       - name: Runtime import guard
         env:
           JWT_SECRET: ci-import-guard-jwt-secret-32-chars
@@ -172,12 +176,10 @@ jobs:
       - name: TypeScript check
         working-directory: frontend
         run: npx tsc --noEmit
-        continue-on-error: true
 
       - name: Run tests
         working-directory: frontend
         run: npm test -- --coverage --watchAll=false
-        continue-on-error: true
 
       - name: Build web
         working-directory: frontend

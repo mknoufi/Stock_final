@@ -7,7 +7,7 @@ BLOCKED_REGEX='^(frontend/playwright-report/|frontend/test-results/|backend/data
 # Only flag files that are both tracked and present in the working tree.
 tracked_blocked="$(
   git ls-files \
-    | grep -E "$BLOCKED_REGEX" \
+    | (grep -E "$BLOCKED_REGEX" || true) \
     | while IFS= read -r path; do
         if [[ -e "$path" ]]; then
           echo "$path"

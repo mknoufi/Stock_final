@@ -18,17 +18,18 @@ except ImportError:
     pass
 
 import jwt  # noqa: E402
-import uvicorn  # noqa: E402
 from fastapi import APIRouter, Depends, FastAPI, HTTPException  # noqa: E402
-from fastapi.middleware.gzip import GZipMiddleware  # noqa: E402
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer  # noqa: E402
-from starlette.middleware.cors import CORSMiddleware  # noqa: E402
 from starlette.requests import Request  # noqa: E402
 
 import sentry_sdk  # noqa: E402
 from sentry_sdk.integrations.fastapi import FastApiIntegration  # noqa: E402
 from sentry_sdk.integrations.starlette import StarletteIntegration  # noqa: E402
 
+from backend.app.middleware import register_middleware  # noqa: E402
+from backend.app.routers import RouterRegistry, register_routers  # noqa: E402
+from backend.app.settings_runtime import run_server_main  # noqa: E402
+from backend.app.static import register_static_serving  # noqa: E402
 
 from backend.api import supervisor_pin  # noqa: E402
 from backend.api.admin_control_api import admin_control_router  # noqa: E402
@@ -96,7 +97,6 @@ from backend.exceptions import ValidationError  # noqa: E402
 # Utils
 from backend.utils.api_utils import result_to_response, sanitize_for_logging  # noqa: E402
 from backend.utils.auth_utils import get_password_hash  # noqa: E402
-from backend.utils.port_detector import PortDetector, save_backend_info  # noqa: E402
 from backend.utils.result import Fail, Ok, Result  # noqa: E402
 from backend.utils.tracing import instrument_fastapi_app  # noqa: E402
 
@@ -217,90 +217,15 @@ except Exception:
     # Tracing should never prevent the app from starting
     pass
 
-# SECURITY FIX: Configure CORS with specific origins instead of wildcard
-# Configure CORS from settings with environment-aware defaults
-_env = getattr(settings, "ENVIRONMENT", "development").lower()
-if getattr(settings, "CORS_ALLOW_ORIGINS", None):
-    _allowed_origins = [
-        o.strip() for o in (settings.CORS_ALLOW_ORIGINS or "").split(",") if o.strip()
-    ]
-elif _env == "development":
-    # Base development origins (localhost variants)
-    _allowed_origins = [
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8081",
-        "http://127.0.0.1:8081",
-        "exp://localhost:8081",
-    ]
-    # Add additional dev origins from environment if configured
-    if getattr(settings, "CORS_DEV_ORIGINS", None):
-        dev_origins = [o.strip() for o in (settings.CORS_DEV_ORIGINS or "").split(",") if o.strip()]
-        _allowed_origins.extend(dev_origins)
-        logger.info(f"Added {len(dev_origins)} additional CORS origins from CORS_DEV_ORIGINS")
-else:
-    _allowed_origins = []
-    if not getattr(settings, "CORS_ALLOW_ORIGINS", None):
-        logger.warning(
-            "CORS_ALLOW_ORIGINS not configured for non-development environment; "
-            "requests may be blocked"
-        )
-
-_cors_origin_regex = None
-if _env == "development":
-    # Allow local network IPs for development only (Expo Go, LAN access)
-    _cors_origin_regex = (
-        r"(https?|exp)://(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|"
-        r"10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?"
-    )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_allowed_origins,
-    allow_origin_regex=_cors_origin_regex,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allow_headers=[
-        "Accept",
-        "Accept-Language",
-        "Content-Language",
-        "Content-Type",
-        "Authorization",
-        "X-Device-ID",
-        "X-Requested-With",
-        "X-Request-ID",
-    ],
+register_middleware(
+    app,
+    settings=settings,
+    logger=logger,
+    security_headers_middleware=SecurityHeadersMiddleware,
 )
-
-# Add security headers middleware (OWASP best practices)
-if SecurityHeadersMiddleware is not None:
-    try:
-        # Enable security headers (strict CSP in production)
-        strict_csp = os.getenv("STRICT_CSP", "false").lower() == "true"
-        force_https = os.getenv("FORCE_HTTPS", "false").lower() == "true"
-
-        app.add_middleware(
-            SecurityHeadersMiddleware,  # type: ignore[arg-type]
-            STRICT_CSP=strict_csp,
-            force_https=force_https,
-        )
-        logger.info("✓ Security headers middleware enabled")
-    except Exception as e:
-        logger.warning(f"Security headers middleware registration failed: {str(e)}")
-else:
-    logger.warning("Security headers middleware not available")
 
 # Create API router
 api_router = APIRouter()
-
-# Add response compression for API payloads
-app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-# Register all routers with the app
-app.include_router(health_router, tags=["health"])  # Health endpoints at /health
-app.include_router(health_router, prefix="/api", tags=["health"])  # Also at /api/health
-app.include_router(info_router)  # Version check and info endpoints at /api/*
-
 
 # Add root endpoint
 @app.get("/", status_code=200)
@@ -314,164 +239,9 @@ async def root():
     }
 
 
-app.include_router(permissions_router, prefix="/api")  # Permissions management
-app.include_router(user_management_router, prefix="/api")  # User management CRUD
-app.include_router(mapping_router)  # Database mapping endpoints via mapping_api
-app.include_router(exports_router, prefix="/api")  # Export functionality
-
-app.include_router(auth_router, prefix="/api")
-# items_router is included in v2_router, so we don't register it separately
-app.include_router(search_router)  # Search API (has prefix /api/items)
-app.include_router(metrics_router, prefix="/api")  # Metrics and monitoring
-app.include_router(sync_router, prefix="/api")  # Sync status
-app.include_router(sync_management_router, prefix="/api")  # Sync management
-app.include_router(self_diagnosis_router, prefix="/api/diagnosis")  # Self-diagnosis tools
-app.include_router(security_router)  # Security dashboard (has its own prefix)
-app.include_router(verification_router)
-app.include_router(erp_router, prefix="/api")  # ERP endpoints
-app.include_router(variance_router, prefix="/api")  # Variance reasons and trendspoints
-app.include_router(admin_control_router)  # Admin control endpoints
-app.include_router(dynamic_fields_router)  # Dynamic fields management
-app.include_router(dynamic_reports_router)  # Dynamic reports (has prefix /api/dynamic-reports)
-app.include_router(realtime_dashboard_router, prefix="/api")  # Real-time dashboard (SSE/WebSocket)
-app.include_router(logs_router, prefix="/api")  # Error and Activity logs
-app.include_router(master_settings_router)  # Master settings
-app.include_router(service_logs_router)  # Service logs
-app.include_router(locations_router)  # Locations (Zones/Warehouses)
-app.include_router(count_lines_router, prefix="/api")  # Count lines management
-app.include_router(analytics_router, prefix="/api")  # Analytics and Heatmaps
-
-
-# Phase 1-3: New Upgrade Routers
-app.include_router(sync_batch_router)  # Batch sync API (has prefix /api/sync)
-app.include_router(unknown_items_router)  # Unknown items management
-app.include_router(rack_router)  # Rack management (has prefix /api/racks)
-app.include_router(session_mgmt_router)  # Session management (has prefix /api/sessions)
-app.include_router(user_settings_router)  # User settings (has prefix /api/user)
-app.include_router(
-    preferences_router, prefix="/api"
-)  # User preferences (has prefix /api/users/me/preferences)
-app.include_router(reporting_router)  # Reporting API (has prefix /api/reports)
-app.include_router(admin_dashboard_router, prefix="/api")  # Admin Dashboard API
-app.include_router(report_generation_router, prefix="/api")  # Report Generation API
-app.include_router(error_reporting_router)  # Error Reporting API (has prefix /api/admin)
-app.include_router(websocket_router)  # WebSocket updates (endpoint at /ws/updates)
-app.include_router(sql_verification_router)  # SQL verification endpoints
-app.include_router(enhanced_item_router)  # Enhanced Item API (has prefix /api/v2/erp/items)
-app.include_router(pi_router)  # pi-mono integration (/api/pi)
-logger.info("✓ Phase 1-3 upgrade routers registered")
-logger.info("✓ Admin Dashboard, Report Generation, and Dynamic Reports APIs registered")
-
-# Enterprise API (audit, security, feature flags, governance)
-if ENTERPRISE_AVAILABLE and enterprise_router is not None:
-    app.include_router(enterprise_router, prefix="/api")
-    logger.info("✓ Enterprise API router registered at /api/enterprise/*")
-
-
 @app.get("/api/mapping/test_direct")
 def test_direct():
     return {"status": "ok"}
-
-
-# Debug: Print all registered routes
-for route in app.routes:
-    if hasattr(route, "path"):
-        logger.info(f"Route: {route.path}")
-# Import and include Notes API router locally to avoid top-level import churn
-# Include feature API routers
-if notes_router or sync_conflicts_router:
-    try:
-        if notes_router:
-            app.include_router(notes_router, prefix="/api")  # Notes feature
-        if sync_conflicts_router:
-            app.include_router(sync_conflicts_router, prefix="/api")  # Sync conflicts feature
-    except Exception as _e:
-        logger.warning(f"Feature API router registration failed: {_e}")
-
-# Import and include Enrichment API router
-if enrichment_router:
-    try:
-        app.include_router(enrichment_router)  # Enrichment endpoints
-        logger.info("✓ Enrichment API router registered")
-    except Exception as _e:
-        logger.warning(f"Enrichment API router not available: {_e}")
-
-# Include API v2 router (upgraded endpoints)
-# Include API v2 router (upgraded endpoints)
-if v2_router and backend_config_router:
-    try:
-        app.include_router(v2_router)
-        app.include_router(backend_config_router)
-        logger.info("✓ API v2 router registered")
-    except Exception as e:
-        logger.warning(f"API v2 router registration failed: {e}")
-
-# Register routers with clear prefixes
-app.include_router(supervisor_pin.router, prefix="/api", tags=["Supervisor"])
-# Register PIN auth router
-if pin_auth_router:
-    try:
-        app.include_router(pin_auth_router, prefix="/api", tags=["PIN Auth"])
-    except Exception as _e:
-        logger.warning(f"PIN auth API router registration failed: {_e}")
-
-# Include routes defined on api_router
-app.include_router(api_router, prefix="/api")
-
-
-if reconciliation_router:
-    try:
-        app.include_router(reconciliation_router)
-    except Exception as _e:
-        logger.warning(f"Reconciliation router registration failed: {_e}")
-
-# ============================================================================
-# Frontend Static Files Serving (Single Executable Mode)
-# ============================================================================
-from fastapi.staticfiles import StaticFiles  # noqa: E402
-from fastapi.responses import FileResponse  # noqa: E402
-
-# Path to frontend build artifacts
-FRONTEND_DIST = ROOT_DIR.parent / "frontend" / "dist"
-
-if FRONTEND_DIST.exists():
-    logger.info(f"Serving frontend from {FRONTEND_DIST}")
-
-    # Mount static assets (js, css, media)
-    # Expo web build puts assets in dist/assets and other root files
-    app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
-
-    # Check for other common Expo web folders if they exist
-    for folder in ["static", "fonts", "images"]:
-        if (FRONTEND_DIST / folder).exists():
-            app.mount(f"/{folder}", StaticFiles(directory=str(FRONTEND_DIST / folder)), name=folder)
-
-    # Catch-all route for SPA (must be last)
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        # Allow API requests to pass through (though they should be caught above)
-        if (
-            full_path.startswith("api/")
-            or full_path.startswith("docs")
-            or full_path.startswith("openapi.json")
-        ):
-            raise HTTPException(status_code=404, detail="Not Found")
-
-        # Prevent path traversal
-        if ".." in full_path:
-            raise HTTPException(status_code=404, detail="Not Found")
-
-        # Check if specific file exists in dist (e.g., favicon.ico, manifest.json)
-        file_path = FRONTEND_DIST / full_path
-        if file_path.exists() and file_path.is_file():
-            return FileResponse(file_path)
-
-        # Default to index.html for SPA routing
-        return FileResponse(FRONTEND_DIST / "index.html")
-else:
-    logger.warning(
-        f"Frontend dist not found at {FRONTEND_DIST}. Run 'npm run build:web' in frontend/."
-    )
 
 
 # Pydantic Models
@@ -1492,76 +1262,77 @@ async def get_count_lines(
     }
 
 
-# Register api_router AFTER all routes have been defined
-app.include_router(
-    api_router, prefix="/api"
-)  # Main API endpoints with auth, sessions, items, count-lines
+register_routers(
+    app,
+    RouterRegistry(
+        health_router=health_router,
+        info_router=info_router,
+        permissions_router=permissions_router,
+        user_management_router=user_management_router,
+        mapping_router=mapping_router,
+        exports_router=exports_router,
+        auth_router=auth_router,
+        search_router=search_router,
+        metrics_router=metrics_router,
+        sync_router=sync_router,
+        sync_management_router=sync_management_router,
+        self_diagnosis_router=self_diagnosis_router,
+        security_router=security_router,
+        verification_router=verification_router,
+        erp_router=erp_router,
+        variance_router=variance_router,
+        admin_control_router=admin_control_router,
+        dynamic_fields_router=dynamic_fields_router,
+        dynamic_reports_router=dynamic_reports_router,
+        realtime_dashboard_router=realtime_dashboard_router,
+        logs_router=logs_router,
+        master_settings_router=master_settings_router,
+        service_logs_router=service_logs_router,
+        locations_router=locations_router,
+        count_lines_router=count_lines_router,
+        analytics_router=analytics_router,
+        sync_batch_router=sync_batch_router,
+        unknown_items_router=unknown_items_router,
+        rack_router=rack_router,
+        session_mgmt_router=session_mgmt_router,
+        user_settings_router=user_settings_router,
+        preferences_router=preferences_router,
+        reporting_router=reporting_router,
+        admin_dashboard_router=admin_dashboard_router,
+        report_generation_router=report_generation_router,
+        error_reporting_router=error_reporting_router,
+        websocket_router=websocket_router,
+        sql_verification_router=sql_verification_router,
+        enhanced_item_router=enhanced_item_router,
+        pi_router=pi_router,
+        supervisor_pin_router=supervisor_pin.router,
+        notifications_router=notifications_router,
+        api_router=api_router,
+        enterprise_router=enterprise_router,
+        notes_router=notes_router,
+        sync_conflicts_router=sync_conflicts_router,
+        enrichment_router=enrichment_router,
+        v2_router=v2_router,
+        backend_config_router=backend_config_router,
+        pin_auth_router=pin_auth_router,
+        reconciliation_router=reconciliation_router,
+        enterprise_available=ENTERPRISE_AVAILABLE,
+    ),
+    logger,
+)
 
-app.include_router(notifications_router)
+if os.getenv("LOG_ROUTE_TABLE", "false").lower() == "true":
+    for route in app.routes:
+        if hasattr(route, "path"):
+            logger.info(f"Route: {route.path}")
+
+register_static_serving(app, ROOT_DIR.parent / "frontend" / "dist", logger)
 
 
-# Run the server if executed directly
 if __name__ == "__main__":
-    # Validate environment variables before starting
-    try:
-        from backend.utils.env_validation import validate_environment, get_env_summary
-
-        validate_environment()
-        logger.info("Environment configuration validated successfully")
-        logger.info(f"Environment summary: {get_env_summary()}")
-    except ImportError:
-        logger.warning("Environment validation module not found, skipping validation")
-    except ValueError as e:
-        logger.error(f"Environment validation failed: {e}")
-        raise
-
-    # Get configured port as starting point
-    start_port = int(getattr(settings, "PORT", os.getenv("PORT", 8001)))
-    # Use PortDetector to find port and IP
-    port = PortDetector.find_available_port(start_port, range(start_port, start_port + 10))
-    local_ip = PortDetector.get_local_ip()
-
-    # Set PORT env var for lifespan to pick up
-    os.environ["PORT"] = str(port)
-
-    # Check for SSL certificates
-    # Try to find certs in project root/nginx/ssl
-    project_root = Path(__file__).parent.parent
-    default_key = project_root / "nginx" / "ssl" / "privkey.pem"
-    default_cert = project_root / "nginx" / "ssl" / "fullchain.pem"
-
-    ssl_keyfile = os.getenv("SSL_KEYFILE", str(default_key))
-    ssl_certfile = os.getenv("SSL_CERTFILE", str(default_cert))
-
-    # Allow explicit disable via env var
-    disable_ssl = os.getenv("DISABLE_SSL", "false").lower() == "true"
-
-    use_ssl = (not disable_ssl) and os.path.exists(ssl_keyfile) and os.path.exists(ssl_certfile)
-
-    # Save port to file for other services to discover
-    protocol = "https" if use_ssl else "http"
-    save_backend_info(port, local_ip, protocol)
-
-    if use_ssl:
-        logger.info(f"🔒 SSL certificates found. Starting server with HTTPS on port {port}...")
-        uvicorn.run(
-            "backend.server:app",
-            host=os.getenv("HOST", "127.0.0.1"),  # Listen on localhost only for security
-            port=port,
-            reload=False,
-            log_level="info",
-            access_log=True,
-            ssl_keyfile=ssl_keyfile,
-            ssl_certfile=ssl_certfile,
-        )
-    else:
-        logger.warning("⚠️  No SSL certificates found. Starting server with HTTP (Unencrypted)...")
-        logger.info(f"Starting server on port {port}...")
-        uvicorn.run(
-            "backend.server:app",
-            host=os.getenv("HOST", "0.0.0.0"),  # Listen on all interfaces for LAN access
-            port=port,
-            reload=False,
-            log_level="info",
-            access_log=True,
-        )
+    run_server_main(
+        app_import_path="backend.server:app",
+        settings=settings,
+        logger=logger,
+        project_root=Path(__file__).parent.parent,
+    )
