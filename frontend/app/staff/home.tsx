@@ -18,7 +18,7 @@ import {
   BackHandler,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
 import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
@@ -608,7 +608,9 @@ const StaffHome = React.memo(function StaffHome() {
 
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
+        nestedScrollEnabled
         bounces={true}
         alwaysBounceVertical={true}
         refreshControl={
@@ -640,6 +642,7 @@ const StaffHome = React.memo(function StaffHome() {
             contentContainerStyle={styles.modalContent}
             keyboardShouldPersistTaps="always"
             keyboardDismissMode="none"
+            nestedScrollEnabled
           >
             <Text style={styles.sectionLabel}>Select Location</Text>
             <View style={styles.chipContainer}>

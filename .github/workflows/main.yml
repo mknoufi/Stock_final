@@ -49,6 +49,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Repository hygiene gate
+        run: |
+          bash scripts/check_repo_hygiene.sh
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -74,6 +78,8 @@ jobs:
           MONGODB_URL: mongodb://localhost:27017/test_db
           REDIS_URL: redis://localhost:6379
           JWT_SECRET: test-secret-key-for-ci-only
+          PIN_SALT: ci-test-pin-salt-not-for-production
+          APP_ENV: test
           ENVIRONMENT: test
         run: |
           cd backend
@@ -113,6 +119,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Repository hygiene gate
+        run: |
+          bash scripts/check_repo_hygiene.sh
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -143,6 +153,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Repository hygiene gate
+        run: |
+          bash scripts/check_repo_hygiene.sh
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

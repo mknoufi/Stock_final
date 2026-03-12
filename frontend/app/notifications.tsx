@@ -13,7 +13,7 @@ import {
   RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNotificationStore } from "../src/store/notificationStore";
 import type { Notification } from "../src/services/api/api";
 import ModernHeader from "../src/components/ui/ModernHeader";

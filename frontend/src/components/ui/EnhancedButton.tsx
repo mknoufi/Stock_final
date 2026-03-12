@@ -20,7 +20,7 @@ import {
   TextStyle,
   StyleProp,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import { MyPressable, MyPressableProps } from "./MyPressable";
 import { useThemeContext } from "@/context/ThemeContext";

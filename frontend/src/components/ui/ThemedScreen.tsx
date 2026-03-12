@@ -28,6 +28,7 @@ interface ThemedScreenProps {
   patternOpacity?: number;
   useSafeArea?: boolean;
   variant?: "default" | "glass" | "solid";
+  dismissKeyboardOnTap?: boolean;
 }
 
 export const ThemedScreen: React.FC<ThemedScreenProps> = ({
@@ -37,6 +38,7 @@ export const ThemedScreen: React.FC<ThemedScreenProps> = ({
   patternOpacity = 0.04,
   useSafeArea = true,
   variant = "default",
+  dismissKeyboardOnTap = false,
 }) => {
   const { themeLegacy: theme, pattern, layout } = useThemeContext();
   const insets = useSafeAreaInsets();
@@ -74,37 +76,40 @@ export const ThemedScreen: React.FC<ThemedScreenProps> = ({
     paddingHorizontal: spacing.horizontal,
   };
 
-  return (
-    <TouchableWithoutFeedback
-      onPress={Keyboard.dismiss}
-      accessible={false}
-    >
-      <View style={[containerStyle, { flex: 1 }, style]}>
-        {/* Pattern Background */}
-        {showPattern && pattern !== "none" && (
-          <PatternBackground
-            pattern={pattern}
-            color={theme.colors.accent}
-            secondaryColor={theme.colors.textSecondary}
-            opacity={patternOpacity}
-          />
-        )}
+  const content = (
+    <View style={[containerStyle, { flex: 1 }, style]}>
+      {/* Pattern Background */}
+      {showPattern && pattern !== "none" && (
+        <PatternBackground
+          pattern={pattern}
+          color={theme.colors.accent}
+          secondaryColor={theme.colors.textSecondary}
+          opacity={patternOpacity}
+        />
+      )}
 
-        {/* Gradient Overlay for glass variant */}
-        {variant === "glass" && (
-          <View
-            pointerEvents="none"
-            style={[
-              StyleSheet.absoluteFillObject,
-              { backgroundColor: `${theme.colors.background}E6` },
-            ]}
-          />
-        )}
+      {/* Gradient Overlay for glass variant */}
+      {variant === "glass" && (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: `${theme.colors.background}E6` },
+          ]}
+        />
+      )}
 
-        {/* Content */}
-        <View style={contentStyle}>{children}</View>
-      </View>
+      {/* Content */}
+      <View style={contentStyle}>{children}</View>
+    </View>
+  );
+
+  return dismissKeyboardOnTap ? (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      {content}
     </TouchableWithoutFeedback>
+  ) : (
+    content
   );
 };
 

@@ -103,7 +103,7 @@ export const lightTheme: Theme = {
     infoDark: "#1976D2",
 
     // Accent & special
-    accent: "#FF4081",
+    accent: "#0EA5E9",
     disabled: "#BDBDBD",
     placeholder: "#9E9E9E",
     overlayPrimary: "rgba(33, 150, 243, 0.1)",
@@ -155,7 +155,7 @@ export const darkTheme: Theme = {
     infoDark: "#2563EB", // Blue 600
 
     // Accent & special
-    accent: "#8B5CF6", // Violet 500
+    accent: "#06B6D4", // Cyan 500
     disabled: "#475569", // Slate 600
     placeholder: "#64748B", // Slate 500
     overlayPrimary: "rgba(59, 130, 246, 0.1)",

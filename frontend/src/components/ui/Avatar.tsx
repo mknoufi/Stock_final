@@ -13,7 +13,7 @@ import {
   ViewStyle,
   TextStyle,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { colorPalette, typography } from "@/theme/designTokens";
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl";

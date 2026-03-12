@@ -35,7 +35,7 @@ import Animated, {
   interpolateColor,
 } from "react-native-reanimated";
 import { VirtualList } from "../common/VirtualList";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   colors,
   semanticColors,

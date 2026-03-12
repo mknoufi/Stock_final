@@ -17,11 +17,13 @@ from motor.motor_asyncio import AsyncIOMotorClient
 os.environ.update(
     {
         "TESTING": "true",
+        "APP_ENV": "test",
         "MONGO_URL": "mongodb://localhost:27017/stock_count_test",
         "DB_NAME": "stock_count_test",
         "JWT_SECRET": "test-jwt-secret-key-for-testing-only",
         "JWT_REFRESH_SECRET": "test-jwt-refresh-secret-key-for-testing-only",
         "JWT_ALGORITHM": "HS256",
+        "PIN_SALT": "test-pin-salt-not-for-production",
         "REDIS_URL": "redis://localhost:6379/15",  # Use database 15 for testing
         # 'SQL_SERVER_HOST': 'localhost',  # Disabled to prevent connection pool hang
         # 'SQL_SERVER_DATABASE': 'stockdb_test',

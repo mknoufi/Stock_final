@@ -2,7 +2,7 @@
  * Aurora Theme - Enhanced Design System v2.0
  *
  * Features:
- * - Aurora gradient backgrounds (Blue-Purple blend)
+ * - Aurora gradient backgrounds (Blue-Cyan blend)
  * - Glassmorphism effects with backdrop blur
  * - Modern color palette from Kombai API
  * - Professional typography (Manrope + Source Sans 3)
@@ -44,18 +44,18 @@ export const auroraColors = {
     900: "#0F2241",
   },
 
-  // Accent - Purple (for aurora blend)
+  // Accent - Cyan (for aurora blend)
   accent: {
-    50: "#F5F3FF",
-    100: "#EDE9FE",
-    200: "#DDD6FE",
-    300: "#C4B5FD",
-    400: "#A78BFA",
-    500: "#8B5CF6",
-    600: "#7C3AED",
-    700: "#6D28D9",
-    800: "#5B21B6",
-    900: "#4C1D95",
+    50: "#ECFEFF",
+    100: "#CFFAFE",
+    200: "#A5F3FC",
+    300: "#67E8F9",
+    400: "#22D3EE",
+    500: "#06B6D4",
+    600: "#0891B2",
+    700: "#0E7490",
+    800: "#155E75",
+    900: "#164E63",
   },
 
   // Success - Emerald
@@ -117,14 +117,14 @@ export const auroraColors = {
 
   // Aurora Gradients (for backgrounds and effects)
   aurora: {
-    // Primary aurora blend (Blue to Purple)
-    primary: ["#1560BD", "#2D68C4", "#8B5CF6"] as const,
+    // Primary aurora blend (Blue to Cyan)
+    primary: ["#1560BD", "#2D68C4", "#06B6D4"] as const,
     // Secondary aurora blend (Blue to Teal)
     secondary: ["#2D68C4", "#0EA5E9", "#06B6D4"] as const,
     // Success aurora blend
     success: ["#10B981", "#14B8A6", "#06B6D4"] as const,
     // Warm aurora blend
-    warm: ["#F59E0B", "#EC4899", "#8B5CF6"] as const,
+    warm: ["#F59E0B", "#F97316", "#06B6D4"] as const,
     // Dark aurora blend (for backgrounds)
     dark: ["#0F172A", "#1E293B", "#334155"] as const,
     // Glass overlay
@@ -348,7 +348,7 @@ export const auroraShadows = {
 
   // Colored shadows for aurora effects
   aurora: {
-    shadowColor: "#8B5CF6",
+    shadowColor: "#06B6D4",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.4,
     shadowRadius: 16,

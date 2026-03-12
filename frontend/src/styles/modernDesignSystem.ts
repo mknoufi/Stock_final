@@ -43,16 +43,16 @@ export const auroraColors = {
     900: "#0F2241",
   },
   accent: {
-    50: "#F5F3FF",
-    100: "#EDE9FE",
-    200: "#DDD6FE",
-    300: "#C4B5FD",
-    400: "#A78BFA",
-    500: "#8B5CF6",
-    600: "#7C3AED",
-    700: "#6D28D9",
-    800: "#5B21B6",
-    900: "#4C1D95",
+    50: "#ECFEFF",
+    100: "#CFFAFE",
+    200: "#A5F3FC",
+    300: "#67E8F9",
+    400: "#22D3EE",
+    500: "#06B6D4",
+    600: "#0891B2",
+    700: "#0E7490",
+    800: "#155E75",
+    900: "#164E63",
   },
 };
 
@@ -85,18 +85,18 @@ export const modernColors = {
     900: "#064E3B",
   },
 
-  // Accent - Royal Blue / Indigo
+  // Accent - Cyan (high visibility, non-purple)
   accent: {
-    50: "#EEF2FF",
-    100: "#E0E7FF",
-    200: "#C7D2FE",
-    300: "#A5B4FC",
-    400: "#818CF8",
-    500: "#6366F1", // Main accent - Indigo
-    600: "#4F46E5",
-    700: "#4338CA",
-    800: "#3730A3",
-    900: "#312E81",
+    50: "#ECFEFF",
+    100: "#CFFAFE",
+    200: "#A5F3FC",
+    300: "#67E8F9",
+    400: "#22D3EE",
+    500: "#06B6D4", // Main accent - Cyan
+    600: "#0891B2",
+    700: "#0E7490",
+    800: "#155E75",
+    900: "#164E63",
   },
 
   // Neutral Grays - Slate (Professional & Clean)
@@ -246,16 +246,16 @@ export const modernColors = {
   gradients: {
     primary: ["#0EA5E9", "#0284C7", "#0369A1"] as const, // Sky Blue spectrum
     secondary: ["#10B981", "#059669", "#047857"] as const, // Emerald spectrum
-    accent: ["#6366F1", "#4F46E5", "#4338CA"] as const, // Indigo spectrum
+    accent: ["#06B6D4", "#0891B2", "#0E7490"] as const, // Cyan spectrum
     dark: ["#0F172A", "#020617", "#000000"] as const, // Deep background
     surface: ["#1E293B", "#0F172A", "#020617"] as const, // Surface layers
-    aurora: ["#0EA5E9", "#10B981", "#6366F1"] as const, // Sky to Emerald to Indigo
+    aurora: ["#0EA5E9", "#10B981", "#06B6D4"] as const, // Sky to Emerald to Cyan
 
     // Aurora Legacy Gradients
-    auroraPrimary: ["#1560BD", "#2D68C4", "#8B5CF6"] as const,
+    auroraPrimary: ["#1560BD", "#2D68C4", "#06B6D4"] as const,
     auroraSecondary: ["#2D68C4", "#0EA5E9", "#06B6D4"] as const,
     auroraSuccess: ["#10B981", "#14B8A6", "#06B6D4"] as const,
-    auroraWarm: ["#F59E0B", "#EC4899", "#8B5CF6"] as const,
+    auroraWarm: ["#F59E0B", "#F97316", "#06B6D4"] as const,
     auroraDark: ["#0F172A", "#1E293B", "#334155"] as const,
 
     // Specific UI Gradients
@@ -650,9 +650,9 @@ export const modernShadows = {
   // Aurora Glows
   aurora: {
     ...Platform.select({
-      web: { boxShadow: "0px 8px 16px rgba(139, 92, 246, 0.4)" },
+      web: { boxShadow: "0px 8px 16px rgba(6, 182, 212, 0.35)" },
       default: {
-        shadowColor: "#8B5CF6",
+        shadowColor: "#06B6D4",
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.4,
         shadowRadius: 16,

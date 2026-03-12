@@ -15,7 +15,7 @@ import {
   Platform,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { StatusBar } from "expo-status-bar";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -319,6 +319,7 @@ export default function ExportResultsScreen() {
             showsHorizontalScrollIndicator={false}
             style={styles.filterBar}
             contentContainerStyle={styles.filterContent}
+            keyboardShouldPersistTaps="handled"
           >
             {["all", "completed", "failed", "pending"].map((status) => (
               <AnimatedPressable
@@ -360,6 +361,9 @@ export default function ExportResultsScreen() {
             style={styles.scrollView}
             contentContainerStyle={styles.contentContainer}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            nestedScrollEnabled
           >
             {results.length === 0 ? (
               <View style={styles.emptyState}>

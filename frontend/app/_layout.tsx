@@ -2,56 +2,30 @@ import React from "react";
 import { Platform, View, Text, ActivityIndicator } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
+import { useFonts } from "expo-font";
 import "react-native-reanimated";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import { useAuthStore } from "../src/store/authStore";
-import { initializeNetworkListener } from "../src/services/networkService";
-import { initializeSyncService } from "../src/services/syncService";
-import { registerBackgroundSync } from "../src/services/backgroundSync";
 import { ErrorBoundary } from "../src/components/ErrorBoundary";
-import { ThemeService } from "../src/services/themeService";
 import { useSettingsStore } from "../src/store/settingsStore";
 import { useTheme } from "../src/hooks/useTheme";
 import { ToastProvider } from "../src/components/feedback/ToastProvider";
-import { initializeBackendURL } from "../src/utils/backendUrl";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "../src/services/queryClient";
 import { ThemeProvider } from "../src/context/ThemeContext";
-import { initReactotron } from "../src/services/devtools/reactotron";
-import {
-  startOfflineQueue,
-  stopOfflineQueue,
-} from "../src/services/offlineQueue";
-import {
-  startSyncService,
-  stopSyncService,
-} from "../src/services/offline/syncService";
-import apiClient, { updateBaseURL } from "../src/services/httpClient";
 import { mmkvStorage } from "../src/services/mmkvStorage";
 import { AuthGuard } from "../src/components/auth/AuthGuard";
+import { fontAssets } from "../src/constants/fontAssets";
 import {
   modernColors,
   modernTypography,
 } from "../src/styles/modernDesignSystem";
-import {
-  useFonts,
-  Inter_400Regular,
-  Inter_500Medium,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from "@expo-google-fonts/inter";
 
 
-// keep the splash screen visible while complete fetching resources
-// On web, wrap in try-catch to prevent blocking
+// Keep native splash screen visible while resources initialize.
 if (Platform.OS !== "web") {
   SplashScreen.preventAutoHideAsync();
-} else {
-  // On web, splash screen may not be needed
-  SplashScreen.preventAutoHideAsync().catch(() => {
-    // Silent fail for web platform
-  });
 }
 
 // Debug logs only in development
@@ -92,12 +66,7 @@ export default function RootLayout() {
   const { loadSettings } = useSettingsStore();
   const segments = useSegments();
   const _router = useRouter();
-  const [fontsLoaded] = useFonts({
-    Inter_400Regular,
-    Inter_500Medium,
-    Inter_600SemiBold,
-    Inter_700Bold,
-  });
+  const [fontsLoaded] = useFonts(fontAssets);
 
   const [isInitialized, setIsInitialized] = React.useState(false);
   const [initError, setInitError] = React.useState<string | null>(null);
@@ -111,14 +80,27 @@ export default function RootLayout() {
   }, []);
 
   React.useEffect(() => {
+    // Initialize monitoring early so startup failures are captured.
+    import("../src/services/sentry")
+      .then(({ initSentry }) => {
+        initSentry();
+      })
+      .catch((e) => {
+        if (__DEV__) {
+          console.warn("Sentry init failed", e);
+        }
+      });
+
     // Initialize dev tools safely
     if (__DEV__) {
       // Initialize Reactotron (non-blocking)
-      try {
-        initReactotron();
-      } catch (e) {
-        console.warn("Reactotron init failed", e);
-      }
+      import("../src/services/devtools/reactotron")
+        .then(({ initReactotron }) => {
+          initReactotron();
+        })
+        .catch((e) => {
+          console.warn("Reactotron init failed", e);
+        });
 
       // Initialize react-scan only on Web
       if (Platform.OS === "web") {
@@ -132,22 +114,13 @@ export default function RootLayout() {
       }
     }
 
-    // Web-specific safety: Force hide splash screen after 2s to prevent white screen
-    if (Platform.OS === "web") {
-      setTimeout(async () => {
-        try {
-          await SplashScreen.hideAsync();
-        } catch (_) {
-          // Ignore error
-        }
-      }, 2000);
-    }
-
     // Safety: Maximum initialization timeout (10 seconds)
     const maxTimeout = setTimeout(() => {
       console.warn(
         "⚠️ Maximum initialization timeout reached - forcing app to render",
       );
+      useAuthStore.getState().setLoading(false);
+      useAuthStore.setState({ isInitialized: true });
       setIsInitialized(true);
     }, 10000);
 
@@ -156,9 +129,8 @@ export default function RootLayout() {
       __DEV__ && console.log("🔵 [STEP 5] Initialize function called");
       __DEV__ && console.log("🔵 [STEP 5] Starting async initialization...");
 
-      // Wait for fonts to load
-      if (!fontsLoaded) {
-        return;
+      if (!fontsLoaded && __DEV__) {
+        console.warn("Fonts not loaded yet; continuing bootstrap with fallback fonts");
       }
 
       try {
@@ -186,9 +158,17 @@ export default function RootLayout() {
         ] = await Promise.allSettled([
           // Backend URL discovery (with timeout)
           (async () => {
-            const backendUrlPromise = initializeBackendURL().then((url) => {
-              if (url) updateBaseURL(url);
-            });
+            const backendUrlPromise = import("../src/utils/backendUrl").then(
+              async ({ initializeBackendURL }) => {
+                const url = await initializeBackendURL();
+                if (url) {
+                  const { updateBaseURL } = await import(
+                    "../src/services/httpClient"
+                  );
+                  updateBaseURL(url);
+                }
+              },
+            );
             const timeoutPromise = new Promise((_, reject) =>
               setTimeout(
                 () => reject(new Error("Backend URL initialization timeout")),
@@ -221,7 +201,9 @@ export default function RootLayout() {
 
           // Register background sync task (with timeout)
           (async () => {
-            const syncPromise = registerBackgroundSync();
+            const syncPromise = import("../src/services/backgroundSync").then(
+              ({ registerBackgroundSync }) => registerBackgroundSync(),
+            );
             const timeoutPromise = new Promise((_, reject) =>
               setTimeout(
                 () => reject(new Error("Background sync timeout")),
@@ -233,7 +215,9 @@ export default function RootLayout() {
 
           // Initialize theme (with timeout)
           (async () => {
-            const themePromise = ThemeService.initialize();
+            const themePromise = import("../src/services/themeService").then(
+              ({ ThemeService }) => ThemeService.initialize(),
+            );
             const timeoutPromise = new Promise((_, reject) =>
               setTimeout(
                 () => reject(new Error("Theme initialization timeout")),
@@ -275,6 +259,20 @@ export default function RootLayout() {
         }
 
         if (Platform.OS !== "web") {
+          const [
+            { initializeNetworkListener },
+            { initializeSyncService },
+            { startOfflineQueue, stopOfflineQueue },
+            { startSyncService, stopSyncService },
+            { default: apiClient },
+          ] = await Promise.all([
+            import("../src/services/networkService"),
+            import("../src/services/syncService"),
+            import("../src/services/offlineQueue"),
+            import("../src/services/offline/syncService"),
+            import("../src/services/httpClient"),
+          ]);
+
           const networkUnsubscribe = initializeNetworkListener();
           const syncService = initializeSyncService();
 
@@ -307,7 +305,9 @@ export default function RootLayout() {
         setInitError(null);
         __DEV__ &&
           console.log("✅ [INIT] Initialization completed successfully");
-        await SplashScreen.hideAsync();
+        if (Platform.OS !== "web") {
+          await SplashScreen.hideAsync();
+        }
       } catch (error: unknown) {
         const err = error instanceof Error ? error : new Error(String(error));
         const errorMessage = err.message || String(error);
@@ -334,7 +334,9 @@ export default function RootLayout() {
         clearTimeout(maxTimeout);
         useAuthStore.getState().setLoading(false);
         setIsInitialized(true);
-        await SplashScreen.hideAsync();
+        if (Platform.OS !== "web") {
+          await SplashScreen.hideAsync();
+        }
       }
     };
 
@@ -354,7 +356,7 @@ export default function RootLayout() {
     };
     // The store functions are stable but lint cannot verify it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fontsLoaded]);
+  }, []);
 
   React.useEffect(() => {
     // Wait for initialization and loading to complete

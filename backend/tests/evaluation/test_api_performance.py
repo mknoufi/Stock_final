@@ -116,17 +116,23 @@ class TestAPILatency:
         """Authenticated endpoints should respond within 150ms."""
         endpoints = [
             "/api/sessions",
-            "/api/v2/erp/items?limit=10",
+            "/api/v2/erp/items/filtered?limit=10",
         ]
 
         for endpoint in endpoints:
             latencies = []
+            statuses = []
 
             for _ in range(10):
                 start = time.time()
-                await async_client.get(endpoint, headers=authenticated_headers)
+                response = await async_client.get(endpoint, headers=authenticated_headers)
                 latency = (time.time() - start) * 1000
                 latencies.append(latency)
+                statuses.append(response.status_code)
+
+            assert all(status < 400 for status in statuses), (
+                f"Authenticated endpoint {endpoint} returned errors: {statuses}"
+            )
 
             endpoint_name = endpoint.split("?")[0].replace("/api/", "").replace("/", "_")
             collector.record_latency_stats(endpoint_name, latencies, p99_threshold=200.0)
@@ -222,18 +228,17 @@ class TestAPISuccessRate:
         collector: MetricsCollector,
     ):
         """Test overall API success rate."""
-        # Endpoints with (method, path, body, requires_auth, allow_404)
-        # allow_404=True for endpoints that may return 404 when no data exists
+        # Endpoints with (method, path, body, requires_auth)
         endpoints = [
-            ("GET", "/health", None, False, False),
-            ("GET", "/api/sessions", None, True, True),
-            ("GET", "/api/v2/erp/items", None, True, True),
+            ("GET", "/health", None, False),
+            ("GET", "/api/sessions", None, True),
+            ("GET", "/api/v2/erp/items/filtered?limit=10", None, True),
         ]
 
         total_requests = 0
         success_count = 0
 
-        for method, path, body, requires_auth, allow_404 in endpoints:
+        for method, path, body, requires_auth in endpoints:
             headers = authenticated_headers if requires_auth else {}
 
             for _ in range(5):
@@ -243,8 +248,7 @@ class TestAPISuccessRate:
                     response = await async_client.post(path, json=body, headers=headers)
 
                 total_requests += 1
-                # Success: 2xx, or 404 for endpoints that allow it (no data in test)
-                if response.status_code < 400 or (allow_404 and response.status_code == 404):
+                if response.status_code < 400:
                     success_count += 1
 
         success_rate = success_count / total_requests

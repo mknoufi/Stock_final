@@ -14,7 +14,7 @@ import {
   ScrollView,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { auroraTheme } from "../../theme/auroraTheme";
 
 interface AdminCrashScreenProps {

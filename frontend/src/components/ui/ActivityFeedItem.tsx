@@ -11,7 +11,7 @@
 
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInRight } from "react-native-reanimated";
 import { AnimatedPressable } from "./AnimatedPressable";

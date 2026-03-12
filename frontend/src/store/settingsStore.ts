@@ -83,7 +83,7 @@ const DEFAULT_SETTINGS: Settings = {
   scannerTimeout: 30,
   fontSize: "medium",
   fontSizeValue: 16,
-  primaryColor: "#6366F1",
+  primaryColor: "#0EA5E9",
   primaryColorId: "aurora",
   showItemImages: true,
   showItemPrices: true,

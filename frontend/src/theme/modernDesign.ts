@@ -9,7 +9,7 @@ export const modernBranding = {
   colors: {
     primary: "#3B82F6", // Modern blue
     primaryDark: "#1D4ED8", // Darker blue for gradients
-    secondary: "#8B5CF6", // Purple accent
+    secondary: "#06B6D4", // Cyan accent
     accent: "#06B6D4", // Cyan accent
   },
 } as const;
@@ -233,7 +233,7 @@ export const componentSizes = {
 // Modern Gradients
 export const gradients = {
   primary: ["#3B82F6", "#1D4ED8"],
-  secondary: ["#8B5CF6", "#7C3AED"],
+  secondary: ["#06B6D4", "#0891B2"],
   accent: ["#06B6D4", "#0891B2"],
   success: ["#10B981", "#059669"],
   warning: ["#F59E0B", "#D97706"],

@@ -4,6 +4,7 @@
  */
 
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createLogger } from "./logging";
 
@@ -101,33 +102,52 @@ class ConnectionManager {
     { url: string; priority: number }[]
   > {
     const candidates: { url: string; priority: number }[] = [];
+    const normalize = (url: string) => url.replace(/\/+$/, "");
 
     // 1. Environment variable override (highest priority)
     const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
     if (envUrl) {
-      candidates.push({ url: envUrl, priority: 10 });
+      candidates.push({ url: normalize(envUrl), priority: 10 });
+    }
+
+    // 1.5 Current connection gets high priority for stability.
+    if (this.currentConnection?.backendUrl) {
+      candidates.push({
+        url: normalize(this.currentConnection.backendUrl),
+        priority: 9,
+      });
     }
 
     // 2. Try to load from backend_port.json file
-    try {
-      const response = await fetch("/backend_port.json");
-      if (response.ok) {
-        const portData = await response.json();
-        if (portData.url) {
-          candidates.push({ url: portData.url, priority: 8 });
+    if (Platform.OS === "web") {
+      try {
+        const response = await fetch("/backend_port.json");
+        if (response.ok) {
+          const portData = await response.json();
+          if (portData.url && typeof portData.url === "string") {
+            candidates.push({ url: normalize(portData.url), priority: 8 });
+          }
         }
+      } catch (error) {
+        log.debug("Could not load backend_port.json", error);
       }
-    } catch (error) {
-      log.debug("Could not load backend_port.json", error);
     }
 
-    // 3. Platform-specific defaults
+    // 3. Expo host URI (best signal on LAN in development)
+    const hostUri = Constants.expoConfig?.hostUri;
+    const expoHost = hostUri?.split(":")[0];
+    if (expoHost) {
+      candidates.push({ url: `http://${expoHost}:8001`, priority: 8 });
+      candidates.push({ url: `http://${expoHost}:8000`, priority: 7 });
+    }
+
+    // 4. Platform-specific defaults
     if (Platform.OS === "android") {
       // Android emulator default
       candidates.push({ url: "http://10.0.2.2:8001", priority: 5 });
     }
 
-    // 4. Common development ports
+    // 5. Common development ports
     const commonPorts = [8001, 8000, 8080, 8085, 3000, 3001];
     const detectedIp = this.getDeviceIp();
 
@@ -138,9 +158,11 @@ class ConnectionManager {
       });
     }
 
-    // 5. Localhost fallback
-    candidates.push({ url: "http://localhost:8001", priority: 3 });
-    candidates.push({ url: "http://127.0.0.1:8001", priority: 2 });
+    // 6. Localhost fallback (safe for web/simulators; poor on real devices)
+    if (Platform.OS === "web" || Platform.OS === "ios") {
+      candidates.push({ url: "http://localhost:8001", priority: 3 });
+      candidates.push({ url: "http://127.0.0.1:8001", priority: 2 });
+    }
 
     // Remove duplicates and sort by priority
     const unique = Array.from(
@@ -155,10 +177,13 @@ class ConnectionManager {
    * Get device IP for network detection
    */
   private getDeviceIp(): string {
-    // Try to get device's local IP
-    // This is a simplified approach - in production you might want
-    // more sophisticated network interface detection
-    return "192.168.1.2"; // Default LAN IP
+    const hostUri = Constants.expoConfig?.hostUri;
+    const expoHost = hostUri?.split(":")[0];
+    if (expoHost) return expoHost;
+
+    if (Platform.OS === "android") return "10.0.2.2";
+    if (Platform.OS === "web") return "localhost";
+    return "127.0.0.1";
   }
 
   /**
@@ -215,10 +240,31 @@ class ConnectionManager {
    * Set fallback connection when no healthy backend is found
    */
   private setFallbackConnection(): void {
+    const defaultFallbackUrl =
+      Platform.OS === "android" ? "http://10.0.2.2:8001" : "http://localhost:8001";
+    const rawFallbackUrl =
+      process.env.EXPO_PUBLIC_BACKEND_URL?.trim() || defaultFallbackUrl;
+    const fallbackUrl = /^https?:\/\//i.test(rawFallbackUrl)
+      ? rawFallbackUrl
+      : `http://${rawFallbackUrl}`;
+
+    let parsedFallback: URL;
+    try {
+      parsedFallback = new URL(fallbackUrl);
+    } catch (error) {
+      log.warn("Invalid fallback backend URL, using default", {
+        configuredUrl: rawFallbackUrl,
+        error,
+      });
+      parsedFallback = new URL(defaultFallbackUrl);
+    }
+
+    const normalizedUrl = parsedFallback.toString().replace(/\/+$/, "");
+    const defaultPort = parsedFallback.protocol === "https:" ? 443 : 8001;
     const fallback: ConnectionInfo = {
-      backendUrl: "http://localhost:8001",
-      backendPort: 8001,
-      backendIp: "localhost",
+      backendUrl: normalizedUrl,
+      backendPort: parseInt(parsedFallback.port, 10) || defaultPort,
+      backendIp: parsedFallback.hostname,
       lastChecked: new Date().toISOString(),
       isHealthy: false,
     };

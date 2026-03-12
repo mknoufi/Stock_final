@@ -19,7 +19,7 @@ import {
   useWindowDimensions,
   AccessibilityInfo,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import Animated, {
   useAnimatedStyle,

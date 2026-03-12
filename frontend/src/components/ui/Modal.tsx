@@ -24,7 +24,7 @@ import Animated, {
   withSpring,
   Easing,
 } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "../../hooks/useTheme";
 import { BlurView } from "expo-blur";
 
@@ -208,6 +208,8 @@ export const Modal: React.FC<ModalProps> = ({
                 style={styles.content}
                 contentContainerStyle={styles.contentContainer}
                 keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                nestedScrollEnabled
               >
                 {children}
               </ScrollView>

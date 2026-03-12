@@ -10,7 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { PremiumInput } from "../premium/PremiumInput";
 import { PremiumButton } from "../premium/PremiumButton";
 import {
@@ -205,7 +205,11 @@ export const SectionFocusConfig: React.FC = () => {
                 />
               </TouchableOpacity>
             </View>
-            <ScrollView contentContainerStyle={styles.modalList}>
+            <ScrollView
+              contentContainerStyle={styles.modalList}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+            >
               {floorOptions.length > 0 ? (
                 floorOptions.map((floor) => (
                   <TouchableOpacity

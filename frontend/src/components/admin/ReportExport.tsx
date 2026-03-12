@@ -10,7 +10,7 @@ import {
 import { useTheme } from "../../hooks/useTheme";
 import apiClient from "../../services/httpClient";
 import { errorReporter } from "../../services/errorRecovery";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { File, Paths } from "expo-file-system";
 import { isAvailableAsync, shareAsync } from "expo-sharing";
 

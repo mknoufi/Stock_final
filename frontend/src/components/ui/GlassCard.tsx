@@ -66,7 +66,11 @@ export const GlassCard = ({
       : tint;
 
   const fallbackBackground =
-    theme?.colors.background.paper || "rgba(255, 255, 255, 0.8)";
+    theme?.colors.background.paper || "rgba(15, 23, 42, 0.85)";
+  const gradientBorderColors = [
+    `${theme?.colors.accent || "#0EA5E9"}66`,
+    "rgba(255, 255, 255, 0.10)",
+  ] as const;
 
   if (withGradientBorder) {
     return (
@@ -82,7 +86,7 @@ export const GlassCard = ({
         accessibilityHint={accessibilityHint}
       >
         <LinearGradient
-          colors={["rgba(255, 255, 255, 0.3)", "rgba(255, 255, 255, 0.1)"]}
+          colors={gradientBorderColors}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[

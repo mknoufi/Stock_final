@@ -25,7 +25,7 @@ import {
 } from "react-native";
 import ReactNativeModal from "react-native-modal";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 import { useAutoLogout } from "../../src/hooks/useAutoLogout";
@@ -407,6 +407,9 @@ export default function SupervisorDashboard() {
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -830,7 +833,12 @@ export default function SupervisorDashboard() {
             </TouchableOpacity>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            nestedScrollEnabled
+          >
             {/* Step 1: Location Type */}
             <View style={styles.stepContainer}>
               <Text style={styles.stepLabel}>1. Select Location Type</Text>

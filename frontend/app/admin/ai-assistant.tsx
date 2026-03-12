@@ -11,7 +11,7 @@ import {
     ActivityIndicator,
 } from "react-native";
 import { Stack } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { auroraTheme as _auroraTheme } from "@/theme/auroraTheme";
 import { spacing, typography, layout as _layout } from "@/styles/globalStyles";
 import { useTheme } from "@/hooks/useTheme";

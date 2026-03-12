@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
   ViewStyle,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue,

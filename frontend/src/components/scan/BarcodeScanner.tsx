@@ -13,7 +13,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { CameraView } from "expo-camera";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { ScannerMode } from "@/types/scan";
 import {
   SCANNER_CONFIG,

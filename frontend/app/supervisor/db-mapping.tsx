@@ -17,7 +17,7 @@ import {
   Platform,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -495,6 +495,9 @@ export default function DatabaseMappingScreen() {
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={{ paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          nestedScrollEnabled
         >
           {/* Connection Settings */}
           <Animated.View entering={FadeInDown.delay(200).springify()}>
@@ -624,7 +627,11 @@ export default function DatabaseMappingScreen() {
                   </Text>
                 </View>
 
-                <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
+                <ScrollView
+                  style={{ maxHeight: 200 }}
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                >
                   {tables.map((table) => (
                     <AnimatedPressable
                       key={table.name}
@@ -818,7 +825,12 @@ export default function DatabaseMappingScreen() {
                 </AnimatedPressable>
               </View>
 
-              <ScrollView style={styles.modalScroll}>
+              <ScrollView
+                style={styles.modalScroll}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                nestedScrollEnabled
+              >
                 {columns.map((column) => (
                   <AnimatedPressable
                     key={column.name}

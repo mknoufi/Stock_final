@@ -18,7 +18,7 @@ import {
   Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import Animated, {
   useSharedValue,
@@ -106,7 +106,7 @@ export const FloatingScanButton: React.FC<FloatingScanButtonProps> = ({
     }
   };
 
-  const fallbackColor = theme.colors.accent || "#6366F1";
+  const fallbackColor = theme.colors.accent || "#0EA5E9";
   const gradientColors = theme.gradients?.primary || [
     fallbackColor,
     fallbackColor,

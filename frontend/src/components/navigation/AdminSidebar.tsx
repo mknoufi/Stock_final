@@ -17,7 +17,7 @@ import {
 } from "react-native";
 import { BlurView } from "expo-blur";
 import { useRouter, useSegments } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuthStore } from "../../store/authStore";
 import {

@@ -16,7 +16,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { VirtualList } from "../common/VirtualList";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
   modernColors,
   modernBorderRadius,
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   countText: {
     fontSize: 12,
     fontWeight: "600",
-    color: modernColors.primary[700] || "#4338CA",
+    color: modernColors.primary[700] || "#0369A1",
   } as TextStyle,
   summary: {
     flexDirection: "row",

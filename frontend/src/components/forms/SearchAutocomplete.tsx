@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
   Keyboard,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "../../hooks/useTheme";
 import {
   searchItems,

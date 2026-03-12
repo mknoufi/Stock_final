@@ -61,7 +61,7 @@ export const AuroraBackground: React.FC<AuroraBackgroundProps> = ({
   const { theme } = useThemeContext();
 
   // Use theme colors for aurora variants with a safe fallback for mocks.
-  const fallbackColor = theme.colors.accent || "#6366F1";
+  const fallbackColor = theme.colors.accent || "#0EA5E9";
   const auroraPalette = theme.colors.aurora;
   const colors =
     auroraPalette?.[variant] ||

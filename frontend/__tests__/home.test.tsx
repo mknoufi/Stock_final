@@ -185,7 +185,7 @@ describe("Staff Home Screen - Change Impact Guardrails", () => {
   it("should not make network calls during render", () => {
     // Test that component rendering doesn't trigger network calls
     expect(() => {
-      render(React.createElement("View"));
+      render(React.createElement("div"));
     }).not.toThrow();
   });
 });

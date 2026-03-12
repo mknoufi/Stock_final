@@ -180,7 +180,7 @@ const THEME_METADATA: { key: ThemeKey; name: string; preview: string[] }[] = [
   {
     key: "premium",
     name: "Aurora Pro",
-    preview: ["#030712", "#6366F1", "#8B5CF6"],
+    preview: ["#030712", "#0284C7", "#06B6D4"],
   },
   { key: "ocean", name: "Ocean", preview: ["#042F2E", "#14B8A6", "#0EA5E9"] },
   { key: "sunset", name: "Sunset", preview: ["#1C1917", "#F97316", "#E11D48"] },
@@ -232,7 +232,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Get dynamic values from settings store
   const fontSize = settings.fontSizeValue || 16;
-  const primaryColor = settings.primaryColor || "#6366F1";
+  const primaryColor = settings.primaryColor || "#0EA5E9";
 
   // Compute effective theme based on mode
   const effectiveThemeKey = useMemo((): ThemeKey => {
@@ -524,7 +524,7 @@ export const useThemeContext = (): ThemeContextType => {
         theme: "light",
         isDark: false,
         colors: {
-          primary: "#6366F1",
+          primary: "#0EA5E9",
           secondary: "#6B7280",
           muted: "#9CA3AF",
           background: "#FAFBFC",
@@ -544,16 +544,16 @@ export const useThemeContext = (): ThemeContextType => {
           info: "#3B82F6",
           danger: "#DC2626",
           overlay: "rgba(0, 0, 0, 0.5)",
-          overlayPrimary: "rgba(99, 102, 241, 0.12)",
-          accent: "#6366F1",
-          accentLight: "#818CF8",
-          accentDark: "#4F46E5",
+          overlayPrimary: "rgba(14, 165, 233, 0.12)",
+          accent: "#0EA5E9",
+          accentLight: "#38BDF8",
+          accentDark: "#0284C7",
           glass: "rgba(255, 255, 255, 0.1)",
           card: "#FFFFFF",
           placeholder: "#9CA3AF",
           disabled: "#9CA3AF",
         },
-        gradients: { primary: ["#6366F1", "#8B5CF6"], secondary: ["#10B981", "#059669"] },
+        gradients: { primary: ["#0EA5E9", "#0284C7"], secondary: ["#10B981", "#059669"] },
         spacing: { xs: 4, sm: 8, md: 16, base: 16, lg: 24, xl: 32, xxl: 48 },
         typography: { fontSize: { xs: 12, sm: 14, md: 16, lg: 18, xl: 20, xxl: 24 } },
         borderRadius: { sm: 4, md: 8, lg: 12, xl: 16, round: 50 },
@@ -568,13 +568,13 @@ export const useThemeContext = (): ThemeContextType => {
       pattern: "none",
       layout: "default",
       fontSize: 16,
-      primaryColor: "#6366F1",
+      primaryColor: "#0EA5E9",
       setThemeKey: () => { },
       setThemeMode: () => { },
       setPattern: () => { },
       setLayout: () => { },
       toggleDarkMode: () => { },
-      getThemeColor: (_colorPath: string) => "#6366F1",
+      getThemeColor: (_colorPath: string) => "#0EA5E9",
       getFontSize: (_scale?: number | "xs" | "sm" | "md" | "lg" | "xl" | "xxl") => 16,
       availableThemes: THEME_METADATA,
       availablePatterns: PATTERN_METADATA,

@@ -9,13 +9,19 @@ class SearchUser(HttpUser):
 
     def on_start(self):
         """Login to get JWT token"""
-        # Assuming default admin credentials or a test user
-        # You might need to adjust these credentials based on your seed data
+        # Use active auth endpoint and payload format
         response = self.client.post(
-            "/api/auth/token", data={"username": "admin", "password": "password123"}
+            "/api/auth/login",
+            json={"username": "admin", "password": "password123"},
+            name="/api/auth/login",
         )
         if response.status_code == 200:
-            self.token = response.json()["access_token"]
+            payload = response.json()
+            self.token = payload.get("access_token") or payload.get("data", {}).get(
+                "access_token"
+            )
+            if not self.token:
+                print("Login succeeded but no access token found:", payload)
         else:
             print("Failed to login:", response.text)
 

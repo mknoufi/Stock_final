@@ -15,7 +15,7 @@ import {
   TextInput,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import Animated, { FadeInDown } from "react-native-reanimated";
@@ -389,6 +389,7 @@ export default function ErrorLogsScreen() {
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.filtersScroll}
+            keyboardShouldPersistTaps="handled"
           >
             <AnimatedPressable
               onPress={() => setFilters({ ...filters, severity: "" })}
@@ -455,6 +456,7 @@ export default function ErrorLogsScreen() {
               styles.filtersScroll,
               { marginTop: auroraTheme.spacing.sm },
             ]}
+            keyboardShouldPersistTaps="handled"
           >
             <AnimatedPressable
               onPress={() => setFilters({ ...filters, resolved: undefined })}
@@ -619,7 +621,12 @@ export default function ErrorLogsScreen() {
               </View>
 
               {selectedError && (
-                <Animated.ScrollView style={styles.modalBody}>
+                <Animated.ScrollView
+                  style={styles.modalBody}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="on-drag"
+                  nestedScrollEnabled
+                >
                   <View
                     style={[
                       styles.detailBadge,

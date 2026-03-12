@@ -13,7 +13,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { useRouter, useSegments } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "@/hooks/useTheme";
 import { layout, spacing, typography } from "../../styles/globalStyles";
 

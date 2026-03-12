@@ -15,7 +15,7 @@ import {
   ViewStyle,
 } from "react-native";
 import { useRouter, useSegments } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuthStore } from "../../store/authStore";
 import {

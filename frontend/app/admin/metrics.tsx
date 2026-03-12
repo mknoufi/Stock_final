@@ -13,7 +13,7 @@ import {
   ScreenContainer,
 } from "@/components/ui";
 import { auroraTheme } from "../../src/theme/auroraTheme";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
 import {

@@ -63,14 +63,14 @@ export const colors = {
   overlay: defaultTheme.colors.background.overlay,
   overlayLight: "rgba(15, 23, 42, 0.5)",
   overlayDark: "rgba(3, 7, 18, 0.9)",
-  overlayPrimary: "rgba(99, 102, 241, 0.1)",
+  overlayPrimary: "rgba(14, 165, 233, 0.12)",
 };
 
 // Gradients
 export const gradients = {
   primary: ["#0EA5E9", "#0284C7"] as const,
   secondary: ["#10B981", "#059669"] as const,
-  accent: ["#6366F1", "#4F46E5"] as const,
+  accent: ["#06B6D4", "#0891B2"] as const,
   dark: ["#0F172A", "#020617"] as const,
   surface: ["#1E293B", "#0F172A"] as const,
 };

@@ -15,7 +15,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "@/hooks/useTheme";
 import { ItemVerificationAPI } from "@/domains/inventory/services/itemVerificationApi";
 import { getRackProgress } from "@/services/api/api";

@@ -13,7 +13,7 @@ import {
   StyleSheet,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { colors as unifiedColors, radius, spacing } from "@/theme/unified";
 import { useThemeContext } from "@/context/ThemeContext";
 

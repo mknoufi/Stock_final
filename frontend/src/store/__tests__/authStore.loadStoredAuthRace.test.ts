@@ -65,7 +65,13 @@ describe("authStore.loadStoredAuth race protection", () => {
       }),
     }));
 
-    const { useAuthStore } = await import("../authStore");
+    // Use jest.isolateModules + require instead of dynamic import()
+    // to avoid needing --experimental-vm-modules
+    let useAuthStore: ReturnType<typeof require>;
+    jest.isolateModules(() => {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      ({ useAuthStore } = require("../authStore"));
+    });
 
     const loadPromise = useAuthStore.getState().loadStoredAuth();
 

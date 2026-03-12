@@ -78,6 +78,14 @@ Components in `src/components/ui/` (e.g., `ModernCard`, `ModernButton`, `ModernI
 API calls are managed in `src/services/api/api.ts`.
 Data normalization ensures that backend snake_case is converted to frontend camelCase (or preserved where necessary).
 
+## 🔐 Environment Variables
+
+Copy `.env.example` to `.env` and set values for your environment.
+
+- `EXPO_PUBLIC_BACKEND_URL`: Optional backend URL override.
+- `EXPO_PUBLIC_APP_ENV`: Frontend runtime environment (`development`, `staging`, `production`).
+- `EXPO_PUBLIC_SENTRY_DSN`: Optional public Sentry DSN for frontend error reporting.
+
 ## ⚠️ Verification
 
 This codebase is verified against the official documentation.

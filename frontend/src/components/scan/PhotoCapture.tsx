@@ -14,7 +14,7 @@ import {
   Platform,
 } from "react-native";
 import { Image } from "expo-image";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { CameraView } from "expo-camera";
 import { PhotoProofType, PhotoProofDraft } from "@/types/scan";
 import { PHOTO_PROOF_TYPES } from "@/constants/scanConstants";

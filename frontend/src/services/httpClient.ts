@@ -52,6 +52,14 @@ export const updateBaseURL = (newBaseUrl: string) => {
 };
 
 connectionManager.addListener((connection: ConnectionInfo) => {
+  if (!connection.isHealthy) {
+    log.warn("Ignoring unhealthy connection update", {
+      candidate: connection.backendUrl,
+      current: apiClient.defaults.baseURL || API_BASE_URL,
+    });
+    return;
+  }
+
   updateBaseURL(connection.backendUrl);
   log.info("API base URL updated via ConnectionManager", {
     old: apiClient.defaults.baseURL,

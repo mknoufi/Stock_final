@@ -20,7 +20,7 @@ import {
   removeUserPermissions,
 } from "../../src/services/api";
 import { auroraTheme } from "../../src/theme/auroraTheme";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 const isWeb = Platform.OS === "web";
 

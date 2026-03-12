@@ -76,6 +76,8 @@ cooking_agent/
 *_results_*.txt
 test_failures.txt
 pre_commit_output.txt
+frontend/playwright-report/
+frontend/test-results/
 
 # Docker
 .dockerignore
@@ -83,3 +85,9 @@ pre_commit_output.txt
 # Expo
 .expo/
 backend/venv/
+
+# Local/repair database snapshots (never commit)
+backend/data/db_backup_*/
+backend/data/db_failed_repair_*/
+backend/data/db_seeded_archive_*/
+*.bson

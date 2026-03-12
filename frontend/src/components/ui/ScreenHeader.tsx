@@ -24,7 +24,7 @@ import {
   LayoutChangeEvent,
 } from "react-native";
 import { BlurView } from "expo-blur";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Haptics from "expo-haptics";
@@ -157,14 +157,14 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
     background: transparent
       ? "transparent"
       : isDark
-        ? "rgba(15, 23, 42, 0.85)"
-        : "rgba(255, 255, 255, 0.9)",
+        ? "rgba(15, 23, 42, 0.92)"
+        : "rgba(255, 255, 255, 0.96)",
     text: theme.colors.text.primary,
-    textSecondary: theme.colors.text.secondary,
+    textSecondary: isDark ? theme.colors.text.secondary : theme.colors.text.tertiary,
     accent: theme.colors.accent,
     danger: theme.colors.danger,
-    border: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.08)",
-    buttonBg: isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.05)",
+    border: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(15, 23, 42, 0.08)",
+    buttonBg: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(15, 23, 42, 0.06)",
     dangerBg: isDark ? "rgba(239, 68, 68, 0.15)" : "rgba(239, 68, 68, 0.1)",
   };
 

@@ -11,7 +11,7 @@ import {
   Switch,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
 import { AppearanceSettings } from "../../src/components/ui/AppearanceSettings";

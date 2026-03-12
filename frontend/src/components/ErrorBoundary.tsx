@@ -6,7 +6,7 @@
 
 import React, { ReactNode } from "react";
 import { View, Text, StyleSheet, ScrollView } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { ErrorBoundary as ReactErrorBoundary } from "react-error-boundary";
 import { errorReporter } from "../services/errorRecovery";
 import {

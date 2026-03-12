@@ -7,7 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useThemeContext } from "../../context/ThemeContext";
 
 export interface ConflictData {
@@ -78,7 +78,11 @@ export const ConflictResolutionModal: React.FC<
             {subtitle}
           </Text>
 
-          <ScrollView style={styles.scrollArea}>
+          <ScrollView
+            style={styles.scrollArea}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
             {conflicts.map((conflict) => (
               <View
                 key={conflict.barcode}

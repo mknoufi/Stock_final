@@ -3,7 +3,7 @@
  * Extracted from scan.tsx for better organization
  */
 
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { PhotoProofType } from "../types/scan";
 import { formatMrpValue } from "../utils/scanUtils";
 

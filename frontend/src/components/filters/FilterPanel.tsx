@@ -31,7 +31,7 @@ import Animated, {
   SlideInRight,
   SlideOutRight,
 } from "react-native-reanimated";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import {
   colors,
   semanticColors,
@@ -242,6 +242,8 @@ export function FilterPanel({
           <ScrollView
             style={styles.content}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
           >
             {sections.map((section) => (
               <View key={section.id} style={styles.section}>

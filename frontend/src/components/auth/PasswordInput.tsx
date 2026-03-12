@@ -18,7 +18,7 @@ import {
   TextInputProps,
   Platform,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { impactAsync, ImpactFeedbackStyle } from "expo-haptics";
 import Animated, {
   useSharedValue,

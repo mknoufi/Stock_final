@@ -6,7 +6,7 @@
 import React from "react";
 import { View, Text, StyleSheet, Platform, Pressable } from "react-native";
 import * as Haptics from "expo-haptics";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import Animated, {
   useAnimatedStyle,
   withSpring,
@@ -16,12 +16,12 @@ import { auroraTheme } from "../../theme/auroraTheme";
 
 // Predefined color palette options
 export const COLOR_PALETTE = [
-  { id: "aurora", label: "Aurora", color: "#6366F1", textColor: "#FFFFFF" },
+  { id: "aurora", label: "Aurora", color: "#0EA5E9", textColor: "#FFFFFF" },
   { id: "ocean", label: "Ocean", color: "#0EA5E9", textColor: "#FFFFFF" },
   { id: "emerald", label: "Emerald", color: "#10B981", textColor: "#FFFFFF" },
   { id: "sunset", label: "Sunset", color: "#F59E0B", textColor: "#000000" },
   { id: "rose", label: "Rose", color: "#F43F5E", textColor: "#FFFFFF" },
-  { id: "violet", label: "Violet", color: "#8B5CF6", textColor: "#FFFFFF" },
+  { id: "sky", label: "Sky", color: "#38BDF8", textColor: "#FFFFFF" },
   { id: "slate", label: "Slate", color: "#64748B", textColor: "#FFFFFF" },
   { id: "teal", label: "Teal", color: "#14B8A6", textColor: "#FFFFFF" },
 ] as const;

@@ -329,6 +329,9 @@ export function ChangePasswordModal({
           <ScrollView
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            nestedScrollEnabled
           >
             <Text style={styles.title}>Change Password</Text>
             <Text style={styles.subtitle}>

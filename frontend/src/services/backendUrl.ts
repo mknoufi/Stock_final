@@ -50,6 +50,21 @@ const timeoutFetch = async (
 const stripTrailingSlash = (url: string) =>
   url.endsWith("/") ? url.slice(0, -1) : url;
 
+const getInitialBackendUrl = (): string => {
+  const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
+  if (envUrl) return stripTrailingSlash(envUrl);
+
+  // Use Expo dev host when available (real devices on LAN).
+  const hostUri = Constants.expoConfig?.hostUri;
+  const expoHost = hostUri?.split(":")[0];
+  if (expoHost) return `http://${expoHost}:8001`;
+
+  // Android emulator cannot reach host localhost directly.
+  if (Platform.OS === "android") return "http://10.0.2.2:8001";
+
+  return "http://localhost:8001";
+};
+
 const buildCandidates = (): string[] => {
   const candidates: string[] = [];
   const ports = getCandidatePorts();
@@ -114,7 +129,7 @@ const buildCandidates = (): string[] => {
 };
 
 // Best-effort initial URL (sync) used until async probing finishes.
-export const BACKEND_URL = "http://localhost:8001";
+export const BACKEND_URL = getInitialBackendUrl();
 
 let resolvedBackendUrl: string | null = null;
 

@@ -50,6 +50,7 @@ export interface ScreenContainerProps {
   noPadding?: boolean;
   overlay?: React.ReactNode;
   statusBarStyle?: "light-content" | "dark-content" | "light" | "dark";
+  dismissKeyboardOnTap?: boolean;
 }
 
 export const ScreenContainer: React.FC<ScreenContainerProps> = ({
@@ -77,6 +78,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
   noPadding = false,
   overlay,
   statusBarStyle = "light-content",
+  dismissKeyboardOnTap = false,
 }) => {
   const { themeLegacy: theme } = useThemeContext();
   const resolvedBackground = backgroundType || (gradient ? "aurora" : "solid");
@@ -112,6 +114,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
       keyboardDismissMode: "on-drag" as const,
       bounces: true,
       alwaysBounceVertical: true,
+      nestedScrollEnabled: true,
     }
     : {
       style: [styles.content, style],
@@ -158,7 +161,7 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
         <Container style={[styles.flex, style]} {...containerProps}>
           {children}
         </Container>
-      ) : (
+      ) : dismissKeyboardOnTap ? (
         <TouchableWithoutFeedback
           onPress={Keyboard.dismiss}
           accessible={false}
@@ -168,6 +171,13 @@ export const ScreenContainer: React.FC<ScreenContainerProps> = ({
             {children}
           </Container>
         </TouchableWithoutFeedback>
+      ) : (
+        // Avoid wrapping all static screens with a touchable, which can interfere with
+        // nested scroll responders and cause intermittent scroll lockups.
+        // @ts-ignore
+        <Container style={[styles.flex, style]} {...containerProps}>
+          {children}
+        </Container>
       )}
       {overlay ? (
         <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>

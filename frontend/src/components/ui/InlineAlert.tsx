@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { auroraTheme } from "@/theme/auroraTheme";
 
 export type InlineAlertType = "error" | "warning" | "success" | "info";

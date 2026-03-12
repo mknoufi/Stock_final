@@ -5,7 +5,7 @@ import {
   AnimatedPressable,
   ScreenContainer,
 } from "@/components/ui";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
 import { getAvailableReports, generateReport } from "../../src/services/api";

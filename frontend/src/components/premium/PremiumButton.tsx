@@ -5,7 +5,7 @@
 
 import React from "react";
 import { ViewStyle, TextStyle } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { ModernButton, ButtonVariant, ButtonSize } from "../ui/ModernButton";
 
 interface PremiumButtonProps {

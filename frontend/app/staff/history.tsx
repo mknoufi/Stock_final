@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { PinEntryModal } from "../../src/components/modals/PinEntryModal";
 import { useAuthStore } from "../../src/store/authStore";

@@ -19,7 +19,7 @@ import {
   TextStyle,
 } from "react-native";
 import { VirtualList } from "../common/VirtualList";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import {
   modernColors,
   modernShadows,
