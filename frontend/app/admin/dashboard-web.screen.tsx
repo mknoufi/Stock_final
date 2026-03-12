@@ -26,6 +26,7 @@ import {
 import { BlurView } from "expo-blur";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import Animated, { FadeInDown } from "react-native-reanimated";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import {
   getServicesStatus,
@@ -39,7 +40,9 @@ import {
   generateReport,
   getSessions,
   getDiagnosisHealth,
-  diagnoseError,
+  attemptAutoFixDiagnosis,
+  startService,
+  stopService,
 } from "../../src/services/api";
 
 import { ScreenContainer } from "../../src/components/ui/ScreenContainer";
@@ -54,12 +57,61 @@ import { DateRangePicker } from "../../src/components/forms/DateRangePicker";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const isWeb = Platform.OS === "web";
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+const normalizeDashboardMetrics = (payload: unknown) => {
+  const response = asRecord(payload);
+  const stats = response.data ? asRecord(response.data) : response;
+  if (Object.keys(stats).length === 0) return null;
+
+  const services = asRecord(stats.services);
+  const requests = asRecord(services.requests);
+  const performance = asRecord(services.performance);
+  const uptime = asRecord(services.uptime);
+
+  const totalRequests = Number(requests.total || 0);
+  const uptimeSeconds = Number(uptime.seconds || 0);
+  const rawErrorRate = Number(requests.error_rate || 0);
+  const hasRequestMetrics =
+    Object.keys(requests).length > 0 || Object.keys(performance).length > 0;
+
+  return {
+    ...stats,
+    request_metrics: hasRequestMetrics
+      ? {
+          avg_response_time: Number(performance.avg_response_time || 0),
+          requests_per_minute:
+            uptimeSeconds > 0
+              ? totalRequests / Math.max(uptimeSeconds / 60, 1 / 60)
+              : totalRequests,
+          error_rate: rawErrorRate > 1 ? rawErrorRate / 100 : rawErrorRate,
+          total_requests: totalRequests,
+        }
+      : null,
+  };
+};
+
 type DashboardTab =
   | "overview"
   | "monitoring"
   | "reports"
   | "analytics"
   | "diagnosis";
+
+const DASHBOARD_TABS: DashboardTab[] = [
+  "overview",
+  "monitoring",
+  "reports",
+  "analytics",
+  "diagnosis",
+];
+
+const isDashboardTab = (value: unknown): value is DashboardTab =>
+  typeof value === "string" &&
+  DASHBOARD_TABS.includes(value as DashboardTab);
 
 // Typography helper to map Aurora tokens to styles
 const typography = {
@@ -106,10 +158,17 @@ const typography = {
 };
 
 export default function DashboardWeb() {
-  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+  const router = useRouter();
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+  const [activeTab, setActiveTab] = useState<DashboardTab>(
+    isDashboardTab(tab) ? tab : "overview",
+  );
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [, setLastUpdate] = useState<Date>(new Date());
+  const [serviceActionLoading, setServiceActionLoading] = useState<string | null>(
+    null,
+  );
 
   // Data States
   const [systemStats, setSystemStats] = useState<any>(null);
@@ -118,6 +177,7 @@ export default function DashboardWeb() {
   const [issues, setIssues] = useState<any[]>([]);
   const [metrics, setMetrics] = useState<any>(null);
   const [reports, setReports] = useState<any[]>([]);
+  const [reportsLoading, setReportsLoading] = useState(false);
   const [sessionsAnalytics, setSessionsAnalytics] = useState<any>(null);
   const [diagnosisHealth, setDiagnosisHealth] = useState<any>(null);
 
@@ -139,6 +199,18 @@ export default function DashboardWeb() {
     end: new Date(),
   });
 
+  const fetchAvailableReports = useCallback(async () => {
+    setReportsLoading(true);
+    try {
+      const response = await getAvailableReports();
+      setReports(response?.data?.reports || []);
+    } catch {
+      setReports([]);
+    } finally {
+      setReportsLoading(false);
+    }
+  }, []);
+
   const loadDashboardData = useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) setRefreshing(true);
@@ -148,7 +220,7 @@ export default function DashboardWeb() {
         statsRes,
         metricsRes,
         _healthRes,
-        reportsRes,
+        _reportsRes,
         issuesRes,
         healthScoreRes,
         _sessionsRes,
@@ -159,23 +231,19 @@ export default function DashboardWeb() {
         getSystemStats().catch(() => ({ data: null })),
         getMetricsStats().catch(() => ({ data: null })),
         getMetricsHealth().catch(() => ({ data: null })),
-        getAvailableReports().catch(() => ({
-          success: false,
-          data: { reports: [] },
-        })),
+        fetchAvailableReports(),
         getSystemIssues().catch(() => ({ data: { issues: [] } })),
         getSystemHealthScore().catch(() => ({ data: null })),
         getSessions(1, 100).catch(() => ({ data: { sessions: [] } })),
         getSessionsAnalytics().catch(() => ({ data: null })),
-        getDiagnosisHealth().catch(() => ({ data: null })),
+        getDiagnosisHealth().catch(() => null),
       ]);
 
       if (servicesRes.status === "fulfilled")
         setServicesStatus(servicesRes.value?.data);
       if (statsRes.status === "fulfilled") setSystemStats(statsRes.value?.data);
-      if (metricsRes.status === "fulfilled") setMetrics(metricsRes.value?.data);
-      if (reportsRes.status === "fulfilled")
-        setReports(reportsRes.value?.data?.reports || []);
+      if (metricsRes.status === "fulfilled")
+        setMetrics(normalizeDashboardMetrics(metricsRes.value));
       if (issuesRes.status === "fulfilled")
         setIssues(issuesRes.value?.data?.issues || []);
       if (healthScoreRes.status === "fulfilled")
@@ -192,13 +260,30 @@ export default function DashboardWeb() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [fetchAvailableReports]);
 
   useEffect(() => {
     loadDashboardData();
     const interval = setInterval(() => loadDashboardData(), 30000); // 30s auto-refresh
     return () => clearInterval(interval);
   }, [loadDashboardData]);
+
+  useEffect(() => {
+    if (isDashboardTab(tab)) {
+      setActiveTab(tab);
+    }
+  }, [tab]);
+
+  useEffect(() => {
+    if (
+      activeTab === "reports" &&
+      reports.length === 0 &&
+      !reportsLoading &&
+      !loading
+    ) {
+      void fetchAvailableReports();
+    }
+  }, [activeTab, fetchAvailableReports, loading, reports.length, reportsLoading]);
 
   const toYMD = (d: Date) => {
     const year = d.getFullYear();
@@ -303,20 +388,27 @@ export default function DashboardWeb() {
     ];
   };
 
-  const handleAutoFix = async (issueId: string) => {
+  const handleAutoFix = async (issue: any) => {
     try {
       setRefreshing(true);
-      const result = await diagnoseError({
-        error_type: issueId,
-        error_message: "auto_fix",
+      const result = await attemptAutoFixDiagnosis({
+        error_type: issue.error_type || issue.title || "Exception",
+        error_message: issue.error_message || issue.description || "Unknown error",
+        context: {
+          issue_id: issue.id,
+          source: "admin_dashboard",
+        },
       });
+
       if (result.fixed) {
         Alert.alert("Success", "Issue has been automatically resolved.");
         await loadDashboardData(true);
       } else {
         Alert.alert(
           "Failed",
-          "Could not auto-fix this issue. Please check logs.",
+          result.fix_result ||
+            result.message ||
+            "Could not auto-fix this issue. Please check logs.",
         );
       }
     } catch (error) {
@@ -327,10 +419,96 @@ export default function DashboardWeb() {
     }
   };
 
+  const handleServiceToggle = async (
+    serviceKey: "backend" | "frontend",
+    service: any,
+  ) => {
+    try {
+      setServiceActionLoading(serviceKey);
+      const response = service?.running
+        ? await stopService(serviceKey)
+        : await startService(serviceKey);
+      Alert.alert(
+        "Success",
+        response?.message ||
+          `${serviceKey} ${service?.running ? "stop" : "start"} request sent.`,
+      );
+      await loadDashboardData(true);
+    } catch (error: any) {
+      Alert.alert(
+        "Error",
+        error?.message ||
+          `Failed to ${service?.running ? "stop" : "start"} ${serviceKey}.`,
+      );
+    } finally {
+      setServiceActionLoading(null);
+    }
+  };
+
+  const adminTools = [
+    {
+      key: "monitoring",
+      title: "Monitoring",
+      subtitle: "Service controls and system metrics",
+      icon: "pulse" as const,
+      onPress: () => setActiveTab("monitoring"),
+    },
+    {
+      key: "reports",
+      title: "Reports",
+      subtitle: "Generate exports and audit output",
+      icon: "document-text" as const,
+      onPress: () => setActiveTab("reports"),
+    },
+    {
+      key: "users",
+      title: "Users",
+      subtitle: "Manage access, roles, and status",
+      icon: "people" as const,
+      onPress: () => router.push("/admin/users" as any),
+    },
+    {
+      key: "settings",
+      title: "Settings",
+      subtitle: "System parameters and platform defaults",
+      icon: "settings" as const,
+      onPress: () => router.push("/admin/settings" as any),
+    },
+    {
+      key: "logs",
+      title: "Logs",
+      subtitle: "Inspect backend and service output",
+      icon: "journal" as const,
+      onPress: () => router.push("/admin/logs" as any),
+    },
+    {
+      key: "security",
+      title: "Security",
+      subtitle: "Review admin activity and risk signals",
+      icon: "shield-checkmark" as const,
+      onPress: () => router.push("/admin/security" as any),
+    },
+    {
+      key: "sql-config",
+      title: "SQL Config",
+      subtitle: "Connection tools and SQL visibility",
+      icon: "server" as const,
+      onPress: () => router.push("/admin/sql-config" as any),
+    },
+    {
+      key: "live-view",
+      title: "Live View",
+      subtitle: "Realtime admin monitoring surface",
+      icon: "eye" as const,
+      onPress: () => router.push("/admin/realtime-dashboard" as any),
+    },
+  ];
+
   const renderDiagnosis = () => (
     <Animated.View
       entering={FadeInDown.delay(200).springify()}
       style={styles.tabContent}
+      testID="diagnosis-panel"
     >
       <GlassCard variant="medium" style={styles.diagnosisCard}>
         <View style={styles.diagnosisHeader}>
@@ -372,9 +550,9 @@ export default function DashboardWeb() {
                 { color: auroraTheme.colors.success[500] },
               ]}
             >
-              {diagnosisHealth?.resolved_issues || 0}
+              {diagnosisHealth?.auto_fixable_issues || 0}
             </Text>
-            <Text style={styles.diagStatLabel}>Auto-Fixed</Text>
+            <Text style={styles.diagStatLabel}>Auto-Fixable</Text>
           </View>
         </View>
 
@@ -415,7 +593,7 @@ export default function DashboardWeb() {
                   {issue.auto_fix_available && (
                     <TouchableOpacity
                       style={styles.autoFixButton}
-                      onPress={() => handleAutoFix(issue.id)}
+                      onPress={() => handleAutoFix(issue)}
                     >
                       <Ionicons
                         name="build-outline"
@@ -447,6 +625,24 @@ export default function DashboardWeb() {
             </View>
           )}
         </View>
+
+        {diagnosisHealth?.recommendations?.length > 0 && (
+          <View style={styles.recommendationsCard}>
+            <Text style={styles.recommendationsTitle}>Recommended Actions</Text>
+            {diagnosisHealth.recommendations.map(
+              (recommendation: string, index: number) => (
+                <View key={`${recommendation}-${index}`} style={styles.recommendationRow}>
+                  <Ionicons
+                    name="arrow-forward-circle"
+                    size={16}
+                    color={auroraTheme.colors.primary[400]}
+                  />
+                  <Text style={styles.recommendationText}>{recommendation}</Text>
+                </View>
+              ),
+            )}
+          </View>
+        )}
       </GlassCard>
     </Animated.View>
   );
@@ -455,6 +651,7 @@ export default function DashboardWeb() {
     <Animated.View
       entering={FadeInDown.delay(200).springify()}
       style={styles.tabContent}
+      testID="overview-panel"
     >
       <View style={styles.quickStatsRow}>
         <GlassCard variant="medium" style={styles.quickStatCard}>
@@ -548,6 +745,34 @@ export default function DashboardWeb() {
         </GlassCard>
       </View>
 
+      <View style={styles.toolsGrid}>
+        {adminTools.map((tool, index) => (
+          <Animated.View
+            key={tool.key}
+            entering={FadeInDown.delay(120 + index * 40).springify()}
+            style={styles.toolCardWrapper}
+          >
+            <AnimatedPressable
+              style={styles.toolCardPressable}
+              onPress={tool.onPress}
+              testID={`admin-tool-${tool.key}`}
+            >
+              <GlassCard variant="medium" style={styles.toolCard}>
+                <View style={styles.toolIcon}>
+                  <Ionicons
+                    name={tool.icon}
+                    size={22}
+                    color={auroraTheme.colors.primary[400]}
+                  />
+                </View>
+                <Text style={styles.toolTitle}>{tool.title}</Text>
+                <Text style={styles.toolSubtitle}>{tool.subtitle}</Text>
+              </GlassCard>
+            </AnimatedPressable>
+          </Animated.View>
+        ))}
+      </View>
+
       <View style={styles.chartsRow}>
         <GlassCard variant="medium" style={styles.chartCard} intensity={80}>
           <Text style={styles.chartTitle}>Session Activity</Text>
@@ -573,6 +798,7 @@ export default function DashboardWeb() {
     <Animated.View
       entering={FadeInDown.delay(200).springify()}
       style={styles.tabContent}
+      testID="monitoring-panel"
     >
       <GlassCard variant="medium" style={styles.sectionCard}>
         <Text style={styles.sectionTitle}>Services Status</Text>
@@ -580,7 +806,11 @@ export default function DashboardWeb() {
           {servicesStatus &&
             Object.entries(servicesStatus).map(
               ([key, service]: [string, any]) => (
-                <View key={key} style={styles.serviceRow}>
+                <View
+                  key={key}
+                  style={styles.serviceRow}
+                  testID={`service-row-${key}`}
+                >
                   <View style={styles.serviceInfo}>
                     <View
                       style={[
@@ -602,7 +832,7 @@ export default function DashboardWeb() {
                       PID: {service.pid || "-"}
                     </Text>
                   </View>
-                  <View style={styles.serviceStatusBadge}>
+                  <View style={styles.serviceActions}>
                     <Text
                       style={[
                         styles.serviceStatusText,
@@ -615,6 +845,41 @@ export default function DashboardWeb() {
                     >
                       {service.running ? "Running" : "Stopped"}
                     </Text>
+                    {(key === "backend" || key === "frontend") && (
+                      <AnimatedPressable
+                        style={[
+                          styles.serviceActionButton,
+                          service.running
+                            ? styles.serviceActionButtonDanger
+                            : styles.serviceActionButtonSuccess,
+                        ]}
+                        onPress={() =>
+                          handleServiceToggle(key as "backend" | "frontend", service)
+                        }
+                        disabled={serviceActionLoading === key}
+                        testID={`service-toggle-${key}`}
+                        accessibilityLabel={`${service.running ? "Stop" : "Start"} ${key} service`}
+                      >
+                        {serviceActionLoading === key ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <>
+                            <Ionicons
+                              name={
+                                service.running
+                                  ? "pause-circle-outline"
+                                  : "play-circle-outline"
+                              }
+                              size={14}
+                              color="#fff"
+                            />
+                            <Text style={styles.serviceActionText}>
+                              {service.running ? "Stop" : "Start"}
+                            </Text>
+                          </>
+                        )}
+                      </AnimatedPressable>
+                    )}
                   </View>
                 </View>
               ),
@@ -662,35 +927,61 @@ export default function DashboardWeb() {
     <Animated.View
       entering={FadeInDown.delay(200).springify()}
       style={styles.tabContent}
+      testID="reports-panel"
     >
       <View style={styles.reportsGrid}>
-        {reports.map((report, index) => (
-          <GlassCard key={index} variant="medium" style={styles.reportCard}>
-            <View style={styles.reportHeader}>
-              <View style={styles.reportIcon}>
-                <Ionicons
-                  name="document-text"
-                  size={32}
-                  color={auroraTheme.colors.primary[400]}
-                />
-              </View>
-              <View style={styles.reportInfo}>
-                <Text style={styles.reportTitle}>{report.name}</Text>
-                <Text style={styles.reportDesc}>{report.description}</Text>
-              </View>
+        {reportsLoading && reports.length === 0 ? (
+          <GlassCard variant="medium" style={styles.reportCard}>
+            <View style={styles.noIssues}>
+              <ActivityIndicator
+                size="large"
+                color={auroraTheme.colors.primary[400]}
+                testID="reports-loading"
+              />
+              <Text style={styles.noIssuesText}>Loading reports...</Text>
             </View>
-            <AnimatedPressable
-              style={styles.generateButton}
-              onPress={() => {
-                setSelectedReport(report.id);
-                setShowReportModal(true);
-              }}
-            >
-              <Text style={styles.generateButtonText}>Generate Report</Text>
-              <Ionicons name="download-outline" size={18} color="#FFF" />
-            </AnimatedPressable>
           </GlassCard>
-        ))}
+        ) : reports.length === 0 ? (
+          <GlassCard variant="medium" style={styles.reportCard}>
+            <View style={styles.noIssues}>
+              <Ionicons
+                name="document-text-outline"
+                size={48}
+                color={auroraTheme.colors.neutral[300]}
+              />
+              <Text style={styles.noIssuesText}>No reports available</Text>
+            </View>
+          </GlassCard>
+        ) : (
+          reports.map((report, index) => (
+            <GlassCard key={index} variant="medium" style={styles.reportCard}>
+              <View style={styles.reportHeader}>
+                <View style={styles.reportIcon}>
+                  <Ionicons
+                    name="document-text"
+                    size={32}
+                    color={auroraTheme.colors.primary[400]}
+                  />
+                </View>
+                <View style={styles.reportInfo}>
+                  <Text style={styles.reportTitle}>{report.name}</Text>
+                  <Text style={styles.reportDesc}>{report.description}</Text>
+                </View>
+              </View>
+              <AnimatedPressable
+                style={styles.generateButton}
+                onPress={() => {
+                  setSelectedReport(report.id);
+                  setShowReportModal(true);
+                }}
+                testID={`generate-report-${report.id}`}
+              >
+                <Text style={styles.generateButtonText}>Generate Report</Text>
+                <Ionicons name="download-outline" size={18} color="#FFF" />
+              </AnimatedPressable>
+            </GlassCard>
+          ))
+        )}
       </View>
     </Animated.View>
   );
@@ -749,19 +1040,13 @@ export default function DashboardWeb() {
       <View style={styles.container}>
         {/* Navigation Tabs */}
         <View style={styles.tabsContainer}>
-          {(
-            [
-              "overview",
-              "monitoring",
-              "reports",
-              "analytics",
-              "diagnosis",
-            ] as DashboardTab[]
-          ).map((tab) => (
+          {DASHBOARD_TABS.map((tab) => (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
               style={[styles.tab, activeTab === tab && styles.activeTab]}
+              testID={`dashboard-tab-${tab}`}
+              accessibilityLabel={`${tab} dashboard tab`}
             >
               <Text
                 style={[
@@ -1022,6 +1307,39 @@ const styles = StyleSheet.create({
     gap: 16,
     flexWrap: "wrap",
   },
+  toolsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  toolCardWrapper: {
+    flex: 1,
+    minWidth: 210,
+  },
+  toolCardPressable: {
+    flex: 1,
+  },
+  toolCard: {
+    minHeight: 144,
+    padding: 18,
+    gap: 10,
+  },
+  toolIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: auroraTheme.colors.primary[500] + "20",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toolTitle: {
+    ...typography.bodyStrong,
+    fontSize: 16,
+  },
+  toolSubtitle: {
+    ...typography.small,
+    lineHeight: 18,
+  },
   quickStatCard: {
     flex: 1,
     minWidth: 140,
@@ -1103,8 +1421,34 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "flex-end",
   },
+  serviceActions: {
+    flex: 1,
+    alignItems: "flex-end",
+    gap: 10,
+  },
   serviceStatusText: {
     ...typography.label,
+    fontSize: 12,
+  },
+  serviceActionButton: {
+    minWidth: 88,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+  },
+  serviceActionButtonSuccess: {
+    backgroundColor: auroraTheme.colors.success[500],
+  },
+  serviceActionButtonDanger: {
+    backgroundColor: auroraTheme.colors.error[500],
+  },
+  serviceActionText: {
+    ...typography.label,
+    color: "#fff",
     fontSize: 12,
   },
   metricsGrid: {
@@ -1233,6 +1577,27 @@ const styles = StyleSheet.create({
   },
   noIssuesText: {
     ...typography.body,
+    color: auroraTheme.colors.text.secondary,
+  },
+  recommendationsCard: {
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    gap: 10,
+  },
+  recommendationsTitle: {
+    ...typography.bodyStrong,
+    fontSize: 16,
+  },
+  recommendationRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  recommendationText: {
+    ...typography.small,
+    flex: 1,
     color: auroraTheme.colors.text.secondary,
   },
   reportsGrid: {

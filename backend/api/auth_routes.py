@@ -40,6 +40,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+def _get_request_user_agent(request: Request) -> Optional[str]:
+    return request.headers.get("user-agent")
+
+
+def _get_request_device_id(request: Request) -> Optional[str]:
+    return request.headers.get("x-device-id")
+
+
 # Helper functions for login
 
 
@@ -143,7 +151,8 @@ async def generate_auth_tokens(
             user["username"],
             refresh_token_expires,
             ip_address=ip_address,
-            user_agent=request.headers.get("user-agent"),
+            user_agent=_get_request_user_agent(request),
+            device_id=_get_request_device_id(request),
         )
 
         return Ok(
@@ -158,10 +167,15 @@ async def generate_auth_tokens(
         return Fail(DatabaseConnectionError("Error generating authentication tokens"))
 
 
-async def check_for_active_session(username: str) -> Result[bool, Exception]:
-    """Check if the user already has an active session."""
+async def get_active_session_record(username: str) -> Result[dict[str, Any], Exception]:
+    """
+    Return the newest active refresh-token session for a user, if any.
+
+    Result.ok() does not accept None, so an empty dict is used as the
+    "no active session" sentinel and consumed via truthiness checks.
+    """
     if not getattr(settings, "AUTH_SINGLE_SESSION", True):
-        return Ok(False)
+        return Ok({})
 
     db = get_db()
     try:
@@ -171,16 +185,51 @@ async def check_for_active_session(username: str) -> Result[bool, Exception]:
                 "username": username,
                 "revoked": False,
                 "expires_at": {"$gt": datetime.now(timezone.utc)},
-            }
+            },
+            sort=[("created_at", -1)],
         )
-        return Ok(bool(active_token))
+        return Ok(active_token or {})
     except Exception as e:
-        logger.error(f"Error checking active sessions for {username}: {str(e)}")
+        logger.error(
+            "Error checking active sessions",
+            extra={"username": sanitize_for_logging(username), "error": str(e)},
+        )
         # In case of DB error, we fail open for safety of service but log heavily
-        return Ok(False)
+        return Ok({})
 
 
-async def _resolve_session_conflict(username: str) -> bool:
+async def check_for_active_session(username: str) -> Result[bool, Exception]:
+    """Check if the user already has an active session."""
+    result = await get_active_session_record(username)
+    if result.is_err:
+        return result
+    return Ok(bool(result.unwrap()))
+
+
+def _session_belongs_to_current_client(
+    session: dict[str, Any], request: Request, client_ip: str
+) -> bool:
+    request_device_id = _get_request_device_id(request)
+    session_device_id = session.get("device_id")
+    if request_device_id and session_device_id:
+        return request_device_id == session_device_id
+
+    session_ip = session.get("ip_address")
+    if client_ip and session_ip and session_ip != client_ip:
+        return False
+
+    request_user_agent = _get_request_user_agent(request)
+    session_user_agent = session.get("user_agent")
+    if request_user_agent and session_user_agent:
+        return session_user_agent == request_user_agent
+
+    # Older sessions or automation clients may not persist complete client
+    # metadata. If the IP still matches, treat it as the same client so
+    # reauthentication is logged as routine rather than suspicious.
+    return bool(client_ip and session_ip and session_ip == client_ip)
+
+
+async def _resolve_session_conflict(username: str) -> Result[int, Exception]:
     """
     Revoke existing refresh tokens for a user so they can log in again.
 
@@ -190,14 +239,42 @@ async def _resolve_session_conflict(username: str) -> bool:
     try:
         refresh_token_service = get_refresh_token_service()
         revoked_count = await refresh_token_service.revoke_all_user_tokens(username)
-        logger.warning(
-            "Recovered login session conflict by revoking existing refresh tokens",
-            extra={"username": sanitize_for_logging(username), "revoked_count": revoked_count},
-        )
-        return True
+        return Ok(revoked_count)
     except Exception as e:
-        logger.error(f"Failed to resolve session conflict for {username}: {str(e)}")
-        return False
+        logger.error(
+            "Failed to resolve session conflict",
+            extra={"username": sanitize_for_logging(username), "error": str(e)},
+        )
+        return Fail(DatabaseConnectionError("Failed to resolve existing session"))
+
+
+async def _ensure_single_session_for_login(
+    username: str, request: Request, client_ip: str
+) -> Result[dict[str, Any], Exception]:
+    active_session_result = await get_active_session_record(username)
+    if active_session_result.is_err:
+        return active_session_result
+
+    active_session = active_session_result.unwrap()
+    if not active_session:
+        return Ok({})
+
+    same_client = _session_belongs_to_current_client(active_session, request, client_ip)
+    revoke_result = await _resolve_session_conflict(username)
+    if revoke_result.is_err:
+        return revoke_result
+
+    revoked_count = revoke_result.unwrap()
+    log_method = logger.info if same_client else logger.warning
+    log_method(
+        "Resolved existing active session before issuing new login",
+        extra={
+            "username": sanitize_for_logging(username),
+            "revoked_count": revoked_count,
+            "same_client": same_client,
+        },
+    )
+    return Ok({"same_client": same_client, "revoked_count": revoked_count})
 
 
 async def log_failed_login_attempt(
@@ -423,11 +500,14 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
     db = get_db()
     cache_service = get_cache_service()
 
-    logger.info("=== LOGIN ATTEMPT START ===")
-    logger.info(f"Username: {sanitize_for_logging(credentials.username)}")
-
     client_ip = request.client.host if request.client else ""
-    logger.info(f"Client IP: {client_ip}")
+    logger.debug(
+        "Login attempt received",
+        extra={
+            "username": sanitize_for_logging(credentials.username),
+            "client_ip": client_ip,
+        },
+    )
 
     try:
         # Check rate limiting
@@ -436,7 +516,6 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
             return rate_limit_fail
 
         # Find user
-        logger.info(f"Finding user: {credentials.username}")
         user_result = await find_user_by_username(credentials.username)
         if user_result.is_err:
             return await _handle_login_failure(
@@ -448,10 +527,8 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
             )
 
         user = user_result.unwrap()
-        logger.info("User found")
 
         # Verify password
-        logger.info("Verifying password...")
         pwd_result = _validate_user_password(credentials, user)
         if pwd_result.is_err:
             return await _handle_login_failure(
@@ -465,8 +542,6 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
         # Handle legacy password migration (fire and forget)
         await _migrate_legacy_password(db, user, credentials.password)
 
-        logger.info("Password verified successfully")
-
         # Check active status
         if not user.get("is_active", True):
             logger.error("User account is deactivated")
@@ -476,44 +551,41 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
         # Strict Single Session Enforcement:
         # Block second login attempt with 409 Conflict
         if getattr(settings, "AUTH_SINGLE_SESSION", True):
-            session_check = await check_for_active_session(credentials.username)
-            if session_check.is_ok and session_check.unwrap():
-                resolved = await _resolve_session_conflict(credentials.username)
-                if not resolved:
-                    raise HTTPException(
-                        status_code=409,
-                        detail={
-                            "error": "User already has an active session",
-                            "message": (
-                                "Please log out from the other session before logging in again"
-                            ),
-                        },
-                    )
+            session_resolution = await _ensure_single_session_for_login(
+                credentials.username,
+                request,
+                client_ip,
+            )
+            if session_resolution.is_err:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "AUTH_SESSION_CONFLICT",
+                        "message": "Unable to recover the existing active session",
+                    },
+                )
 
         # Generate tokens
-        logger.info("Generating tokens...")
         tokens_result = await generate_auth_tokens(user, client_ip, request)
         if tokens_result.is_err:
-            logger.error(f"Token generation failed: {tokens_result}")
             return tokens_result
 
         tokens = tokens_result.unwrap()
-        logger.info("Tokens generated successfully")
 
         # Log success and cleanup
         await log_successful_login(user, client_ip, request)
         await cache_service.delete("login_attempts", client_ip)
 
-        logger.info("=== LOGIN SUCCESS ===")
+        logger.info(
+            "Login succeeded",
+            extra={"role": sanitize_for_logging(user.get("role", "unknown"))},
+        )
         return Ok(_build_login_response(tokens, user))
 
     except HTTPException:
         raise  # Let HTTPException pass through with proper status code
     except Exception as e:
-        logger.error("=== LOGIN EXCEPTION ===")
-        logger.error(f"Exception type: {type(e).__name__}")
-        logger.error(f"Exception message: {str(e)}")
-        logger.error("Traceback:", exc_info=True)
+        logger.exception("Login failed unexpectedly")
         return Fail(e)
 
 
@@ -589,7 +661,13 @@ async def login_with_pin(
     pin = credentials.pin
     client_ip = request.client.host if request.client else ""
 
-    logger.info("=== PIN LOGIN ATTEMPT START ===")
+    logger.debug(
+        "PIN login attempt received",
+        extra={
+            "client_ip": client_ip,
+            "username_scoped": bool(credentials.username),
+        },
+    )
 
     # Validate PIN format (4-digit numeric)
     if not pin or len(pin) != 4 or not pin.isdigit():
@@ -611,7 +689,6 @@ async def login_with_pin(
             return rate_limit_fail
 
         # Find user by PIN
-        logger.info(f"Searching for user by PIN (scoped={bool(credentials.username)})...")
         found_user = await _find_user_by_pin(db, pin, credentials.username)
 
         if not found_user:
@@ -624,8 +701,6 @@ async def login_with_pin(
             )
             return Fail(AuthenticationError("Invalid PIN"))
 
-        logger.info(f"PIN matched user: {found_user['username']}")
-
         # Check active status
         if not found_user.get("is_active", True):
             logger.error("User account is deactivated")
@@ -635,44 +710,38 @@ async def login_with_pin(
         # Strict Single Session Enforcement:
         # Block second login attempt with 409 Conflict
         if getattr(settings, "AUTH_SINGLE_SESSION", True):
-            session_check = await check_for_active_session(found_user["username"])
-            if session_check.is_ok and session_check.unwrap():
-                resolved = await _resolve_session_conflict(found_user["username"])
-                if not resolved:
-                    raise HTTPException(
-                        status_code=409,
-                        detail={
-                            "error": "User already has an active session",
-                            "message": (
-                                "Please log out from the other session before logging in again"
-                            ),
-                        },
-                    )
+            session_resolution = await _ensure_single_session_for_login(
+                found_user["username"],
+                request,
+                client_ip,
+            )
+            if session_resolution.is_err:
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "error": "AUTH_SESSION_CONFLICT",
+                        "message": "Unable to recover the existing active session",
+                    },
+                )
 
         # Generate tokens
-        logger.info("Generating tokens...")
         tokens_result = await generate_auth_tokens(found_user, client_ip, request)
         if tokens_result.is_err:
-            logger.error(f"Token generation failed: {tokens_result}")
             return tokens_result
 
         tokens = tokens_result.unwrap()
-        logger.info("Tokens generated successfully")
 
         # Log success and cleanup
         await log_successful_login(found_user, client_ip, request)
         await cache_service.delete("login_attempts", client_ip)
 
-        logger.info("=== PIN LOGIN SUCCESS ===")
+        logger.info("PIN login succeeded")
         return Ok(_build_login_response(tokens, found_user))
 
     except HTTPException:
         raise  # Let HTTPException pass through with proper status code
     except Exception as e:
-        logger.error("=== PIN LOGIN EXCEPTION ===")
-        logger.error(f"Exception type: {type(e).__name__}")
-        logger.error(f"Exception message: {str(e)}")
-        logger.error("Traceback:", exc_info=True)
+        logger.exception("PIN login failed unexpectedly")
         return Fail(e)
 
 
@@ -740,7 +809,14 @@ async def _handle_login_failure(
     username: str, client_ip: str, request: Request, log_error: str, return_error: Any
 ) -> Result[Any, Exception]:
     """Helper to log failure and return error result."""
-    logger.error(log_error)
+    logger.warning(
+        "Login failed",
+        extra={
+            "username": sanitize_for_logging(username),
+            "client_ip": client_ip,
+            "reason": log_error,
+        },
+    )
     await log_failed_login_attempt(
         username=username,
         ip_address=client_ip,

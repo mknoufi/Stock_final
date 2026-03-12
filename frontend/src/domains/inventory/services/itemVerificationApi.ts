@@ -358,9 +358,11 @@ export class ItemVerificationAPI {
   static async requestRecount(
     countLineId: string,
     notes?: string,
+    assignTo?: string,
   ): Promise<Record<string, unknown>> {
     const response = await api.put(`/api/count-lines/${countLineId}/reject`, {
       notes,
+      assign_to: assignTo,
     });
     return response.data;
   }

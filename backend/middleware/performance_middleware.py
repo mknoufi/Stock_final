@@ -41,7 +41,7 @@ class PerformanceMiddleware:
                 status_code = message["status"]
 
                 # Track request
-                self.monitoring.track_request(
+                await self.monitoring.track_request(
                     endpoint=endpoint,
                     method=method,
                     status_code=status_code,
@@ -66,7 +66,7 @@ class PerformanceMiddleware:
             await self.app(scope, receive, send_wrapper)
         except Exception as e:
             duration = time.time() - start_time
-            self.monitoring.track_error(
+            await self.monitoring.track_error(
                 endpoint=endpoint,
                 error=e,
                 context={

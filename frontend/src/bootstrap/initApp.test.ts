@@ -1,5 +1,4 @@
 import { initializeApp } from "./initApp";
-import { initBackendURL } from "./initBackend";
 import { initAuthAndSettings } from "./initAuthAndSettings";
 import { initMobileRuntime } from "./initMobileRuntime";
 import { initMonitoringAndDevTools } from "./initDevTools";
@@ -22,10 +21,6 @@ jest.mock("../services/themeService", () => ({
 
 jest.mock("./initDevTools", () => ({
   initMonitoringAndDevTools: jest.fn(),
-}));
-
-jest.mock("./initBackend", () => ({
-  initBackendURL: jest.fn(async () => undefined),
 }));
 
 jest.mock("./initAuthAndSettings", () => ({
@@ -55,7 +50,6 @@ describe("initializeApp", () => {
   });
 
   it("continues startup when non-critical steps fail", async () => {
-    (initBackendURL as jest.Mock).mockRejectedValueOnce(new Error("backend timeout"));
     (initAuthAndSettings as jest.Mock).mockResolvedValueOnce({
       authResult: { status: "rejected", reason: new Error("auth timeout") },
       settingsResult: { status: "fulfilled", value: undefined },

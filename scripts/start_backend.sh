@@ -18,7 +18,6 @@ pkill -f "uvicorn.*server" 2>/dev/null || true
 # Wait for ports to be released
 sleep 2
 
-echo "🍃 Starting Local MongoDB..."
 "$SCRIPT_DIR/start_local_db.sh"
 
 echo "🚀 Starting backend server..."
@@ -34,4 +33,4 @@ export DISABLE_SSL="true"
 unset DEBUG # Prevent config validation error if set in shell
 cd "$BACKEND_DIR"
 
-python3 server.py 2>&1 | tee backend_startup.log
+"$SCRIPT_DIR/python.sh" server.py 2>&1 | tee backend_startup.log

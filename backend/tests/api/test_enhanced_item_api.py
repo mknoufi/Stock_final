@@ -24,6 +24,7 @@ def setup_mocks():
 
     mock_cache = AsyncMock()
     mock_monitoring = MagicMock()
+    mock_monitoring.track_request = AsyncMock()
     mock_sql_connector = MagicMock()
 
     # Initialize API
@@ -53,7 +54,7 @@ async def test_validate_barcode_format():
 
 @pytest.mark.asyncio
 async def test_get_item_by_barcode_enhanced_mongodb(setup_mocks):
-    mock_db, mock_cache, _ = setup_mocks
+    mock_db, mock_cache, mock_monitoring = setup_mocks
 
     # Mock MongoDB response
     mock_item = {
@@ -67,7 +68,7 @@ async def test_get_item_by_barcode_enhanced_mongodb(setup_mocks):
     # Mock Cache miss
     mock_cache.get_async.return_value = None
 
-    request = MagicMock()
+    request = MagicMock(method="GET")
     current_user = {"username": "testuser"}
 
     response = await get_item_by_barcode_enhanced(
@@ -82,6 +83,9 @@ async def test_get_item_by_barcode_enhanced_mongodb(setup_mocks):
 
     # Verify cache set was called
     mock_cache.set_async.assert_called_once()
+    mock_monitoring.track_request.assert_awaited_once()
+    assert mock_monitoring.track_request.await_args.kwargs["method"] == "GET"
+    assert mock_monitoring.track_request.await_args.kwargs["status_code"] == 200
 
 
 @pytest.mark.asyncio
@@ -92,7 +96,7 @@ async def test_get_item_by_barcode_enhanced_cache(setup_mocks):
     cached_item = {"item": {"item_code": "CODE123", "barcode": "510001", "item_name": "Test Item"}}
     mock_cache.get_async.return_value = cached_item
 
-    request = MagicMock()
+    request = MagicMock(method="GET")
     current_user = {"username": "testuser"}
 
     response = await get_item_by_barcode_enhanced(
@@ -125,7 +129,7 @@ async def test_get_item_by_barcode_enhanced_sql_sync(setup_mocks):
     }
     enhanced_item_api.sql_sync_service.sync_single_item_by_barcode.return_value = mock_synced_item
 
-    request = MagicMock()
+    request = MagicMock(method="GET")
     current_user = {"username": "testuser"}
 
     response = await get_item_by_barcode_enhanced(
@@ -151,7 +155,7 @@ async def test_get_item_by_barcode_enhanced_not_found(setup_mocks):
     mock_db.erp_items.find_one.return_value = None
     mock_cache.get_async.return_value = None
 
-    request = MagicMock()
+    request = MagicMock(method="GET")
     current_user = {"username": "testuser"}
 
     with pytest.raises(HTTPException) as exc:

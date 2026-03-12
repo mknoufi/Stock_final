@@ -425,7 +425,7 @@ async def init_mock_erp_data():
             },
         ]
         await db.erp_items.insert_many(mock_items)
-        logging.info("Mock ERP data initialized")
+        logger.info("Mock ERP data initialized")
 
 
 # Routes
@@ -781,7 +781,7 @@ async def bulk_export_sessions(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@api_router.get("/sessions/analytics")
+@api_router.get("/legacy/sessions/analytics")
 async def get_sessions_analytics(current_user: dict = Depends(get_current_user)):
     """Get aggregated session analytics (supervisor only)"""
     if current_user["role"] not in ["supervisor", "admin"]:

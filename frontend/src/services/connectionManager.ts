@@ -7,6 +7,7 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createLogger } from "./logging";
+import { isValidBackendHealthResponse } from "./healthRequest";
 
 const log = createLogger("ConnectionManager");
 
@@ -81,6 +82,25 @@ class ConnectionManager {
   private async detectAndSetConnection(): Promise<ConnectionInfo> {
     log.info("Starting backend connection detection...");
 
+    const currentOrigin = this.getCurrentOrigin();
+    if (currentOrigin) {
+      const isCurrentOriginHealthy = await this.checkHealth(currentOrigin);
+      if (isCurrentOriginHealthy) {
+        const currentUrl = new URL(currentOrigin);
+        const sameOriginConnection: ConnectionInfo = {
+          backendUrl: currentOrigin,
+          backendPort: parseInt(currentUrl.port, 10) || 8001,
+          backendIp: currentUrl.hostname,
+          lastChecked: new Date().toISOString(),
+          isHealthy: true,
+        };
+
+        await this.setCurrentConnection(sameOriginConnection);
+        log.info("Selected healthy same-origin connection", sameOriginConnection);
+        return sameOriginConnection;
+      }
+    }
+
     const candidates = await this.buildConnectionCandidates();
     const bestConnection = await this.findHealthyConnection(candidates);
 
@@ -104,10 +124,15 @@ class ConnectionManager {
     const candidates: { url: string; priority: number }[] = [];
     const normalize = (url: string) => url.replace(/\/+$/, "");
 
-    // 1. Environment variable override (highest priority)
+    // 1. Environment variable override
     const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
     if (envUrl) {
       candidates.push({ url: normalize(envUrl), priority: 10 });
+    }
+
+    const currentOrigin = this.getCurrentOrigin();
+    if (currentOrigin) {
+      candidates.push({ url: normalize(currentOrigin), priority: 11 });
     }
 
     // 1.5 Current connection gets high priority for stability.
@@ -118,14 +143,16 @@ class ConnectionManager {
       });
     }
 
-    // 2. Try to load from backend_port.json file
+    // 2. On web, the runtime port file is the freshest source of truth.
+    // Prefer it over saved or build-time URLs because the backend port can
+    // change between runs while the Expo bundle stays the same.
     if (Platform.OS === "web") {
       try {
         const response = await fetch("/backend_port.json");
         if (response.ok) {
           const portData = await response.json();
           if (portData.url && typeof portData.url === "string") {
-            candidates.push({ url: normalize(portData.url), priority: 8 });
+            candidates.push({ url: normalize(portData.url), priority: 12 });
           }
         }
       } catch (error) {
@@ -186,6 +213,18 @@ class ConnectionManager {
     return "127.0.0.1";
   }
 
+  private getCurrentOrigin(): string | null {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      return null;
+    }
+
+    try {
+      return window.location.origin.replace(/\/+$/, "");
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Find first healthy connection from candidates
    */
@@ -219,15 +258,11 @@ class ConnectionManager {
 
       const response = await fetch(`${url}/api/health`, {
         method: "GET",
-        headers: {
-          Accept: "application/json",
-          "User-Agent": "StockVerifyApp/1.0",
-        },
         signal: controller.signal,
       });
 
       clearTimeout(timeout);
-      return response.ok;
+      return await isValidBackendHealthResponse(response);
     } catch (error: any) {
       if (error && error.name !== "AbortError") {
         log.debug(`Health check failed for ${url}`, { error });

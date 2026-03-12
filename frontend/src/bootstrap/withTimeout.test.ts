@@ -11,6 +11,7 @@ describe("withTimeout", () => {
 
   it("resolves when the promise completes before timeout", async () => {
     await expect(withTimeout(Promise.resolve("ok"), 1000, "timeout")).resolves.toBe("ok");
+    expect(jest.getTimerCount()).toBe(0);
   });
 
   it("rejects with timeout message when promise does not complete in time", async () => {
@@ -19,6 +20,6 @@ describe("withTimeout", () => {
 
     jest.advanceTimersByTime(1000);
     await expect(timed).rejects.toThrow("timeout");
+    expect(jest.getTimerCount()).toBe(0);
   });
 });
-

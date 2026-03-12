@@ -11,34 +11,12 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-try:
-    from backend.auth.jwt import get_current_user
-except ImportError:
-    try:
-        from auth.jwt import get_current_user
-    except ImportError:
-
-        def get_current_user():
-            return {"role": "admin", "username": "admin"}
+from backend.auth.dependencies import require_admin
 
 
 logger = logging.getLogger(__name__)
 
 service_logs_router = APIRouter(prefix="/api/admin/logs", tags=["Service Logs"])
-
-
-def require_admin(current_user: dict = Depends(get_current_user)):
-    """Require admin role"""
-    if isinstance(current_user, dict):
-        user_role = current_user.get("role")
-    else:
-        user_role = getattr(current_user, "role", None)
-
-    if user_role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    return (
-        current_user if isinstance(current_user, dict) else {"role": "admin", "username": "admin"}
-    )
 
 
 def _detect_log_level(line: str) -> str:

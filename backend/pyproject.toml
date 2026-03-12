@@ -28,10 +28,6 @@ line-length = 100
 # Ignore E402 (module level import not at top of file) globally due to conditional import needs
 ignore = ["E402"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-v --ignore=tests/evaluation"
-
 [tool.mypy]
 explicit_package_bases = true
 mypy_path = "."

@@ -85,7 +85,13 @@ class MigrationManager:
         """Create indexes for refresh_tokens collection."""
         # Refresh tokens are stored as a one-way hash to reduce blast radius if DB is leaked.
         # Use a sparse unique index so older records without token_hash don't block migrations.
-        await self._create_index_safe(self.db.refresh_tokens, "token_hash", unique=True)
+        await self._create_index_safe(
+            self.db.refresh_tokens,
+            "token_hash",
+            unique=True,
+            sparse=True,
+            name="refresh_tokens.token_hash",
+        )
         await self._create_index_safe(self.db.refresh_tokens, "username")
         await self._create_index_safe(self.db.refresh_tokens, "expires_at")
         await self._create_index_safe(self.db.refresh_tokens, [("username", 1), ("revoked", 1)])
@@ -214,6 +220,7 @@ class MigrationManager:
         key: Union[str, list[tuple[str, int]]],
         unique: bool = False,
         name: str = "",
+        sparse: bool = False,
     ) -> None:
         """Create an index with safe error handling for duplicates."""
         # Skip _id index creation (automatically managed by MongoDB)
@@ -225,11 +232,41 @@ class MigrationManager:
             logger.debug("Skipping _id index creation as it is managed by MongoDB")
             return
 
+        requested_key = self._normalize_index_key(key)
+        index_name = name or str(key)
+
         try:
-            await collection.create_index(key, unique=unique)
+            existing_indexes = await collection.list_indexes().to_list(length=100)
+            for existing in existing_indexes:
+                if self._normalize_index_key(existing.get("key", {})) != requested_key:
+                    continue
+
+                existing_unique = bool(existing.get("unique", False))
+                existing_sparse = bool(existing.get("sparse", False))
+                if existing_unique == unique and existing_sparse == sparse:
+                    logger.debug(
+                        "Index %s already exists with compatible options (existing name: %s)",
+                        index_name,
+                        existing.get("name", "<unnamed>"),
+                    )
+                    return
+
+                logger.warning(
+                    "Index %s already exists with different options; keeping existing index %s",
+                    index_name,
+                    existing.get("name", "<unnamed>"),
+                )
+                return
+
+            create_options: dict[str, Any] = {"unique": unique}
+            if name:
+                create_options["name"] = name
+            if sparse:
+                create_options["sparse"] = True
+
+            await collection.create_index(key, **create_options)
         except Exception as e:
             err_str = str(e)
-            index_name = name or str(key)
             if "IndexOptionsConflict" in err_str or "already exists" in err_str:
                 logger.debug(f"{index_name} index already exists, skipping")
             elif "E11000" in err_str or "duplicate key" in err_str:
@@ -245,6 +282,21 @@ class MigrationManager:
                     logger.warning(f"Error creating {index_name} index (second attempt): {str(e2)}")
             else:
                 logger.warning(f"Error creating {index_name} index: {err_str}")
+
+    @staticmethod
+    def _normalize_index_key(
+        key: Union[str, list[tuple[str, int]], Dict[str, Any], Any]
+    ) -> list[tuple[str, Any]]:
+        """Normalize index specs so list_indexes() output can be compared with requested keys."""
+        if isinstance(key, str):
+            return [(key, 1)]
+        if isinstance(key, list):
+            return list(key)
+        if isinstance(key, dict):
+            return list(key.items())
+        if hasattr(key, "items"):
+            return list(key.items())
+        return [(str(key), 1)]
 
     async def run_migrations(self):
         """Run all pending migrations"""

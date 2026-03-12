@@ -22,10 +22,14 @@ import {
   getCountLines,
   approveCountLine,
   rejectCountLine,
+  getAssignableStaffUsers,
   updateSessionStatus,
   verifyStock,
   unverifyStock,
 } from "../../../src/services/api/api";
+import RecountAssignmentModal, {
+  type AssignableStaffUser,
+} from "../../../src/components/supervisor/RecountAssignmentModal";
 import { useToast } from "../../../src/components/feedback/ToastProvider";
 
 export default function SessionDetail() {
@@ -43,6 +47,14 @@ export default function SessionDetail() {
     "toVerify",
   );
   const [verifying, setVerifying] = React.useState<string | null>(null);
+  const [assignableStaff, setAssignableStaff] = React.useState<
+    AssignableStaffUser[]
+  >([]);
+  const [staffLoading, setStaffLoading] = React.useState(false);
+  const [recountModalVisible, setRecountModalVisible] = React.useState(false);
+  const [pendingRejectLine, setPendingRejectLine] = React.useState<any | null>(
+    null,
+  );
 
   const loadData = React.useCallback(async () => {
     if (!targetSessionId) return;
@@ -69,6 +81,24 @@ export default function SessionDetail() {
     loadData();
   }, [loadData]);
 
+  const loadAssignableStaff = React.useCallback(async () => {
+    if (assignableStaff.length > 0) {
+      return assignableStaff;
+    }
+
+    try {
+      setStaffLoading(true);
+      const staff = await getAssignableStaffUsers();
+      setAssignableStaff(staff);
+      return staff;
+    } catch {
+      show("Failed to load staff list", "error");
+      throw new Error("Failed to load staff list");
+    } finally {
+      setStaffLoading(false);
+    }
+  }, [assignableStaff, show]);
+
   const handleApproveLine = async (lineId: string) => {
     try {
       if (Platform.OS !== "web")
@@ -83,17 +113,52 @@ export default function SessionDetail() {
     }
   };
 
-  const handleRejectLine = async (lineId: string) => {
+  const handleRejectLine = async (line: any) => {
     try {
       if (Platform.OS !== "web")
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      await rejectCountLine(lineId);
+      await loadAssignableStaff();
+      setPendingRejectLine(line);
+      setRecountModalVisible(true);
+    } catch {
+      if (Platform.OS !== "web")
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  };
+
+  const handleSubmitReject = async ({
+    notes,
+    assignTo,
+  }: {
+    notes: string;
+    assignTo?: string;
+  }) => {
+    if (!pendingRejectLine?.id) {
+      show("Count line not found", "error");
+      return;
+    }
+
+    try {
+      if (Platform.OS !== "web")
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      setVerifying(pendingRejectLine.id);
+      await rejectCountLine(pendingRejectLine.id, {
+        notes: notes || undefined,
+        assign_to: assignTo,
+      });
+      setRecountModalVisible(false);
+      setPendingRejectLine(null);
       await loadData();
-      show("Count line rejected", "success");
+      show(
+        assignTo ? `Recount assigned to ${assignTo}` : "Count line rejected",
+        "success",
+      );
     } catch {
       show("Failed to reject", "error");
       if (Platform.OS !== "web")
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setVerifying(null);
     }
   };
 
@@ -181,6 +246,7 @@ export default function SessionDetail() {
   }
 
   const currentLines = activeTab === "toVerify" ? toVerifyLines : verifiedLines;
+  const totalVariance = Number(session?.total_variance ?? 0);
 
   // Header Component for FlashList
   const ListHeader = () => (
@@ -214,10 +280,10 @@ export default function SessionDetail() {
             <Text
               style={[
                 styles.infoValue,
-                session.total_variance !== 0 && styles.varianceValue,
+                totalVariance !== 0 && styles.varianceValue,
               ]}
             >
-              {session.total_variance.toFixed(2)}
+              {totalVariance.toFixed(2)}
             </Text>
           </View>
         </GlassCard>
@@ -308,14 +374,15 @@ export default function SessionDetail() {
   const MAX_ANIMATED_ITEMS = 10;
 
   const renderItem = ({ item, index }: { item: any; index: number }) => {
+    const normalizedStatus = String(item.status || "").toLowerCase();
     const varianceColor =
       item.variance === 0
         ? auroraTheme.colors.success[500]
         : auroraTheme.colors.error[500];
     const statusColor =
-      item.status === "approved"
+      normalizedStatus === "approved"
         ? auroraTheme.colors.success[500]
-        : item.status === "rejected"
+        : normalizedStatus === "rejected"
           ? auroraTheme.colors.error[500]
           : auroraTheme.colors.warning[500];
 
@@ -361,7 +428,7 @@ export default function SessionDetail() {
               ]}
             >
               <Text style={[styles.badgeText, { color: statusColor }]}>
-                {item.status}
+                {(normalizedStatus || "pending").toUpperCase()}
               </Text>
             </View>
           </View>
@@ -419,7 +486,7 @@ export default function SessionDetail() {
         )}
 
         <View style={styles.lineActions}>
-          {item.status === "pending" && (
+          {normalizedStatus === "pending" && (
             <>
               <AnimatedPressable
                 style={styles.approveButton}
@@ -434,7 +501,7 @@ export default function SessionDetail() {
               </AnimatedPressable>
               <AnimatedPressable
                 style={styles.rejectButton}
-                onPress={() => handleRejectLine(item.id)}
+                onPress={() => void handleRejectLine(item)}
               >
                 <Ionicons
                   name="close"
@@ -551,6 +618,23 @@ export default function SessionDetail() {
           contentContainerStyle={styles.listContent}
         />
       </View>
+
+      <RecountAssignmentModal
+        visible={recountModalVisible}
+        loading={
+          staffLoading ||
+          (pendingRejectLine?.id ? verifying === pendingRejectLine.id : false)
+        }
+        staffOptions={assignableStaff}
+        defaultAssignee={pendingRejectLine?.counted_by}
+        onClose={() => {
+          if (verifying) return;
+          setRecountModalVisible(false);
+          setPendingRejectLine(null);
+        }}
+        onSubmit={handleSubmitReject}
+        description="Reassign this count line to a staff member for recount and add optional instructions."
+      />
     </AuroraBackground>
   );
 }

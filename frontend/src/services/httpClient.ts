@@ -6,6 +6,10 @@ import { handleUnauthorized } from "./authUnauthorizedHandler";
 import { getDeviceId } from "./deviceId";
 import { useNetworkStore } from "../store/networkStore";
 import ConnectionManager, { ConnectionInfo } from "./connectionManager";
+import {
+  isPublicHealthRequestUrl,
+  stripHealthRequestHeaders,
+} from "./healthRequest";
 
 const log = createLogger("httpClient");
 
@@ -18,10 +22,13 @@ const IS_TEST_ENV =
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // Increased timeout to 30s for slower emulator networks
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
+
+delete apiClient.defaults.headers.common["Content-Type"];
+delete apiClient.defaults.headers.common["content-type"];
+apiClient.defaults.headers.post["Content-Type"] = "application/json";
+apiClient.defaults.headers.put["Content-Type"] = "application/json";
+apiClient.defaults.headers.patch["Content-Type"] = "application/json";
 
 /**
  * Initialize connection manager and set up dynamic URL updates
@@ -167,17 +174,28 @@ const refreshAccessToken = async (): Promise<string | null> => {
 // Add request interceptor for debugging (never log raw payloads or auth headers)
 apiClient.interceptors.request.use(
   async (config) => {
-    try {
-      const deviceId = await getDeviceId();
-      if (deviceId) {
-        config.headers["X-Device-ID"] = deviceId;
+    const fullUrl = toFullUrl(config.baseURL, config.url);
+    const isHealthRequest = isPublicHealthRequestUrl(fullUrl);
+
+    if (isHealthRequest) {
+      stripHealthRequestHeaders(config.headers as Record<string, unknown>);
+    } else {
+      try {
+        const deviceId = await getDeviceId();
+        if (deviceId) {
+          config.headers["X-Device-ID"] = deviceId;
+        }
+      } catch (err) {
+        log.warn("Failed to attach device ID header", { error: String(err) });
       }
-    } catch (err) {
-      log.warn("Failed to attach device ID header", { error: String(err) });
     }
 
     // Ensure Auth token is attached if available (fixes 401 loop if defaults are lost)
-    if (!config.headers["Authorization"] && !config.headers.common?.["Authorization"]) {
+    if (
+      !isHealthRequest &&
+      !config.headers["Authorization"] &&
+      !config.headers.common?.["Authorization"]
+    ) {
       try {
         const token = await secureStorage.getItem("auth_token");
         if (token) {
@@ -191,8 +209,6 @@ apiClient.interceptors.request.use(
         // Ignore storage errors, proceed without token
       }
     }
-
-    const fullUrl = toFullUrl(config.baseURL, config.url);
     const authHeader =
       config.headers["Authorization"] ||
       config.headers.common?.["Authorization"] ||
@@ -226,7 +242,7 @@ apiClient.interceptors.request.use(
       fullUrl.includes("/auth/refresh") ||
       fullUrl.includes("/auth/register") ||
       fullUrl.includes("/auth/logout") ||
-      fullUrl.includes("/health");
+      isHealthRequest;
     if (!isPublic && !hasAuth) {
       log.warn("Blocking authenticated call: No token available", {
         url: fullUrl,
@@ -290,6 +306,7 @@ apiClient.interceptors.response.use(
       // Clear storage immediately to prevent stale token persistence
       secureStorage.removeItem("auth_token").catch(() => {});
       secureStorage.removeItem("refresh_token").catch(() => {});
+      delete apiClient.defaults.headers.common["Authorization"];
 
       handleUnauthorized();
     };
@@ -375,9 +392,14 @@ apiClient.interceptors.response.use(
               return apiClient(originalRequest);
             }
 
+            log.warn("Refresh token flow failed; clearing credentials", {
+              url: fullUrl,
+            });
+            performLogout();
             return Promise.reject(error);
           });
         } catch (_e) {
+          performLogout();
           return Promise.reject(error);
         }
       }

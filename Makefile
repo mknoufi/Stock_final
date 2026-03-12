@@ -3,6 +3,8 @@
 
 .PHONY: help ci test lint format typecheck pre-commit install clean eval security secrets
 
+PYTHON := ./scripts/python.sh
+
 help:
 	@echo "📦 Stock Verify Application - Available Commands"
 	@echo ""
@@ -58,24 +60,24 @@ python-ci: python-format python-lint python-typecheck python-test
 
 python-test:
 	@echo "Running Python tests..."
-	cd backend && pytest tests/ -v --tb=short
+	$(PYTHON) -m pytest backend/tests/ -v --tb=short
 
 python-load-test:
 	@echo "Running Locust load test..."
-	cd backend && locust -f locustfile.py --headless -u 10 -r 2 -t 30s --host http://localhost:8001
+	cd backend && ../scripts/python.sh -m locust -f locustfile.py --headless -u 10 -r 2 -t 30s --host http://localhost:8001
 
 python-lint:
 	@echo "Running Python linters..."
-	cd backend && ruff check . && ruff format --check .
+	cd backend && ../scripts/python.sh -m ruff check . && ../scripts/python.sh -m ruff format --check .
 
 python-format:
 	@echo "Formatting Python code..."
-	cd backend && black --line-length=100 api auth services middleware utils db scripts \
-		config.py server.py api/mapping_api.py db_mapping_config.py sql_server_connector.py exceptions.py error_messages.py && ruff format .
+	cd backend && ../scripts/python.sh -m black --line-length=100 api auth services middleware utils db scripts \
+		config.py server.py api/mapping_api.py db_mapping_config.py sql_server_connector.py exceptions.py error_messages.py && ../scripts/python.sh -m ruff format .
 
 python-typecheck:
 	@echo "Running Python type checker..."
-	mypy backend --ignore-missing-imports --python-version=3.10 || true
+	$(PYTHON) -m mypy backend --ignore-missing-imports --python-version=3.10 || true
 
 # =============================================================================
 # 📦 NODE.JS FRONTEND
@@ -86,7 +88,7 @@ node-ci: node-lint node-typecheck node-test
 
 node-test:
 	@echo "Running Node.js tests..."
-	cd frontend && npm test || true
+	cd frontend && npm test
 
 node-test-watch:
 	@echo "Running Node.js tests in watch mode..."
@@ -140,8 +142,8 @@ pre-commit:
 # =============================================================================
 install:
 	@echo "Installing Python dependencies..."
-	pip install -r backend/requirements.txt
-	pip install pre-commit black ruff mypy pytest pytest-cov
+	$(PYTHON) -m pip install -r backend/requirements.txt
+	$(PYTHON) -m pip install pre-commit black ruff mypy pytest pytest-cov
 	@echo "Installing Node.js dependencies..."
 	cd frontend && npm ci
 	@echo "Installing pre-commit hooks..."
@@ -177,11 +179,11 @@ security:
 
 secrets:
 	@echo "🔐 Generating new JWT secrets..."
-	cd backend && python scripts/generate_secrets.py
+	cd backend && ../scripts/python.sh scripts/generate_secrets.py
 
 validate-env:
 	@echo "🔍 Validating environment configuration..."
-	cd backend && python scripts/validate_env.py
+	cd backend && ../scripts/python.sh scripts/validate_env.py
 
 # =============================================================================
 # 📊 EVALUATION
@@ -190,19 +192,19 @@ validate-env:
 
 eval:
 	@echo "Running evaluation framework..."
-	python -m backend.tests.evaluation.run_evaluation --all
+	$(PYTHON) -m backend.tests.evaluation.run_evaluation --all
 
 eval-report:
 	@echo "Running evaluation with markdown report..."
-	python -m backend.tests.evaluation.run_evaluation --all --format md --verbose
+	$(PYTHON) -m backend.tests.evaluation.run_evaluation --all --format md --verbose
 
 eval-performance:
 	@echo "Running performance evaluation..."
-	python -m backend.tests.evaluation.run_evaluation --performance --verbose
+	$(PYTHON) -m backend.tests.evaluation.run_evaluation --performance --verbose
 
 eval-security:
 	@echo "Running security evaluation..."
-	cd backend && pytest tests/evaluation/test_security_evaluation.py -v
+	$(PYTHON) -m pytest backend/tests/evaluation/test_security_evaluation.py -v
 
 # =============================================================================
 # 🚀 DEPLOYMENT

@@ -384,8 +384,6 @@ class ScheduledExportService:
 
     async def _run_scheduler(self):
         """Background task to run scheduled exports"""
-        logger.info("Scheduled export service started")
-
         while self._running:
             try:
                 # Find schedules due for execution

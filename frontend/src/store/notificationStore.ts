@@ -40,11 +40,12 @@ export const useNotificationStore = create<NotificationState>()(
       fetchNotifications: async (unreadOnly = false) => {
         set({ isLoading: true, error: null });
         try {
-          const notifications = await getNotifications(unreadOnly);
-          const unreadCount = notifications.filter((n) => !n.read).length;
+          const response = await getNotifications(unreadOnly);
           set({
-            notifications,
-            unreadCount,
+            notifications: response.notifications || [],
+            unreadCount:
+              response.unread_count ??
+              (response.notifications || []).filter((n) => !n.read).length,
             isLoading: false,
             lastFetched: Date.now(),
           });

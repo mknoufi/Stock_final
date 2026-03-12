@@ -1,5 +1,3 @@
-import { Platform } from "react-native";
-
 export type UserRole = "staff" | "supervisor" | "admin";
 
 export const getRouteForRole = (role: UserRole): string => {
@@ -7,8 +5,7 @@ export const getRouteForRole = (role: UserRole): string => {
     case "supervisor":
       return "/supervisor/dashboard";
     case "admin":
-      // Prefer the web dashboard on web; keep metrics as the default elsewhere
-      return Platform.OS === "web" ? "/admin/dashboard-web" : "/admin/metrics";
+      return "/admin/dashboard-web";
     case "staff":
       return "/staff/home";
     default:
@@ -20,11 +17,14 @@ export const isRouteAllowedForRole = (
   route: string,
   role: UserRole,
 ): boolean => {
-  if (route.startsWith("/admin") || route.startsWith("/supervisor")) {
+  if (route.startsWith("/admin")) {
+    return role === "admin";
+  }
+  if (route.startsWith("/supervisor")) {
     return role === "admin" || role === "supervisor";
   }
   if (route.startsWith("/staff")) {
-    return true; // Supervisors/Admins can technically access staff routes if needed, or restrict if strict
+    return role === "staff";
   }
   return true;
 };

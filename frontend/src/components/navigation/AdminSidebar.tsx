@@ -62,10 +62,10 @@ const ADMIN_GROUPS: SidebarGroup[] = [
     title: "Administration",
     items: [
       {
-        key: "control-panel",
-        label: "Control Panel",
-        icon: "settings",
-        route: "/admin/control-panel-v2",
+        key: "users",
+        label: "Users",
+        icon: "people",
+        route: "/admin/users",
       },
       {
         key: "permissions",
@@ -114,12 +114,6 @@ const ADMIN_GROUPS: SidebarGroup[] = [
     title: "System",
     items: [
       {
-        key: "metrics",
-        label: "Metrics",
-        icon: "stats-chart",
-        route: "/admin/metrics",
-      },
-      {
         key: "unknown-items",
         label: "Unknown Items",
         icon: "help-circle-outline",
@@ -130,12 +124,6 @@ const ADMIN_GROUPS: SidebarGroup[] = [
         label: "SQL Config",
         icon: "server",
         route: "/admin/sql-config",
-      },
-      {
-        key: "reports",
-        label: "Reports",
-        icon: "document-text",
-        route: "/admin/reports",
       },
       {
         key: "logs",
@@ -175,7 +163,7 @@ const ADMIN_GROUPS: SidebarGroup[] = [
         key: "settings",
         label: "Settings",
         icon: "settings",
-        route: "/supervisor/settings",
+        route: "/admin/settings",
       },
       {
         key: "db-mapping",

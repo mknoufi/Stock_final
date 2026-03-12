@@ -151,6 +151,32 @@ jest.mock("@expo/vector-icons", () => ({
   FontAwesome: "FontAwesome",
 }));
 
+jest.mock("@expo/vector-icons/Ionicons", () => {
+  const React = require("react");
+  const MockIcon = ({ children, ...props }) =>
+    React.createElement("Ionicons", props, children);
+  MockIcon.displayName = "Ionicons";
+  MockIcon.glyphMap = {};
+
+  return {
+    __esModule: true,
+    default: MockIcon,
+  };
+});
+
+jest.mock("@expo/vector-icons/MaterialCommunityIcons", () => {
+  const React = require("react");
+  const MockIcon = ({ children, ...props }) =>
+    React.createElement("MaterialCommunityIcons", props, children);
+  MockIcon.displayName = "MaterialCommunityIcons";
+  MockIcon.glyphMap = {};
+
+  return {
+    __esModule: true,
+    default: MockIcon,
+  };
+});
+
 // Mock react-native-svg
 jest.mock("react-native-svg", () => {
   const React = require("react");
@@ -172,14 +198,15 @@ jest.mock("react-native-svg", () => {
 
 // FIX 5: Silence Logs Intentionally (Not Blanket)
 beforeAll(() => {
-  jest.spyOn(console, "warn").mockImplementation((msg) => {
+  const originalWarn = console.warn.bind(console);
+  jest.spyOn(console, "warn").mockImplementation((msg, ...args) => {
     if (
       typeof msg === "string" &&
       msg.includes("EXPO_OS is not defined")
     ) {
       return;
     }
-    console.warn(msg);
+    originalWarn(msg, ...args);
   });
 });
 

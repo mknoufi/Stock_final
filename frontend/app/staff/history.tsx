@@ -46,6 +46,7 @@ export default function HistoryScreen() {
     variance_reason?: string;
     remark?: string;
     status: string;
+    approval_status?: string;
     counted_at: string;
   }
   const [countLines, setCountLines] = React.useState<CountLine[]>([]);
@@ -60,13 +61,20 @@ export default function HistoryScreen() {
   const [selectedLineForDelete, setSelectedLineForDelete] =
     React.useState<CountLine | null>(null);
 
+  const normalizeStatus = React.useCallback((status?: string | null) => {
+    return (status || "").toLowerCase();
+  }, []);
+
   const loadCountLines = React.useCallback(async () => {
     try {
       const data = await getCountLines(sessionId as string);
-      const safeData = Array.isArray(data) ? data : [];
+      const safeData = Array.isArray(data?.items) ? data.items : [];
       setCountLines(
         showApprovedOnly
-          ? safeData.filter((d: any) => d.status === "approved")
+          ? safeData.filter((d: any) => {
+              const status = normalizeStatus(d.status);
+              return status === "approved" || d.approval_status === "APPROVED";
+            })
           : safeData,
       );
       if (safeData.length && flags.enableHaptics) {
@@ -78,7 +86,7 @@ export default function HistoryScreen() {
     } finally {
       setLoading(false);
     }
-  }, [sessionId, showApprovedOnly]);
+  }, [normalizeStatus, sessionId, showApprovedOnly]);
 
   React.useEffect(() => {
     loadCountLines();
@@ -153,10 +161,11 @@ export default function HistoryScreen() {
       item.variance === 0
         ? unifiedColors.success[500]
         : unifiedColors.error[500];
+    const normalizedStatus = normalizeStatus(item.status);
     const statusColor =
-      item.status === "approved"
+      normalizedStatus === "approved"
         ? unifiedColors.success[500]
-        : item.status === "rejected"
+        : normalizedStatus === "rejected"
           ? unifiedColors.error[500]
           : unifiedColors.warning[500];
 
@@ -168,7 +177,7 @@ export default function HistoryScreen() {
           </Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
             <Text style={styles.statusText}>
-              {(item.status || "pending").toUpperCase()}
+              (normalizedStatus || "pending").toUpperCase()
             </Text>
           </View>
         </View>

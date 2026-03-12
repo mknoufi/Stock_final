@@ -56,6 +56,7 @@ def run_server_main(
             reload=False,
             log_level="info",
             access_log=True,
+            log_config=None,
             ssl_keyfile=ssl_keyfile,
             ssl_certfile=ssl_certfile,
         )
@@ -70,5 +71,5 @@ def run_server_main(
         reload=False,
         log_level="info",
         access_log=True,
+        log_config=None,
     )
-

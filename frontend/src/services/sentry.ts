@@ -47,7 +47,7 @@ const buildEnvelopeUrl = (dsn: string): string | null => {
 const generateEventId = (): string =>
   Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
 
-const parseStackFrames = (stack?: string): Array<Record<string, unknown>> => {
+const parseStackFrames = (stack?: string): Record<string, unknown>[] => {
   if (!stack) return [];
   const lines = stack
     .split("\n")

@@ -138,10 +138,11 @@ class TestResult:
         """Test error logging."""
         import logging
 
-        logger = logging.getLogger(__name__)
-
-        error = ValueError("test error")
-        result = Fail(error).log_error(logger, "Operation failed")
+        logger = logging.getLogger("test_logger")
+        
+        with caplog.at_level(logging.ERROR):
+            error = ValueError("test error")
+            result = Fail(error).log_error(logger, "Operation failed")
 
         assert "Operation failed: test error" in caplog.text
         assert result.is_err

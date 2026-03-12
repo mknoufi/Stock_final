@@ -106,12 +106,9 @@ async def get_item_by_barcode_enhanced(
     Also checks for 'is_misplaced' status if session context is provided.
     """
     start_time = time.time()
+    status_code = 200
 
     try:
-        # Log request for monitoring
-        if monitoring_service:
-            monitoring_service.track_request("enhanced_barcode_lookup", request)
-
         # Validate barcode format and normalize input
         normalized_barcode = _validate_barcode_format(barcode)
 
@@ -243,9 +240,11 @@ async def get_item_by_barcode_enhanced(
 
         return response_data
 
-    except HTTPException:
+    except HTTPException as exc:
+        status_code = exc.status_code
         raise
     except Exception as e:
+        status_code = 500
         response_time = (time.time() - start_time) * 1000
         logger.error(
             f"Enhanced barcode lookup failed: {barcode} in {response_time:.2f}ms - {str(e)}"
@@ -261,6 +260,17 @@ async def get_item_by_barcode_enhanced(
                 "error": str(e),
             },
         )
+    finally:
+        if monitoring_service:
+            try:
+                await monitoring_service.track_request(
+                    endpoint="enhanced_barcode_lookup",
+                    method=request.method,
+                    status_code=status_code,
+                    duration=time.time() - start_time,
+                )
+            except Exception:
+                logger.debug("Failed to record enhanced barcode metrics", exc_info=True)
 
 
 async def _fetch_from_specific_source(barcode: str, source: str) -> tuple[Optional[dict], str]:

@@ -14,6 +14,8 @@ import {
   Dimensions,
   RefreshControl,
   TextInput,
+  Modal as RNModal,
+  ActivityIndicator,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
@@ -22,6 +24,7 @@ import {
   LoadingSpinner,
   AnimatedPressable,
   ScreenContainer,
+  GlassCard,
 } from "../../src/components/ui";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 import apiClient from "../../src/services/httpClient";
@@ -29,6 +32,7 @@ import apiClient from "../../src/services/httpClient";
 const { width } = Dimensions.get("window");
 const isWeb = Platform.OS === "web";
 const isTablet = width > 768;
+const isE2E = process.env.EXPO_PUBLIC_E2E === "true";
 
 // Typography helper
 const textStyles = {
@@ -79,6 +83,26 @@ interface UserListResponse {
 
 type SortField = "username" | "email" | "role" | "created_at";
 type SortOrder = "asc" | "desc";
+
+interface UserFormState {
+  username: string;
+  email: string;
+  fullName: string;
+  password: string;
+  pin: string;
+  role: User["role"];
+  isActive: boolean;
+}
+
+const createEmptyUserForm = (): UserFormState => ({
+  username: "",
+  email: "",
+  fullName: "",
+  password: "",
+  pin: "",
+  role: "staff",
+  isActive: true,
+});
 
 // Role badge colors
 const getRoleBadgeStyle = (role: string) => {
@@ -132,8 +156,11 @@ export default function UsersScreen() {
   const [sortBy, setSortBy] = useState<SortField>("username");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
   const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
-  const [, setShowCreateModal] = useState(false);
-  const [, setEditingUser] = useState<User | null>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [userForm, setUserForm] = useState<UserFormState>(createEmptyUserForm);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const loadUsers = useCallback(
     async (isRefresh = false) => {
@@ -157,7 +184,7 @@ export default function UsersScreen() {
           params.append("is_active", activeFilter.toString());
 
         const response = await apiClient.get<UserListResponse>(
-          `/users?${params.toString()}`,
+          `/api/users?${params.toString()}`,
         );
 
         if (response.data) {
@@ -255,7 +282,7 @@ export default function UsersScreen() {
         style: action === "delete" ? "destructive" : "default",
         onPress: async () => {
           try {
-            await apiClient.post("/users/bulk", {
+            await apiClient.post("/api/users/bulk", {
               user_ids: Array.from(selectedUsers),
               action,
             });
@@ -287,7 +314,7 @@ export default function UsersScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              await apiClient.delete(`/users/${user.id}`);
+              await apiClient.delete(`/api/users/${user.id}`);
               loadUsers();
               Alert.alert("Success", `User "${user.username}" deleted`);
             } catch (error: any) {
@@ -302,7 +329,7 @@ export default function UsersScreen() {
   const handleToggleStatus = async (user: User) => {
     const action = user.isActive ? "deactivate" : "activate";
     try {
-      await apiClient.put(`/users/${user.id}`, { is_active: !user.isActive });
+      await apiClient.put(`/api/users/${user.id}`, { is_active: !user.isActive });
       loadUsers();
     } catch (error: any) {
       Alert.alert("Error", error.message || `Failed to ${action} user`);
@@ -312,6 +339,372 @@ export default function UsersScreen() {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const resetUserForm = useCallback(() => {
+    setUserForm(createEmptyUserForm());
+    setEditingUser(null);
+    setFormError(null);
+  }, []);
+
+  const openCreateModal = () => {
+    resetUserForm();
+    setShowUserModal(true);
+  };
+
+  const openEditModal = (user: User) => {
+    setEditingUser(user);
+    setUserForm({
+      username: user.username,
+      email: user.email || "",
+      fullName: user.fullName || "",
+      password: "",
+      pin: "",
+      role: user.role,
+      isActive: user.isActive,
+    });
+    setFormError(null);
+    setShowUserModal(true);
+  };
+
+  const closeUserModal = () => {
+    if (submitting) return;
+    setShowUserModal(false);
+    resetUserForm();
+  };
+
+  const updateUserForm = <K extends keyof UserFormState>(
+    key: K,
+    value: UserFormState[K],
+  ) => {
+    setUserForm((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const validateUserForm = () => {
+    if (!editingUser) {
+      const username = userForm.username.trim();
+      if (username.length < 3) {
+        return "Username must be at least 3 characters.";
+      }
+    }
+
+    if (userForm.email.trim().length > 0) {
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailPattern.test(userForm.email.trim())) {
+        return "Enter a valid email address.";
+      }
+    }
+
+    if (!editingUser && userForm.password.trim().length < 6) {
+      return "Password must be at least 6 characters.";
+    }
+
+    if (userForm.password.trim().length > 0 && userForm.password.trim().length < 6) {
+      return "New password must be at least 6 characters.";
+    }
+
+    if (userForm.pin.trim().length > 0 && !/^\d{4}$/.test(userForm.pin.trim())) {
+      return "PIN must be exactly 4 digits.";
+    }
+
+    return null;
+  };
+
+  const handleSubmitUser = async () => {
+    const validationError = validateUserForm();
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+
+    setSubmitting(true);
+    setFormError(null);
+
+    try {
+      const basePayload = {
+        email: userForm.email.trim() || null,
+        full_name: userForm.fullName.trim() || null,
+        role: userForm.role,
+      };
+
+      if (editingUser) {
+        const payload: Record<string, unknown> = {
+          ...basePayload,
+          is_active: userForm.isActive,
+        };
+
+        if (userForm.password.trim()) payload.password = userForm.password.trim();
+        if (userForm.pin.trim()) payload.pin = userForm.pin.trim();
+
+        await apiClient.put(`/api/users/${editingUser.id}`, payload);
+      } else {
+        const payload: Record<string, unknown> = {
+          ...basePayload,
+          username: userForm.username.trim(),
+          password: userForm.password.trim(),
+        };
+
+        if (userForm.pin.trim()) payload.pin = userForm.pin.trim();
+
+        await apiClient.post("/api/users", payload);
+      }
+
+      await loadUsers(true);
+      const successMessage = editingUser
+        ? `User "${editingUser.username}" updated successfully.`
+        : `User "${userForm.username.trim()}" created successfully.`;
+
+      setShowUserModal(false);
+      resetUserForm();
+      Alert.alert("Success", successMessage);
+    } catch (error: any) {
+      const detail =
+        typeof error?.response?.data?.detail?.error?.message === "string"
+          ? error.response.data.detail.error.message
+          : error?.message || "Failed to save user";
+      setFormError(detail);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const renderUserModal = () => {
+    const title = editingUser ? "Edit User" : "Create User";
+    const description = editingUser
+      ? "Update role, access, and credentials for this account."
+      : "Add a new account with the correct role and optional PIN.";
+
+    return (
+      <RNModal
+        visible={showUserModal}
+        transparent={true}
+        animationType={isE2E ? "none" : "fade"}
+        onRequestClose={closeUserModal}
+      >
+        <View style={styles.modalOverlay}>
+          <GlassCard variant="strong" style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderText}>
+                <Text style={styles.modalTitle}>{title}</Text>
+                <Text style={styles.modalDescription}>{description}</Text>
+              </View>
+              <AnimatedPressable
+                style={styles.modalCloseButton}
+                onPress={closeUserModal}
+                testID="user-form-close"
+              >
+                <Ionicons
+                  name="close"
+                  size={20}
+                  color={auroraTheme.colors.text.secondary}
+                />
+              </AnimatedPressable>
+            </View>
+
+            <ScrollView
+              style={styles.modalScroll}
+              contentContainerStyle={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+            >
+              {formError && (
+                <View style={styles.formErrorBanner}>
+                  <Ionicons
+                    name="alert-circle"
+                    size={18}
+                    color={auroraTheme.colors.error[600]}
+                  />
+                  <Text style={styles.formErrorText}>{formError}</Text>
+                </View>
+              )}
+
+              <View style={styles.formField}>
+                <Text style={styles.formLabel}>Username</Text>
+                <TextInput
+                  style={[
+                    styles.formInput,
+                    editingUser && styles.formInputDisabled,
+                  ]}
+                  testID="user-form-username"
+                  value={userForm.username}
+                  onChangeText={(value) => updateUserForm("username", value)}
+                  editable={!editingUser}
+                  autoCapitalize="none"
+                  placeholder="Enter username"
+                  placeholderTextColor={auroraTheme.colors.neutral[400]}
+                />
+                {editingUser && (
+                  <Text style={styles.formHint}>
+                    Username is immutable after account creation.
+                  </Text>
+                )}
+              </View>
+
+              <View style={styles.formGrid}>
+                <View style={styles.formFieldHalf}>
+                  <Text style={styles.formLabel}>Full Name</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    testID="user-form-full-name"
+                    value={userForm.fullName}
+                    onChangeText={(value) => updateUserForm("fullName", value)}
+                    placeholder="Optional"
+                    placeholderTextColor={auroraTheme.colors.neutral[400]}
+                  />
+                </View>
+                <View style={styles.formFieldHalf}>
+                  <Text style={styles.formLabel}>Email</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    testID="user-form-email"
+                    value={userForm.email}
+                    onChangeText={(value) => updateUserForm("email", value)}
+                    placeholder="Optional"
+                    placeholderTextColor={auroraTheme.colors.neutral[400]}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </View>
+              </View>
+
+              <View style={styles.formGrid}>
+                <View style={styles.formFieldHalf}>
+                  <Text style={styles.formLabel}>
+                    {editingUser ? "New Password" : "Password"}
+                  </Text>
+                  <TextInput
+                    style={styles.formInput}
+                    testID="user-form-password"
+                    value={userForm.password}
+                    onChangeText={(value) => updateUserForm("password", value)}
+                    placeholder={
+                      editingUser ? "Leave blank to keep current password" : "Required"
+                    }
+                    placeholderTextColor={auroraTheme.colors.neutral[400]}
+                    secureTextEntry
+                  />
+                </View>
+                <View style={styles.formFieldHalf}>
+                  <Text style={styles.formLabel}>4-Digit PIN</Text>
+                  <TextInput
+                    style={styles.formInput}
+                    testID="user-form-pin"
+                    value={userForm.pin}
+                    onChangeText={(value) => updateUserForm("pin", value)}
+                    placeholder="Optional"
+                    placeholderTextColor={auroraTheme.colors.neutral[400]}
+                    secureTextEntry
+                    keyboardType="number-pad"
+                    maxLength={4}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.formField}>
+                <Text style={styles.formLabel}>Role</Text>
+                <View style={styles.roleOptionRow}>
+                  {(["staff", "supervisor", "admin"] as User["role"][]).map((role) => (
+                    <AnimatedPressable
+                      key={role}
+                      style={[
+                        styles.roleOption,
+                        userForm.role === role && styles.roleOptionActive,
+                      ]}
+                      onPress={() => updateUserForm("role", role)}
+                      testID={`user-form-role-${role}`}
+                    >
+                      <Text
+                        style={[
+                          styles.roleOptionText,
+                          userForm.role === role && styles.roleOptionTextActive,
+                        ]}
+                      >
+                        {role.charAt(0).toUpperCase() + role.slice(1)}
+                      </Text>
+                    </AnimatedPressable>
+                  ))}
+                </View>
+              </View>
+
+              {editingUser && (
+                <View style={styles.formField}>
+                  <Text style={styles.formLabel}>Account Status</Text>
+                  <View style={styles.roleOptionRow}>
+                    <AnimatedPressable
+                      style={[
+                        styles.roleOption,
+                        userForm.isActive && styles.roleOptionActive,
+                      ]}
+                      onPress={() => updateUserForm("isActive", true)}
+                      testID="user-form-status-active"
+                    >
+                      <Text
+                        style={[
+                          styles.roleOptionText,
+                          userForm.isActive && styles.roleOptionTextActive,
+                        ]}
+                      >
+                        Active
+                      </Text>
+                    </AnimatedPressable>
+                    <AnimatedPressable
+                      style={[
+                        styles.roleOption,
+                        !userForm.isActive && styles.roleOptionDanger,
+                      ]}
+                      onPress={() => updateUserForm("isActive", false)}
+                      testID="user-form-status-inactive"
+                    >
+                      <Text
+                        style={[
+                          styles.roleOptionText,
+                          !userForm.isActive && styles.roleOptionDangerText,
+                        ]}
+                      >
+                        Inactive
+                      </Text>
+                    </AnimatedPressable>
+                  </View>
+                </View>
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <AnimatedPressable
+                style={styles.modalSecondaryButton}
+                onPress={closeUserModal}
+                disabled={submitting}
+                testID="user-form-cancel"
+              >
+                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                style={[
+                  styles.modalPrimaryButton,
+                  submitting && styles.modalPrimaryButtonDisabled,
+                ]}
+                onPress={handleSubmitUser}
+                disabled={submitting}
+                testID="user-form-submit"
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="save-outline" size={18} color="#fff" />
+                    <Text style={styles.modalPrimaryButtonText}>
+                      {editingUser ? "Save Changes" : "Create User"}
+                    </Text>
+                  </>
+                )}
+              </AnimatedPressable>
+            </View>
+          </GlassCard>
+        </View>
+      </RNModal>
+    );
   };
 
   // Render filter bar
@@ -326,6 +719,7 @@ export default function UsersScreen() {
         />
         <TextInput
           style={styles.searchInput}
+          testID="users-search-input"
           placeholder="Search users..."
           placeholderTextColor={auroraTheme.colors.neutral[400]}
           value={search}
@@ -562,6 +956,7 @@ export default function UsersScreen() {
       <View
         key={user.id}
         style={[styles.tableRow, isSelected && styles.tableRowSelected]}
+        testID={`user-row-${user.username}`}
       >
         <AnimatedPressable
           style={styles.checkboxCell}
@@ -610,10 +1005,12 @@ export default function UsersScreen() {
         </View>
         <View style={[styles.cell, styles.actionsCell]}>
           <View style={styles.actionButtons}>
-            <AnimatedPressable
-              style={styles.actionButton}
-              onPress={() => setEditingUser(user)}
-            >
+          <AnimatedPressable
+            style={styles.actionButton}
+            onPress={() => openEditModal(user)}
+            testID={`user-edit-${user.username}`}
+            accessibilityLabel={`Edit user ${user.username}`}
+          >
               <Ionicons
                 name="pencil"
                 size={18}
@@ -623,6 +1020,8 @@ export default function UsersScreen() {
             <AnimatedPressable
               style={styles.actionButton}
               onPress={() => handleToggleStatus(user)}
+              testID={`user-toggle-${user.username}`}
+              accessibilityLabel={`${user.isActive ? "Deactivate" : "Activate"} user ${user.username}`}
             >
               <Ionicons
                 name={
@@ -639,6 +1038,8 @@ export default function UsersScreen() {
             <AnimatedPressable
               style={styles.actionButton}
               onPress={() => handleDeleteUser(user)}
+              testID={`user-delete-${user.username}`}
+              accessibilityLabel={`Delete user ${user.username}`}
             >
               <Ionicons
                 name="trash-outline"
@@ -712,6 +1113,7 @@ export default function UsersScreen() {
     <ScreenContainer>
       <ScrollView
         style={styles.container}
+        testID={loading ? "users-screen-loading" : "users-screen-ready"}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
@@ -728,7 +1130,8 @@ export default function UsersScreen() {
           </View>
           <AnimatedPressable
             style={styles.createButton}
-            onPress={() => setShowCreateModal(true)}
+            onPress={openCreateModal}
+            testID="users-add-button"
           >
             <Ionicons name="add" size={20} color="#fff" />
             <Text style={styles.createButtonText}>Add User</Text>
@@ -762,12 +1165,12 @@ export default function UsersScreen() {
         {renderBulkActions()}
 
         {/* Table */}
-        <View style={styles.tableContainer}>
+        <View style={styles.tableContainer} testID="users-table">
           {isWeb || isTablet ? (
             <>
               {renderTableHeader()}
               {users.length === 0 ? (
-                <View style={styles.emptyState}>
+                <View style={styles.emptyState} testID="users-empty-state">
                   <Ionicons
                     name="people-outline"
                     size={48}
@@ -781,7 +1184,7 @@ export default function UsersScreen() {
             </>
           ) : // Mobile card layout
           users.length === 0 ? (
-            <View style={styles.emptyState}>
+            <View style={styles.emptyState} testID="users-empty-state">
               <Ionicons
                 name="people-outline"
                 size={48}
@@ -842,7 +1245,7 @@ export default function UsersScreen() {
                   <View style={styles.mobileCardActions}>
                     <AnimatedPressable
                       style={styles.mobileAction}
-                      onPress={() => setEditingUser(user)}
+                      onPress={() => openEditModal(user)}
                     >
                       <Ionicons
                         name="pencil"
@@ -896,6 +1299,7 @@ export default function UsersScreen() {
         {/* Pagination */}
         {total > pageSize && renderPagination()}
       </ScrollView>
+      {renderUserModal()}
     </ScreenContainer>
   );
 }
@@ -940,9 +1344,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: auroraTheme.spacing.lg,
     gap: auroraTheme.spacing.md,
     marginBottom: auroraTheme.spacing.lg,
+    flexWrap: "wrap",
   },
   statCard: {
     flex: 1,
+    minWidth: 120,
     backgroundColor: auroraTheme.colors.background.secondary,
     padding: auroraTheme.spacing.md,
     borderRadius: auroraTheme.borderRadius.lg,
@@ -1176,6 +1582,174 @@ const styles = StyleSheet.create({
   emptyText: {
     ...textStyles.body,
     color: auroraTheme.colors.text.tertiary,
+  },
+  modalOverlay: {
+    flex: 1,
+    padding: auroraTheme.spacing.lg,
+    backgroundColor: "rgba(8, 13, 28, 0.72)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 720,
+    maxHeight: "92%",
+    padding: 0,
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    padding: auroraTheme.spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: auroraTheme.colors.border.light,
+  },
+  modalHeaderText: {
+    flex: 1,
+    gap: auroraTheme.spacing.xs,
+  },
+  modalTitle: {
+    ...textStyles.h3,
+    color: auroraTheme.colors.text.primary,
+  },
+  modalDescription: {
+    ...textStyles.body,
+    color: auroraTheme.colors.text.secondary,
+  },
+  modalCloseButton: {
+    padding: auroraTheme.spacing.xs,
+    borderRadius: auroraTheme.borderRadius.sm,
+  },
+  modalScroll: {
+    maxHeight: 480,
+  },
+  modalBody: {
+    padding: auroraTheme.spacing.lg,
+    gap: auroraTheme.spacing.md,
+  },
+  formErrorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: auroraTheme.spacing.sm,
+    padding: auroraTheme.spacing.sm,
+    borderRadius: auroraTheme.borderRadius.md,
+    backgroundColor: auroraTheme.colors.error[50],
+    borderWidth: 1,
+    borderColor: auroraTheme.colors.error[200],
+  },
+  formErrorText: {
+    ...textStyles.body,
+    flex: 1,
+    color: auroraTheme.colors.error[700],
+  },
+  formGrid: {
+    flexDirection: isTablet ? "row" : "column",
+    gap: auroraTheme.spacing.md,
+  },
+  formField: {
+    gap: auroraTheme.spacing.xs,
+  },
+  formFieldHalf: {
+    flex: 1,
+    gap: auroraTheme.spacing.xs,
+  },
+  formLabel: {
+    ...textStyles.label,
+    color: auroraTheme.colors.text.primary,
+  },
+  formInput: {
+    ...textStyles.body,
+    color: auroraTheme.colors.text.primary,
+    minHeight: 48,
+    borderWidth: 1,
+    borderColor: auroraTheme.colors.neutral[200],
+    backgroundColor: auroraTheme.colors.background.primary,
+    borderRadius: auroraTheme.borderRadius.md,
+    paddingHorizontal: auroraTheme.spacing.md,
+    paddingVertical: auroraTheme.spacing.sm,
+  },
+  formInputDisabled: {
+    backgroundColor: auroraTheme.colors.neutral[100],
+    color: auroraTheme.colors.text.tertiary,
+  },
+  formHint: {
+    ...textStyles.caption,
+    color: auroraTheme.colors.text.tertiary,
+  },
+  roleOptionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: auroraTheme.spacing.sm,
+  },
+  roleOption: {
+    paddingHorizontal: auroraTheme.spacing.md,
+    paddingVertical: auroraTheme.spacing.sm,
+    borderRadius: auroraTheme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: auroraTheme.colors.neutral[200],
+    backgroundColor: auroraTheme.colors.background.primary,
+  },
+  roleOptionActive: {
+    borderColor: auroraTheme.colors.primary[300],
+    backgroundColor: auroraTheme.colors.primary[100],
+  },
+  roleOptionDanger: {
+    borderColor: auroraTheme.colors.error[300],
+    backgroundColor: auroraTheme.colors.error[50],
+  },
+  roleOptionText: {
+    ...textStyles.label,
+    color: auroraTheme.colors.text.secondary,
+  },
+  roleOptionTextActive: {
+    color: auroraTheme.colors.primary[700],
+    fontWeight: "700",
+  },
+  roleOptionDangerText: {
+    color: auroraTheme.colors.error[700],
+    fontWeight: "700",
+  },
+  modalFooter: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: auroraTheme.spacing.sm,
+    padding: auroraTheme.spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: auroraTheme.colors.border.light,
+  },
+  modalSecondaryButton: {
+    minWidth: 120,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: auroraTheme.spacing.lg,
+    paddingVertical: auroraTheme.spacing.sm,
+    borderRadius: auroraTheme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: auroraTheme.colors.neutral[200],
+    backgroundColor: auroraTheme.colors.background.primary,
+  },
+  modalSecondaryButtonText: {
+    ...textStyles.label,
+    color: auroraTheme.colors.text.secondary,
+  },
+  modalPrimaryButton: {
+    minWidth: 160,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: auroraTheme.spacing.xs,
+    paddingHorizontal: auroraTheme.spacing.lg,
+    paddingVertical: auroraTheme.spacing.sm,
+    borderRadius: auroraTheme.borderRadius.md,
+    backgroundColor: auroraTheme.colors.primary[600],
+  },
+  modalPrimaryButtonDisabled: {
+    opacity: 0.7,
+  },
+  modalPrimaryButtonText: {
+    ...textStyles.label,
+    color: "#fff",
+    fontWeight: "700",
   },
   pagination: {
     flexDirection: "row",

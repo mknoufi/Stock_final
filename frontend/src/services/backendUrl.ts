@@ -1,5 +1,6 @@
 import Constants from "expo-constants";
 import { Platform } from "react-native";
+import { isValidBackendHealthResponse } from "./healthRequest";
 
 const HEALTH_PATH = "/api/health";
 
@@ -36,7 +37,7 @@ const timeoutFetch = async (
       headers: { Accept: "application/json" },
     });
     clearTimeout(timeout);
-    return res.status >= 200 && res.status < 500;
+    return await isValidBackendHealthResponse(res);
   } catch (error) {
     // Only log significant errors, not common probe failures
     if (error instanceof Error && error.name !== "AbortError") {
@@ -49,6 +50,18 @@ const timeoutFetch = async (
 
 const stripTrailingSlash = (url: string) =>
   url.endsWith("/") ? url.slice(0, -1) : url;
+
+const getCurrentOrigin = (): string | null => {
+  if (Platform.OS !== "web" || typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return stripTrailingSlash(window.location.origin);
+  } catch {
+    return null;
+  }
+};
 
 const getInitialBackendUrl = (): string => {
   const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -114,6 +127,10 @@ const buildCandidates = (): string[] => {
 
   // 6) Web fallback to current hostname
   if (Platform.OS === "web" && typeof window !== "undefined") {
+    const currentOrigin = getCurrentOrigin();
+    if (currentOrigin) {
+      candidates.push(currentOrigin);
+    }
     addCandidate(window.location.hostname || "localhost");
   }
 
@@ -135,6 +152,16 @@ let resolvedBackendUrl: string | null = null;
 
 export const resolveBackendUrl = async (): Promise<string> => {
   if (resolvedBackendUrl) return resolvedBackendUrl;
+
+  const currentOrigin = getCurrentOrigin();
+  if (currentOrigin) {
+    const isCurrentOriginHealthy = await timeoutFetch(`${currentOrigin}${HEALTH_PATH}`, 1500);
+    if (isCurrentOriginHealthy) {
+      console.log(`[BackendURL] Reusing healthy same-origin backend: ${currentOrigin}`);
+      resolvedBackendUrl = currentOrigin;
+      return currentOrigin;
+    }
+  }
 
   const candidates = buildCandidates();
 

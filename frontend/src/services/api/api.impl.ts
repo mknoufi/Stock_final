@@ -1441,6 +1441,21 @@ export const getCountLines = async (
   }
 };
 
+export const getCountLineById = async (lineId: string) => {
+  const response = await api.get(`/api/count-lines/${encodeURIComponent(lineId)}`);
+  return response.data;
+};
+
+export interface AssignableStaffUser {
+  username: string;
+  full_name?: string | null;
+}
+
+export const getAssignableStaffUsers = async (): Promise<AssignableStaffUser[]> => {
+  const response = await api.get<AssignableStaffUser[]>("/api/users/assignable/staff");
+  return Array.isArray(response.data) ? response.data : [];
+};
+
 // Check if item already counted
 export const checkItemCounted = async (sessionId: string, itemCode: string) => {
   try {
@@ -1505,8 +1520,11 @@ export const approveCountLine = async (lineId: string) => {
 };
 
 // Reject count line
-export const rejectCountLine = async (lineId: string) => {
-  const response = await api.put(`/api/count-lines/${lineId}/reject`);
+export const rejectCountLine = async (
+  lineId: string,
+  payload?: { notes?: string; assign_to?: string }
+) => {
+  const response = await api.put(`/api/count-lines/${lineId}/reject`, payload || {});
   return response.data;
 };
 
@@ -2838,6 +2856,7 @@ export {
   getDiagnosisHealth,
   getDiagnosisStats,
   diagnoseError,
+  attemptAutoFixDiagnosis,
 } from "./api.diagnosis";
 export {
   syncBatch,

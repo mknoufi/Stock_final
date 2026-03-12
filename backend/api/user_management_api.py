@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, EmailStr, Field
 
 from backend.auth.dependencies import get_current_user, require_admin
-from backend.auth.permissions import ROLE_PERMISSIONS, Permission
+from backend.auth.permissions import ROLE_PERMISSIONS, Permission, has_permission
 from backend.db.runtime import get_db
 from backend.utils.api_utils import sanitize_for_logging
 from backend.utils.auth_utils import get_password_hash
@@ -66,6 +66,13 @@ class UserDetailResponse(BaseModel):
     custom_permissions: list[str] = []
     disabled_permissions: list[str] = []
     has_pin: bool = False
+
+
+class AssignableUserItem(BaseModel):
+    """User item for supervisor recount assignment."""
+
+    username: str
+    full_name: Optional[str] = None
 
 
 class CreateUserRequest(BaseModel):
@@ -237,6 +244,52 @@ async def list_users(
         page_size=page_size,
         total_pages=(total + page_size - 1) // page_size,
     )
+
+
+@user_management_router.get("/assignable/staff", response_model=list[AssignableUserItem])
+async def list_assignable_staff(
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    List active staff users available for recount assignment.
+    Accessible to supervisors/admins who can request recounts.
+    """
+    if not has_permission(current_user, Permission.COUNT_LINE_REJECT):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "success": False,
+                "error": {
+                    "message": f"Permission denied. Required: {Permission.COUNT_LINE_REJECT.value}",
+                    "code": "PERMISSION_DENIED",
+                    "category": "authorization",
+                    "details": {
+                        "required_permission": Permission.COUNT_LINE_REJECT.value,
+                        "user_role": current_user.get("role"),
+                    },
+                },
+            },
+        )
+
+    db = get_db()
+    users = await db.users.find(
+        {"role": "staff", "is_active": True},
+        {"username": 1, "full_name": 1},
+    ).to_list(length=200)
+    users.sort(
+        key=lambda user: (
+            (user.get("full_name") or "").strip().lower(),
+            user.get("username", "").lower(),
+        )
+    )
+    return [
+        AssignableUserItem(
+            username=user.get("username", ""),
+            full_name=user.get("full_name"),
+        )
+        for user in users
+        if user.get("username")
+    ]
 
 
 @user_management_router.get("/{user_id}", response_model=UserDetailResponse)

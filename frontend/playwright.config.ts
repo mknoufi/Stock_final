@@ -1,5 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const webPort = Number(process.env.E2E_WEB_PORT || 8083);
+const webBaseUrl =
+  process.env.E2E_BASE_URL || `http://localhost:${webPort}`;
+const backendBaseUrl =
+  process.env.E2E_BACKEND_URL || "http://localhost:8001";
+
 /**
  * Playwright E2E Test Configuration for Stock Verification App
  *
@@ -35,7 +41,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: process.env.E2E_BASE_URL || "http://localhost:8081",
+    baseURL: webBaseUrl,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
@@ -78,12 +84,15 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "npx expo start --web --port 8083",
-    url: "http://localhost:8083",
+    command: `npx expo start --web --port ${webPort}`,
+    url: webBaseUrl,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000, // 2 minutes to start
     env: {
       BROWSER: "none", // Don't auto-open browser
+      EXPO_PUBLIC_E2E: "true",
+      EXPO_PUBLIC_BACKEND_URL: backendBaseUrl,
+      EXPO_PUBLIC_BACKEND_PORT: "8001",
     },
   },
 });

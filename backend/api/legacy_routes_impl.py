@@ -15,8 +15,6 @@ import jwt
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from motor.motor_asyncio import AsyncIOMotorClient
-from passlib.context import CryptContext
 from starlette.requests import Request
 
 # Add project root to path for direct execution (debugging)
@@ -49,14 +47,11 @@ from backend.exceptions import ValidationError
 # Service type imports
 # Production services
 # from backend.services.connection_pool import SQLServerConnectionPool  # Legacy pool removed
-from backend.services.database_optimizer import DatabaseOptimizer  # noqa: E402
-
 # Global service instances (injected by main.py)
 db: Any = None
 cache_service: Any = None
 activity_log_service: Any = None
 refresh_token_service: Any = None
-db_optimizer: Any = None
 
 # Global service placeholders for injection
 rate_limiter: Any = None
@@ -77,14 +72,9 @@ enterprise_security_service: Any = None
 from backend.utils.api_utils import result_to_response  # noqa: E402
 from backend.utils.api_utils import sanitize_for_logging  # noqa: E402
 from backend.utils.auth_utils import get_password_hash  # noqa: E402
-from backend.utils.logging_config import setup_logging  # noqa: E402
 from backend.utils.result import Fail, Ok, Result  # noqa: E402
-from backend.utils.tracing import init_tracing  # noqa: E402
 
-# Initialize a fallback logger early so optional import blocks can log safely
-logger = logging.getLogger("stock-verify")
-if not logger.handlers:
-    logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Import optional services
 try:
@@ -106,42 +96,9 @@ except ImportError as e:
     enrichment_router = None  # type: ignore # noqa: F811
 
 
-# Global service instances
-scheduled_export_service = None
-sync_conflicts_service = None
-
-# Setup logging
-logger = setup_logging(
-    log_level=settings.LOG_LEVEL,
-    log_format=settings.LOG_FORMAT,
-    log_file=settings.LOG_FILE or "app.log",
-    app_name=settings.APP_NAME,
-)
-
-# Initialize tracing (optional, env-gated). This only configures the
-# tracer provider and exporter; FastAPI is instrumented later once the
-# app instance is created.
-try:
-    init_tracing()
-except Exception:
-    # Never break startup due to tracing
-    pass
-
 T = TypeVar("T")
 E = TypeVar("E", bound=Exception)
 R = TypeVar("R")
-
-
-RUNNING_UNDER_PYTEST = "pytest" in sys.modules
-
-ROOT_DIR = Path(__file__).parent
-
-# Setup basic logging first (before config to catch config errors)
-if not RUNNING_UNDER_PYTEST:
-    logging.basicConfig(level=logging.INFO)
-else:
-    logging.getLogger().setLevel(logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 # Note: sanitize_for_logging and create_safe_error_response are imported
@@ -159,71 +116,6 @@ logger = logging.getLogger(__name__)
 
 # settings is guaranteed from backend.config
 
-
-# MongoDB connection with optimization
-mongo_url = settings.MONGO_URL
-# Normalize trailing slash (avoid accidental DB name in URL)
-mongo_url = mongo_url.rstrip("/")
-# Do not append pool options to URL; keep them in client options only
-
-mongo_client_options: dict[str, Any] = {
-    "maxPoolSize": 100,
-    "minPoolSize": 10,
-    "maxIdleTimeMS": 45000,
-    "serverSelectionTimeoutMS": 5000,
-    "connectTimeoutMS": 20000,
-    "socketTimeoutMS": 20000,
-    "retryWrites": True,
-    "retryReads": True,
-}
-
-client: AsyncIOMotorClient = AsyncIOMotorClient(
-    mongo_url,
-    **mongo_client_options,  # type: ignore
-)
-# Use DB_NAME from settings (database name should not be in URL for this setup)
-db = client[settings.DB_NAME]
-
-# Database optimizer
-if not RUNNING_UNDER_PYTEST:
-    db_optimizer = DatabaseOptimizer(
-        mongo_client=client,
-        max_pool_size=100,
-        min_pool_size=10,
-        max_idle_time_ms=45000,
-        server_selection_timeout_ms=5000,
-        connect_timeout_ms=20000,
-        socket_timeout_ms=20000,
-    )
-    client = db_optimizer.optimize_client()
-
-# Security - Modern password hashing with Argon2 (OWASP recommended)
-# Fallback to bcrypt-only if argon2 is not available
-try:
-    pwd_context = CryptContext(
-        schemes=[
-            "argon2",
-            "bcrypt",
-        ],  # Argon2 first (preferred), bcrypt for backward compatibility
-        deprecated="auto",  # Auto-upgrade old hashes on next login
-        argon2__memory_cost=65536,  # 64 MB memory (resistant to GPU attacks)
-        argon2__time_cost=3,  # 3 iterations
-        argon2__parallelism=4,  # 4 threads
-    )
-    # Test if bcrypt backend is available
-    try:
-        import bcrypt
-
-        # Verify bcrypt is working
-        test_hash = bcrypt.hashpw(b"test", bcrypt.gensalt())
-        bcrypt.checkpw(b"test", test_hash)
-        logger.info("Password hashing: Using Argon2 with bcrypt fallback")
-    except Exception as e:
-        logger.warning(f"Bcrypt backend check failed, using bcrypt-only context: {str(e)}")
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-except Exception as e:
-    logger.warning(f"Argon2 not available, using bcrypt-only: {str(e)}")
-    pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 # SECURITY: settings from backend.config already enforce strong secrets
 SECRET_KEY: str = cast(str, settings.JWT_SECRET)
 ALGORITHM = settings.JWT_ALGORITHM
@@ -967,7 +859,7 @@ async def bulk_export_sessions(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@api_router.get("/sessions/analytics")
+@api_router.get("/legacy/sessions/analytics")
 async def get_sessions_analytics(current_user: dict = Depends(get_current_user)):
     """Get aggregated session analytics (supervisor only)"""
     if current_user["role"] not in ["supervisor", "admin"]:

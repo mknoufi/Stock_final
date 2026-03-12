@@ -80,6 +80,73 @@ class SessionIntegrityResponse(BaseModel):
     message: str
 
 
+async def _build_sessions_analytics_payload(db: AsyncIOMotorDatabase) -> dict[str, Any]:
+    """Build the aggregated session analytics payload used by admin/supervisor dashboards."""
+    pipeline = [
+        {
+            "$group": {
+                "_id": None,
+                "total_sessions": {"$sum": 1},
+                "total_items": {"$sum": "$total_items"},
+                "total_variance": {"$sum": "$total_variance"},
+                "avg_variance": {"$avg": "$total_variance"},
+                "sessions_by_status": {"$push": {"status": "$status", "count": 1}},
+            }
+        }
+    ]
+
+    date_pipeline = [
+        {
+            "$project": {
+                "date": {"$substr": ["$started_at", 0, 10]},
+                "warehouse": 1,
+                "staff_name": 1,
+                "total_items": 1,
+                "total_variance": 1,
+            }
+        },
+        {"$group": {"_id": "$date", "count": {"$sum": 1}}},
+        {"$sort": {"_id": 1}},
+    ]
+
+    warehouse_pipeline = [
+        {
+            "$group": {
+                "_id": "$warehouse",
+                "total_variance": {"$sum": {"$abs": "$total_variance"}},
+                "session_count": {"$sum": 1},
+            }
+        }
+    ]
+
+    staff_pipeline = [
+        {
+            "$group": {
+                "_id": "$staff_name",
+                "total_items": {"$sum": "$total_items"},
+                "session_count": {"$sum": 1},
+            }
+        }
+    ]
+
+    overall = await db.sessions.aggregate(pipeline).to_list(1)
+    by_date = await db.sessions.aggregate(date_pipeline).to_list(None)  # type: ignore[arg-type]
+    by_warehouse = await db.sessions.aggregate(warehouse_pipeline).to_list(None)
+    by_staff = await db.sessions.aggregate(staff_pipeline).to_list(None)
+
+    overall_summary = overall[0] if overall else {}
+
+    return {
+        "overall": overall_summary,
+        "sessions_by_date": {item["_id"]: item["count"] for item in by_date},
+        "variance_by_warehouse": {
+            item["_id"]: item["total_variance"] for item in by_warehouse
+        },
+        "items_by_staff": {item["_id"]: item["total_items"] for item in by_staff},
+        "total_sessions": overall_summary.get("total_sessions", 0),
+    }
+
+
 # Endpoints
 
 
@@ -118,10 +185,17 @@ async def get_sessions(
     sessions_cursor = db.sessions.find(query).sort("started_at", -1).skip(skip).limit(page_size)
     sessions = await sessions_cursor.to_list(length=page_size)
 
-    # DEBUG LOGGING
-    logger.info(f"SESSION QUERY: {query}")
-    logger.info(f"SESSIONS FOUND: {len(sessions)} (Total: {total})")
-    # END DEBUG LOGGING
+    logger.debug(
+        "Fetched sessions page",
+        extra={
+            "query": query,
+            "returned_count": len(sessions),
+            "total_count": total,
+            "page": page,
+            "page_size": page_size,
+            "viewer": current_user["username"],
+        },
+    )
 
     # Convert to response models
     result = []
@@ -360,6 +434,22 @@ async def get_active_sessions(
         )
 
     return result
+
+
+@router.get("/analytics")
+async def get_sessions_analytics(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Get aggregated session analytics for supervisor/admin dashboards."""
+    if current_user["role"] not in ["supervisor", "admin"]:
+        raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    try:
+        return {"success": True, "data": await _build_sessions_analytics_payload(db)}
+    except Exception as e:
+        logger.error(f"Analytics error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/{session_id}", response_model=SessionDetail)

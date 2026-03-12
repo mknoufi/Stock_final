@@ -1,7 +1,6 @@
 import { mmkvStorage } from "../services/mmkvStorage";
 import { withTimeout } from "./withTimeout";
 import { initMonitoringAndDevTools } from "./initDevTools";
-import { initBackendURL } from "./initBackend";
 import { initAuthAndSettings } from "./initAuthAndSettings";
 import { initMobileRuntime } from "./initMobileRuntime";
 
@@ -37,13 +36,7 @@ export async function initializeApp(
     console.warn("MMKV initialization failed or timed out:", e);
   }
 
-  const [
-    backendUrlResult,
-    authAndSettingsResult,
-    syncResult,
-    themeResult,
-  ] = await Promise.allSettled([
-    initBackendURL(5000),
+  const [authAndSettingsResult, syncResult, themeResult] = await Promise.allSettled([
     initAuthAndSettings(loadStoredAuth, loadSettings),
     withTimeout(
       import("../services/backgroundSync").then(({ registerBackgroundSync }) =>
@@ -60,10 +53,6 @@ export async function initializeApp(
       "Theme initialization timeout",
     ),
   ]);
-
-  if (backendUrlResult.status === "rejected" && isDev) {
-    console.warn("Backend URL initialization failed:", backendUrlResult.reason);
-  }
 
   if (authAndSettingsResult.status === "rejected") {
     if (isDev) {
@@ -89,4 +78,3 @@ export async function initializeApp(
   const cleanup = await initMobileRuntime(isDev);
   return { cleanup };
 }
-

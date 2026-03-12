@@ -67,7 +67,7 @@ Network configuration (dynamic IP):
 ## Testing
 
 - Frontend: `cd frontend && npm run ci`
-- Backend: `cd backend && python -m pytest`
+- Backend: `./scripts/python.sh -m pytest backend/tests`
 - E2E: see `frontend/e2e/README.md` (Maestro)
 
 Details: `docs/TESTING_GUIDE.md`
@@ -98,7 +98,7 @@ Kubernetes manifests live in `k8s/` (see `k8s/secrets.example.yaml`).
 
 Archive old documentation:
 ```bash
-python scripts/cleanup_old_docs.py
+./scripts/python.sh scripts/cleanup_old_docs.py
 ```
 
 Kill frontend (macOS/Linux):

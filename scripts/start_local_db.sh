@@ -38,7 +38,12 @@ wait_for_mongo() {
 }
 
 start_mongo() {
-    mongod --dbpath "$DATA_DIR" --port "$MONGO_PORT" --bind_ip "$MONGO_HOST" > "$LOG_FILE" 2>&1 &
+    mongod \
+        --dbpath "$DATA_DIR" \
+        --port "$MONGO_PORT" \
+        --bind_ip "$MONGO_HOST" \
+        --nounixsocket \
+        > "$LOG_FILE" 2>&1 &
     MONGO_PID=$!
     echo "✅ MongoDB started with PID: $MONGO_PID"
     echo "   To stop it, run: kill $MONGO_PID"
@@ -74,7 +79,7 @@ if check_for_wiredtiger_issues; then
         kill "$MONGO_PID" >/dev/null 2>&1 || true
         sleep 1
     fi
-    if ! mongod --dbpath "$DATA_DIR" --repair > "$REPAIR_LOG" 2>&1; then
+    if ! mongod --dbpath "$DATA_DIR" --repair --nounixsocket > "$REPAIR_LOG" 2>&1; then
         echo "❌ MongoDB repair failed. See $REPAIR_LOG for details."
         exit 1
     fi

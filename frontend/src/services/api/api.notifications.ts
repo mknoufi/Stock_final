@@ -1,5 +1,18 @@
 import api from "../httpClient";
 
+export interface NotificationMetadata {
+  count_line_id?: string;
+  item_name?: string;
+  reason?: string;
+  assigned_by?: string;
+  approved_by?: string;
+  rejected_by?: string;
+  session_id?: string | null;
+  item_code?: string | null;
+  barcode?: string | null;
+  assigned_to?: string | null;
+}
+
 export interface Notification {
   _id: string;
   id?: string;
@@ -8,12 +21,13 @@ export interface Notification {
   message: string;
   priority?: string;
   action_url?: string | null;
+  metadata?: NotificationMetadata;
   read: boolean;
   created_at: string;
   read_at?: string | null;
 }
 
-type NotificationListResponse = {
+export type NotificationListResponse = {
   notifications: Notification[];
   total: number;
   unread_count: number;
@@ -22,11 +36,11 @@ type NotificationListResponse = {
 export const getNotifications = async (
   unreadOnly: boolean = false,
   limit: number = 50
-): Promise<Notification[]> => {
+): Promise<NotificationListResponse> => {
   const response = await api.get<NotificationListResponse>("/api/notifications", {
     params: { unread_only: unreadOnly, limit },
   });
-  return response.data.notifications || [];
+  return response.data;
 };
 
 export const getUnreadNotificationCount = async (): Promise<number> => {
@@ -41,4 +55,3 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
 export const markAllNotificationsAsRead = async (): Promise<void> => {
   await api.post("/api/notifications/mark-all-read");
 };
-

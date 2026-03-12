@@ -111,8 +111,8 @@ async def attempt_auto_fix(
     """
     Attempt to auto-fix an error
     """
-    if current_user["role"] != "supervisor":
-        raise HTTPException(status_code=403, detail="Supervisor access required")
+    if current_user["role"] not in {"supervisor", "admin"}:
+        raise HTTPException(status_code=403, detail="Supervisor or admin access required")
 
     try:
         # Create error from info
@@ -146,6 +146,7 @@ async def attempt_auto_fix(
         if not diagnosis.auto_fixable:
             return {
                 "auto_fixable": False,
+                "fixed": False,
                 "message": "Error is not auto-fixable",
                 "diagnosis": diagnosis.to_dict(),
             }
@@ -157,6 +158,7 @@ async def attempt_auto_fix(
             "auto_fixable": True,
             "fix_attempted": True,
             "fix_successful": fix_result.is_success,
+            "fixed": fix_result.is_success,
             "fix_result": (
                 fix_result.unwrap_or(None) if fix_result.is_success else fix_result._error_message
             ),

@@ -4,41 +4,16 @@ SQL Server Connection Management API
 
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-
-def _default_user() -> dict[str, Any]:
-    return {"role": "admin", "username": "admin"}
-
-
-try:
-    from backend.auth.jwt import get_current_user
-except ImportError:
-    try:
-        from auth.jwt import get_current_user
-    except ImportError:
-        get_current_user = _default_user  # type: ignore
+from backend.auth.dependencies import require_admin
 
 logger = logging.getLogger(__name__)
 
 sql_connection_router = APIRouter(prefix="/api/admin/sql", tags=["SQL Server"])
-
-
-def require_admin(current_user: dict = Depends(get_current_user)):
-    """Require admin role"""
-    if isinstance(current_user, dict):
-        user_role = current_user.get("role")
-    else:
-        user_role = getattr(current_user, "role", None)
-
-    if user_role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    return (
-        current_user if isinstance(current_user, dict) else {"role": "admin", "username": "admin"}
-    )
 
 
 class SQLConnectionConfig(BaseModel):

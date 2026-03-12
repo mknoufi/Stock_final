@@ -6,6 +6,8 @@
 set -e  # Exit on any error
 chmod +x "$0" 2>/dev/null || true  # Ensure script is executable
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -21,6 +23,7 @@ TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-testpassword123}"
 # SECURITY: Use environment variable for test password in production
 # Set TEST_USER_PASSWORD environment variable to override default
 VALIDATION_LOG="/tmp/system_validation.log"
+PYTHON_RUNNER="$SCRIPT_DIR/python.sh"
 
 echo -e "${BLUE}🚀 Stock Verification System - Final System Validation${NC}"
 echo -e "${BLUE}=====================================================${NC}"
@@ -168,7 +171,7 @@ test_authentication() {
     # Test user login
     if test_api_endpoint "POST" "/auth/login" "200" "{\"email\":\"$TEST_USER_EMAIL\",\"password\":\"$TEST_USER_PASSWORD\"}"; then
         # Extract token from response
-        local token=$(cat /tmp/api_response.json | python3 -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))" 2>/dev/null || echo "")
+        local token=$(cat /tmp/api_response.json | "$PYTHON_RUNNER" -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))" 2>/dev/null || echo "")
 
         if [ -n "$token" ]; then
             log_message "SUCCESS" "Authentication successful, token received"
@@ -201,7 +204,7 @@ test_item_management() {
         -H "Content-Type: application/json" \
         -d "{\"email\":\"$TEST_USER_EMAIL\",\"password\":\"$TEST_USER_PASSWORD\"}")
 
-    local token=$(echo "$auth_response" | python3 -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))" 2>/dev/null || echo "")
+    local token=$(echo "$auth_response" | "$PYTHON_RUNNER" -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))" 2>/dev/null || echo "")
 
     if [ -z "$token" ]; then
         log_message "ERROR" "Could not get authentication token for item management test"
@@ -225,7 +228,7 @@ test_item_management() {
         log_message "SUCCESS" "Item creation working"
 
         # Extract created item ID
-        local item_id=$(cat /tmp/api_response.json | python3 -c "import sys, json; print(json.load(sys.stdin).get('id', ''))" 2>/dev/null || echo "")
+        local item_id=$(cat /tmp/api_response.json | "$PYTHON_RUNNER" -c "import sys, json; print(json.load(sys.stdin).get('id', ''))" 2>/dev/null || echo "")
 
         if [ -n "$item_id" ]; then
             # Test updating the item
@@ -349,26 +352,14 @@ run_test_suites() {
         log_message "INFO" "Running backend test suite..."
 
         cd backend
-        if [ -f "venv/bin/activate" ]; then
-            source venv/bin/activate
-
-            if command -v pytest >/dev/null 2>&1; then
-                if pytest tests/ -v --tb=short > /tmp/backend_test_results.log 2>&1; then
-                    log_message "SUCCESS" "Backend tests passed"
-                    local test_count=$(grep -c "PASSED\|FAILED" /tmp/backend_test_results.log || echo "0")
-                    log_message "INFO" "Backend test results: $test_count tests executed"
-                else
-                    log_message "ERROR" "Backend tests failed"
-                    local failed_tests=$(grep "FAILED" /tmp/backend_test_results.log | wc -l || echo "0")
-                    log_message "ERROR" "Failed tests count: $failed_tests"
-                fi
-            else
-                log_message "WARNING" "pytest not available in virtual environment"
-            fi
-
-            deactivate
+        if "$PYTHON_RUNNER" -m pytest tests/ -v --tb=short > /tmp/backend_test_results.log 2>&1; then
+            log_message "SUCCESS" "Backend tests passed"
+            local test_count=$(grep -c "PASSED\|FAILED" /tmp/backend_test_results.log || echo "0")
+            log_message "INFO" "Backend test results: $test_count tests executed"
         else
-            log_message "WARNING" "Backend virtual environment not found"
+            log_message "ERROR" "Backend tests failed"
+            local failed_tests=$(grep "FAILED" /tmp/backend_test_results.log | wc -l || echo "0")
+            log_message "ERROR" "Failed tests count: $failed_tests"
         fi
         cd ..
     else

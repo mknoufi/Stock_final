@@ -2,6 +2,7 @@ import React from "react";
 import { Redirect } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
 import { useAuthStore } from "@/store/authStore";
+import { getRouteForRole } from "@/utils/roleNavigation";
 
 type UserRole = "staff" | "supervisor" | "admin";
 
@@ -15,7 +16,7 @@ interface RoleLayoutGuardProps {
 export function RoleLayoutGuard({
   allowedRoles,
   children,
-  redirectTo = "/login",
+  redirectTo,
   layoutName = "RoleLayout",
 }: RoleLayoutGuardProps) {
   const { user, isInitialized, isLoading } = useAuthStore();
@@ -30,17 +31,19 @@ export function RoleLayoutGuard({
   }
 
   const isAllowed = !!user && allowedRoles.includes(user.role);
+  const resolvedRedirect =
+    redirectTo || (user ? getRouteForRole(user.role) : "/login");
 
   if (!isAllowed) {
     if (__DEV__) {
       console.warn(
         `⚠️ ${layoutName} rendered for non-allowed user role. ` +
           `allowed=[${allowedRoles.join(", ")}], actual=${user?.role ?? "unauthenticated"}. ` +
-          `Redirecting to ${redirectTo}`,
+          `Redirecting to ${resolvedRedirect}`,
       );
     }
 
-    return <Redirect href={redirectTo} />;
+    return <Redirect href={resolvedRedirect as any} />;
   }
 
   return <>{children}</>;

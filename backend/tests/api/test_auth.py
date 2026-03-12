@@ -9,12 +9,13 @@ from backend.api.auth import (
     generate_auth_tokens,
     register,
 )
+from backend.api.auth_routes import _session_belongs_to_current_client
 from backend.exceptions import NotFoundError, RateLimitError
 
 
 @pytest.fixture
 def mock_cache_service():
-    with patch("backend.api.auth.get_cache_service") as mock:
+    with patch("backend.api.auth_routes.get_cache_service") as mock:
         service = AsyncMock()
         mock.return_value = service
         yield service
@@ -22,7 +23,7 @@ def mock_cache_service():
 
 @pytest.fixture
 def mock_db():
-    with patch("backend.api.auth.get_db") as mock:
+    with patch("backend.api.auth_routes.get_db") as mock:
         db = AsyncMock()
         mock.return_value = db
         yield db
@@ -30,7 +31,7 @@ def mock_db():
 
 @pytest.fixture
 def mock_refresh_token_service():
-    with patch("backend.api.auth.get_refresh_token_service") as mock:
+    with patch("backend.api.auth_routes.get_refresh_token_service") as mock:
         service = MagicMock()
         service.create_refresh_token.return_value = "refresh_token"
         service.store_refresh_token = AsyncMock()
@@ -40,7 +41,7 @@ def mock_refresh_token_service():
 
 @pytest.fixture
 def mock_settings():
-    with patch("backend.api.auth.settings") as mock:
+    with patch("backend.api.auth_routes.settings") as mock:
         mock.RATE_LIMIT_MAX_ATTEMPTS = 5
         mock.RATE_LIMIT_TTL_SECONDS = 300
         mock.ACCESS_TOKEN_EXPIRE_MINUTES = 15
@@ -50,7 +51,7 @@ def mock_settings():
 
 @pytest.fixture
 def mock_auth_deps():
-    with patch("backend.api.auth.auth_deps") as mock:
+    with patch("backend.api.auth_routes.auth_deps") as mock:
         mock.secret_key = "secret"
         mock.algorithm = "HS256"
         mock.db = AsyncMock()
@@ -106,8 +107,12 @@ async def test_generate_auth_tokens_success(
 ):
     user = {"username": "testuser", "role": "staff"}
     request = MagicMock()
+    request.headers.get.side_effect = lambda key, default=None: {
+        "user-agent": "pytest-agent",
+        "x-device-id": "device-1",
+    }.get(key, default)
 
-    with patch("backend.api.auth.create_access_token") as mock_create_token:
+    with patch("backend.api.auth_routes.create_access_token") as mock_create_token:
         mock_create_token.return_value = "access_token"
 
         result = await generate_auth_tokens(user, "127.0.0.1", request)
@@ -116,7 +121,52 @@ async def test_generate_auth_tokens_success(
         value = result.unwrap()
         assert value["access_token"] == "access_token"
         assert value["refresh_token"] == "refresh_token"
-        mock_refresh_token_service.store_refresh_token.assert_called_once()
+        mock_refresh_token_service.store_refresh_token.assert_awaited_once_with(
+            "refresh_token",
+            "testuser",
+            mock_refresh_token_service.store_refresh_token.await_args.args[2],
+            ip_address="127.0.0.1",
+            user_agent="pytest-agent",
+            device_id="device-1",
+        )
+
+
+def test_session_belongs_to_current_client_prefers_device_id_match():
+    request = MagicMock()
+    request.headers.get.side_effect = lambda key, default=None: {
+        "x-device-id": "device-1",
+        "user-agent": "new-agent",
+    }.get(key, default)
+    session = {
+        "device_id": "device-1",
+        "ip_address": "10.0.0.1",
+        "user_agent": "old-agent",
+    }
+
+    assert _session_belongs_to_current_client(session, request, "10.0.0.99") is True
+
+
+def test_session_belongs_to_current_client_falls_back_to_ip_and_user_agent():
+    request = MagicMock()
+    request.headers.get.side_effect = lambda key, default=None: {
+        "user-agent": "pytest-agent",
+    }.get(key, default)
+    session = {
+        "ip_address": "127.0.0.1",
+        "user_agent": "pytest-agent",
+    }
+
+    assert _session_belongs_to_current_client(session, request, "127.0.0.1") is True
+
+
+def test_session_belongs_to_current_client_uses_same_ip_when_metadata_is_missing():
+    request = MagicMock()
+    request.headers.get.side_effect = lambda key, default=None: default
+    session = {
+        "ip_address": "127.0.0.1",
+    }
+
+    assert _session_belongs_to_current_client(session, request, "127.0.0.1") is True
 
 
 @pytest.mark.asyncio
@@ -130,8 +180,8 @@ async def test_register_success(mock_db, mock_refresh_token_service, mock_settin
     )
 
     with (
-        patch("backend.api.auth.get_password_hash") as mock_hash,
-        patch("backend.api.auth.create_access_token") as mock_create_token,
+        patch("backend.api.auth_routes.get_password_hash") as mock_hash,
+        patch("backend.api.auth_routes.create_access_token") as mock_create_token,
     ):
         mock_hash.return_value = "hashed_password"
         mock_create_token.return_value = "access_token"

@@ -15,7 +15,7 @@ import {
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNotificationStore } from "../src/store/notificationStore";
-import type { Notification } from "../src/services/api/api";
+import { getCountLineById, type Notification } from "../src/services/api/api";
 import ModernHeader from "../src/components/ui/ModernHeader";
 import ModernCard from "../src/components/ui/ModernCard";
 import {
@@ -47,28 +47,49 @@ export default function NotificationsScreen() {
       await markAsRead(notification._id);
     }
 
-    // Navigate based on notification type
-    if (notification.action_url) {
-      // Extract count_line_id from action_url if present
-      const match = notification.action_url.match(/\/count-lines\/([^/]+)/);
-      if (match) {
-        router.push({
-          pathname: "/staff/item-detail",
-          params: { countLineId: match[1] },
-        } as any);
+    const metadata = notification.metadata || {};
+    const actionCountLineId =
+      metadata.count_line_id ||
+      notification.action_url?.match(/\/count-lines\/([^/]+)/)?.[1];
+
+    if (!actionCountLineId) {
+      return;
+    }
+
+    try {
+      const countLine =
+        metadata.session_id && metadata.barcode
+          ? {
+              session_id: metadata.session_id,
+              barcode: metadata.barcode,
+            }
+          : await getCountLineById(actionCountLineId);
+
+      const sessionId = countLine?.session_id;
+      const barcode = countLine?.barcode;
+
+      if (!sessionId || !barcode) {
+        return;
       }
+
+      router.push({
+        pathname: "/staff/item-detail",
+        params: { sessionId, barcode },
+      } as any);
+    } catch (error) {
+      console.error("Failed to open notification target:", error);
     }
   };
 
   const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case "RECOUNT_ASSIGNED":
+    switch (type.toLowerCase()) {
+      case "recount_assigned":
         return { name: "refresh-circle", color: "#F59E0B" };
-      case "COUNT_APPROVED":
+      case "count_approved":
         return { name: "checkmark-circle", color: "#10B981" };
-      case "COUNT_REJECTED":
+      case "count_rejected":
         return { name: "close-circle", color: "#EF4444" };
-      case "SESSION_REMINDER":
+      case "session_reminder":
         return { name: "time", color: "#3B82F6" };
       default:
         return { name: "notifications", color: "#6B7280" };

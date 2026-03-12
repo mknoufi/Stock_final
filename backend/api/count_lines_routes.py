@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel
 
 from backend.api.schemas import BulkCountLineUpdate, CountLineCreate
 from backend.auth.dependencies import get_current_user
@@ -14,6 +15,7 @@ from backend.db.runtime import get_db
 from backend.models.audit import AuditEventType, AuditLogStatus
 from backend.services.activity_log import ActivityLogService
 from backend.services.lock_service import LockService, ResourceLockedError
+from backend.services.notification_service import NotificationService
 from backend.services.snapshot_service import SnapshotService
 from backend.services.variant_service import VariantService
 
@@ -25,6 +27,19 @@ _activity_log_service: Optional[ActivityLogService] = None
 _lock_service: Optional[LockService] = None
 _snapshot_service: Optional[SnapshotService] = None
 _variant_service: Optional[VariantService] = None
+
+
+class CountLineApprovalRequest(BaseModel):
+    """Optional metadata for approving a count line."""
+
+    notes: Optional[str] = None
+
+
+class CountLineRejectRequest(BaseModel):
+    """Optional metadata for requesting a recount."""
+
+    notes: Optional[str] = None
+    assign_to: Optional[str] = None
 
 
 def init_count_lines_api(
@@ -681,9 +696,34 @@ async def list_count_lines(
     }
 
 
+@router.get("/count-lines/{line_id}")
+async def get_count_line_detail(
+    line_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Get a single count line for recount deep links and staff notifications."""
+    db = _get_db_client()
+    count_line = await _find_count_line(db, line_id)
+    if not count_line:
+        raise HTTPException(status_code=404, detail="Count line not found")
+
+    if current_user.get("role") == "staff":
+        allowed_usernames = {
+            count_line.get("counted_by"),
+            count_line.get("created_by"),
+            count_line.get("assigned_to"),
+        }
+        if current_user.get("username") not in allowed_usernames:
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+
+    count_line["_id"] = str(count_line["_id"])
+    return count_line
+
+
 @router.put("/count-lines/{line_id}/approve")
 async def approve_count_line(
     line_id: str,
+    request: Optional[CountLineApprovalRequest] = None,
     current_user: dict = Depends(get_current_user),
 ):
     """Approve a count line variance."""
@@ -693,25 +733,42 @@ async def approve_count_line(
     db = _get_db_client()
 
     try:
-        query: dict[str, Any] = {"$or": [{"id": line_id}]}
-        if ObjectId.is_valid(line_id):
-            query["$or"].append({"_id": ObjectId(line_id)})
+        count_line = await _find_count_line(db, line_id)
+        if not count_line:
+            raise HTTPException(status_code=404, detail="Count line not found")
+
+        approved_at = _current_timestamp()
 
         result = await db.count_lines.update_one(
-            query,
+            {"_id": count_line["_id"]},
             {
                 "$set": {
-                    "status": "APPROVED",
+                    "status": "approved",
                     "approval_status": "APPROVED",
                     "approved_by": current_user["username"],
-                    "approved_at": datetime.now(timezone.utc).replace(tzinfo=None),
-                    "verified_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    "approved_at": approved_at,
+                    "approval_note": request.notes if request else None,
+                    "rejection_reason": None,
+                    "assigned_to": None,
                 }
             },
         )
 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Count line not found")
+
+        owner_id = count_line.get("counted_by") or count_line.get("created_by")
+        if owner_id:
+            notification_service = NotificationService(db)
+            await notification_service.notify_count_approved(
+                user_id=owner_id,
+                count_line_id=str(count_line.get("id", line_id)),
+                item_name=count_line.get("item_name", "Unknown"),
+                approved_by=current_user["username"],
+                session_id=count_line.get("session_id"),
+                item_code=count_line.get("item_code"),
+                barcode=count_line.get("barcode"),
+            )
 
         # Audit Log Approval
         try:
@@ -729,6 +786,8 @@ async def approve_count_line(
             logger.error(f"Failed to write audit log: {e}")
 
         return {"success": True, "message": "Count line approved"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error approving count line {line_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -737,6 +796,7 @@ async def approve_count_line(
 @router.put("/count-lines/{line_id}/reject")
 async def reject_count_line(
     line_id: str,
+    request: Optional[CountLineRejectRequest] = None,
     current_user: dict = Depends(get_current_user),
 ):
     """Reject a count line (request recount)."""
@@ -746,19 +806,32 @@ async def reject_count_line(
     db = _get_db_client()
 
     try:
-        query: dict[str, Any] = {"$or": [{"id": line_id}]}
-        if ObjectId.is_valid(line_id):
-            query["$or"].append({"_id": ObjectId(line_id)})
+        count_line = await _find_count_line(db, line_id)
+        if not count_line:
+            raise HTTPException(status_code=404, detail="Count line not found")
+
+        rejected_at = _current_timestamp()
+        owner_id = count_line.get("counted_by") or count_line.get("created_by")
+        assigned_to = (request.assign_to if request else None) or owner_id
+        rejection_reason = (
+            request.notes if request and request.notes else "Supervisor requested recount"
+        )
 
         result = await db.count_lines.update_one(
-            query,
+            {"_id": count_line["_id"]},
             {
                 "$set": {
-                    "status": "REJECTED",
+                    "status": "rejected",
                     "approval_status": "REJECTED",
                     "rejected_by": current_user["username"],
-                    "rejected_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    "rejected_at": rejected_at,
                     "verified": False,
+                    "verified_by": None,
+                    "verified_at": None,
+                    "rejection_reason": rejection_reason,
+                    "recount_requested_at": rejected_at,
+                    "recount_requested_by": current_user["username"],
+                    "assigned_to": assigned_to,
                 }
             },
         )
@@ -766,7 +839,43 @@ async def reject_count_line(
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Count line not found")
 
-        return {"success": True, "message": "Count line rejected"}
+        notification_service = NotificationService(db)
+        notification_kwargs = {
+            "count_line_id": str(count_line.get("id", line_id)),
+            "item_name": count_line.get("item_name", "Unknown"),
+            "reason": rejection_reason,
+            "session_id": count_line.get("session_id"),
+            "item_code": count_line.get("item_code"),
+            "barcode": count_line.get("barcode"),
+        }
+
+        if owner_id and assigned_to and assigned_to != owner_id:
+            await notification_service.notify_count_rejected(
+                user_id=owner_id,
+                rejected_by=current_user["username"],
+                **notification_kwargs,
+            )
+            await notification_service.notify_recount_assigned(
+                user_id=assigned_to,
+                assigned_by=current_user["username"],
+                assigned_to=assigned_to,
+                **notification_kwargs,
+            )
+        elif assigned_to:
+            await notification_service.notify_recount_assigned(
+                user_id=assigned_to,
+                assigned_by=current_user["username"],
+                assigned_to=assigned_to,
+                **notification_kwargs,
+            )
+
+        return {
+            "success": True,
+            "message": "Count line rejected",
+            "assigned_to": assigned_to,
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error rejecting count line {line_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -821,6 +930,10 @@ async def _find_count_line(db, line_id: str) -> Optional[dict]:
         return await db.count_lines.find_one({"_id": ObjectId(line_id)})
     except Exception:
         return None
+
+
+def _current_timestamp() -> datetime:
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 async def _recalculate_session_stats(db, session_id: str) -> None:

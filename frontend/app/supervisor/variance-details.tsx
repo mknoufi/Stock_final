@@ -15,12 +15,16 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 
 import { ItemVerificationAPI } from "../../src/domains/inventory/services/itemVerificationApi";
+import { getAssignableStaffUsers } from "../../src/services/api/api";
 import {
   ScreenContainer,
   GlassCard,
   StatsCard,
   AnimatedPressable,
 } from "../../src/components/ui";
+import RecountAssignmentModal, {
+  type AssignableStaffUser,
+} from "../../src/components/supervisor/RecountAssignmentModal";
 import { theme } from "../../src/styles/modernDesignSystem";
 import { useToast } from "../../src/components/feedback/ToastProvider";
 
@@ -31,6 +35,11 @@ export default function VarianceDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [itemDetails, setItemDetails] = useState<any>(null);
   const [processing, setProcessing] = useState(false);
+  const [recountModalVisible, setRecountModalVisible] = useState(false);
+  const [assignableStaff, setAssignableStaff] = useState<AssignableStaffUser[]>(
+    [],
+  );
+  const [staffLoading, setStaffLoading] = useState(false);
 
   const loadDetails = useCallback(async () => {
     try {
@@ -60,6 +69,24 @@ export default function VarianceDetailsScreen() {
   useEffect(() => {
     loadDetails();
   }, [loadDetails]);
+
+  const loadAssignableStaff = useCallback(async () => {
+    if (assignableStaff.length > 0) {
+      return assignableStaff;
+    }
+
+    try {
+      setStaffLoading(true);
+      const staff = await getAssignableStaffUsers();
+      setAssignableStaff(staff);
+      return staff;
+    } catch (error: any) {
+      show(error.message || "Failed to load staff list", "error");
+      throw error;
+    } finally {
+      setStaffLoading(false);
+    }
+  }, [assignableStaff, show]);
 
   const handleApprove = async () => {
     if (Platform.OS !== "web")
@@ -103,44 +130,51 @@ export default function VarianceDetailsScreen() {
     );
   };
 
-  const handleRecount = async () => {
+  const handleOpenRecount = async () => {
     if (Platform.OS !== "web") Haptics.selectionAsync();
-    Alert.alert(
-      "Request Recount",
-      "This will flag the item for recount and remove the current verification status.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Request Recount",
-          onPress: async () => {
-            try {
-              setProcessing(true);
-              if (itemDetails?.count_line_id) {
-                await ItemVerificationAPI.requestRecount(
-                  itemDetails.count_line_id,
-                );
-                if (Platform.OS !== "web")
-                  Haptics.notificationAsync(
-                    Haptics.NotificationFeedbackType.Success,
-                  );
-                show("Recount requested successfully", "success");
-                router.back();
-              } else {
-                throw new Error("Count line ID not found");
-              }
-            } catch (error: any) {
-              if (Platform.OS !== "web")
-                Haptics.notificationAsync(
-                  Haptics.NotificationFeedbackType.Error,
-                );
-              show(error.message || "Failed to request recount", "error");
-            } finally {
-              setProcessing(false);
-            }
-          },
-        },
-      ],
-    );
+    try {
+      await loadAssignableStaff();
+      setRecountModalVisible(true);
+    } catch {
+      // Error already surfaced to the user.
+    }
+  };
+
+  const handleSubmitRecount = async ({
+    notes,
+    assignTo,
+  }: {
+    notes: string;
+    assignTo?: string;
+  }) => {
+    try {
+      setProcessing(true);
+      if (itemDetails?.count_line_id) {
+        await ItemVerificationAPI.requestRecount(
+          itemDetails.count_line_id,
+          notes || undefined,
+          assignTo,
+        );
+        if (Platform.OS !== "web")
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        show(
+          assignTo
+            ? `Recount assigned to ${assignTo}`
+            : "Recount requested successfully",
+          "success",
+        );
+        setRecountModalVisible(false);
+        router.back();
+      } else {
+        throw new Error("Count line ID not found");
+      }
+    } catch (error: any) {
+      if (Platform.OS !== "web")
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      show(error.message || "Failed to request recount", "error");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   if (loading) {
@@ -332,7 +366,7 @@ export default function VarianceDetailsScreen() {
           >
             <View style={styles.actionsContainer}>
               <AnimatedPressable
-                onPress={handleRecount}
+                onPress={() => void handleOpenRecount()}
                 disabled={processing}
                 style={[styles.actionButton, styles.secondaryButton]}
               >
@@ -353,6 +387,16 @@ export default function VarianceDetailsScreen() {
             </View>
           </GlassCard>
         </Animated.View>
+
+        <RecountAssignmentModal
+          visible={recountModalVisible}
+          loading={processing || staffLoading}
+          staffOptions={assignableStaff}
+          defaultAssignee={itemDetails?.counted_by}
+          onClose={() => setRecountModalVisible(false)}
+          onSubmit={handleSubmitRecount}
+          description="Choose the staff member who should recount this variance and add optional instructions."
+        />
       </View>
     </ScreenContainer>
   );

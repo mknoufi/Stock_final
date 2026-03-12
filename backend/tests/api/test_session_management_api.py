@@ -740,6 +740,89 @@ class TestActiveSessionsEndpoint:
             app.dependency_overrides.clear()
 
 
+class TestSessionAnalyticsEndpoint:
+    """Test GET /api/sessions/analytics"""
+
+    @pytest.mark.asyncio
+    async def test_get_sessions_analytics(self, mock_user_supervisor):
+        """Test session analytics resolves to the static analytics route, not session detail."""
+        overall_cursor = MagicMock()
+        overall_cursor.to_list = AsyncMock(
+            return_value=[
+                {
+                    "_id": None,
+                    "total_sessions": 2,
+                    "total_items": 15,
+                    "total_variance": 3,
+                    "avg_variance": 1.5,
+                }
+            ]
+        )
+
+        by_date_cursor = MagicMock()
+        by_date_cursor.to_list = AsyncMock(
+            return_value=[
+                {"_id": "2026-03-12", "count": 2},
+            ]
+        )
+
+        by_warehouse_cursor = MagicMock()
+        by_warehouse_cursor.to_list = AsyncMock(
+            return_value=[
+                {"_id": "WH001", "total_variance": 3},
+            ]
+        )
+
+        by_staff_cursor = MagicMock()
+        by_staff_cursor.to_list = AsyncMock(
+            return_value=[
+                {"_id": "Supervisor User", "total_items": 15},
+            ]
+        )
+
+        mock_db = MagicMock()
+        mock_db.sessions = MagicMock()
+        mock_db.sessions.aggregate = MagicMock(
+            side_effect=[
+                overall_cursor,
+                by_date_cursor,
+                by_warehouse_cursor,
+                by_staff_cursor,
+            ]
+        )
+        mock_db.verification_sessions = MagicMock()
+        mock_db.verification_sessions.find_one = AsyncMock(return_value=None)
+
+        async def override_get_db():
+            return mock_db
+
+        async def override_get_current_user():
+            return mock_user_supervisor
+
+        from backend.auth.dependencies import get_current_user_async
+        from backend.db.runtime import get_db
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user_async] = override_get_current_user
+
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.get("/api/sessions/analytics")
+                assert response.status_code == 200
+                data = response.json()
+                assert data["success"] is True
+                assert data["data"]["total_sessions"] == 2
+                assert data["data"]["sessions_by_date"]["2026-03-12"] == 2
+                assert data["data"]["variance_by_warehouse"]["WH001"] == 3
+                assert data["data"]["items_by_staff"]["Supervisor User"] == 15
+                mock_db.verification_sessions.find_one.assert_not_called()
+        finally:
+            app.dependency_overrides.clear()
+
+
 class TestUserSessionHistoryEndpoint:
     """Test GET /api/sessions/user/history"""
 

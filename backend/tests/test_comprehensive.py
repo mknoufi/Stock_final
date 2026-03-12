@@ -117,7 +117,7 @@ async def test_stock_verification_workflow(mock_db, mock_supervisor):
         patch.object(activity_service, "log_activity", new_callable=AsyncMock),
     ):
         # 1. Verify stock
-        result = await verify_stock("line-1", mock_supervisor)
+        result = await verify_stock("line-1", mock_supervisor, db_override=mock_db)
         assert result["verified"] is True
 
         # Verify update was called
@@ -126,14 +126,14 @@ async def test_stock_verification_workflow(mock_db, mock_supervisor):
         assert update_doc["$set"]["verified"] is True
 
         # 2. Get verified items
-        result = await get_count_lines("session-1", mock_supervisor, verified=True)
+        result = await get_count_lines("session-1", mock_supervisor, verified=True, db_override=mock_db)
         assert "items" in result
         assert "pagination" in result
 
         # 3. Unverify stock
         count_line["verified"] = True
         mock_db.count_lines.find_one = AsyncMock(return_value=count_line)
-        result = await unverify_stock("line-1", mock_supervisor)
+        result = await unverify_stock("line-1", mock_supervisor, db_override=mock_db)
         assert result["verified"] is False
 
 

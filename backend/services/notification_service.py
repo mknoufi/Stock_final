@@ -91,7 +91,16 @@ class NotificationService:
         return notification_id
 
     async def notify_recount_assigned(
-        self, user_id: str, count_line_id: str, item_name: str, reason: str, assigned_by: str
+        self,
+        user_id: str,
+        count_line_id: str,
+        item_name: str,
+        reason: str,
+        assigned_by: str,
+        session_id: Optional[str] = None,
+        item_code: Optional[str] = None,
+        barcode: Optional[str] = None,
+        assigned_to: Optional[str] = None,
     ) -> str:
         """Notify user of recount assignment"""
         return await self.create_notification(
@@ -106,11 +115,22 @@ class NotificationService:
                 "item_name": item_name,
                 "reason": reason,
                 "assigned_by": assigned_by,
+                "session_id": session_id,
+                "item_code": item_code,
+                "barcode": barcode,
+                "assigned_to": assigned_to or user_id,
             },
         )
 
     async def notify_count_approved(
-        self, user_id: str, count_line_id: str, item_name: str, approved_by: str
+        self,
+        user_id: str,
+        count_line_id: str,
+        item_name: str,
+        approved_by: str,
+        session_id: Optional[str] = None,
+        item_code: Optional[str] = None,
+        barcode: Optional[str] = None,
     ) -> str:
         """Notify user that their count was approved"""
         return await self.create_notification(
@@ -124,11 +144,22 @@ class NotificationService:
                 "count_line_id": count_line_id,
                 "item_name": item_name,
                 "approved_by": approved_by,
+                "session_id": session_id,
+                "item_code": item_code,
+                "barcode": barcode,
             },
         )
 
     async def notify_count_rejected(
-        self, user_id: str, count_line_id: str, item_name: str, reason: str, rejected_by: str
+        self,
+        user_id: str,
+        count_line_id: str,
+        item_name: str,
+        reason: str,
+        rejected_by: str,
+        session_id: Optional[str] = None,
+        item_code: Optional[str] = None,
+        barcode: Optional[str] = None,
     ) -> str:
         """Notify user that their count was rejected"""
         return await self.create_notification(
@@ -143,6 +174,9 @@ class NotificationService:
                 "item_name": item_name,
                 "reason": reason,
                 "rejected_by": rejected_by,
+                "session_id": session_id,
+                "item_code": item_code,
+                "barcode": barcode,
             },
         )
 

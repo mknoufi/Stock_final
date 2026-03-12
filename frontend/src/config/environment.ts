@@ -7,6 +7,7 @@ import { Platform } from "react-native";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createLogger } from "../services/logging";
+import { isValidBackendHealthResponse } from "../services/healthRequest";
 
 const log = createLogger("EnvironmentConfig");
 
@@ -182,7 +183,7 @@ class EnvironmentConfig {
 
         clearTimeout(timeoutId);
 
-        if (response.ok) {
+        if (await isValidBackendHealthResponse(response)) {
           log.info("Found healthy backend at", url);
           return url;
         }

@@ -1,6 +1,0 @@
-[flake8]
-# Ignore E501 - line too long (black handles this, sometimes allows slightly longer lines)
-ignore = C901, E402, F811, W503, E501, E203
-
-# Max line length
-max-line-length = 119

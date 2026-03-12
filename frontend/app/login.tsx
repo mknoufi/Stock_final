@@ -128,21 +128,6 @@ export default function LoginScreen() {
 
   const pinInputRef = React.useRef<TextInput>(null);
 
-  // Check connection on mount
-  React.useEffect(() => {
-    // Simple health check to warm up connection
-    const warmUp = async () => {
-      try {
-        const { default: apiClient } =
-          await import("../src/services/httpClient");
-        await apiClient.get("/health", { timeout: 2000 });
-      } catch (_e) {
-        // Ignore warm-up errors
-      }
-    };
-    warmUp();
-  }, []);
-
   // Set initial mode based on last logged user
   React.useEffect(() => {
     const isE2E =

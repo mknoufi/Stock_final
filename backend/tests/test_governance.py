@@ -1,6 +1,20 @@
 import pytest
 from datetime import datetime, timezone
 
+from backend.auth.dependencies import get_current_user
+from backend.server import app
+
+
+async def mock_get_current_admin():
+    return {
+        "_id": "admin_id",
+        "username": "admin",
+        "role": "admin",
+        "full_name": "Administrator",
+        "is_active": True,
+        "permissions": [],
+    }
+
 
 @pytest.mark.asyncio
 class TestGovernance:
@@ -8,6 +22,8 @@ class TestGovernance:
         """
         Verify that updating settings creates an immutable config version.
         """
+        app.dependency_overrides[get_current_user] = mock_get_current_admin
+
         # 1. Update Settings
         # Note: Using partial update might fail pydantic validation if we don't provide all
         # SystemParameters or if we don't use the correct endpoint.

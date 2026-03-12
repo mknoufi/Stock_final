@@ -23,7 +23,7 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 
-from backend.api import legacy_routes
+from backend.api import legacy_routes_impl as legacy_routes
 from backend.api.enhanced_item_api import init_enhanced_api
 
 # API Initialization
@@ -138,12 +138,9 @@ RUNNING_UNDER_PYTEST = "pytest" in sys.modules
 
 ROOT_DIR = Path(__file__).parent
 
-# Setup basic logging first (before config to catch config errors)
-if not RUNNING_UNDER_PYTEST:
-    logging.basicConfig(level=logging.INFO)
-else:
+# Keep lifecycle/orchestration logs on the app logger configured above.
+if RUNNING_UNDER_PYTEST:
     logging.getLogger().setLevel(logging.INFO)
-logger = logging.getLogger(__name__)
 
 
 # Note: sanitize_for_logging and create_safe_error_response are imported from backend.utils.api_utils (line 73)
@@ -283,9 +280,8 @@ if getattr(settings, "ERP_SYNC_ENABLED", True):
             sync_interval=getattr(settings, "ERP_SYNC_INTERVAL", 3600),
             enabled=True,
         )
-        logging.info("✓ ERP sync service initialized")
     except Exception as e:
-        logging.warning(f"ERP sync service initialization failed: {str(e)}")
+        logger.warning(f"ERP sync service initialization failed: {str(e)}")
 
 # Change detection sync service (syncs item_name, manual_barcode, MRP changes)
 change_detection_sync = None
@@ -298,9 +294,8 @@ if getattr(settings, "CHANGE_DETECTION_ENABLED", True):
             enabled=True,
         )
         set_change_detection_service(change_detection_sync)
-        logging.info("✓ Change detection sync service initialized")
     except Exception as e:
-        logging.warning(f"Change detection sync service initialization failed: {str(e)}")
+        logger.warning(f"Change detection sync service initialization failed: {str(e)}")
 
 # Auto-sync manager - automatically syncs when SQL Server becomes available
 auto_sync_manager = None
@@ -313,9 +308,8 @@ if getattr(settings, "AUTO_SYNC_ENABLED", True):
             enabled=True,
         )
         set_auto_sync_manager(auto_sync_manager)
-        logging.info("✓ Auto-sync manager initialized")
     except Exception as e:
-        logging.warning(f"Auto-sync manager initialization failed: {str(e)}")
+        logger.warning(f"Auto-sync manager initialization failed: {str(e)}")
 
 # Migration manager
 migration_manager = MigrationManager(db)
@@ -356,7 +350,6 @@ async def lifespan(app: FastAPI):  # noqa: C901
         # Start Pub/Sub service
         pubsub_service = get_pubsub_service(redis_service)
         await pubsub_service.start()
-        logger.info("✓ Pub/Sub service started")
 
         # Initialize lock manager (will be used by APIs)
         get_lock_manager(redis_service)
@@ -594,7 +587,6 @@ async def lifespan(app: FastAPI):  # noqa: C901
         try:
             # ChangeDetectionSyncService.start() is already async
             await change_detection_sync.start()
-            logger.info("✓ Change detection sync service started")
         except Exception as e:
             logger.error(f"Failed to start change detection sync service: {str(e)}")
 
@@ -663,7 +655,6 @@ async def lifespan(app: FastAPI):  # noqa: C901
         # Scheduled export service
         scheduled_export_service = ScheduledExportService(db)
         scheduled_export_service.start()
-        logger.info("✓ Scheduled export service started")
     except Exception as e:
         logger.error(f"Failed to start scheduled export service: {str(e)}")
 
@@ -682,7 +673,6 @@ async def lifespan(app: FastAPI):  # noqa: C901
             # Enterprise Audit Service
             app.state.enterprise_audit = EnterpriseAuditService(db)
             await app.state.enterprise_audit.initialize()
-            logger.info("✓ Enterprise audit service initialized")
         except Exception as e:
             app.state.enterprise_audit = None
             logger.warning(f"Enterprise audit service not available: {str(e)}")
@@ -691,7 +681,6 @@ async def lifespan(app: FastAPI):  # noqa: C901
             # Enterprise Security Service
             app.state.enterprise_security = EnterpriseSecurityService(db)
             await app.state.enterprise_security.initialize()
-            logger.info("✓ Enterprise security service initialized")
         except Exception as e:
             app.state.enterprise_security = None
             logger.warning(f"Enterprise security service not available: {str(e)}")
@@ -700,7 +689,6 @@ async def lifespan(app: FastAPI):  # noqa: C901
             # Feature Flags Service
             app.state.feature_flags = FeatureFlagService(db)
             await app.state.feature_flags.initialize()
-            logger.info("✓ Feature flags service initialized")
         except Exception as e:
             app.state.feature_flags = None
             logger.warning(f"Feature flags service not available: {str(e)}")
@@ -709,7 +697,6 @@ async def lifespan(app: FastAPI):  # noqa: C901
             # Data Governance Service
             app.state.data_governance = DataGovernanceService(db)
             await app.state.data_governance.initialize()
-            logger.info("✓ Data governance service initialized")
         except Exception as e:
             app.state.data_governance = None
             logger.warning(f"Data governance service not available: {str(e)}")

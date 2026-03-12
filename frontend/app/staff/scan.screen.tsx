@@ -79,7 +79,7 @@ const ScanScreen = React.memo(function ScanScreen() {
     ? rawSessionId[0]
     : rawSessionId;
 
-  const { user, logout } = useAuthStore();
+  const { user, logout, isAuthenticated } = useAuthStore();
 
   const { currentFloor, currentRack } = useScanSessionStore();
   const [permission, requestPermission] = useCameraPermissions();
@@ -95,7 +95,9 @@ const ScanScreen = React.memo(function ScanScreen() {
   });
 
   // WebSocket Integration
-  const { lastMessage } = useWebSocket(String(sessionId));
+  const { lastMessage } = useWebSocket(
+    sessionId ? String(sessionId) : undefined,
+  );
 
   // State
   const [isScanning, setIsScanning] = useState<boolean>(false);
@@ -138,7 +140,7 @@ const ScanScreen = React.memo(function ScanScreen() {
   }, [safeAsync, safeSetState]);
 
   const loadSessionStats = useCallback(async () => {
-    if (!sessionId) return;
+    if (!sessionId || !isAuthenticated) return;
     try {
       const stats = await safeAsync(() => getSessionStats(sessionId));
       if (stats) {
@@ -147,7 +149,7 @@ const ScanScreen = React.memo(function ScanScreen() {
     } catch (error) {
       console.error("Failed to load stats", error);
     }
-  }, [safeAsync, safeSetState, sessionId]);
+  }, [isAuthenticated, safeAsync, safeSetState, sessionId]);
 
   const performSearch = useCallback(
     async (query: string) => {
@@ -245,10 +247,14 @@ const ScanScreen = React.memo(function ScanScreen() {
 
   // Canonical startup path: initial load + periodic stat refresh
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+
     loadInitialData();
     const interval = setInterval(loadSessionStats, 30000);
     return () => clearInterval(interval);
-  }, [loadInitialData, loadSessionStats]);
+  }, [isAuthenticated, loadInitialData, loadSessionStats]);
 
   // Search effect with proper cleanup
   useEffect(() => {

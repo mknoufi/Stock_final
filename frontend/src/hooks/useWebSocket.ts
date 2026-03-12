@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { API_BASE_URL } from "../services/httpClient";
 import { useAuthStore } from "../store/authStore";
-import { storage } from "../services/storage/asyncStorageService";
+import { secureStorage } from "../services/storage/secureStorage";
+import { handleUnauthorized } from "../services/authUnauthorizedHandler";
 
 interface WebSocketMessage {
   type: string;
@@ -15,14 +16,28 @@ export const useWebSocket = (sessionId?: string) => {
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const shouldReconnectRef = useRef(true);
   const { isAuthenticated } = useAuthStore();
 
   const connect = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !shouldReconnectRef.current) return;
 
-    // Get token from storage (assuming it's stored there)
-    const token = await storage.get<string>("auth_token");
-    if (!token) return;
+    if (
+      socketRef.current &&
+      (socketRef.current.readyState === WebSocket.OPEN ||
+        socketRef.current.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
+    const token = await secureStorage.getItem("auth_token");
+    if (!token) {
+      setIsConnected(false);
+      if (isAuthenticated) {
+        handleUnauthorized();
+      }
+      return;
+    }
 
     // Convert http:// to ws:// or https:// to wss://
     const wsUrl = API_BASE_URL.replace(/^http/, "ws") + "/ws/updates";
@@ -55,9 +70,24 @@ export const useWebSocket = (sessionId?: string) => {
     socket.onclose = (event) => {
       console.log("[WebSocket] Disconnected:", event.reason);
       setIsConnected(false);
+      socketRef.current = null;
+
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+
+      // Policy violation / auth failure: stop reconnecting and force auth cleanup.
+      if (event.code === 1008) {
+        shouldReconnectRef.current = false;
+        if (isAuthenticated) {
+          handleUnauthorized();
+        }
+        return;
+      }
 
       // Reconnect logic
-      if (isAuthenticated) {
+      if (shouldReconnectRef.current && isAuthenticated) {
         console.log("[WebSocket] Attempting to reconnect in 5s...");
         reconnectTimeoutRef.current = setTimeout(connect, 5000);
       }
@@ -71,14 +101,18 @@ export const useWebSocket = (sessionId?: string) => {
   }, [isAuthenticated, sessionId]);
 
   useEffect(() => {
+    shouldReconnectRef.current = true;
     connect();
 
     return () => {
+      shouldReconnectRef.current = false;
       if (socketRef.current) {
-        socketRef.current.close();
+        socketRef.current.close(1000, "Component unmounted");
+        socketRef.current = null;
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
       }
     };
   }, [connect]);

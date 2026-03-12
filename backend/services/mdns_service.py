@@ -2,19 +2,27 @@ import asyncio
 import logging
 import socket
 
-from zeroconf import ServiceInfo, Zeroconf
+try:
+    from zeroconf import ServiceInfo, Zeroconf
+except ImportError:  # pragma: no cover - depends on optional dependency
+    ServiceInfo = None
+    Zeroconf = None
 
 logger = logging.getLogger(__name__)
 
 
 class MDNSService:
     def __init__(self, service_name: str = "stock-verify", port: int = 8001):
-        self.zeroconf = Zeroconf()
+        self.zeroconf = Zeroconf() if Zeroconf is not None else None
         self.service_name = service_name
         self.port = port
         self.info = None
 
     async def register(self):
+        if self.zeroconf is None or ServiceInfo is None:
+            logger.info("zeroconf dependency not installed; skipping mDNS registration")
+            return
+
         try:
             # Get local IP
             local_ip = self._get_local_ip()
@@ -53,7 +61,7 @@ class MDNSService:
             logger.error(f"Failed to register mDNS service: {e}", exc_info=True)
 
     async def unregister(self):
-        if self.info:
+        if self.info and self.zeroconf is not None:
             logger.info(f"Unregistering mDNS service: {self.service_name}")
             loop = asyncio.get_running_loop()
             try:
@@ -64,7 +72,8 @@ class MDNSService:
             except TimeoutError:
                 logger.warning("mDNS unregistration timed out")
 
-        self.zeroconf.close()
+        if self.zeroconf is not None:
+            self.zeroconf.close()
 
     def _get_local_ip(self):
         try:

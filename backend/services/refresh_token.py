@@ -7,6 +7,7 @@ import hashlib
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
+from uuid import uuid4
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
@@ -41,7 +42,9 @@ class RefreshTokenService:
         """Create a long-lived refresh token"""
         expire = datetime.now(timezone.utc) + self.refresh_token_expiry
         to_encode = data.copy()
-        to_encode.update({"exp": expire, "type": "refresh"})
+        # Include a unique token identifier so concurrent logins do not
+        # generate identical JWT payloads and collide on the token hash index.
+        to_encode.update({"exp": expire, "type": "refresh", "jti": str(uuid4())})
         token = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
 
         return token
@@ -54,6 +57,7 @@ class RefreshTokenService:
         *,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
+        device_id: Optional[str] = None,
     ):
         """Store refresh token in database (public method)"""
         await self._store_refresh_token(
@@ -62,6 +66,7 @@ class RefreshTokenService:
             expires_at,
             ip_address=ip_address,
             user_agent=user_agent,
+            device_id=device_id,
         )
 
     async def _store_refresh_token(
@@ -72,6 +77,7 @@ class RefreshTokenService:
         *,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None,
+        device_id: Optional[str] = None,
     ):
         """Store refresh token in database"""
         try:
@@ -92,6 +98,8 @@ class RefreshTokenService:
                 document["ip_address"] = ip_address
             if user_agent:
                 document["user_agent"] = user_agent
+            if device_id:
+                document["device_id"] = device_id
 
             await self.db.refresh_tokens.insert_one(document)
 

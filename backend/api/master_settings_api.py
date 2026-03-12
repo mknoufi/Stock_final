@@ -9,36 +9,13 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from backend.auth.dependencies import require_admin
 from backend.db.runtime import get_db
-
-try:
-    from backend.auth.jwt import get_current_user
-except ImportError:
-    try:
-        from auth.jwt import get_current_user
-    except ImportError:
-
-        def get_current_user():
-            return {"role": "admin", "username": "admin"}
 
 
 logger = logging.getLogger(__name__)
 
 master_settings_router = APIRouter(prefix="/api/admin/settings", tags=["Master Settings"])
-
-
-def require_admin(current_user: dict = Depends(get_current_user)):
-    """Require admin role"""
-    if isinstance(current_user, dict):
-        user_role = current_user.get("role")
-    else:
-        user_role = getattr(current_user, "role", None)
-
-    if user_role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    return (
-        current_user if isinstance(current_user, dict) else {"role": "admin", "username": "admin"}
-    )
 
 
 class SystemParameters(BaseModel):
