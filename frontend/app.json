@@ -19,9 +19,15 @@
       "supportsTablet": true,
       "userInterfaceStyle": "automatic",
       "infoPlist": {
-        "UIBackgroundModes": ["fetch", "remote-notification"],
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ],
         "NSLocalNetworkUsageDescription": "Lavanya Mart Stock Verify needs access to devices and services on your local network to connect to the backend.",
-        "NSBonjourServices": ["_http._tcp.", "_https._tcp."],
+        "NSBonjourServices": [
+          "_http._tcp.",
+          "_https._tcp."
+        ],
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoadsInLocalNetwork": true
         }
@@ -31,7 +37,9 @@
       "package": "com.lavanyamart.stockverify",
       "userInterfaceStyle": "automatic"
     },
-    "transpilePackages": ["zustand"],
+    "transpilePackages": [
+      "zustand"
+    ],
     "plugins": [
       [
         "expo-background-fetch",
@@ -39,7 +47,8 @@
           "isHeadless": true
         }
       ],
-      "./plugins/withQuotedReactNativeBundlePhase"
+      "./plugins/withQuotedReactNativeBundlePhase",
+      "expo-router"
     ],
     "web": {
       "bundler": "metro"
