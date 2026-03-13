@@ -79,7 +79,7 @@ check_port() {
 
 check_database() {
     if command -v mongosh >/dev/null 2>&1; then
-        if mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1; then
+        if mongosh "mongodb://${MONGO_HOST}/admin" --quiet --eval "db.adminCommand({ ping: 1 }).ok" >/dev/null 2>&1; then
             log_message "SUCCESS" "MongoDB ping succeeded (${MONGO_HOST})"
             return 0
         fi

@@ -135,13 +135,10 @@ except ImportError:
     pass
 
 v2_router: Optional[APIRouter] = None
-backend_config_router: Optional[APIRouter] = None
 try:
     from backend.api.v2 import v2_router as v2_r  # noqa: E402
-    from backend.api.backend_config_api import router as bc_router  # noqa: E402
 
     v2_router = v2_r
-    backend_config_router = bc_router
 except ImportError:
     pass
 
@@ -1331,7 +1328,6 @@ register_routers(
         sync_conflicts_router=sync_conflicts_router,
         enrichment_router=enrichment_router,
         v2_router=v2_router,
-        backend_config_router=backend_config_router,
         pin_auth_router=pin_auth_router,
         reconciliation_router=reconciliation_router,
         enterprise_available=ENTERPRISE_AVAILABLE,

@@ -66,7 +66,7 @@ function getLocalIpAddress() {
 async function main() {
   const envPath = path.resolve(__dirname, "../.env");
   const localIp = getLocalIpAddress();
-  const port = process.env.EXPO_PUBLIC_BACKEND_PORT || "8001";
+  const preferredPort = process.env.EXPO_PUBLIC_BACKEND_PORT || "8001";
   const explicitBackendUrl = process.env.EXPO_PUBLIC_BACKEND_URL || "";
 
   console.log(`Detected Local IP: ${localIp}`);
@@ -74,15 +74,26 @@ async function main() {
   try {
     let envContent = fs.readFileSync(envPath, "utf8");
 
+    const candidatePorts = [
+      preferredPort,
+      "8001",
+      "8002",
+      "8003",
+      "8085",
+    ];
+
     const candidateUrls = [
       explicitBackendUrl,
-      `http://${localIp}:${port}`,
-      `http://localhost:${port}`,
-      `http://127.0.0.1:${port}`,
+      ...candidatePorts.flatMap((port) => [
+        `http://${localIp}:${port}`,
+        `http://localhost:${port}`,
+        `http://127.0.0.1:${port}`,
+      ]),
     ].filter(Boolean);
 
     const uniqueCandidates = [...new Set(candidateUrls)];
-    let computedBackendUrl = uniqueCandidates[0] || `http://${localIp}:${port}`;
+    let computedBackendUrl =
+      uniqueCandidates[0] || `http://${localIp}:${preferredPort}`;
 
     for (const candidate of uniqueCandidates) {
       // eslint-disable-next-line no-await-in-loop

@@ -89,7 +89,7 @@ class ConnectionManager {
         const currentUrl = new URL(currentOrigin);
         const sameOriginConnection: ConnectionInfo = {
           backendUrl: currentOrigin,
-          backendPort: parseInt(currentUrl.port, 10) || 8001,
+          backendPort: this.getUrlPort(currentUrl),
           backendIp: currentUrl.hostname,
           lastChecked: new Date().toISOString(),
           isHealthy: true,
@@ -157,7 +157,7 @@ class ConnectionManager {
     }
 
     // 4. Common development ports
-    const commonPorts = [8001, 8085];
+    const commonPorts = [8001, 8002, 8003, 8085];
     const detectedIp = this.getDeviceIp();
 
     for (const port of commonPorts) {
@@ -207,6 +207,14 @@ class ConnectionManager {
     }
   }
 
+  private getUrlPort(url: URL): number {
+    const parsedPort = parseInt(url.port, 10);
+    if (!Number.isNaN(parsedPort) && parsedPort > 0) {
+      return parsedPort;
+    }
+    return url.protocol === "https:" ? 443 : 80;
+  }
+
   /**
    * Find first healthy connection from candidates
    */
@@ -219,7 +227,7 @@ class ConnectionManager {
         const url = new URL(candidate.url);
         return {
           backendUrl: candidate.url,
-          backendPort: parseInt(url.port) || 8001,
+          backendPort: this.getUrlPort(url),
           backendIp: url.hostname,
           lastChecked: new Date().toISOString(),
           isHealthy: true,

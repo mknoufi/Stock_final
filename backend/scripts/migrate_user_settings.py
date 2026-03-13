@@ -1,7 +1,7 @@
 """
 User Settings Migration Script
 
-Adds default settings fields to existing users who don't have them.
+Adds default user settings documents for users who do not have one yet.
 """
 
 import asyncio
@@ -10,17 +10,12 @@ from datetime import datetime, timezone
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from backend.core.schemas.user_settings import UserSettings
 from backend.db.runtime import get_db
 
 logger = logging.getLogger(__name__)
 
-# Default settings to apply to users without settings
-DEFAULT_USER_SETTINGS = {
-    "theme": "light",
-    "font_size": 16,
-    "font_style": "system",
-    "updated_at": None,  # Will be set during migration
-}
+DEFAULT_USER_SETTINGS = UserSettings().model_dump()
 
 
 async def migrate_user_settings(db: AsyncIOMotorDatabase) -> dict:

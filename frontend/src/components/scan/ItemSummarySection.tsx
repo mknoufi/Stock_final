@@ -31,6 +31,7 @@ interface ItemSummarySectionProps {
   item: ItemSummaryItem;
   onRefreshStock: () => void;
   showDetails?: boolean;
+  showItemImages: boolean;
   showItemPrices: boolean;
   showItemStock: boolean;
 }
@@ -73,6 +74,7 @@ export function ItemSummarySection({
   item,
   onRefreshStock,
   showDetails = false,
+  showItemImages,
   showItemPrices,
   showItemStock,
 }: ItemSummarySectionProps) {
@@ -102,7 +104,7 @@ export function ItemSummarySection({
       <ModernCard style={styles.itemCard}>
         <View style={styles.itemHeader}>
           <View style={styles.iconContainer}>
-            {item.image_url ? (
+            {showItemImages && item.image_url ? (
               <Image
                 source={{ uri: item.image_url }}
                 style={styles.itemImage}

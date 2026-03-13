@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import { mmkvStorage } from "../services/mmkvStorage";
 import { ThemeService, Theme } from "../services/themeService";
-import { authApi, UserSettings } from "../services/api/authApi";
+import { authApi } from "../services/api/authApi";
+import type {
+  UserSettings,
+  UserSettingsColumnVisibility,
+} from "../services/api/authApi";
 import { createLogger } from "../services/logging";
 import {
   getScopedStorageKey,
@@ -18,8 +22,34 @@ const log = createLogger("settingsStore");
 const APP_SETTINGS_KEY = "app_settings";
 const REMOTE_USER_SETTING_KEYS = new Set<keyof Settings>([
   "theme",
+  "notificationsEnabled",
+  "notificationSound",
+  "notificationBadge",
+  "autoSyncEnabled",
+  "autoSyncInterval",
+  "syncOnReconnect",
+  "offlineMode",
+  "cacheExpiration",
+  "maxQueueSize",
+  "scannerVibration",
+  "scannerSound",
+  "scannerAutoSubmit",
+  "scannerTimeout",
   "fontSizeValue",
   "fontStyle",
+  "showItemImages",
+  "showItemPrices",
+  "showItemStock",
+  "exportFormat",
+  "backupFrequency",
+  "requireAuth",
+  "sessionTimeout",
+  "biometricAuth",
+  "operationalMode",
+  "imageCache",
+  "lazyLoading",
+  "debounceDelay",
+  "columnVisibility",
 ]);
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -51,10 +81,10 @@ export interface Settings {
 
   // Display
   fontSize: "small" | "medium" | "large";
-  fontSizeValue: number; // Numeric font size (12-22)
+  fontSizeValue: number;
   fontStyle: FontStylePreference;
-  primaryColor: string; // Hex color or color id
-  primaryColorId: string; // Color palette id (aurora, ocean, etc.)
+  primaryColor: string;
+  primaryColorId: string;
   showItemImages: boolean;
   showItemPrices: boolean;
   showItemStock: boolean;
@@ -82,6 +112,13 @@ export interface Settings {
     mrp: boolean;
   };
 }
+
+const DEFAULT_COLUMN_VISIBILITY: Settings["columnVisibility"] = {
+  mfgDate: true,
+  expiryDate: true,
+  serialNumber: true,
+  mrp: true,
+};
 
 const DEFAULT_SETTINGS: Settings = {
   darkMode: false,
@@ -116,13 +153,13 @@ const DEFAULT_SETTINGS: Settings = {
   imageCache: true,
   lazyLoading: true,
   debounceDelay: 300,
-  columnVisibility: {
-    mfgDate: true,
-    expiryDate: true,
-    serialNumber: true,
-    mrp: true,
-  },
+  columnVisibility: DEFAULT_COLUMN_VISIBILITY,
 };
+
+const createDefaultSettings = (): Settings => ({
+  ...DEFAULT_SETTINGS,
+  columnVisibility: { ...DEFAULT_COLUMN_VISIBILITY },
+});
 
 const persistSettings = (settings: Settings) => {
   mmkvStorage.setItem(getScopedStorageKey(APP_SETTINGS_KEY), JSON.stringify(settings));
@@ -138,17 +175,352 @@ const deriveFontSizeLabel = (value: number): Settings["fontSize"] => {
   return "medium";
 };
 
+const normalizeBoolean = (value: unknown, fallback: boolean): boolean =>
+  typeof value === "boolean" ? value : fallback;
+
+const clampNumber = (
+  value: unknown,
+  fallback: number,
+  minimum: number,
+  maximum: number,
+): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(minimum, Math.min(maximum, Math.round(value)));
+  }
+  return fallback;
+};
+
+const normalizeChoice = <T extends string>(
+  value: unknown,
+  allowed: readonly T[],
+  fallback: T,
+): T => {
+  return allowed.includes(value as T) ? (value as T) : fallback;
+};
+
+const normalizeColumnVisibility = (
+  value: unknown,
+): Settings["columnVisibility"] => {
+  if (!value || typeof value !== "object") {
+    return { ...DEFAULT_COLUMN_VISIBILITY };
+  }
+
+  const raw = value as Record<string, unknown>;
+  return {
+    mfgDate: normalizeBoolean(
+      raw.mfgDate ?? raw.mfg_date,
+      DEFAULT_COLUMN_VISIBILITY.mfgDate,
+    ),
+    expiryDate: normalizeBoolean(
+      raw.expiryDate ?? raw.expiry_date,
+      DEFAULT_COLUMN_VISIBILITY.expiryDate,
+    ),
+    serialNumber: normalizeBoolean(
+      raw.serialNumber ?? raw.serial_number,
+      DEFAULT_COLUMN_VISIBILITY.serialNumber,
+    ),
+    mrp: normalizeBoolean(raw.mrp, DEFAULT_COLUMN_VISIBILITY.mrp),
+  };
+};
+
 const normalizeSettings = (settings: Settings): Settings => {
+  const defaults = createDefaultSettings();
+  const theme = normalizeThemePreference(settings.theme);
   const fontSizeValue = normalizeFontSizePreference(settings.fontSizeValue);
 
   return {
+    ...defaults,
     ...settings,
-    theme: normalizeThemePreference(settings.theme),
+    darkMode: theme === "dark",
+    theme,
+    notificationsEnabled: normalizeBoolean(
+      settings.notificationsEnabled,
+      defaults.notificationsEnabled,
+    ),
+    notificationSound: normalizeBoolean(
+      settings.notificationSound,
+      defaults.notificationSound,
+    ),
+    notificationBadge: normalizeBoolean(
+      settings.notificationBadge,
+      defaults.notificationBadge,
+    ),
+    autoSyncEnabled: normalizeBoolean(
+      settings.autoSyncEnabled,
+      defaults.autoSyncEnabled,
+    ),
+    autoSyncInterval: clampNumber(
+      settings.autoSyncInterval,
+      defaults.autoSyncInterval,
+      5,
+      120,
+    ),
+    syncOnReconnect: normalizeBoolean(
+      settings.syncOnReconnect,
+      defaults.syncOnReconnect,
+    ),
+    offlineMode: normalizeBoolean(settings.offlineMode, defaults.offlineMode),
+    cacheExpiration: clampNumber(
+      settings.cacheExpiration,
+      defaults.cacheExpiration,
+      1,
+      168,
+    ),
+    maxQueueSize: clampNumber(
+      settings.maxQueueSize,
+      defaults.maxQueueSize,
+      100,
+      10000,
+    ),
+    scannerVibration: normalizeBoolean(
+      settings.scannerVibration,
+      defaults.scannerVibration,
+    ),
+    scannerSound: normalizeBoolean(
+      settings.scannerSound,
+      defaults.scannerSound,
+    ),
+    scannerAutoSubmit: normalizeBoolean(
+      settings.scannerAutoSubmit,
+      defaults.scannerAutoSubmit,
+    ),
+    scannerTimeout: clampNumber(
+      settings.scannerTimeout,
+      defaults.scannerTimeout,
+      5,
+      120,
+    ),
     fontSizeValue,
     fontSize: deriveFontSizeLabel(fontSizeValue),
     fontStyle: normalizeFontStylePreference(settings.fontStyle),
+    primaryColor:
+      typeof settings.primaryColor === "string" && settings.primaryColor.trim()
+        ? settings.primaryColor
+        : defaults.primaryColor,
+    primaryColorId:
+      typeof settings.primaryColorId === "string" && settings.primaryColorId.trim()
+        ? settings.primaryColorId
+        : defaults.primaryColorId,
+    showItemImages: normalizeBoolean(
+      settings.showItemImages,
+      defaults.showItemImages,
+    ),
+    showItemPrices: normalizeBoolean(
+      settings.showItemPrices,
+      defaults.showItemPrices,
+    ),
+    showItemStock: normalizeBoolean(
+      settings.showItemStock,
+      defaults.showItemStock,
+    ),
+    exportFormat: normalizeChoice(
+      settings.exportFormat,
+      ["csv", "json"] as const,
+      defaults.exportFormat,
+    ),
+    backupFrequency: normalizeChoice(
+      settings.backupFrequency,
+      ["daily", "weekly", "monthly", "never"] as const,
+      defaults.backupFrequency,
+    ),
+    requireAuth: normalizeBoolean(settings.requireAuth, defaults.requireAuth),
+    sessionTimeout: clampNumber(
+      settings.sessionTimeout,
+      defaults.sessionTimeout,
+      5,
+      240,
+    ),
+    biometricAuth: normalizeBoolean(
+      settings.biometricAuth,
+      defaults.biometricAuth,
+    ),
+    operationalMode: normalizeChoice(
+      settings.operationalMode,
+      ["live_audit", "routine", "training"] as const,
+      defaults.operationalMode,
+    ),
+    imageCache: normalizeBoolean(settings.imageCache, defaults.imageCache),
+    lazyLoading: normalizeBoolean(settings.lazyLoading, defaults.lazyLoading),
+    debounceDelay: clampNumber(
+      settings.debounceDelay,
+      defaults.debounceDelay,
+      0,
+      2000,
+    ),
+    columnVisibility: normalizeColumnVisibility(settings.columnVisibility),
   };
 };
+
+const fromBackendColumnVisibility = (
+  value: UserSettingsColumnVisibility | undefined,
+): Settings["columnVisibility"] => ({
+  mfgDate: normalizeBoolean(value?.mfg_date, DEFAULT_COLUMN_VISIBILITY.mfgDate),
+  expiryDate: normalizeBoolean(
+    value?.expiry_date,
+    DEFAULT_COLUMN_VISIBILITY.expiryDate,
+  ),
+  serialNumber: normalizeBoolean(
+    value?.serial_number,
+    DEFAULT_COLUMN_VISIBILITY.serialNumber,
+  ),
+  mrp: normalizeBoolean(value?.mrp, DEFAULT_COLUMN_VISIBILITY.mrp),
+});
+
+const mapBackendSettings = (backend: UserSettings): Partial<Settings> => ({
+  theme: normalizeThemePreference(backend.theme),
+  notificationsEnabled: normalizeBoolean(
+    backend.notifications_enabled,
+    DEFAULT_SETTINGS.notificationsEnabled,
+  ),
+  notificationSound: normalizeBoolean(
+    backend.notification_sound,
+    DEFAULT_SETTINGS.notificationSound,
+  ),
+  notificationBadge: normalizeBoolean(
+    backend.notification_badge,
+    DEFAULT_SETTINGS.notificationBadge,
+  ),
+  autoSyncEnabled: normalizeBoolean(
+    backend.auto_sync_enabled,
+    DEFAULT_SETTINGS.autoSyncEnabled,
+  ),
+  autoSyncInterval: clampNumber(
+    backend.auto_sync_interval,
+    DEFAULT_SETTINGS.autoSyncInterval,
+    5,
+    120,
+  ),
+  syncOnReconnect: normalizeBoolean(
+    backend.sync_on_reconnect,
+    DEFAULT_SETTINGS.syncOnReconnect,
+  ),
+  offlineMode: normalizeBoolean(
+    backend.offline_mode,
+    DEFAULT_SETTINGS.offlineMode,
+  ),
+  cacheExpiration: clampNumber(
+    backend.cache_expiration,
+    DEFAULT_SETTINGS.cacheExpiration,
+    1,
+    168,
+  ),
+  maxQueueSize: clampNumber(
+    backend.max_queue_size,
+    DEFAULT_SETTINGS.maxQueueSize,
+    100,
+    10000,
+  ),
+  scannerVibration: normalizeBoolean(
+    backend.scanner_vibration,
+    DEFAULT_SETTINGS.scannerVibration,
+  ),
+  scannerSound: normalizeBoolean(
+    backend.scanner_sound,
+    DEFAULT_SETTINGS.scannerSound,
+  ),
+  scannerAutoSubmit: normalizeBoolean(
+    backend.scanner_auto_submit,
+    DEFAULT_SETTINGS.scannerAutoSubmit,
+  ),
+  scannerTimeout: clampNumber(
+    backend.scanner_timeout,
+    DEFAULT_SETTINGS.scannerTimeout,
+    5,
+    120,
+  ),
+  fontSizeValue: normalizeFontSizePreference(backend.font_size),
+  fontStyle: normalizeFontStylePreference(backend.font_style),
+  showItemImages: normalizeBoolean(
+    backend.show_item_images,
+    DEFAULT_SETTINGS.showItemImages,
+  ),
+  showItemPrices: normalizeBoolean(
+    backend.show_item_prices,
+    DEFAULT_SETTINGS.showItemPrices,
+  ),
+  showItemStock: normalizeBoolean(
+    backend.show_item_stock,
+    DEFAULT_SETTINGS.showItemStock,
+  ),
+  exportFormat: normalizeChoice(
+    backend.export_format,
+    ["csv", "json"] as const,
+    DEFAULT_SETTINGS.exportFormat,
+  ),
+  backupFrequency: normalizeChoice(
+    backend.backup_frequency,
+    ["daily", "weekly", "monthly", "never"] as const,
+    DEFAULT_SETTINGS.backupFrequency,
+  ),
+  requireAuth: normalizeBoolean(
+    backend.require_auth,
+    DEFAULT_SETTINGS.requireAuth,
+  ),
+  sessionTimeout: clampNumber(
+    backend.session_timeout,
+    DEFAULT_SETTINGS.sessionTimeout,
+    5,
+    240,
+  ),
+  biometricAuth: normalizeBoolean(
+    backend.biometric_auth,
+    DEFAULT_SETTINGS.biometricAuth,
+  ),
+  operationalMode: normalizeChoice(
+    backend.operational_mode,
+    ["live_audit", "routine", "training"] as const,
+    DEFAULT_SETTINGS.operationalMode,
+  ),
+  imageCache: normalizeBoolean(backend.image_cache, DEFAULT_SETTINGS.imageCache),
+  lazyLoading: normalizeBoolean(
+    backend.lazy_loading,
+    DEFAULT_SETTINGS.lazyLoading,
+  ),
+  debounceDelay: clampNumber(
+    backend.debounce_delay,
+    DEFAULT_SETTINGS.debounceDelay,
+    0,
+    2000,
+  ),
+  columnVisibility: fromBackendColumnVisibility(backend.column_visibility),
+});
+
+const toBackendPayload = (settings: Settings): Partial<UserSettings> => ({
+  theme: normalizeThemePreference(settings.theme),
+  notifications_enabled: settings.notificationsEnabled,
+  notification_sound: settings.notificationSound,
+  notification_badge: settings.notificationBadge,
+  auto_sync_enabled: settings.autoSyncEnabled,
+  auto_sync_interval: clampNumber(settings.autoSyncInterval, 15, 5, 120),
+  sync_on_reconnect: settings.syncOnReconnect,
+  offline_mode: settings.offlineMode,
+  cache_expiration: clampNumber(settings.cacheExpiration, 24, 1, 168),
+  max_queue_size: clampNumber(settings.maxQueueSize, 1000, 100, 10000),
+  scanner_vibration: settings.scannerVibration,
+  scanner_sound: settings.scannerSound,
+  scanner_auto_submit: settings.scannerAutoSubmit,
+  scanner_timeout: clampNumber(settings.scannerTimeout, 30, 5, 120),
+  font_size: normalizeFontSizePreference(settings.fontSizeValue),
+  font_style: normalizeFontStylePreference(settings.fontStyle),
+  show_item_images: settings.showItemImages,
+  show_item_prices: settings.showItemPrices,
+  show_item_stock: settings.showItemStock,
+  export_format: settings.exportFormat,
+  backup_frequency: settings.backupFrequency,
+  require_auth: settings.requireAuth,
+  session_timeout: clampNumber(settings.sessionTimeout, 30, 5, 240),
+  biometric_auth: settings.biometricAuth,
+  operational_mode: settings.operationalMode,
+  image_cache: settings.imageCache,
+  lazy_loading: settings.lazyLoading,
+  debounce_delay: clampNumber(settings.debounceDelay, 300, 0, 2000),
+  column_visibility: {
+    mfg_date: settings.columnVisibility.mfgDate,
+    expiry_date: settings.columnVisibility.expiryDate,
+    serial_number: settings.columnVisibility.serialNumber,
+    mrp: settings.columnVisibility.mrp,
+  },
+});
 
 interface SettingsState {
   settings: Settings;
@@ -161,7 +533,7 @@ interface SettingsState {
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
-  settings: DEFAULT_SETTINGS,
+  settings: createDefaultSettings(),
   isSyncing: false,
 
   setSetting: (key, value) => {
@@ -170,11 +542,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       [key]: value,
     } as Settings);
     set({ settings: newSettings });
-
-    // Persist to storage
     persistSettings(newSettings);
 
-    // Handle side effects
     if (key === "theme") {
       ThemeService.setTheme(value as Theme);
     }
@@ -190,15 +559,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   },
 
   resetSettings: async () => {
-    set({ settings: DEFAULT_SETTINGS });
-    persistSettings(DEFAULT_SETTINGS);
-    ThemeService.setTheme(DEFAULT_SETTINGS.theme as Theme);
+    const resetSettings = normalizeSettings(createDefaultSettings());
+    set({ settings: resetSettings });
+    persistSettings(resetSettings);
+    ThemeService.setTheme(resetSettings.theme as Theme);
     void get().syncToBackend();
   },
 
   loadSettings: async () => {
     try {
-      let mergedSettings = DEFAULT_SETTINGS;
+      let mergedSettings = createDefaultSettings();
       const activeStorageKey = getScopedStorageKey(APP_SETTINGS_KEY);
 
       for (const storageKey of getScopedStorageKeyCandidates(APP_SETTINGS_KEY)) {
@@ -207,9 +577,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
           continue;
         }
 
-        const parsedSettings = JSON.parse(storedSettings);
+        const parsedSettings = JSON.parse(storedSettings) as Partial<Settings>;
         mergedSettings = normalizeSettings({
-          ...DEFAULT_SETTINGS,
+          ...createDefaultSettings(),
           ...parsedSettings,
         } as Settings);
 
@@ -219,14 +589,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         break;
       }
 
-      set({ settings: normalizeSettings(mergedSettings) });
+      set({ settings: mergedSettings });
       ThemeService.setTheme(mergedSettings.theme as Theme);
     } catch (error) {
       log.warn("Failed to load settings", {
         error: (error as { message?: string } | null)?.message || String(error),
       });
-      set({ settings: DEFAULT_SETTINGS });
-      ThemeService.setTheme(DEFAULT_SETTINGS.theme as Theme);
+      const fallbackSettings = createDefaultSettings();
+      set({ settings: fallbackSettings });
+      ThemeService.setTheme(fallbackSettings.theme as Theme);
     }
   },
 
@@ -237,32 +608,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     try {
       const backendSettings = await authApi.getUserSettings();
       const currentSettings = get().settings;
-
-      // Map backend fields to frontend settings
-      const updatedSettings: Partial<Settings> = {
-        ...currentSettings,
-        theme: normalizeThemePreference(backendSettings.theme),
-        fontSizeValue: normalizeFontSizePreference(backendSettings.font_size),
-        fontStyle: normalizeFontStylePreference(backendSettings.font_style),
-      };
-
       const mergedSettings = normalizeSettings({
         ...currentSettings,
-        ...updatedSettings,
+        ...mapBackendSettings(backendSettings),
       } as Settings);
+
       set({ settings: mergedSettings });
-
-      // Persist locally
       persistSettings(mergedSettings);
-
-      // Apply theme if changed
-      if (backendSettings.theme !== currentSettings.theme) {
-        ThemeService.setTheme(mergedSettings.theme as Theme);
-      }
-
+      ThemeService.setTheme(mergedSettings.theme as Theme);
       log.debug("Synced settings from backend");
     } catch (error) {
-      // Silently fail - use local settings if backend unavailable
       log.warn("Failed to sync from backend", {
         error: (error as { message?: string } | null)?.message || String(error),
       });
@@ -276,16 +631,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ isSyncing: true });
 
     try {
-      const currentSettings = get().settings;
-
-      // Map frontend settings to backend schema
-      const backendPayload: Partial<UserSettings> = {
-        theme: normalizeThemePreference(currentSettings.theme),
-        font_size: normalizeFontSizePreference(currentSettings.fontSizeValue),
-        font_style: normalizeFontStylePreference(currentSettings.fontStyle),
-      };
-
-      await authApi.updateUserSettings(backendPayload);
+      const currentSettings = normalizeSettings(get().settings);
+      await authApi.updateUserSettings(toBackendPayload(currentSettings));
       log.debug("Synced settings to backend");
     } catch (error) {
       log.warn("Failed to sync to backend", {

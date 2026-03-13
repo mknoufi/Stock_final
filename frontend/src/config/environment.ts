@@ -185,9 +185,14 @@ class EnvironmentConfig {
     const expoHost = hostUri?.split(":")[0];
     const developmentUrls = [
       expoHost ? `http://${expoHost}:8001` : null,
+      expoHost ? `http://${expoHost}:8002` : null,
+      expoHost ? `http://${expoHost}:8003` : null,
       Platform.OS === "android" ? "http://10.0.2.2:8001" : null,
+      Platform.OS === "android" ? "http://10.0.2.2:8002" : null,
       "http://localhost:8001",
+      "http://localhost:8002",
       "http://127.0.0.1:8001",
+      "http://127.0.0.1:8002",
     ].filter((value): value is string => Boolean(value));
 
     for (const url of developmentUrls) {

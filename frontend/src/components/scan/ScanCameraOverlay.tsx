@@ -24,7 +24,7 @@ interface ScanCameraOverlayProps {
   onBarcodeScanned: (payload: { data: string }) => void;
   onClose: () => void;
   permission?: { granted?: boolean } | null;
-  requestPermission: () => void | Promise<void>;
+  requestPermission: () => unknown | Promise<unknown>;
   scanned: boolean;
 }
 

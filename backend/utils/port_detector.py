@@ -80,11 +80,11 @@ class PortDetector:
         preferred = int(os.getenv("PORT", 8001))
 
         try:
-            return PortDetector.find_available_port(preferred, range(8000, 8050))
+            return PortDetector.find_available_port(preferred, range(preferred, preferred + 50))
         except Exception:
             logger.warning("Could not find port in primary range, trying alternatives")
             # Try alternative ports
-            alternatives = [5000, 5001, 3000, 3001, 9000, 9001]
+            alternatives = [8085, 5000, 5001, 9000, 9001]
             for port in alternatives:
                 if PortDetector.is_port_available(port):
                     logger.info(f"Using alternative port: {port}")

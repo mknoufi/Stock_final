@@ -20,10 +20,10 @@ import { StatusBar } from "expo-status-bar";
 import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
-import { useSettingsStore } from "../../src/store/settingsStore";
 import { useAuthStore } from "../../src/store/authStore";
 import ModernCard from "../../src/components/ui/ModernCard";
 import ModernHeader from "../../src/components/ui/ModernHeader";
+import { UserSettingsSections } from "../../src/components/settings";
 import {
   colors,
   spacing,
@@ -144,7 +144,6 @@ const SectionHeader: React.FC<{ title: string; delay?: number }> = ({
 
 export default function StaffSettingsScreen() {
   const router = useRouter();
-  const { settings, setSetting } = useSettingsStore();
   const { logout, user } = useAuthStore();
 
   const handleLogout = useCallback(() => {
@@ -233,99 +232,15 @@ export default function StaffSettingsScreen() {
           </ModernCard>
         </Animated.View>
 
-        {/* Scanner Settings */}
-        <SectionHeader title="Scanner" delay={300} />
+        {/* User Preferences */}
+        <SectionHeader title="Preferences" delay={300} />
         <Animated.View entering={FadeInDown.delay(350).springify()}>
-          <ModernCard style={styles.settingsCard}>
-            <SettingRow
-              icon="pulse-outline"
-              label="Vibration Feedback"
-              description="Vibrate on successful scan"
-              value={settings.scannerVibration}
-              onValueChange={(val) => setSetting("scannerVibration", val)}
-              type="switch"
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              icon="musical-note-outline"
-              label="Sound Effects"
-              description="Play sound on scan"
-              value={settings.scannerSound}
-              onValueChange={(val) => setSetting("scannerSound", val)}
-              type="switch"
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              icon="flash-outline"
-              label="Auto Submit"
-              description="Submit immediately after scan"
-              value={settings.scannerAutoSubmit}
-              onValueChange={(val) => setSetting("scannerAutoSubmit", val)}
-              type="switch"
-            />
-          </ModernCard>
-        </Animated.View>
-
-        {/* Display Settings */}
-        <SectionHeader title="Display" delay={300} />
-        <Animated.View entering={FadeInDown.delay(350).springify()}>
-          <ModernCard style={styles.settingsCard}>
-            <SettingRow
-              icon="image-outline"
-              label="Show Item Images"
-              description="Display product images"
-              value={settings.showItemImages}
-              onValueChange={(val) => setSetting("showItemImages", val)}
-              type="switch"
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              icon="pricetag-outline"
-              label="Show Prices"
-              description="Display item prices"
-              value={settings.showItemPrices}
-              onValueChange={(val) => setSetting("showItemPrices", val)}
-              type="switch"
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              icon="cube-outline"
-              label="Show Stock Levels"
-              description="Display current stock"
-              value={settings.showItemStock}
-              onValueChange={(val) => setSetting("showItemStock", val)}
-              type="switch"
-            />
-          </ModernCard>
-        </Animated.View>
-
-        {/* Sync Settings */}
-        <SectionHeader title="Data & Sync" delay={400} />
-        <Animated.View entering={FadeInDown.delay(450).springify()}>
-          <ModernCard style={styles.settingsCard}>
-            <SettingRow
-              icon="sync-outline"
-              label="Auto Sync"
-              description="Sync data automatically"
-              value={settings.autoSyncEnabled}
-              onValueChange={(val) => setSetting("autoSyncEnabled", val)}
-              type="switch"
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              icon="cloud-offline-outline"
-              label="Offline Mode"
-              description="Work without internet"
-              value={settings.offlineMode}
-              onValueChange={(val) => setSetting("offlineMode", val)}
-              type="switch"
-            />
-          </ModernCard>
+          <UserSettingsSections />
         </Animated.View>
 
         {/* Support */}
-        <SectionHeader title="Support" delay={500} />
-        <Animated.View entering={FadeInDown.delay(550).springify()}>
+        <SectionHeader title="Support" delay={400} />
+        <Animated.View entering={FadeInDown.delay(450).springify()}>
           <ModernCard style={styles.settingsCard}>
             <SettingRow
               icon="help-circle-outline"
@@ -338,8 +253,8 @@ export default function StaffSettingsScreen() {
         </Animated.View>
 
         {/* Account Actions */}
-        <SectionHeader title="Account" delay={600} />
-        <Animated.View entering={FadeInDown.delay(650).springify()}>
+        <SectionHeader title="Account" delay={500} />
+        <Animated.View entering={FadeInDown.delay(550).springify()}>
           <ModernCard style={styles.settingsCard}>
             <SettingRow
               icon="log-out-outline"
@@ -354,7 +269,7 @@ export default function StaffSettingsScreen() {
 
         {/* Version Info */}
         <Animated.View
-          entering={FadeInDown.delay(700).springify()}
+          entering={FadeInDown.delay(600).springify()}
           style={styles.versionContainer}
         >
           <Text style={styles.versionText}>Stock Verify v1.0.0</Text>

@@ -10,7 +10,6 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Switch,
   Platform,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -27,99 +26,11 @@ import {
   AnimatedPressable,
 } from "../../src/components/ui";
 import { theme } from "../../src/styles/modernDesignSystem";
-import { ChangePasswordModal } from "../../src/components/settings";
-
-// Reusable Setting Row Component
-const SettingRow = ({
-  label,
-  value,
-  type,
-  onValueChange,
-  options = [],
-  disabled = false,
-  icon,
-}: {
-  label: string;
-  value: any;
-  type: "switch" | "select" | "slider" | "number";
-  onValueChange: (value: any) => void;
-  options?: { label: string; value: any }[];
-  disabled?: boolean;
-  icon?: keyof typeof Ionicons.glyphMap;
-}) => {
-  const handlePress = () => {
-    if (disabled) return;
-    if (Platform.OS !== "web") Haptics.selectionAsync();
-
-    if (type === "select" && options.length > 0) {
-      const currentIndex = options.findIndex((opt) => opt.value === value);
-      const nextIndex = (currentIndex + 1) % options.length;
-      const nextOption = options[nextIndex];
-      if (nextOption) {
-        onValueChange(nextOption.value);
-      }
-    }
-  };
-
-  return (
-    <AnimatedPressable
-      style={[styles.settingRow, disabled && styles.disabledRow]}
-      onPress={handlePress}
-      disabled={disabled || type === "switch"}
-    >
-      <View style={styles.settingLeft}>
-        {icon && (
-          <View style={styles.iconContainer}>
-            <Ionicons name={icon} size={18} color={theme.colors.text.primary} />
-          </View>
-        )}
-        <Text style={styles.settingLabel}>{label}</Text>
-      </View>
-
-      <View style={styles.settingRight}>
-        {type === "switch" && (
-          <Switch
-            value={value}
-            onValueChange={(val) => {
-              if (Platform.OS !== "web")
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onValueChange(val);
-            }}
-            disabled={disabled}
-            trackColor={{
-              false: "rgba(255,255,255,0.1)",
-              true: theme.colors.primary[500],
-            }}
-            thumbColor={theme.colors.text.primary}
-            ios_backgroundColor="rgba(255,255,255,0.05)"
-          />
-        )}
-
-        {type === "select" && (
-          <View style={styles.selectContainer}>
-            <Text style={styles.selectValue}>
-              {options.find((opt) => opt.value === value)?.label ||
-                String(value)}
-            </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={16}
-              color={theme.colors.text.tertiary}
-            />
-          </View>
-        )}
-
-        {(type === "slider" || type === "number") && (
-          <Text style={styles.valueText}>{String(value)}</Text>
-        )}
-      </View>
-    </AnimatedPressable>
-  );
-};
+import { ChangePasswordModal, UserSettingsSections } from "../../src/components/settings";
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const { settings, setSetting, resetSettings } = useSettingsStore();
+  const { resetSettings } = useSettingsStore();
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   const handleReset = () => {
@@ -187,69 +98,14 @@ export default function SettingsScreen() {
           </View>
         </Animated.View>
 
-        {/* Sync Settings */}
+        {/* User Preferences */}
         <Animated.View entering={FadeInDown.delay(300).springify()}>
-          <Text style={styles.sectionTitle}>Data & Sync</Text>
-          <GlassCard intensity={15} padding={0} style={styles.card}>
-            <SettingRow
-              label="Auto Sync"
-              value={settings.autoSyncEnabled}
-              type="switch"
-              icon="sync-outline"
-              onValueChange={(value) => setSetting("autoSyncEnabled", value)}
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              label="Sync Interval (mins)"
-              value={settings.autoSyncInterval}
-              type="slider"
-              icon="time-outline"
-              disabled={!settings.autoSyncEnabled}
-              onValueChange={(value) => setSetting("autoSyncInterval", value)}
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              label="Offline Mode"
-              value={settings.offlineMode}
-              type="switch"
-              icon="cloud-offline-outline"
-              onValueChange={(value) => setSetting("offlineMode", value)}
-            />
-          </GlassCard>
-        </Animated.View>
-
-        {/* Scanner Settings */}
-        <Animated.View entering={FadeInDown.delay(400).springify()}>
-          <Text style={styles.sectionTitle}>Scanner</Text>
-          <GlassCard intensity={15} padding={0} style={styles.card}>
-            <SettingRow
-              label="Vibration Feedback"
-              value={settings.scannerVibration}
-              type="switch"
-              icon="pulse-outline"
-              onValueChange={(value) => setSetting("scannerVibration", value)}
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              label="Sound Effects"
-              value={settings.scannerSound}
-              type="switch"
-              icon="musical-note-outline"
-              onValueChange={(value) => setSetting("scannerSound", value)}
-            />
-            <View style={styles.divider} />
-            <SettingRow
-              label="Auto Submit Scan"
-              value={settings.scannerAutoSubmit}
-              type="switch"
-              icon="checkmark-circle-outline"
-              onValueChange={(value) => setSetting("scannerAutoSubmit", value)}
-            />
-          </GlassCard>
+          <Text style={styles.sectionTitle}>Personal Preferences</Text>
+          <UserSettingsSections />
         </Animated.View>
 
         {/* Security Settings */}
-        <Animated.View entering={FadeInDown.delay(450).springify()}>
+        <Animated.View entering={FadeInDown.delay(400).springify()}>
           <Text style={styles.sectionTitle}>Security</Text>
           <GlassCard intensity={15} padding={0} style={styles.card}>
             <AnimatedPressable
@@ -305,7 +161,7 @@ export default function SettingsScreen() {
         </Animated.View>
 
         {/* Navigation Actions */}
-        <Animated.View entering={FadeInDown.delay(550).springify()}>
+        <Animated.View entering={FadeInDown.delay(500).springify()}>
           <Text style={styles.sectionTitle}>Management</Text>
           <GlassCard intensity={15} padding={0} style={styles.card}>
             <AnimatedPressable
@@ -356,7 +212,7 @@ export default function SettingsScreen() {
 
         {/* Reset Button */}
         <Animated.View
-          entering={FadeInDown.delay(600).springify()}
+          entering={FadeInDown.delay(550).springify()}
           style={styles.resetContainer}
         >
           <AnimatedPressable style={styles.resetButton} onPress={handleReset}>

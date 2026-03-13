@@ -237,21 +237,6 @@ async def get_version() -> dict[str, Any]:
             "build_time": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
         }
 
-        # Add port mapping info if available
-        try:
-            import json
-            from pathlib import Path
-
-            port_file = Path(__file__).parent.parent.parent / "backend_port.json"
-            if port_file.exists():
-                with open(port_file) as f:
-                    port_data = json.load(f)
-                    version_info["backend_port"] = port_data.get("port")
-                    if port_data.get("mongodb"):
-                        version_info["mongodb_port"] = port_data["mongodb"].get("port")
-        except Exception:
-            pass  # Port info not critical
-
         return version_info
     except Exception as e:
         logger.error(f"Error getting version: {e}")

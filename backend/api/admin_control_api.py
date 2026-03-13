@@ -43,9 +43,6 @@ logger = logging.getLogger(__name__)
 
 admin_control_router = APIRouter(prefix="/api/admin/control", tags=["Admin Control"])
 
-_ROOT_DIR = Path(__file__).parent.parent.parent
-_BACKEND_PORT_FILE = _ROOT_DIR / "backend_port.json"
-
 
 def _parse_ports_csv(value: str) -> list[int]:
     ports: list[int] = []
@@ -60,17 +57,6 @@ def _parse_ports_csv(value: str) -> list[int]:
     return ports
 
 
-def _read_backend_port_file() -> Optional[int]:
-    try:
-        if not _BACKEND_PORT_FILE.exists():
-            return None
-        with open(_BACKEND_PORT_FILE, encoding="utf-8") as f:
-            payload = json.load(f)
-        return _safe_int(payload.get("port"))
-    except Exception:
-        return None
-
-
 def _get_backend_ports() -> list[int]:
     ports: list[int] = []
 
@@ -82,10 +68,6 @@ def _get_backend_ports() -> list[int]:
     env_ports = os.getenv("ADMIN_BACKEND_PORTS") or os.getenv("BACKEND_PORTS")
     if env_ports:
         ports.extend(_parse_ports_csv(env_ports))
-
-    port_file = _read_backend_port_file()
-    if port_file:
-        ports.append(port_file)
 
     configured = _safe_int(getattr(settings, "PORT", None)) or _safe_int(os.getenv("PORT")) or 8001
     ports.append(configured)

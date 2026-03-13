@@ -15,6 +15,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
 import { AppearanceSettings } from "../../src/components/ui/AppearanceSettings";
+import { UserSettingsSections } from "../../src/components/settings";
 import { ScreenContainer } from "../../src/components/ui";
 import {
   getSystemSettings,
@@ -198,14 +199,33 @@ export default function MasterSettingsScreen() {
       }}
     >
       <ScrollView style={styles.content}>
-        {/* Appearance Settings */}
+        {/* Personal Settings */}
         <View style={styles.section}>
-          {renderSectionHeader("Appearance & UI", "color-palette-outline")}
+          {renderSectionHeader("My App Preferences", "person-circle-outline")}
+          <Text style={styles.sectionDescription}>
+            These preferences are saved automatically for your account. The
+            page save button below only applies to system parameters.
+          </Text>
           <AppearanceSettings
             showTitle={false}
             scrollable={false}
             compact={true}
           />
+          <View style={styles.personalPreferencesSpacer} />
+          <UserSettingsSections />
+          <TouchableOpacity
+            style={styles.personalSecurityButton}
+            onPress={() => router.push("/security" as any)}
+          >
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={18}
+              color={auroraTheme.colors.primary[500]}
+            />
+            <Text style={styles.personalSecurityButtonText}>
+              Open Personal Security
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* API Settings */}
@@ -379,6 +399,32 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: auroraTheme.colors.text.primary,
     marginLeft: 8,
+  },
+  sectionDescription: {
+    color: auroraTheme.colors.text.secondary,
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: auroraTheme.spacing.md,
+  },
+  personalPreferencesSpacer: {
+    height: auroraTheme.spacing.md,
+  },
+  personalSecurityButton: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    borderColor: auroraTheme.colors.border.subtle,
+    borderRadius: auroraTheme.borderRadius.full,
+    borderWidth: 1,
+    flexDirection: "row",
+    gap: auroraTheme.spacing.xs,
+    marginTop: auroraTheme.spacing.md,
+    paddingHorizontal: auroraTheme.spacing.md,
+    paddingVertical: auroraTheme.spacing.sm,
+  },
+  personalSecurityButtonText: {
+    color: auroraTheme.colors.text.primary,
+    fontSize: 14,
+    fontWeight: "600",
   },
   inputContainer: {
     marginBottom: 16,

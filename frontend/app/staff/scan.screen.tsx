@@ -33,6 +33,7 @@ import { useDebounce } from "use-debounce";
 import { useSafeAsync } from "../../src/hooks/useSafeAsync";
 import { usePerformanceMonitor } from "../../src/hooks/usePerformanceMonitor";
 import { useScanSessionStore } from "../../src/store/scanSessionStore";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { useWebSocket } from "../../src/hooks/useWebSocket";
 import {
   getItemByBarcode,
@@ -46,10 +47,7 @@ import { RecentItemsService } from "../../src/services/enhancedFeatures";
 import { toastService } from "../../src/services/utils/toastService";
 import { localDb } from "../../src/db/localDb";
 import { validateBarcode } from "../../src/utils/validation";
-import {
-  dedupeItemsKeepingHighestStock,
-  getStockQty,
-} from "../../src/utils/itemBatchUtils";
+import { dedupeItemsKeepingHighestStock } from "../../src/utils/itemBatchUtils";
 
 import ModernHeader from "../../src/components/ui/ModernHeader";
 import ModernButton from "../../src/components/ui/ModernButton";
@@ -80,6 +78,10 @@ const ScanScreen = React.memo(function ScanScreen() {
     : rawSessionId;
 
   const { user, logout, isAuthenticated } = useAuthStore();
+  const scannerVibration = useSettingsStore(
+    (state) => state.settings.scannerVibration,
+  );
+  const debounceDelay = useSettingsStore((state) => state.settings.debounceDelay);
 
   const { currentFloor, currentRack } = useScanSessionStore();
   const [permission, requestPermission] = useCameraPermissions();
@@ -106,7 +108,7 @@ const ScanScreen = React.memo(function ScanScreen() {
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [debouncedSearchQuery] = useDebounce(searchQuery, 500);
+  const [debouncedSearchQuery] = useDebounce(searchQuery, debounceDelay);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [recentItems, setRecentItems] = useState<any[]>([]);
   const [sessionStats, setSessionStats] = useState<SessionStatsResponse>({
@@ -177,10 +179,12 @@ const ScanScreen = React.memo(function ScanScreen() {
 
   const onRefresh = useCallback(async () => {
     safeSetState(setRefreshing, true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (scannerVibration) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     await Promise.all([loadRecentItems(), loadSessionStats()]);
     safeSetState(setRefreshing, false);
-  }, [loadRecentItems, loadSessionStats, safeSetState]);
+  }, [loadRecentItems, loadSessionStats, safeSetState, scannerVibration]);
 
   // Animated scan line
   useEffect(() => {
@@ -301,13 +305,17 @@ const ScanScreen = React.memo(function ScanScreen() {
     );
 
     if (!confident) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (scannerVibration) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
       return;
     }
 
     safeSetState(setScanned, true);
     scanBufferRef.current = [];
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (scannerVibration) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
     safeSetState(setIsScanning, false);
 
     await handleLookup(confident.code);
@@ -518,7 +526,12 @@ const ScanScreen = React.memo(function ScanScreen() {
           onChangeSearchQuery={setSearchQuery}
           onClearSearchQuery={() => safeSetState(setSearchQuery, "")}
           onOpenScanner={() => safeSetState(setIsScanning, true)}
-          onPressItem={(item) => handleLookup(item.barcode || item.item_code)}
+          onPressItem={(item) => {
+            const code = item.barcode || item.item_code;
+            if (code) {
+              handleLookup(code);
+            }
+          }}
           onSubmitSearch={() => {
             if (!searchQuery.trim()) return;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -586,168 +599,6 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     paddingBottom: 100,
   },
-  statsCard: {
-    marginBottom: spacing.xl,
-    padding: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    ...shadows.md,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  statItem: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: spacing.xs,
-  },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.gray[200],
-  },
-  statValue: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: colors.gray[900],
-    marginBottom: spacing.xs,
-    fontVariant: ["tabular-nums"],
-  },
-  statLabel: {
-    fontSize: typography.fontSize.xs,
-    color: colors.gray[500],
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    fontWeight: "600",
-  },
-  searchSection: {
-    marginBottom: spacing.xl,
-  },
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-  },
-  searchInputWrapper: {
-    flex: 1,
-    ...shadows.sm,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-  },
-  searchButton: {
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.primary[600],
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.md,
-  },
-  searchButtonDisabled: {
-    backgroundColor: colors.gray[300],
-    shadowOpacity: 0,
-  },
-  searchResults: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.md,
-    ...shadows.lg,
-    zIndex: 200,
-    elevation: 10,
-  },
-  searchResultsContainer: {
-    paddingVertical: spacing.xs,
-  },
-  searchResultSeparator: {
-    height: 1,
-    backgroundColor: colors.gray[100],
-  },
-  resultItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[100],
-  },
-  resultInfo: {
-    flex: 1,
-    marginLeft: spacing.md,
-  },
-  resultName: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.medium,
-    color: colors.gray[900],
-  },
-  resultCode: {
-    fontSize: typography.fontSize.xs,
-    color: colors.gray[500],
-  },
-  resultStock: {
-    marginTop: 2,
-    fontSize: typography.fontSize.xs,
-    color: colors.primary[700],
-    fontWeight: typography.fontWeight.semibold,
-  },
-  fabContainer: {
-    display: "none",
-  },
-  fabButton: {
-    display: "none",
-  },
-  recentSection: {
-    marginBottom: spacing.lg,
-  },
-  recentListContainer: {
-    paddingBottom: spacing.md,
-  },
-  sectionTitle: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: "700",
-    color: colors.gray[500],
-    marginBottom: spacing.md,
-    textTransform: "uppercase",
-    letterSpacing: 1,
-    marginLeft: spacing.xs,
-  },
-  recentCard: {
-    marginBottom: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.white,
-    ...shadows.sm,
-    borderWidth: 1,
-    borderColor: colors.gray[100],
-  },
-  recentRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  recentIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary[50],
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: spacing.md,
-  },
-  recentInfo: {
-    flex: 1,
-  },
-  recentName: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.gray[900],
-    marginBottom: 2,
-  },
-  recentCode: {
-    fontSize: typography.fontSize.xs,
-    color: colors.gray[500],
-    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
-  },
   footerSpacer: {
     height: 20,
   },
@@ -762,228 +613,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.gray[200],
     ...shadows.lg,
-  },
-  cameraContainer: {
-    flex: 1,
-    backgroundColor: "black",
-  },
-  cameraOverlay: {
-    flex: 1,
-    justifyContent: "space-between",
-  },
-  cameraHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: spacing.lg,
-    paddingTop: Platform.OS === "android" ? spacing.xl : spacing.lg,
-  },
-  closeCameraButton: {
-    padding: spacing.sm,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    borderRadius: borderRadius.full,
-  },
-  cameraTitle: {
-    color: colors.white,
-    fontSize: typography.fontSize.lg,
-    fontWeight: typography.fontWeight.semibold,
-    marginLeft: spacing.md,
-  },
-  scanFrameContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  scanFrame: {
-    width: 280,
-    height: 280,
-    borderWidth: 0,
-    borderRadius: borderRadius.xl,
-  },
-  scanInstruction: {
-    color: colors.white,
-    marginTop: spacing.xl,
-    fontSize: typography.fontSize.base,
-    fontWeight: "500",
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.full,
-    overflow: "hidden",
-  },
-  permissionContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: spacing.xl,
-    backgroundColor: colors.gray[50],
-  },
-  permissionText: {
-    fontSize: typography.fontSize.lg,
-    textAlign: "center",
-    marginBottom: spacing.xl,
-    color: colors.gray[700],
-    lineHeight: 28,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  modalContent: {
-    backgroundColor: colors.white,
-    borderRadius: borderRadius["2xl"],
-    padding: spacing.xl,
-    ...shadows.xl,
-  },
-  modalIconContainer: {
-    alignSelf: "center",
-    width: 72,
-    height: 72,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.success[50],
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.lg,
-  },
-  modalTitle: {
-    fontSize: typography.fontSize["2xl"],
-    fontWeight: "800",
-    color: colors.gray[900],
-    marginBottom: spacing.sm,
-    textAlign: "center",
-  },
-  modalText: {
-    fontSize: typography.fontSize.base,
-    color: colors.gray[600],
-    marginBottom: spacing.xl,
-    lineHeight: 24,
-    textAlign: "center",
-  },
-  modalSummary: {
-    backgroundColor: colors.gray[50],
-    borderRadius: borderRadius.xl,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.gray[100],
-  },
-  modalSummaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.gray[200],
-  },
-  modalSummaryLabel: {
-    fontSize: typography.fontSize.base,
-    color: colors.gray[600],
-    fontWeight: "500",
-  },
-  modalSummaryValue: {
-    fontSize: typography.fontSize.lg,
-    fontWeight: "700",
-    color: colors.gray[900],
-  },
-  modalActions: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  emptyState: {
-    alignItems: "center",
-    paddingVertical: spacing.xl,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: colors.white,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.gray[100],
-    borderStyle: "dashed",
-  },
-  emptyIconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.gray[50],
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.md,
-  },
-  emptyTitle: {
-    fontSize: typography.fontSize.base,
-    fontWeight: typography.fontWeight.semibold,
-    color: colors.gray[900],
-    marginBottom: spacing.xs,
-  },
-  emptySubtitle: {
-    fontSize: typography.fontSize.sm,
-    color: colors.gray[500],
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  skeleton: {
-    backgroundColor: colors.gray[200],
-    overflow: "hidden",
-  },
-  skeletonShimmer: {
-    flex: 1,
-    backgroundColor: colors.gray[100],
-  },
-  scanFrameWrapper: {
-    width: 280,
-    height: 280,
-    position: "relative",
-  },
-  cornerBracket: {
-    position: "absolute",
-    width: 40,
-    height: 40,
-    borderColor: colors.white,
-    borderWidth: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 4,
-  },
-  cornerTopLeft: {
-    top: 0,
-    left: 0,
-    borderRightWidth: 0,
-    borderBottomWidth: 0,
-    borderTopLeftRadius: borderRadius.xl,
-  },
-  cornerTopRight: {
-    top: 0,
-    right: 0,
-    borderLeftWidth: 0,
-    borderBottomWidth: 0,
-    borderTopRightRadius: borderRadius.xl,
-  },
-  cornerBottomLeft: {
-    bottom: 0,
-    left: 0,
-    borderRightWidth: 0,
-    borderTopWidth: 0,
-    borderBottomLeftRadius: borderRadius.xl,
-  },
-  cornerBottomRight: {
-    bottom: 0,
-    right: 0,
-    borderLeftWidth: 0,
-    borderTopWidth: 0,
-    borderBottomRightRadius: borderRadius.xl,
-  },
-  scanLine: {
-    position: "absolute",
-    left: 10,
-    right: 10,
-    top: 0,
-    height: 2,
-    backgroundColor: colors.primary[400],
-    shadowColor: colors.primary[400],
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,

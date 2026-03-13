@@ -59,7 +59,6 @@ class RouterRegistry:
     sync_conflicts_router: Optional[APIRouter] = None
     enrichment_router: Optional[APIRouter] = None
     v2_router: Optional[APIRouter] = None
-    backend_config_router: Optional[APIRouter] = None
     pin_auth_router: Optional[APIRouter] = None
     reconciliation_router: Optional[APIRouter] = None
     enterprise_available: bool = False
@@ -131,10 +130,9 @@ def register_routers(app: FastAPI, registry: RouterRegistry, logger: Any) -> Non
         except Exception as exc:
             logger.warning(f"Enrichment API router not available: {exc}")
 
-    if registry.v2_router and registry.backend_config_router:
+    if registry.v2_router:
         try:
             app.include_router(registry.v2_router)
-            app.include_router(registry.backend_config_router)
             logger.info("✓ API v2 router registered")
         except Exception as exc:
             logger.warning(f"API v2 router registration failed: {exc}")
@@ -159,4 +157,3 @@ def register_routers(app: FastAPI, registry: RouterRegistry, logger: Any) -> Non
 
     logger.info("✓ Phase 1-3 upgrade routers registered")
     logger.info("✓ Admin Dashboard, Report Generation, and Dynamic Reports APIs registered")
-

@@ -15,11 +15,11 @@ const parsePort = (value?: string | null): number | null => {
 
 const getCandidatePorts = (): number[] => {
   const envPort = parsePort(process.env.EXPO_PUBLIC_BACKEND_PORT);
+  const fallbackPorts = [8001, 8002, 8003, 8085];
   if (envPort) {
-    const fallbackPorts = [8001, 8085];
     return Array.from(new Set([envPort, ...fallbackPorts]));
   }
-  return [8001, 8085];
+  return fallbackPorts;
 };
 
 const timeoutFetch = async (

@@ -319,6 +319,7 @@ export default function ItemDetailScreen() {
             item={item}
             onRefreshStock={handleRefreshStock}
             showDetails={isInteractionsComplete}
+            showItemImages={settings.showItemImages}
             showItemPrices={settings.showItemPrices}
             showItemStock={settings.showItemStock}
           />
