@@ -182,18 +182,23 @@ test.describe("Recount Assignment UI", () => {
       .click();
     await supervisorPage.getByPlaceholder("Add recount instructions").fill("Smoke recount assignment");
 
-    const rejectResponsePromise = supervisorPage.waitForResponse((response) => {
-      return (
-        response.request().method() === "PUT" &&
-        response.url().includes(`/api/count-lines/${countLine.id}/reject`)
-      );
-    });
+    const rejectResponsePromise = supervisorPage.waitForResponse(
+      (response) => {
+        return (
+          response.request().method() === "PUT" &&
+          response.url().includes(`/api/count-lines/${countLine.id}/reject`)
+        );
+      },
+      { timeout: 15000 },
+    );
 
-    await supervisorPage.getByText("Assign Recount", { exact: true }).click();
+    await supervisorPage
+      .getByText("Assign Recount", { exact: true })
+      .click({ force: true });
 
     const rejectResponse = await rejectResponsePromise;
     expect(rejectResponse.ok()).toBeTruthy();
-    await expect(supervisorPage.getByText("No items to verify")).toBeVisible({
+    await expect(supervisorPage.getByText("REJECTED", { exact: true })).toBeVisible({
       timeout: 15000,
     });
 

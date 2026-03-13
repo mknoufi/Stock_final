@@ -16,6 +16,8 @@ type LoginResponse = {
   };
 };
 
+type AuthSession = LoginResponse["data"];
+
 const BACKEND_BASE_URL =
   process.env.E2E_BACKEND_URL || "http://localhost:8001";
 
@@ -25,17 +27,24 @@ const credentialsByRole: Record<Role, { username: string; password: string }> = 
   admin: { username: "admin", password: "admin123" },
 };
 
+const SESSION_TTL_MS = 5 * 60 * 1000;
+const sessionCache = new Map<Role, { session: AuthSession; cachedAt: number }>();
+
 function buildClientHeaders(clientId: string): Record<string, string> {
   return {
     "x-device-id": clientId,
   };
 }
 
-export async function authenticateAs(
-  page: Page,
+export async function getAuthenticatedSession(
   request: APIRequestContext,
   role: Role,
-): Promise<void> {
+): Promise<AuthSession> {
+  const cached = sessionCache.get(role);
+  if (cached && Date.now() - cached.cachedAt < SESSION_TTL_MS) {
+    return cached.session;
+  }
+
   const credentials = credentialsByRole[role];
   const response = await request.post(`${BACKEND_BASE_URL}/api/auth/login`, {
     data: credentials,
@@ -48,41 +57,97 @@ export async function authenticateAs(
   expect(payload.success).toBeTruthy();
   expect(payload.data.user.role).toBe(role);
 
-  await page.addInitScript((auth) => {
-    window.localStorage.clear();
-    window.localStorage.setItem("auth_token", auth.accessToken);
-    if (auth.refreshToken) {
-      window.localStorage.setItem("refresh_token", auth.refreshToken);
-    }
-    window.localStorage.setItem("auth_user", JSON.stringify(auth.user));
-    window.localStorage.setItem(
-      "last_logged_user",
-      JSON.stringify({
-        username: auth.user.username,
-        full_name: auth.user.full_name,
-        has_pin: auth.user.has_pin,
-      }),
-    );
-  }, {
-    accessToken: payload.data.access_token,
-    refreshToken: payload.data.refresh_token,
-    user: payload.data.user,
+  sessionCache.set(role, {
+    session: payload.data,
+    cachedAt: Date.now(),
   });
+
+  return payload.data;
+}
+
+export async function seedAuthState(
+  page: Page,
+  auth: {
+    accessToken: string;
+    refreshToken?: string;
+    user: AuthSession["user"];
+  },
+  options?: {
+    clearRefreshToken?: boolean;
+  },
+): Promise<void> {
+  await page.addInitScript(
+    ({ authState, clearRefreshToken }) => {
+      window.localStorage.clear();
+      window.localStorage.setItem("auth_token", authState.accessToken);
+      if (authState.refreshToken && !clearRefreshToken) {
+        window.localStorage.setItem("refresh_token", authState.refreshToken);
+      }
+      window.localStorage.setItem("auth_user", JSON.stringify(authState.user));
+      window.localStorage.setItem(
+        "last_logged_user",
+        JSON.stringify({
+          username: authState.user.username,
+          full_name: authState.user.full_name,
+          has_pin: authState.user.has_pin,
+        }),
+      );
+      if (clearRefreshToken) {
+        window.localStorage.removeItem("refresh_token");
+      }
+    },
+    {
+      authState: auth,
+      clearRefreshToken: options?.clearRefreshToken ?? false,
+    },
+  );
+}
+
+export async function authenticateAs(
+  page: Page,
+  request: APIRequestContext,
+  role: Role,
+): Promise<void> {
+  const session = await getAuthenticatedSession(request, role);
+  await seedAuthState(page, {
+    accessToken: session.access_token,
+    refreshToken: session.refresh_token,
+    user: session.user,
+  });
+}
+
+export async function createSessionAs(
+  request: APIRequestContext,
+  role: Role,
+  sessionData: {
+    warehouse: string;
+    type?: string;
+  },
+): Promise<{ id: string }> {
+  const session = await getAuthenticatedSession(request, role);
+  const response = await request.post(`${BACKEND_BASE_URL}/api/sessions/`, {
+    data: {
+      warehouse: sessionData.warehouse,
+      type: sessionData.type || "STANDARD",
+    },
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      ...buildClientHeaders(`playwright-${role}`),
+    },
+  });
+
+  expect(response.ok()).toBeTruthy();
+  return (await response.json()) as { id: string };
 }
 
 export async function cleanupUserByUsername(
   request: APIRequestContext,
   username: string,
 ): Promise<void> {
-  const loginResponse = await request.post(`${BACKEND_BASE_URL}/api/auth/login`, {
-    data: credentialsByRole.admin,
-    headers: buildClientHeaders("playwright-admin-cleanup"),
-  });
-  expect(loginResponse.ok()).toBeTruthy();
-  const loginPayload = (await loginResponse.json()) as LoginResponse;
+  const adminSession = await getAuthenticatedSession(request, "admin");
 
   const headers = {
-    Authorization: `Bearer ${loginPayload.data.access_token}`,
+    Authorization: `Bearer ${adminSession.access_token}`,
   };
 
   const listResponse = await request.get(

@@ -1,4 +1,14 @@
 import { test, expect } from "@playwright/test";
+import {
+  createSessionAs,
+  getAuthenticatedSession,
+  seedAuthState,
+} from "./helpers/auth";
+
+const INVALID_ACCESS_TOKEN =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9." +
+  "eyJzdWIiOiJzdGFmZjEiLCJyb2xlIjoic3RhZmYiLCJleHAiOjQxMDI0NDQ4MDB9." +
+  "invalid-signature";
 
 test.describe("Core User Flow", () => {
   test("Login -> Create Session -> Scan -> Verify -> Logout", async ({
@@ -93,5 +103,53 @@ test.describe("Core User Flow", () => {
     await expect(page.getByText("Lavanya E-Mart")).toBeVisible();
 
     console.log("Flow Completed Successfully");
+  });
+
+  test("stale auth on scan redirects cleanly without retry storms", async ({
+    page,
+    request,
+  }) => {
+    const session = await getAuthenticatedSession(request, "staff");
+    const createdSession = await createSessionAs(request, "staff", {
+      warehouse: `stale-auth-${Date.now()}`,
+    });
+
+    const statsResponses: string[] = [];
+    const refreshResponses: string[] = [];
+    const websocketAttempts: string[] = [];
+
+    page.on("response", (response) => {
+      const url = response.url();
+      if (url.includes(`/api/sessions/${createdSession.id}/stats`)) {
+        statsResponses.push(`${response.status()} ${url}`);
+      }
+      if (url.includes("/api/auth/refresh")) {
+        refreshResponses.push(`${response.status()} ${url}`);
+      }
+    });
+
+    page.on("websocket", (websocket) => {
+      if (websocket.url().includes("/ws/updates")) {
+        websocketAttempts.push(websocket.url());
+      }
+    });
+
+    await seedAuthState(
+      page,
+      {
+        accessToken: INVALID_ACCESS_TOKEN,
+        user: session.user,
+      },
+      { clearRefreshToken: true },
+    );
+
+    await page.goto(`/staff/scan?sessionId=${encodeURIComponent(createdSession.id)}`);
+
+    await page.waitForURL(/\/welcome(?:\?.*)?$/, { timeout: 20000 });
+    await page.waitForTimeout(6000);
+
+    expect(statsResponses.length).toBeLessThanOrEqual(2);
+    expect(refreshResponses.length).toBeLessThanOrEqual(1);
+    expect(websocketAttempts.length).toBeLessThanOrEqual(1);
   });
 });
