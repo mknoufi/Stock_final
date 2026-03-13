@@ -255,11 +255,14 @@ export const getSession = async (sessionId: string) => {
     await cacheSession(response.data);
     return response.data;
   } catch (error: any) {
-    __DEV__ && console.error("Error getting session:", error);
-
     if (error?.response?.status === 404 && !sessionId.startsWith("offline_")) {
+      log.warn(`Session ${sessionId} not found on server, removing from cache`);
       await removeSessionFromCache(sessionId);
       return null;
+    }
+
+    if (error?.response?.status !== 401) {
+      log.warn("Error getting session:", error);
     }
 
     return await getSessionFromCache(sessionId);

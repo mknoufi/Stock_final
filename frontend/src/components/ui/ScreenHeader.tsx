@@ -188,7 +188,6 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
     if (logoutConfirmMessage === null) {
       // Skip confirmation
       await logout();
-      router.replace("/welcome" as any);
       return;
     }
 
@@ -196,7 +195,6 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
       const confirmed = window.confirm(logoutConfirmMessage);
       if (confirmed) {
         await logout();
-        router.replace("/welcome" as any);
       }
       return;
     }
@@ -208,7 +206,6 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
         style: "destructive",
         onPress: async () => {
           await logout();
-          router.replace("/welcome" as any);
         },
       },
     ]);

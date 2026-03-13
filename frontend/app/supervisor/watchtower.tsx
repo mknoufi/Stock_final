@@ -46,6 +46,39 @@ interface WatchtowerStats {
   }[];
 }
 
+const EMPTY_WATCHTOWER_STATS: WatchtowerStats = {
+  active_sessions: 0,
+  total_scans_today: 0,
+  active_users: 0,
+  hourly_throughput: Array.from({ length: 24 }, () => 0),
+  predicted_risk_count: 0,
+  high_risk_items: [],
+  recent_activity: [],
+};
+
+const normalizeWatchtowerStats = (
+  payload: Partial<WatchtowerStats> | null | undefined,
+): WatchtowerStats => {
+  const throughput = Array.from({ length: 24 }, (_, index) => {
+    const value = Number(payload?.hourly_throughput?.[index] ?? 0);
+    return Number.isFinite(value) ? value : 0;
+  });
+
+  return {
+    active_sessions: Number(payload?.active_sessions ?? 0),
+    total_scans_today: Number(payload?.total_scans_today ?? 0),
+    active_users: Number(payload?.active_users ?? 0),
+    hourly_throughput: throughput,
+    predicted_risk_count: Number(payload?.predicted_risk_count ?? 0),
+    high_risk_items: Array.isArray(payload?.high_risk_items)
+      ? payload.high_risk_items
+      : [],
+    recent_activity: Array.isArray(payload?.recent_activity)
+      ? payload.recent_activity
+      : [],
+  };
+};
+
 const ChartBar = ({
   height,
   label,
@@ -97,7 +130,7 @@ export default function WatchtowerScreen() {
     try {
       if (!stats) setLoading(true);
       const data = await getWatchtowerStats();
-      setStats(data);
+      setStats(normalizeWatchtowerStats(data));
       setLastUpdated(new Date());
     } catch (error) {
       console.error("Failed to fetch watchtower stats", error);
@@ -130,6 +163,10 @@ export default function WatchtowerScreen() {
     // Avoid division by zero, assume at least 1 hour operating if count > 0
     return currentHour > 0 ? Math.round(total / currentHour) : total;
   };
+
+  const hourlyThroughput =
+    stats?.hourly_throughput ?? EMPTY_WATCHTOWER_STATS.hourly_throughput;
+  const hourlyThroughputMax = Math.max(...hourlyThroughput, 10);
 
   return (
     <AuroraBackground variant="secondary" intensity="medium" animated={true}>
@@ -249,11 +286,10 @@ export default function WatchtowerScreen() {
               >
                 <Text style={styles.sectionTitle}>Hourly Throughput</Text>
                 <View style={styles.chartContainer}>
-                  {stats.hourly_throughput.map((count, index) => {
+                  {hourlyThroughput.map((count, index) => {
                     // Only show operational hours (e.g., 8 AM to 8 PM) or active hours
                     if (index < 6 || index > 22) return null;
-                    const max = Math.max(...stats.hourly_throughput, 10); // Scale base
-                    const height = (count / max) * 100;
+                    const height = (count / hourlyThroughputMax) * 100;
                     const isCurrentHour = index === new Date().getHours();
                     return (
                       <ChartBar

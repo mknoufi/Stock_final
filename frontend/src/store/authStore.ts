@@ -7,6 +7,7 @@ import { setUnauthorizedHandler } from "../services/authUnauthorizedHandler";
 import { createLogger } from "../services/logging";
 import { useNetworkStore } from "./networkStore";
 import * as LocalAuthentication from "expo-local-authentication";
+import { setUserPreferenceScope } from "../services/userPreferenceScope";
 
 interface User {
   id: string;
@@ -251,8 +252,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       lastLoggedUser: lastUser,
     });
 
+    setUserPreferenceScope(authenticatedUser.id);
+    await useSettingsStore.getState().loadSettings();
     get().startHeartbeat();
-    useSettingsStore.getState().syncFromBackend();
+    await useSettingsStore.getState().syncFromBackend();
     await syncOfflineQueueInBackground();
   },
 
@@ -382,6 +385,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   setUser: (user: User) => {
     secureStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
+    setUserPreferenceScope(user.id);
+    void useSettingsStore.getState().loadSettings();
     set({ user, isAuthenticated: true, isLoading: false });
   },
 
@@ -407,6 +412,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       isLoading: false,
     });
+
+    setUserPreferenceScope(null);
+    await useSettingsStore.getState().loadSettings();
 
     const { clearOfflineQueue } =
       await import("../services/offline/offlineStorage");
@@ -541,7 +549,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
           isInitialized: true,
         });
+        setUserPreferenceScope(user.id);
+        await useSettingsStore.getState().loadSettings();
         get().startHeartbeat();
+        await useSettingsStore.getState().syncFromBackend();
       } else if (Platform.OS === "web") {
         try {
           const response = await apiClient.get("/api/auth/me");
@@ -558,7 +569,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               isLoading: false,
               isInitialized: true,
             });
+            setUserPreferenceScope(payload.id);
+            await useSettingsStore.getState().loadSettings();
             get().startHeartbeat();
+            await useSettingsStore.getState().syncFromBackend();
             return;
           }
         } catch (_cookieAuthError) {

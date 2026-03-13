@@ -41,8 +41,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    env_file:
-      - .env.prod
     environment:
       ENVIRONMENT: production
       DEBUG: "false"
@@ -51,7 +49,10 @@ services:
       HOST: 0.0.0.0
       PORT: "8001"
       WORKERS: ${BACKEND_WORKERS:-4}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
       DB_NAME: ${DB_NAME}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       MONGO_URL: mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongo:27017/${DB_NAME}?authSource=admin
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       FORCE_HTTPS: ${FORCE_HTTPS:-true}
@@ -61,6 +62,9 @@ services:
       AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-lax}
       AUTO_SEED_DEFAULT_USERS: ${AUTO_SEED_DEFAULT_USERS:-false}
       AUTO_SEED_MOCK_ERP_DATA: ${AUTO_SEED_MOCK_ERP_DATA:-false}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+      METRICS_ENABLED: ${METRICS_ENABLED:-true}
     expose:
       - "8001"
     depends_on:

@@ -3,8 +3,13 @@ import { mmkvStorage } from "../services/mmkvStorage";
 import { ThemeService, Theme } from "../services/themeService";
 import { authApi, UserSettings } from "../services/api/authApi";
 import { createLogger } from "../services/logging";
+import {
+  getScopedStorageKey,
+  getScopedStorageKeyCandidates,
+} from "../services/userPreferenceScope";
 
 const log = createLogger("settingsStore");
+const APP_SETTINGS_KEY = "app_settings";
 
 export interface Settings {
   // Theme
@@ -105,6 +110,10 @@ const DEFAULT_SETTINGS: Settings = {
   },
 };
 
+const persistSettings = (settings: Settings) => {
+  mmkvStorage.setItem(getScopedStorageKey(APP_SETTINGS_KEY), JSON.stringify(settings));
+};
+
 interface SettingsState {
   settings: Settings;
   isSyncing: boolean;
@@ -124,7 +133,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ settings: newSettings });
 
     // Persist to storage
-    mmkvStorage.setItem("app_settings", JSON.stringify(newSettings));
+    persistSettings(newSettings);
 
     // Handle side effects
     if (key === "theme") {
@@ -134,26 +143,38 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   resetSettings: async () => {
     set({ settings: DEFAULT_SETTINGS });
-    mmkvStorage.setItem("app_settings", JSON.stringify(DEFAULT_SETTINGS));
+    persistSettings(DEFAULT_SETTINGS);
     ThemeService.setTheme(DEFAULT_SETTINGS.theme as Theme);
   },
 
   loadSettings: async () => {
     try {
-      const storedSettings = mmkvStorage.getItem("app_settings");
-      if (storedSettings) {
-        const parsedSettings = JSON.parse(storedSettings);
-        // Merge with defaults to handle new keys
-        const mergedSettings = { ...DEFAULT_SETTINGS, ...parsedSettings };
-        set({ settings: mergedSettings });
+      let mergedSettings = DEFAULT_SETTINGS;
+      const activeStorageKey = getScopedStorageKey(APP_SETTINGS_KEY);
 
-        // Apply theme
-        ThemeService.setTheme(mergedSettings.theme);
+      for (const storageKey of getScopedStorageKeyCandidates(APP_SETTINGS_KEY)) {
+        const storedSettings = mmkvStorage.getItem(storageKey);
+        if (!storedSettings) {
+          continue;
+        }
+
+        const parsedSettings = JSON.parse(storedSettings);
+        mergedSettings = { ...DEFAULT_SETTINGS, ...parsedSettings };
+
+        if (storageKey !== activeStorageKey) {
+          persistSettings(mergedSettings);
+        }
+        break;
       }
+
+      set({ settings: mergedSettings });
+      ThemeService.setTheme(mergedSettings.theme as Theme);
     } catch (error) {
       log.warn("Failed to load settings", {
         error: (error as { message?: string } | null)?.message || String(error),
       });
+      set({ settings: DEFAULT_SETTINGS });
+      ThemeService.setTheme(DEFAULT_SETTINGS.theme as Theme);
     }
   },
 
@@ -180,7 +201,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       set({ settings: mergedSettings });
 
       // Persist locally
-      mmkvStorage.setItem("app_settings", JSON.stringify(mergedSettings));
+      persistSettings(mergedSettings);
 
       // Apply theme if changed
       if (backendSettings.theme !== currentSettings.theme) {

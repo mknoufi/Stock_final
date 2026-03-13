@@ -8,7 +8,6 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useAuthStore } from "../store/authStore";
-import { useRouter } from "expo-router";
 
 interface LogoutButtonProps {
   showText?: boolean;
@@ -23,7 +22,6 @@ export const LogoutButton: React.FC<LogoutButtonProps> = ({
 }) => {
   const [isLoggingOut, setIsLoggingOut] = React.useState(false);
   const { logout, user } = useAuthStore();
-  const router = useRouter();
 
   const handleLogout = () => {
     if (typeof window !== "undefined" && window.confirm) {
@@ -33,9 +31,7 @@ export const LogoutButton: React.FC<LogoutButtonProps> = ({
       if (!confirmed) return;
       setIsLoggingOut(true);
       logout()
-        .then(() => {
-          router.replace("/welcome" as any);
-        })
+        .then(() => undefined)
         .catch((error) => {
           console.error("Logout error:", error);
           Alert.alert("Error", "Failed to logout. Please try again.");
@@ -61,7 +57,6 @@ export const LogoutButton: React.FC<LogoutButtonProps> = ({
             try {
               setIsLoggingOut(true);
               await logout();
-              router.replace("/welcome" as any);
             } catch (error) {
               console.error("Logout error:", error);
               Alert.alert("Error", "Failed to logout. Please try again.");

@@ -223,7 +223,6 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
   const handleLogout = async () => {
     await logout();
-    router.replace("/welcome" as any);
   };
 
   const toggleGroup = (title: string) => {

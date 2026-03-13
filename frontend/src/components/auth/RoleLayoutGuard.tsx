@@ -30,15 +30,22 @@ export function RoleLayoutGuard({
     );
   }
 
-  const isAllowed = !!user && allowedRoles.includes(user.role);
-  const resolvedRedirect =
-    redirectTo || (user ? getRouteForRole(user.role) : "/login");
+  if (!user) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  const isAllowed = allowedRoles.includes(user.role);
+  const resolvedRedirect = redirectTo || getRouteForRole(user.role);
 
   if (!isAllowed) {
     if (__DEV__) {
       console.warn(
         `⚠️ ${layoutName} rendered for non-allowed user role. ` +
-          `allowed=[${allowedRoles.join(", ")}], actual=${user?.role ?? "unauthenticated"}. ` +
+          `allowed=[${allowedRoles.join(", ")}], actual=${user.role}. ` +
           `Redirecting to ${resolvedRedirect}`,
       );
     }

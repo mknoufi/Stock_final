@@ -1,14 +1,12 @@
 import { useEffect, useRef, useCallback } from "react";
 import { AppState, Alert } from "react-native";
 import { useAuthStore } from "../store/authStore";
-import { useRouter } from "expo-router";
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const WARNING_TIMEOUT = 28 * 60 * 1000; // 28 minutes (2 min warning)
 
 export const useAutoLogout = (enabled: boolean = true) => {
   const { logout, user } = useAuthStore();
-  const router = useRouter();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
@@ -51,14 +49,13 @@ export const useAutoLogout = (enabled: boolean = true) => {
             text: "OK",
             onPress: async () => {
               await logout();
-              router.replace("/welcome" as any);
             },
           },
         ],
         { cancelable: false },
       );
     }, INACTIVITY_TIMEOUT);
-  }, [enabled, user, logout, router]);
+  }, [enabled, user, logout]);
 
   useEffect(() => {
     if (!enabled || !user) return;
@@ -72,9 +69,7 @@ export const useAutoLogout = (enabled: boolean = true) => {
         // Check if timeout exceeded while app was in background
         const elapsed = Date.now() - lastActivityRef.current;
         if (elapsed > INACTIVITY_TIMEOUT) {
-          logout().finally(() => {
-            router.replace("/welcome" as any);
-          });
+          void logout();
         } else {
           resetTimer();
         }
@@ -91,7 +86,7 @@ export const useAutoLogout = (enabled: boolean = true) => {
       }
       subscription.remove();
     };
-  }, [enabled, user, resetTimer, logout, router]);
+  }, [enabled, user, resetTimer, logout]);
 
   return { resetTimer };
 };

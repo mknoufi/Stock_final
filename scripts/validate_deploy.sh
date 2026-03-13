@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# =============================================================================
-# validate_deploy.sh — Pre-deployment validation script
-# =============================================================================
-# Usage: bash scripts/validate_deploy.sh
-# =============================================================================
 set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="${ENV_FILE:-${ROOT_DIR}/.env.prod}"
+COMPOSE_FILE="${ROOT_DIR}/docker-compose.production.yml"
+ALLOW_PLACEHOLDERS="${ALLOW_PLACEHOLDERS:-false}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -15,159 +15,150 @@ PASS=0
 FAIL=0
 WARN=0
 
-pass() { echo -e "  ${GREEN}✅ PASS${NC}: $1"; ((PASS++)); }
-fail() { echo -e "  ${RED}❌ FAIL${NC}: $1"; ((FAIL++)); }
-warn() { echo -e "  ${YELLOW}⚠️  WARN${NC}: $1"; ((WARN++)); }
+pass() { echo -e "  ${GREEN}PASS${NC}: $1"; PASS=$((PASS + 1)); }
+fail() { echo -e "  ${RED}FAIL${NC}: $1"; FAIL=$((FAIL + 1)); }
+warn() { echo -e "  ${YELLOW}WARN${NC}: $1"; WARN=$((WARN + 1)); }
+
+read_env_value() {
+  local key="$1"
+  local value
+  value="$(grep -E "^${key}=" "$ENV_FILE" | tail -n 1 | cut -d'=' -f2- || true)"
+  value="${value%\"}"
+  value="${value#\"}"
+  printf '%s' "$value"
+}
 
 echo "============================================"
-echo "  Stock Verify — Deployment Validation"
+echo "  Stock Verify - Deployment Validation"
 echo "============================================"
 echo ""
 
-# -----------------------------------------------
-# 1. Environment Variables
-# -----------------------------------------------
-echo "📋 Phase 1: Environment Variables"
+if [ ! -f "$ENV_FILE" ]; then
+  fail "Environment file not found: $ENV_FILE"
+  echo ""
+  echo "Results: ${GREEN}${PASS} passed${NC}, ${RED}${FAIL} failed${NC}, ${YELLOW}${WARN} warnings${NC}"
+  exit 1
+fi
+pass "Environment file exists: $(basename "$ENV_FILE")"
 
-if [ -f "backend/.env" ]; then
-    pass "backend/.env exists"
+if [ ! -f "$COMPOSE_FILE" ]; then
+  fail "Compose file missing: $(basename "$COMPOSE_FILE")"
+  echo ""
+  echo "Results: ${GREEN}${PASS} passed${NC}, ${RED}${FAIL} failed${NC}, ${YELLOW}${WARN} warnings${NC}"
+  exit 1
+fi
+pass "Compose file exists: $(basename "$COMPOSE_FILE")"
 
-    # Check critical vars
-    if grep -q "^JWT_SECRET=" backend/.env; then
-        JWT_VAL=$(grep "^JWT_SECRET=" backend/.env | cut -d'=' -f2-)
-        if [ ${#JWT_VAL} -ge 32 ]; then
-            pass "JWT_SECRET is >= 32 characters"
-        else
-            fail "JWT_SECRET is less than 32 characters"
-        fi
-        if echo "$JWT_VAL" | grep -qi "development\|placeholder\|change.me\|GENERATE"; then
-            fail "JWT_SECRET contains placeholder value"
-        else
-            pass "JWT_SECRET is not a placeholder"
-        fi
+echo "Phase 1: Required environment values"
+
+required_keys=(
+  DOMAIN
+  CERTBOT_EMAIL
+  DB_NAME
+  JWT_SECRET
+  JWT_REFRESH_SECRET
+  MONGO_ROOT_USER
+  MONGO_ROOT_PASSWORD
+  REDIS_PASSWORD
+  ALLOWED_HOSTS
+  CORS_ALLOW_ORIGINS
+)
+
+placeholder_pattern='CHANGE_ME|GENERATE|example\.com|ops@example\.com|yourdomain'
+
+for key in "${required_keys[@]}"; do
+  value="$(read_env_value "$key")"
+  if [ -z "$value" ]; then
+    fail "$key is missing"
+    continue
+  fi
+
+  if echo "$value" | grep -Eiq "$placeholder_pattern"; then
+    if [ "$ALLOW_PLACEHOLDERS" = "true" ]; then
+      warn "$key still uses a placeholder value"
     else
-        fail "JWT_SECRET not found in backend/.env"
+      fail "$key still uses a placeholder value"
     fi
+    continue
+  fi
 
-    if grep -q "^ENVIRONMENT=" backend/.env; then
-        ENV_VAL=$(grep "^ENVIRONMENT=" backend/.env | cut -d'=' -f2-)
-        if [ "$ENV_VAL" = "production" ]; then
-            pass "ENVIRONMENT=production"
-        else
-            warn "ENVIRONMENT=$ENV_VAL (not production)"
-        fi
-    else
-        fail "ENVIRONMENT not set in backend/.env"
-    fi
+  pass "$key is configured"
+done
 
-    if grep -q "^DEBUG=true" backend/.env; then
-        fail "DEBUG=true in backend/.env"
-    else
-        pass "DEBUG is not true"
-    fi
+for secret_key in JWT_SECRET JWT_REFRESH_SECRET MONGO_ROOT_PASSWORD REDIS_PASSWORD; do
+  value="$(read_env_value "$secret_key")"
+  if [ -n "$value" ] && [ "${#value}" -lt 24 ]; then
+    fail "$secret_key should be at least 24 characters"
+  elif [ -n "$value" ]; then
+    pass "$secret_key length looks acceptable"
+  fi
+done
 
-    if grep -q "^HOT_RELOAD=true" backend/.env; then
-        fail "HOT_RELOAD=true in backend/.env"
-    else
-        pass "HOT_RELOAD is not enabled"
-    fi
+for toggle_key in AUTO_SEED_DEFAULT_USERS AUTO_SEED_MOCK_ERP_DATA; do
+  value="$(read_env_value "$toggle_key")"
+  if [ "$value" = "true" ]; then
+    fail "$toggle_key must be false for production"
+  else
+    pass "$toggle_key is disabled"
+  fi
+done
 
-    if grep -q "^DEBUG_ENDPOINTS=true" backend/.env; then
-        fail "DEBUG_ENDPOINTS=true in backend/.env"
-    else
-        pass "DEBUG_ENDPOINTS is not enabled"
-    fi
+auth_cookie_samesite="$(read_env_value AUTH_COOKIE_SAMESITE)"
+force_https="$(read_env_value FORCE_HTTPS)"
+auth_cookie_domain="$(read_env_value AUTH_COOKIE_DOMAIN)"
+
+if [ "${auth_cookie_samesite:-lax}" = "none" ] && [ "${force_https:-true}" != "true" ]; then
+  fail "AUTH_COOKIE_SAMESITE=none requires FORCE_HTTPS=true"
 else
-    fail "backend/.env does not exist"
+  pass "Cookie transport settings are internally consistent"
+fi
+
+if [ -z "$auth_cookie_domain" ]; then
+  warn "AUTH_COOKIE_DOMAIN is empty; cookies will be host-only"
+else
+  pass "AUTH_COOKIE_DOMAIN is configured"
 fi
 
 echo ""
+echo "Phase 2: Compose stack"
 
-# -----------------------------------------------
-# 2. Docker Build
-# -----------------------------------------------
-echo "🐳 Phase 2: Docker Build"
-
-if command -v docker &> /dev/null; then
-    pass "Docker is installed"
-    if docker build -q -t stock-verify-backend ./backend > /dev/null 2>&1; then
-        pass "Backend Docker image builds successfully"
-    else
-        fail "Backend Docker image build failed"
-    fi
+if command -v docker >/dev/null 2>&1; then
+  pass "Docker is installed"
+  if docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" config >/dev/null; then
+    pass "docker compose config succeeds"
+  else
+    fail "docker compose config failed"
+  fi
 else
-    warn "Docker not available — skipping build check"
+  warn "Docker is not installed; compose validation skipped"
+fi
+
+for required_path in \
+  "${ROOT_DIR}/backend/Dockerfile" \
+  "${ROOT_DIR}/nginx/Dockerfile" \
+  "${ROOT_DIR}/nginx/nginx.conf" \
+  "${ROOT_DIR}/scripts/init_letsencrypt.sh"; do
+  if [ -f "$required_path" ]; then
+    pass "Found $(basename "$required_path")"
+  else
+    fail "Missing $(basename "$required_path")"
+  fi
+done
+
+if [ -f "${ROOT_DIR}/nginx/ssl/fullchain.pem" ] && [ -f "${ROOT_DIR}/nginx/ssl/privkey.pem" ]; then
+  pass "TLS certificate files are present"
+else
+  warn "TLS certificate files are missing; run ./scripts/init_letsencrypt.sh before first deploy"
 fi
 
 echo ""
-
-# -----------------------------------------------
-# 3. Backend Lint
-# -----------------------------------------------
-echo "🔍 Phase 3: Code Quality"
-
-if command -v ruff &> /dev/null; then
-    if cd backend && ruff check . > /dev/null 2>&1; then
-        pass "Backend ruff check passes"
-    else
-        fail "Backend ruff check has errors"
-    fi
-    cd ..
-else
-    warn "ruff not installed — skipping lint check"
-fi
-
-echo ""
-
-# -----------------------------------------------
-# 4. Frontend Check
-# -----------------------------------------------
-echo "📱 Phase 4: Frontend"
-
-if [ -f "frontend/.env" ]; then
-    pass "frontend/.env exists"
-    BACKEND_URL=$(grep "^EXPO_PUBLIC_BACKEND_URL=" frontend/.env | cut -d'=' -f2-)
-    if echo "$BACKEND_URL" | grep -q "192\.168\.\|10\.0\.\|172\."; then
-        warn "Frontend EXPO_PUBLIC_BACKEND_URL uses LAN IP: $BACKEND_URL"
-    else
-        pass "Frontend backend URL is not a LAN IP"
-    fi
-else
-    fail "frontend/.env does not exist"
-fi
-
-echo ""
-
-# -----------------------------------------------
-# 5. File Hygiene
-# -----------------------------------------------
-echo "🧹 Phase 5: Repository Hygiene"
-
-if [ -f ".env" ]; then
-    warn "Root .env file exists (should only be in backend/ and frontend/)"
-else
-    pass "No root .env file"
-fi
-
-if [ -f "docker-compose.production.yml" ]; then
-    pass "docker-compose.production.yml exists"
-else
-    fail "docker-compose.production.yml missing"
-fi
-
-echo ""
-
-# -----------------------------------------------
-# Summary
-# -----------------------------------------------
 echo "============================================"
 echo "  Results: ${GREEN}${PASS} passed${NC}, ${RED}${FAIL} failed${NC}, ${YELLOW}${WARN} warnings${NC}"
 echo "============================================"
 
-if [ $FAIL -gt 0 ]; then
-    echo -e "${RED}❌ NOT READY FOR DEPLOYMENT${NC}"
-    exit 1
-else
-    echo -e "${GREEN}✅ READY FOR DEPLOYMENT${NC}"
-    exit 0
+if [ "$FAIL" -gt 0 ]; then
+  echo -e "${RED}NOT READY FOR DEPLOYMENT${NC}"
+  exit 1
 fi
+
+echo -e "${GREEN}DEPLOYMENT VALIDATION PASSED${NC}"

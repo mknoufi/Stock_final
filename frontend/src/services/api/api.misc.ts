@@ -1,5 +1,18 @@
 import api from "../httpClient";
 
+const unwrapApiPayload = <T>(payload: T | { data?: T } | null | undefined): T | null => {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "data" in payload &&
+    (payload as { data?: T }).data !== undefined
+  ) {
+    return (payload as { data?: T }).data ?? null;
+  }
+
+  return (payload as T | null | undefined) ?? null;
+};
+
 // Batch sync offline queue
 export const syncBatch = async (operations: Record<string, unknown>[]) => {
   try {
@@ -15,7 +28,7 @@ export const syncBatch = async (operations: Record<string, unknown>[]) => {
 export const getWatchtowerStats = async () => {
   try {
     const response = await api.get("/api/v2/sessions/watchtower");
-    return response.data;
+    return unwrapApiPayload(response.data);
   } catch (error: unknown) {
     __DEV__ && console.error("Get watchtower stats error:", error);
     throw error;
@@ -50,4 +63,3 @@ export const getWarehouses = async (zone?: string) => {
     throw error;
   }
 };
-

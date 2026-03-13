@@ -22,8 +22,9 @@ import {
   Platform,
   TouchableOpacity,
   ActivityIndicator,
+  Modal as RNModal,
+  Pressable,
 } from "react-native";
-import ReactNativeModal from "react-native-modal";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
@@ -51,8 +52,6 @@ import { SpeedDialAction, ActivityType } from "../../src/components/ui";
 import { theme } from "../../src/styles/modernDesignSystem";
 import { Session } from "../../src/types";
 import { colors as unifiedColors } from "../../src/theme/unified";
-
-const Modal = ReactNativeModal as unknown as React.ComponentType<any>;
 
 interface DashboardStats {
   totalSessions: number;
@@ -912,141 +911,149 @@ export default function SupervisorDashboard() {
       )}
 
       {/* Create Session Modal */}
-      <Modal
-        isVisible={showCreateSessionModal}
-        onBackdropPress={() => setShowCreateSessionModal(false)}
-        onBackButtonPress={() => setShowCreateSessionModal(false)}
-        style={{ margin: 0, justifyContent: "flex-end" }}
-        avoidKeyboard
+      <RNModal
+        visible={showCreateSessionModal}
+        transparent
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={() => setShowCreateSessionModal(false)}
       >
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Create New Session</Text>
-            <TouchableOpacity
-              onPress={() => setShowCreateSessionModal(false)}
-              style={styles.modalCloseButton}
-            >
-              <Ionicons
-                name="close"
-                size={24}
-                color={theme.colors.text.primary}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            nestedScrollEnabled
-          >
-            {/* Step 1: Location Type */}
-            <View style={styles.stepContainer}>
-              <Text style={styles.stepLabel}>1. Select Location Type</Text>
-              <View style={styles.optionsGrid}>
-                {zones.map((zone) => (
-                  <TouchableOpacity
-                    key={zone.id}
-                    style={[
-                      styles.optionButton,
-                      locationType === zone.zone_name &&
-                        styles.optionButtonSelected,
-                    ]}
-                    onPress={() => handleLocationTypeChange(zone.zone_name)}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        locationType === zone.zone_name &&
-                          styles.optionTextSelected,
-                      ]}
-                    >
-                      {zone.zone_name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setShowCreateSessionModal(false)}
+          />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Create New Session</Text>
+                <TouchableOpacity
+                  onPress={() => setShowCreateSessionModal(false)}
+                  style={styles.modalCloseButton}
+                >
+                  <Ionicons
+                    name="close"
+                    size={24}
+                    color={theme.colors.text.primary}
+                  />
+                </TouchableOpacity>
               </View>
-            </View>
 
-            {/* Step 2: Floor/Area */}
-            {locationType && (
-              <View style={styles.stepContainer}>
-                <Text style={styles.stepLabel}>2. Select Floor/Area</Text>
-                {isLoadingWarehouses ? (
-                  <ActivityIndicator color={theme.colors.primary[500]} />
-                ) : (
+              <ScrollView
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                nestedScrollEnabled
+              >
+                {/* Step 1: Location Type */}
+                <View style={styles.stepContainer}>
+                  <Text style={styles.stepLabel}>1. Select Location Type</Text>
                   <View style={styles.optionsGrid}>
-                    {warehouses.map((wh) => (
+                    {zones.map((zone) => (
                       <TouchableOpacity
-                        key={wh.id}
+                        key={zone.id}
                         style={[
                           styles.optionButton,
-                          selectedFloor === wh.warehouse_name &&
+                          locationType === zone.zone_name &&
                             styles.optionButtonSelected,
                         ]}
-                        onPress={() => {
-                          if (Platform.OS !== "web") Haptics.selectionAsync();
-                          setSelectedFloor(wh.warehouse_name);
-                        }}
+                        onPress={() => handleLocationTypeChange(zone.zone_name)}
                       >
                         <Text
                           style={[
                             styles.optionText,
-                            selectedFloor === wh.warehouse_name &&
+                            locationType === zone.zone_name &&
                               styles.optionTextSelected,
                           ]}
                         >
-                          {wh.warehouse_name}
+                          {zone.zone_name}
                         </Text>
                       </TouchableOpacity>
                     ))}
                   </View>
+                </View>
+
+                {/* Step 2: Floor/Area */}
+                {locationType && (
+                  <View style={styles.stepContainer}>
+                    <Text style={styles.stepLabel}>2. Select Floor/Area</Text>
+                    {isLoadingWarehouses ? (
+                      <ActivityIndicator color={theme.colors.primary[500]} />
+                    ) : (
+                      <View style={styles.optionsGrid}>
+                        {warehouses.map((wh) => (
+                          <TouchableOpacity
+                            key={wh.id}
+                            style={[
+                              styles.optionButton,
+                              selectedFloor === wh.warehouse_name &&
+                                styles.optionButtonSelected,
+                            ]}
+                            onPress={() => {
+                              if (Platform.OS !== "web") Haptics.selectionAsync();
+                              setSelectedFloor(wh.warehouse_name);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.optionText,
+                                selectedFloor === wh.warehouse_name &&
+                                  styles.optionTextSelected,
+                              ]}
+                            >
+                              {wh.warehouse_name}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+                  </View>
                 )}
-              </View>
-            )}
 
-            {/* Step 3: Rack Name */}
-            {selectedFloor && (
-              <View style={styles.stepContainer}>
-                <Text style={styles.stepLabel}>3. Rack / Shelf Identifier</Text>
-                <PremiumInput
-                  value={rackName}
-                  onChangeText={setRackName}
-                  placeholder="e.g. RACK-A1"
-                  leftIcon="grid-outline"
-                  autoCapitalize="characters"
-                />
-              </View>
-            )}
+                {/* Step 3: Rack Name */}
+                {selectedFloor && (
+                  <View style={styles.stepContainer}>
+                    <Text style={styles.stepLabel}>3. Rack / Shelf Identifier</Text>
+                    <PremiumInput
+                      value={rackName}
+                      onChangeText={setRackName}
+                      placeholder="e.g. RACK-A1"
+                      leftIcon="grid-outline"
+                      autoCapitalize="characters"
+                    />
+                  </View>
+                )}
 
-            <TouchableOpacity
-              style={[
-                styles.createButton,
-                (!locationType ||
-                  !selectedFloor ||
-                  !rackName.trim() ||
-                  isCreatingSession) &&
-                  styles.createButtonDisabled,
-              ]}
-              onPress={handleCreateSession}
-              disabled={
-                !locationType ||
-                !selectedFloor ||
-                !rackName.trim() ||
-                isCreatingSession
-              }
-            >
-              {isCreatingSession ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.createButtonText}>Start Session</Text>
-              )}
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.createButton,
+                    (!locationType ||
+                      !selectedFloor ||
+                      !rackName.trim() ||
+                      isCreatingSession) &&
+                      styles.createButtonDisabled,
+                  ]}
+                  onPress={handleCreateSession}
+                  disabled={
+                    !locationType ||
+                    !selectedFloor ||
+                    !rackName.trim() ||
+                    isCreatingSession
+                  }
+                >
+                  {isCreatingSession ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <Text style={styles.createButtonText}>Start Session</Text>
+                  )}
+                </TouchableOpacity>
 
-            <View style={{ height: 40 }} />
-          </ScrollView>
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </View>
+          </View>
         </View>
-      </Modal>
+      </RNModal>
 
       {/* Speed Dial Menu */}
       <SpeedDialMenu actions={speedDialActions} position="bottom-right" />
@@ -1244,6 +1251,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(15, 23, 42, 0.45)",
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  modalSheet: {
+    justifyContent: "flex-end",
+  },
   modalContent: {
     backgroundColor: theme.colors.background.paper,
     borderTopLeftRadius: theme.borderRadius.xl,

@@ -18,11 +18,6 @@ files that actually exist in git so a fresh clone does not point at missing docu
 
 ## Quick Start
 
-New deployments:
-1) Copy the backend and frontend example env files.
-2) Run `make install`.
-3) Start services with `make start`.
-
 Development:
 
 One-click startup:
@@ -36,10 +31,9 @@ Individual services:
 - Fix Expo: `make fix-expo` (tunnel mode)
 - Stop all: `make stop`
 
-Network configuration (dynamic IP):
-1) Backend writes `backend_port.json` with its LAN IP on startup.
-2) Frontend reads this file to configure the API client.
-3) Docker/CI: set `EXPO_PUBLIC_BACKEND_URL` to override.
+Frontend backend resolution:
+- Set `EXPO_PUBLIC_BACKEND_URL` when you want to hard-pin the API origin.
+- Otherwise the web app prefers same-origin `/api`, then Expo host detection for local development.
 
 ## Local LAN Deployment
 
@@ -64,25 +58,43 @@ Network configuration (dynamic IP):
 
 Details: `docs/TESTING_GUIDE.md` and `frontend/e2e/README.md`
 
-## Production Deployment (Docker Compose)
+## Production Deployment (Canonical)
 
-1) Create production env:
-   - `copy .env.production.example .env.prod` (Windows) or `cp .env.production.example .env.prod` (Linux/macOS).
-2) Update secrets and domain values in `.env.prod`.
-3) Provision TLS certificates:
+The supported production path for this repo is root `.env.prod` plus
+`docker-compose.production.yml`.
+
+1) Create the production env file:
+   - `cp .env.production.example .env.prod`
+2) Update `.env.prod` with real values:
+   - `DOMAIN`
+   - `CERTBOT_EMAIL`
+   - `JWT_SECRET`
+   - `JWT_REFRESH_SECRET`
+   - `MONGO_ROOT_PASSWORD`
+   - `REDIS_PASSWORD`
+   - `ALLOWED_HOSTS`
+   - `CORS_ALLOW_ORIGINS`
+   - `AUTH_COOKIE_DOMAIN`
+3) Validate the stack definition:
+   - `make deploy-check`
+4) Provision TLS certificates:
    - `./scripts/init_letsencrypt.sh`
-4) Start production stack:
-   - `docker compose --env-file .env.prod -f docker-compose.prod.yml up -d`
+5) Deploy the stack:
+   - `make deploy`
+6) Verify:
+   - `https://<DOMAIN>/healthz`
+   - `https://<DOMAIN>/api/health`
+   - `https://<DOMAIN>/`
 
-Monitoring:
-- Grafana: `https://<domain>/grafana`
-- Prometheus: internal on `http://prometheus:9090`
-
-Kubernetes manifests live in `k8s/` (see `k8s/secrets.example.yaml`).
+Notes:
+- Nginx serves the exported frontend and reverse-proxies `/api` and `/ws`.
+- MongoDB and Redis stay on the internal Docker network; only ports `80` and `443` are exposed.
+- Kubernetes manifests under `k8s/` are reference material and are not the canonical release path.
 
 ## Configuration
 
-- Backend port: 8001 (default)
+- Public ports: 80 / 443 via nginx
+- Backend port: 8001 (internal container port)
 - SQL Server: configured in `backend/config.py` (default `192.168.1.109`)
 - Frontend: Expo SDK 54
 

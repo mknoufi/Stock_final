@@ -4,6 +4,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="${ROOT_DIR}/.env.prod"
+COMPOSE_FILE="${ROOT_DIR}/docker-compose.production.yml"
 
 if [ -f "$ENV_FILE" ]; then
   set -a
@@ -28,10 +29,10 @@ if [ ! -f "${CERT_DIR}/fullchain.pem" ] || [ ! -f "${CERT_DIR}/privkey.pem" ]; t
 fi
 
 echo "Starting nginx for ACME challenge..."
-docker compose --env-file "${ENV_FILE}" -f "${ROOT_DIR}/docker-compose.prod.yml" up -d nginx
+docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" up -d nginx
 
 echo "Requesting Let's Encrypt certificate for ${DOMAIN}..."
-docker compose --env-file "${ENV_FILE}" -f "${ROOT_DIR}/docker-compose.prod.yml" run --rm certbot \
+docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" run --rm certbot \
   certonly --webroot -w /var/www/certbot \
   -d "${DOMAIN}" -d "www.${DOMAIN}" \
   --email "${CERTBOT_EMAIL}" --agree-tos --no-eff-email
@@ -42,6 +43,6 @@ if [ -f "${LIVE_DIR}/fullchain.pem" ] && [ -f "${LIVE_DIR}/privkey.pem" ]; then
 fi
 
 echo "Reloading nginx..."
-docker compose --env-file "${ENV_FILE}" -f "${ROOT_DIR}/docker-compose.prod.yml" restart nginx
+docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" restart nginx
 
 echo "Certificate provisioning complete."

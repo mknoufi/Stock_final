@@ -3,15 +3,13 @@
  * Clean, efficient item verification interface
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  Alert,
   Switch,
   TouchableOpacity,
-  TextInput,
   InteractionManager,
   ActivityIndicator,
   Platform,
@@ -20,34 +18,13 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import * as Haptics from "expo-haptics";
 import { useDebounce } from "use-debounce";
 import { Image } from "expo-image";
 
 import { useScanSessionStore } from "@/store/scanSessionStore";
 import { useSettingsStore } from "@/store/settingsStore";
-import {
-  getItemByBarcode,
-  createCountLine,
-  saveDraft,
-  checkItemScanStatus,
-  searchItems,
-  checkSerialUniqueness,
-} from "@/services/api/api";
-import apiClient from "@/services/httpClient";
-import { RecentItemsService } from "@/services/enhancedFeatures";
-import { toastService } from "@/services/utils/toastService";
-import {
-  CreateCountLinePayload,
-  SerialEntryData,
-  DateFormatType,
-} from "@/types/scan";
-import {
-  normalizeSerialValue,
-  validateSerialNumber,
-  validateSerialNumbers,
-} from "@/utils/scanUtils";
-import { getStockQty, sortItemsByStockDesc } from "@/utils/itemBatchUtils";
+import { saveDraft } from "@/services/api/api";
+import { CreateCountLinePayload, DateFormatType } from "@/types/scan";
 import { SerialScannerModal } from "@/components/modals/SerialScannerModal";
 import { OptionSelectModal } from "@/components/modals/OptionSelectModal";
 
@@ -57,9 +34,16 @@ import ModernButton from "@/components/ui/ModernButton";
 import ModernInput from "@/components/ui/ModernInput";
 import { ThemedScreen } from "@/components/ui/ThemedScreen";
 import { BatchVariantsSection } from "@/components/scan/BatchVariantsSection";
+import { CountQuantitySection } from "@/components/scan/CountQuantitySection";
+import { EvidenceNotesSection } from "@/components/scan/EvidenceNotesSection";
 import { FlexibleDateField } from "@/components/scan/FlexibleDateField";
 import { SerialEntriesSection } from "@/components/scan/SerialEntriesSection";
 import { useFlexibleDateField } from "@/domains/inventory/hooks/scan/useFlexibleDateField";
+import { useDeferredItemSubmission } from "@/domains/inventory/hooks/scan/useDeferredItemSubmission";
+import { useItemDetailData } from "@/domains/inventory/hooks/scan/useItemDetailData";
+import { useItemEvidenceState } from "@/domains/inventory/hooks/scan/useItemEvidenceState";
+import { useQuantityCountManager } from "@/domains/inventory/hooks/scan/useQuantityCountManager";
+import { useSerialEntryManager } from "@/domains/inventory/hooks/scan/useSerialEntryManager";
 import {
   colors,
   semanticColors,
@@ -80,57 +64,11 @@ export default function ItemDetailScreen() {
   const { currentFloor, currentRack } = useScanSessionStore();
   const { settings } = useSettingsStore();
 
-  // State
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [item, setItem] = useState<any>(null);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
   // Form State
   const [quantity, setQuantity] = useState("0");
   const [mrp, setMrp] = useState("");
   const [mrpEditable, setMrpEditable] = useState(false);
   const [condition] = useState("Good");
-  const [remark, setRemark] = useState("");
-
-  // Serial Number State - Enhanced for serialized items with per-serial MRP/mfg date
-  const [serialEntries, setSerialEntries] = useState<SerialEntryData[]>([]);
-  const [isSerializedItem, setIsSerializedItem] = useState(false);
-  const [serialValidationErrors, setSerialValidationErrors] = useState<
-    string[]
-  >([]);
-  const [showSerialScanner, setShowSerialScanner] = useState(false);
-
-  // Legacy array for backward compatibility
-  const serialNumbers = useMemo(
-    () => serialEntries.map((e) => e.serial_number),
-    [serialEntries],
-  );
-
-  const [varianceRemark, setVarianceRemark] = useState("");
-  const [mrpVariants, setMrpVariants] = useState<any[]>([]);
-  const [selectedMrpVariant, setSelectedMrpVariant] = useState<any>(null);
-
-  // Variants with same item code (Batches)
-  const [rawVariants, setRawVariants] = useState<any[]>([]);
-  const [showZeroStock, setShowZeroStock] = useState(false);
-  const [batchLoading, setBatchLoading] = useState(false);
-  const [batchError, setBatchError] = useState<string | null>(null);
-
-  // Split Count State
-  const [splitCounts, setSplitCounts] = useState<string[]>([]);
-  const [isSplitMode, setIsSplitMode] = useState(false);
-
-  const sameNameVariants = useMemo(() => {
-    if (!rawVariants.length || !item?.item_code) return [];
-    const filtered = rawVariants.filter((v: any) => {
-      if (v.item_code !== item.item_code) return false;
-      if (v.barcode === item?.barcode) return false;
-      if (!showZeroStock && getStockQty(v) <= 0) return false;
-      return true;
-    });
-    return sortItemsByStockDesc(filtered);
-  }, [rawVariants, showZeroStock, item]);
 
   const handleBackPress = useCallback(() => {
     if (router.canGoBack()) {
@@ -149,18 +87,69 @@ export default function ItemDetailScreen() {
     router.replace("/staff/home");
   }, [normalizedSessionId, router]);
 
-  // Submit Delay State (FR-M-20)
-  const [submitCountdown, setSubmitCountdown] = useState<number | null>(null);
-  const submitTimerRef = React.useRef<NodeJS.Timeout | null>(null);
-
-  // Damage State
-  const [isDamageEnabled, setIsDamageEnabled] = useState(false);
-  const [damageQty, setDamageQty] = useState("");
-  const [damageType, setDamageType] = useState<"returnable" | "nonreturnable">(
-    "returnable",
-  );
-  const [damagePhoto, setDamagePhoto] = useState<string | null>(null);
-  const [itemPhotos, setItemPhotos] = useState<string[]>([]);
+  const {
+    batchError,
+    batchLoading,
+    handleRefreshStock,
+    handleSelectMrpVariant,
+    isRefreshing,
+    item,
+    loading,
+    mrpVariants,
+    rawVariantsCount,
+    sameNameVariants,
+    selectedMrpVariant,
+    setShowZeroStock,
+    showZeroStock,
+  } = useItemDetailData({
+    barcode,
+    sessionId,
+    currentFloor,
+    currentRack,
+    onBackPress: handleBackPress,
+    onMrpChange: setMrp,
+    onQuantityChange: setQuantity,
+  });
+  const {
+    handleAddSplitCount,
+    handleClearSplitCounts,
+    handleDecrement,
+    handleIncrement,
+    handleQuantityBlur,
+    handleQuantityChange,
+    handleRemoveSplitCount,
+    handleSplitCountBlur,
+    handleSplitCountChange,
+    handleToggleSplitMode,
+    isSplitMode,
+    isWeightBasedUOM,
+    resetQuantityState,
+    splitCounts,
+    uomInfo,
+  } = useQuantityCountManager({
+    item,
+    quantity,
+    setQuantity,
+  });
+  const {
+    damagePhoto,
+    damageQty,
+    damageType,
+    handleAddItemPhoto,
+    handleTakeDamagePhoto,
+    isDamageEnabled,
+    itemPhotos,
+    remark,
+    removeDamagePhoto,
+    removeItemPhoto,
+    resetEvidenceState,
+    setDamageQty,
+    setDamageType,
+    setIsDamageEnabled,
+    setRemark,
+    setVarianceRemark,
+    varianceRemark,
+  } = useItemEvidenceState();
 
   // Manufacturing & Expiry Date State (for item-level or non-serialized items)
   const [hasMfgDate, setHasMfgDate] = useState(false);
@@ -185,6 +174,28 @@ export default function ItemDetailScreen() {
   });
 
   const [isInteractionsComplete, setIsInteractionsComplete] = useState(false);
+  const {
+    handleAddSerial,
+    handleRemoveSerial,
+    handleSerialChange,
+    handleSerialScanned,
+    isSerializedItem,
+    resetSerialState,
+    serialEntries,
+    serialNumbers,
+    serialValidationErrors,
+    serialValidationMessages,
+    setIsSerializedItem,
+    setShowSerialScanner,
+    showSerialScanner,
+    validateSerials,
+  } = useSerialEntryManager({
+    item,
+    mrp,
+    quantity,
+    sessionId,
+    onQuantityChange: setQuantity,
+  });
 
   useEffect(() => {
     const task = InteractionManager.runAfterInteractions(() => {
@@ -193,157 +204,12 @@ export default function ItemDetailScreen() {
     return () => task.cancel();
   }, []);
 
-  const loadItem = useCallback(async () => {
-    if (!barcode) return;
-    setLoading(true);
-    try {
-      const itemData = await getItemByBarcode(
-        barcode,
-        3,
-        sessionId || undefined,
-        currentRack || undefined,
-      );
-      if (itemData) {
-        setItem(itemData);
-        setMrp(String(itemData.mrp || ""));
-
-        // Serial capture is now user-controlled via toggle
-        // User can enable it for items that require serial tracking
-        setIsSerializedItem(false);
-        setSerialEntries([]);
-
-        // Handle MRP Variants
-        if (
-          itemData.mrp_variants &&
-          Array.isArray(itemData.mrp_variants) &&
-          itemData.mrp_variants.length > 0
-        ) {
-          setMrpVariants(itemData.mrp_variants);
-          // Default to the first one or the one matching current MRP
-          const variants = itemData.mrp_variants as any[];
-          const match = variants.find((v: any) => v.value === itemData.mrp);
-          const selected = match || variants[0];
-          setSelectedMrpVariant(selected);
-          if (selected) {
-            setMrp(String(selected.value));
-          }
-        }
-
-        // Check for existing count
-        try {
-          const scanStatus = await checkItemScanStatus(
-            sessionId!,
-            itemData.item_code || barcode,
-          );
-          if (scanStatus.scanned) {
-            const existing = scanStatus.locations.find(
-              (loc: any) =>
-                loc.floor_no === currentFloor && loc.rack_no === currentRack,
-            );
-            if (existing) {
-              setQuantity(String(existing.counted_qty));
-              toastService.show("Loaded existing count", { type: "info" });
-            }
-          }
-        } catch (_) {
-          // Ignore
-        }
-
-        await RecentItemsService.addRecent(
-          itemData.item_code || barcode,
-          itemData,
-        );
-      } else {
-        Alert.alert("Error", "Item not found");
-        handleBackPress();
-      }
-    } catch (error: any) {
-      Alert.alert("Error", error.message || "Failed to load item");
-      handleBackPress();
-    } finally {
-      setLoading(false);
-    }
-  }, [barcode, sessionId, currentFloor, currentRack, handleBackPress]);
-
-  const handleRefreshStock = useCallback(async () => {
-    if (!item?.barcode && !barcode) return;
-    setIsRefreshing(true);
-    try {
-      const targetBarcode = item?.barcode || barcode;
-      // Use V2 GET endpoint with verify_sql=true to trigger SQL refresh
-      // Path definition in backend/api/v2/__init__.py confirms /api/v2/items prefix
-      const response = await apiClient.get(
-        `/api/v2/items/${targetBarcode}?verify_sql=true`
-      );
-
-      if (response.data.success && response.data.data) {
-        setItem((prev: any) => ({
-          ...prev,
-          ...response.data.data,
-          _source: "sql", // Updates source indicator to SQL
-        }));
-        toastService.show("Stock refreshed from SQL", { type: "success" });
-      }
-    } catch (error: any) {
-      if (error.response?.status === 503) {
-        toastService.show("SQL Server unavailable", { type: "warning" });
-      } else {
-        toastService.show("Failed to refresh stock", { type: "error" });
-      }
-    } finally {
-      setIsRefreshing(false);
-    }
-  }, [item, barcode]);
-
-
-  useEffect(() => {
-    loadItem();
-  }, [loadItem]);
-
-  // Load variants with same name
   useEffect(() => {
     if (!item?.item_code) return;
-
-    const loadVariants = async () => {
-      setBatchLoading(true);
-      setBatchError(null);
-      try {
-        const response = await apiClient.get(
-          `/api/item-batches/${encodeURIComponent(item.item_code)}`,
-        );
-        const data = response.data || {};
-        const batches = Array.isArray(data.batches) ? data.batches : [];
-        const mappedBatches = batches.map((batch: any) => {
-          const stockQty = getStockQty(batch);
-          return {
-            ...batch,
-            item_code: batch.item_code ?? item.item_code,
-            barcode: batch.barcode ?? batch.auto_barcode ?? "",
-            stock_qty: stockQty,
-            current_stock: stockQty,
-            mrp: batch.mrp ?? null,
-            manufacturing_date:
-              batch.manufacturing_date ?? batch.mfg_date ?? null,
-          };
-        });
-        setRawVariants(mappedBatches);
-      } catch (error) {
-        console.warn("Failed to load batches:", error);
-        try {
-          const results = await searchItems(item.item_code);
-          setRawVariants(results.items || []);
-        } catch (fallbackError) {
-          console.warn("Batch fallback search failed:", fallbackError);
-          setRawVariants([]);
-        }
-        setBatchError("Batch data unavailable while ERP is offline.");
-      } finally {
-        setBatchLoading(false);
-      }
-    };
-
-    loadVariants();
-  }, [item]);
+    resetSerialState();
+    resetQuantityState();
+    resetEvidenceState();
+  }, [item?.item_code, resetEvidenceState, resetQuantityState, resetSerialState]);
 
   // Auto-save draft effect
   const [debouncedFormData] = useDebounce(
@@ -355,6 +221,37 @@ export default function ItemDetailScreen() {
     },
     2000, // 2 seconds debounce
   );
+
+  const { submitting, submitCountdown, handleSubmitPress, cancelSubmit } =
+    useDeferredItemSubmission({
+      barcode,
+      sessionId,
+      currentFloor,
+      currentRack,
+      item,
+      quantity,
+      condition,
+      remark,
+      isDamageEnabled,
+      damageQty,
+      damageType,
+      damagePhoto,
+      itemPhotos,
+      isSerializedItem,
+      serialEntries,
+      serialNumbers,
+      serialValidationErrors,
+      validateSerials,
+      varianceRemark,
+      mrp,
+      hasMfgDate,
+      itemMfgDate,
+      itemMfgDateFormat,
+      hasExpiryDate,
+      itemExpiryDate,
+      itemExpiryDateFormat,
+      onSuccess: handleBackPress,
+    });
 
   useEffect(() => {
     if (!item || !sessionId || quantity === "0" || submitting) return;
@@ -387,464 +284,7 @@ export default function ItemDetailScreen() {
     currentRack,
   ]);
 
-  // UOM Information - Precision and Behavior mapping
-  const uomInfo = useMemo(() => {
-    const uom = (
-      item?.uom ||
-      item?.uom_name ||
-      item?.uom_code ||
-      ""
-    ).toLowerCase();
-
-    // Weight based - 3 decimal places (kg/g)
-    if (
-      uom.includes("kg") ||
-      uom.includes("gram") ||
-      uom.includes("gm") ||
-      uom.includes("kilogram")
-    ) {
-      return { precision: 3, label: "Weight", step: 0.05, unit: "kg" };
-    }
-
-    // Volume based - 2 decimal places (Liter/ML)
-    if (
-      uom.includes("liter") ||
-      uom.includes("litre") ||
-      uom.includes("ml") ||
-      uom.includes("mtr")
-    ) {
-      return { precision: 2, label: "Volume", step: 0.1, unit: "L" };
-    }
-
-    // Length/Area based - 2 decimal places
-    if (uom.includes("meter") || uom.includes("mtr") || uom.includes("sqft")) {
-      return { precision: 2, label: "Measurement", step: 0.1, unit: uom };
-    }
-
-    // Default: Integer count (Pcs, Box, Set)
-    return { precision: 0, label: "Count", step: 1, unit: uom || "Pcs" };
-  }, [item]);
-
-  const isWeightBasedUOM = uomInfo.precision > 0;
-
-  // Format quantity based on UOM precision
-  const formatQuantity = useCallback(
-    (value: string | number): string => {
-      const num = typeof value === "string" ? parseFloat(value) : value;
-      if (isNaN(num)) return "0";
-
-      if (uomInfo.precision > 0) {
-        // Use mapped precision for decimal items
-        return num.toFixed(uomInfo.precision).replace(/\.?0+$/, "") || "0";
-      } else {
-        // Integer only for unit-based items
-        return Math.floor(num).toString();
-      }
-    },
-    [uomInfo.precision],
-  );
-
-  // Handle quantity change with UOM validation
-  const handleQuantityChange = useCallback(
-    (value: string) => {
-      // Allow empty or partial input while typing
-      if (value === "" || value === "." || value === "0.") {
-        setQuantity(value);
-        return;
-      }
-
-      // Validate input format based on UOM precision
-      if (uomInfo.precision > 0) {
-        // Allow decimals up to the specified precision
-        const regex = new RegExp(`^\\d*\\.?\\d{0,${uomInfo.precision}}$`);
-        if (regex.test(value)) {
-          setQuantity(value);
-        }
-      } else {
-        // Only allow integers
-        const regex = /^\d*$/;
-        if (regex.test(value)) {
-          setQuantity(value);
-        }
-      }
-    },
-    [uomInfo.precision],
-  );
-
-  // Get quantity step for +/- buttons
-  const getQuantityStep = useCallback((): number => {
-    return uomInfo.step;
-  }, [uomInfo.step]);
-
-  // Handle Split Count summation
-  useEffect(() => {
-    if (isSplitMode && splitCounts.length > 0) {
-      const sum = splitCounts.reduce(
-        (acc, curr) => acc + (parseFloat(curr) || 0),
-        0,
-      );
-      setQuantity(formatQuantity(sum));
-    }
-  }, [splitCounts, isSplitMode, formatQuantity]);
-
   // Sync quantity with serial entries count for serialized items
-  // When serials are scanned, quantity auto-updates
-  useEffect(() => {
-    if (isSerializedItem && serialEntries.length > 0) {
-      setQuantity(String(serialEntries.length));
-    }
-  }, [serialEntries.length, isSerializedItem]);
-
-  // Serial number handling functions
-  const handleSerialChange = useCallback(
-    (index: number, field: keyof SerialEntryData, value: string | number) => {
-      setSerialEntries((prev) => {
-        const updated = [...prev];
-        if (updated[index]) {
-          updated[index] = {
-            ...updated[index],
-            [field]:
-              field === "serial_number" ? String(value).toUpperCase() : value,
-          };
-        }
-        return updated;
-      });
-      // Clear validation errors when user types
-      setSerialValidationErrors([]);
-    },
-    [],
-  );
-
-  // Handle scanned serial from SerialScannerModal
-  const handleSerialScanned = useCallback(
-    async (data: {
-      serial_number: string;
-      mrp?: number;
-      manufacturing_date?: string;
-    }) => {
-      const normalized = normalizeSerialValue(data.serial_number);
-
-      // local duplicate check
-      const isLocalDuplicate = serialEntries.some(
-        (e) => e.serial_number.toUpperCase() === normalized,
-      );
-      if (isLocalDuplicate) {
-        Alert.alert(
-          "Duplicate Serial",
-          "This serial number is already in your list.",
-        );
-        return false;
-      }
-
-      // global uniqueness check
-      if (sessionId) {
-        const result = await checkSerialUniqueness(sessionId, normalized);
-        if (result.exists) {
-          Alert.alert(
-            "Serial Already Counted",
-            `Serial ${normalized} was already counted in this session.\n\n` +
-            `Item: ${result.item_name || result.item_code}\n` +
-            `Location: Floor ${result.floor_no}, Rack ${result.rack_no}\n` +
-            `Counted by: ${result.counted_by}`,
-            [{ text: "OK" }],
-          );
-          return false;
-        }
-      }
-
-      const newEntry: SerialEntryData = {
-        id: `serial_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        serial_number: normalized,
-        mrp: data.mrp ?? parseFloat(mrp) ?? item?.mrp,
-        manufacturing_date: data.manufacturing_date ?? item?.manufacturing_date,
-        scanned_at: new Date().toISOString(),
-        is_valid: true,
-      };
-
-      setSerialEntries((prev) => [...prev, newEntry]);
-      return true;
-    },
-    [mrp, item, serialEntries, sessionId],
-  );
-
-  // Add empty serial entry for manual input
-  const handleAddSerial = useCallback(() => {
-    const newEntry: SerialEntryData = {
-      id: `serial_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      serial_number: "",
-      mrp: parseFloat(mrp) ?? item?.mrp,
-      manufacturing_date: item?.manufacturing_date,
-      is_valid: false,
-    };
-    setSerialEntries((prev) => [...prev, newEntry]);
-  }, [mrp, item]);
-
-  const handleRemoveSerial = useCallback(
-    (index: number) => {
-      if (serialEntries.length <= 1) {
-        // If it's the last entry, just clear it
-        setSerialEntries([
-          {
-            id: `serial_${Date.now()}`,
-            serial_number: "",
-            mrp: parseFloat(mrp) || item?.mrp,
-            is_valid: false,
-          },
-        ]);
-        return;
-      }
-      setSerialEntries((prev) => prev.filter((_, i) => i !== index));
-    },
-    [serialEntries.length, mrp, item],
-  );
-
-  const serialValidationMessages = useMemo(
-    () =>
-      serialEntries.map((entry) =>
-        entry.serial_number.trim() ? validateSerialNumber(entry.serial_number) : null,
-      ),
-    [serialEntries],
-  );
-
-  const validateSerials = useCallback((): boolean => {
-    if (!isSerializedItem) return true;
-
-    const qty = parseInt(quantity) || 1;
-    const filledSerials = serialNumbers.filter((s) => s.trim().length > 0);
-
-    // For serialized items, validate that we have the right count
-    const validation = validateSerialNumbers(filledSerials, qty);
-
-    if (!validation.valid) {
-      setSerialValidationErrors(validation.errors);
-      return false;
-    }
-
-    setSerialValidationErrors([]);
-    return true;
-  }, [isSerializedItem, quantity, serialNumbers]);
-
-  const handleTakePhoto = async () => {
-    Alert.alert("Photo Capture", "Photo capture is not enabled.");
-  };
-
-  const handleCaptureItemPhoto = async () => {
-    Alert.alert("Photo Capture", "Photo capture is not enabled.");
-  };
-
-  const handleSubmitPress = async () => {
-    if (!item || !sessionId) return;
-
-    const qty = parseFloat(quantity);
-    if (isNaN(qty) || qty <= 0) {
-      Alert.alert("Invalid Quantity", "Please enter a valid quantity");
-      return;
-    }
-
-    // Validate serial numbers for serialized items (only if any are entered)
-    const hasSerials = serialEntries.some(
-      (e) => e.serial_number.trim().length > 0,
-    );
-    if (isSerializedItem && hasSerials && !validateSerials()) {
-      Alert.alert(
-        "Serial Number Error",
-        "Please enter valid serial numbers. " +
-        serialValidationErrors.join(", "),
-      );
-      return;
-    }
-
-    if (isDamageEnabled) {
-      const dQty = parseFloat(damageQty);
-      if (isNaN(dQty) || dQty <= 0) {
-        Alert.alert(
-          "Invalid Damage Quantity",
-          "Please enter a valid damage quantity",
-        );
-        return;
-      }
-
-      if (!damagePhoto) {
-        Alert.alert(
-          "Photo Required",
-          "Mandatory photo proof is required for all damage reports. Please capture a photo of the damaged item.",
-        );
-        return;
-      }
-    }
-
-    // Start countdown instead of immediate submit (FR-M-20)
-    setSubmitCountdown(5);
-  };
-
-  const executeSubmit = useCallback(async () => {
-    setSubmitCountdown(null);
-    setSubmitting(true);
-
-    // Re-read quantity from state
-    const qty = parseFloat(quantity);
-
-    try {
-      // Collect valid serial numbers from serialized item array
-      const validSerials = isSerializedItem
-        ? serialNumbers
-          .filter((s) => s.trim().length > 0)
-          .map(normalizeSerialValue)
-        : [];
-
-      // Prepare serial entries data with full details (for serialized items)
-      const serialEntriesData = isSerializedItem
-        ? serialEntries
-          .filter((e) => e.serial_number.trim().length > 0)
-          .map((e) => ({
-            serial_number: normalizeSerialValue(e.serial_number),
-            mrp: e.mrp,
-            manufacturing_date: e.manufacturing_date,
-            mfg_date_format: e.mfg_date_format,
-            expiry_date: e.expiry_date,
-            expiry_date_format: e.expiry_date_format,
-          }))
-        : [];
-
-      // Determine manufacturing date - from item-level input or existing item data
-      const mfgDate =
-        hasMfgDate && itemMfgDate ? itemMfgDate : item.manufacturing_date;
-
-      // Determine expiry date - from item-level input
-      const expDate =
-        hasExpiryDate && itemExpiryDate ? itemExpiryDate : item.expiry_date;
-
-      const payload: CreateCountLinePayload = {
-        session_id: sessionId,
-        item_code: item.item_code || barcode,
-        counted_qty: qty,
-        floor_no: currentFloor || "Unknown",
-        rack_no: currentRack || "Unknown",
-        item_condition: condition,
-        remark: remark,
-        damage_included: isDamageEnabled,
-        damaged_qty:
-          isDamageEnabled && damageType === "returnable"
-            ? parseFloat(damageQty)
-            : 0,
-        non_returnable_damaged_qty:
-          isDamageEnabled && damageType === "nonreturnable"
-            ? parseFloat(damageQty)
-            : 0,
-        // Serial numbers - use validated array (backward compatibility)
-        serial_numbers: validSerials,
-        // Enhanced serial entries with per-item details
-        serial_entries:
-          serialEntriesData.length > 0 ? serialEntriesData : undefined,
-        variance_note: varianceRemark,
-        variance_reason: varianceRemark,
-        mrp_counted: parseFloat(mrp) || item.mrp || 0,
-        manufacturing_date: mfgDate,
-        mfg_date_format: hasMfgDate ? itemMfgDateFormat : undefined,
-        expiry_date: expDate,
-        expiry_date_format: hasExpiryDate ? itemExpiryDateFormat : undefined,
-        photo_proofs: [
-          ...(damagePhoto
-            ? [
-              {
-                type: "DAMAGE" as any,
-                uri: damagePhoto,
-                capturedAt: new Date().toISOString(),
-                base64: "", // Would need base64 if uploading directly
-              },
-            ]
-            : []),
-          ...itemPhotos.map((uri) => ({
-            type: "ITEM" as any,
-            uri: uri,
-            capturedAt: new Date().toISOString(),
-            base64: "",
-          })),
-        ],
-      };
-
-      const result = await createCountLine(payload);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-      if (result.is_misplaced) {
-        Alert.alert(
-          "Misplaced Item",
-          "This item is not expected at this location. It has been flagged for review.",
-          [{ text: "OK", onPress: () => handleBackPress() }],
-        );
-      } else {
-        toastService.show("Item verified successfully", { type: "success" });
-        handleBackPress();
-      }
-
-    } catch (error: any) {
-      if (error.response?.status === 409) {
-        Alert.alert(
-          "Duplicate Scan",
-          "This item has already been scanned at this location in this session.",
-        );
-      } else if (error.response?.status === 423) {
-        toastService.show(
-          "Item is being processed by another user. Please try again.",
-          { type: "warning" },
-        );
-      } else {
-        Alert.alert("Error", error.message || "Failed to save count");
-      }
-    } finally {
-      setSubmitting(false);
-    }
-  }, [
-    barcode,
-    condition,
-    currentFloor,
-    currentRack,
-    damageQty,
-    damageType,
-    hasExpiryDate,
-    hasMfgDate,
-    isDamageEnabled,
-    isSerializedItem,
-    item,
-    itemExpiryDate,
-    itemExpiryDateFormat,
-    itemMfgDate,
-    itemMfgDateFormat,
-    mrp,
-    quantity,
-    remark,
-    handleBackPress,
-    serialEntries,
-    serialNumbers,
-    sessionId,
-    varianceRemark,
-    damagePhoto,
-    itemPhotos,
-  ]);
-
-  // Handle countdown effect
-  useEffect(() => {
-    if (submitCountdown === null) return;
-
-    if (submitCountdown > 0) {
-      submitTimerRef.current = setTimeout(() => {
-        setSubmitCountdown((prev) => (prev !== null ? prev - 1 : null));
-      }, 1000);
-    } else {
-      // Countdown finished, trigger actual submit
-      executeSubmit();
-    }
-
-    return () => {
-      if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
-    };
-  }, [executeSubmit, submitCountdown]);
-
-  const cancelSubmit = () => {
-    if (submitTimerRef.current) clearTimeout(submitTimerRef.current);
-    setSubmitCountdown(null);
-  };
-
   if (loading) {
     return (
       <ThemedScreen>
@@ -1200,280 +640,35 @@ export default function ItemDetailScreen() {
                   </View>
                 )}
 
-                <View style={[styles.sectionHeader, { alignItems: 'center' }]}>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={[
-                        styles.sectionTitle,
-                        { color: semanticColors.text.primary, marginBottom: 2 },
-                      ]}
-                    >
-                      Count
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <View style={{
-                        backgroundColor: colors.primary[50],
-                        paddingHorizontal: 8,
-                        paddingVertical: 2,
-                        borderRadius: 4,
-                        borderWidth: 1,
-                        borderColor: colors.primary[100]
-                      }}>
-                        <Text style={{
-                          fontSize: 10,
-                          fontWeight: 'bold',
-                          color: colors.primary[700],
-                          textTransform: 'uppercase'
-                        }}>
-                          {uomInfo.label} Mode
-                        </Text>
-                      </View>
-                      <Text
-                        style={[
-                          styles.sectionMeta,
-                          { color: semanticColors.text.secondary, fontSize: 12 },
-                        ]}
-                      >
-                        Unit: {uomInfo.unit}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() => {
-                      setIsSplitMode(!isSplitMode);
-                      if (!isSplitMode && splitCounts.length === 0) {
-                        setSplitCounts([quantity !== "0" ? quantity : ""]);
-                      }
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    }}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 4,
-                      backgroundColor: isSplitMode ? colors.primary[600] : colors.neutral[100],
-                      paddingHorizontal: 10,
-                      paddingVertical: 6,
-                      borderRadius: 20,
-                    }}
-                  >
-                    <Ionicons
-                      name={isSplitMode ? "grid" : "grid-outline"}
-                      size={14}
-                      color={isSplitMode ? colors.white : colors.primary[600]}
-                    />
-                    <Text style={{
-                      color: isSplitMode ? colors.white : colors.primary[600],
-                      fontSize: 12,
-                      fontWeight: 'bold'
-                    }}>
-                      {isSplitMode ? "Piece Count" : "Split Count"}
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.quantityContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.qtyButton,
-                      { backgroundColor: isSplitMode ? colors.neutral[100] : colors.neutral[200] },
-                    ]}
-                    onPress={() => {
-                      if (isSplitMode) return;
-                      const val = parseFloat(quantity) || 0;
-                      const step = getQuantityStep();
-                      if (val > step) {
-                        const newVal = val - step;
-                        setQuantity(formatQuantity(String(newVal)));
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      } else if (val > 0) {
-                        setQuantity("0");
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }
-                    }}
-                    disabled={isSplitMode}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="remove"
-                      size={28}
-                      color={isSplitMode ? colors.neutral[300] : semanticColors.text.primary}
-                    />
-                  </TouchableOpacity>
-
-                  <View
-                    style={[
-                      styles.qtyDisplay,
-                      {
-                        backgroundColor: semanticColors.background.paper,
-                        borderColor: colors.primary[200],
-                      },
-                    ]}
-                  >
-                    <TextInput
-                      style={[
-                        styles.qtyText,
-                        { color: isSplitMode ? colors.primary[700] : semanticColors.text.primary },
-                      ]}
-                      value={quantity}
-                      onChangeText={handleQuantityChange}
-                      editable={!isSplitMode}
-                      onBlur={() => {
-                        if (quantity && quantity !== "." && quantity !== "0.") {
-                          setQuantity(formatQuantity(quantity));
-                        } else {
-                          setQuantity("0");
-                        }
-                      }}
-                      keyboardType={
-                        isWeightBasedUOM ? "decimal-pad" : "number-pad"
-                      }
-                      selectTextOnFocus
-                      placeholder="0"
-                      placeholderTextColor={semanticColors.text.disabled}
-                    />
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.qtyButton,
-                      { backgroundColor: isSplitMode ? colors.neutral[100] : colors.primary[600] },
-                    ]}
-                    onPress={() => {
-                      if (isSplitMode) return;
-                      const val = parseFloat(quantity) || 0;
-                      const step = getQuantityStep();
-                      const newVal = val + step;
-                      setQuantity(formatQuantity(String(newVal)));
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    }}
-                    disabled={isSplitMode}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons name="add" size={28} color={isSplitMode ? colors.neutral[300] : colors.white} />
-                  </TouchableOpacity>
-                </View>
-
-                {isSplitMode && (
-                  <View style={styles.splitCountContainer}>
-                    <Text style={{
-                      fontSize: 12,
-                      color: semanticColors.text.secondary,
-                      marginBottom: spacing.sm,
-                      fontWeight: '500'
-                    }}>
-                      Enter individual pieces below. They will be summed automatically.
-                    </Text>
-                    {splitCounts.map((val, idx) => (
-                      <View key={idx} style={styles.splitRow}>
-                        <View style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 16,
-                          backgroundColor: colors.neutral[100],
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
-                          <Text style={{ fontSize: 12, fontWeight: 'bold', color: colors.neutral[600] }}>
-                            #{idx + 1}
-                          </Text>
-                        </View>
-                        <TextInput
-                          style={styles.splitInput}
-                          value={val}
-                          onChangeText={(newVal) => {
-                            const regex = uomInfo.precision > 0
-                              ? new RegExp(`^\\d*\\.?\\d{0,${uomInfo.precision}}$`)
-                              : /^\d*$/;
-
-                            if (newVal === "" || newVal === "." || regex.test(newVal)) {
-                              const updated = [...splitCounts];
-                              updated[idx] = newVal;
-                              setSplitCounts(updated);
-                            }
-                          }}
-                          onBlur={() => {
-                            const updated = [...splitCounts];
-                            if (val === "" || val === ".") {
-                              updated[idx] = "0";
-                            } else {
-                              updated[idx] = formatQuantity(val);
-                            }
-                            setSplitCounts(updated);
-                          }}
-                          keyboardType={uomInfo.precision > 0 ? "decimal-pad" : "number-pad"}
-                          placeholder="0"
-                          selectTextOnFocus
-                        />
-                        <TouchableOpacity
-                          onPress={() => {
-                            setSplitCounts(splitCounts.filter((_, i) => i !== idx));
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                          }}
-                          style={{ padding: 8 }}
-                        >
-                          <Ionicons name="remove-circle" size={24} color={colors.error[400]} />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
-                      <TouchableOpacity
-                        style={[styles.addSplitButton, { flex: 1, height: 44 }]}
-                        onPress={() => {
-                          setSplitCounts([...splitCounts, ""]);
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        }}
-                      >
-                        <Ionicons name="add-circle" size={20} color={colors.white} />
-                        <Text style={{ color: colors.white, fontWeight: 'bold' }}>Add Piece</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={{
-                          width: 44,
-                          height: 44,
-                          borderRadius: borderRadius.md,
-                          backgroundColor: colors.neutral[100],
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          borderWidth: 1,
-                          borderColor: colors.neutral[200]
-                        }}
-                        onPress={() => {
-                          Alert.alert(
-                            "Clear Split Counts?",
-                            "This will reset all individual pieces.",
-                            [
-                              { text: "Cancel", style: "cancel" },
-                              {
-                                text: "Clear",
-                                style: "destructive",
-                                onPress: () => {
-                                  setSplitCounts([]);
-                                  setIsSplitMode(false);
-                                  setQuantity("0");
-                                }
-                              }
-                            ]
-                          );
-                        }}
-                      >
-                        <Ionicons name="trash-outline" size={20} color={colors.error[500]} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
+                <CountQuantitySection
+                  isSplitMode={isSplitMode}
+                  isWeightBasedUOM={isWeightBasedUOM}
+                  quantity={quantity}
+                  splitCounts={splitCounts}
+                  uomLabel={uomInfo.label}
+                  uomUnit={uomInfo.unit}
+                  onAddSplitCount={handleAddSplitCount}
+                  onClearSplitCounts={handleClearSplitCounts}
+                  onDecrement={handleDecrement}
+                  onIncrement={handleIncrement}
+                  onQuantityBlur={handleQuantityBlur}
+                  onQuantityChange={handleQuantityChange}
+                  onRemoveSplitCount={handleRemoveSplitCount}
+                  onSplitCountBlur={handleSplitCountBlur}
+                  onSplitCountChange={handleSplitCountChange}
+                  onToggleSplitMode={handleToggleSplitMode}
+                />
               </View>
 
               {/* Batches */}
               <BatchVariantsSection
                 variants={sameNameVariants}
-                rawVariantsCount={rawVariants.length}
+                rawVariantsCount={rawVariantsCount}
                 loading={batchLoading}
                 error={batchError}
                 showZeroStock={showZeroStock}
                 onToggleShowZeroStock={setShowZeroStock}
                 onSelectVariant={(variantBarcode) => {
-                  setLoading(true);
                   router.replace({
                     pathname: "/staff/item-detail",
                     params: { barcode: variantBarcode, sessionId },
@@ -1644,8 +839,7 @@ export default function ItemDetailScreen() {
                               },
                             ]}
                             onPress={() => {
-                              setSelectedMrpVariant(variant);
-                              setMrp(String(variant.value));
+                              handleSelectMrpVariant(variant);
                             }}
                           >
                             <Text
@@ -1686,236 +880,24 @@ export default function ItemDetailScreen() {
                 </View>
               )}
 
-              {/* Is Damaged Section */}
-              <View style={styles.section}>
-                <View style={styles.toggleRow}>
-                  <View style={styles.toggleLabelContainer}>
-                    <Ionicons
-                      name="alert-circle-outline"
-                      size={20}
-                      color={colors.error[600]}
-                    />
-                    <Text
-                      style={[
-                        styles.toggleLabel,
-                        { color: semanticColors.text.primary },
-                      ]}
-                    >
-                      Is Damaged Item
-                    </Text>
-                  </View>
-                  <Switch
-                    value={isDamageEnabled}
-                    onValueChange={setIsDamageEnabled}
-                    trackColor={{
-                      false: colors.neutral[200],
-                      true: colors.error[500],
-                    }}
-                    thumbColor={
-                      isDamageEnabled ? colors.white : colors.neutral[50]
-                    }
-                  />
-                </View>
-
-                {isDamageEnabled && (
-                  <View style={styles.damageContainer}>
-                    <Text
-                      style={[
-                        styles.detailLabel,
-                        {
-                          color: colors.error[700],
-                          fontWeight: fontWeight.bold,
-                        },
-                      ]}
-                    >
-                      Select Damage Type
-                    </Text>
-                    <View style={styles.damageTypeContainer}>
-                      <TouchableOpacity
-                        style={[
-                          styles.damageTypeButton,
-                          damageType === "returnable" &&
-                          styles.damageTypeSelected,
-                        ]}
-                        onPress={() => setDamageType("returnable")}
-                      >
-                        <Text
-                          style={[
-                            styles.damageTypeText,
-                            damageType === "returnable" &&
-                            styles.damageTypeTextSelected,
-                          ]}
-                        >
-                          Returnable
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.damageTypeButton,
-                          damageType === "nonreturnable" &&
-                          styles.damageTypeSelected,
-                        ]}
-                        onPress={() => setDamageType("nonreturnable")}
-                      >
-                        <Text
-                          style={[
-                            styles.damageTypeText,
-                            damageType === "nonreturnable" &&
-                            styles.damageTypeTextSelected,
-                          ]}
-                        >
-                          Non-Returnable
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <View style={{ marginTop: spacing.md }}>
-                      <Text
-                        style={[
-                          styles.detailLabel,
-                          { color: colors.error[700] },
-                        ]}
-                      >
-                        Damage Quantity
-                      </Text>
-                      <TextInput
-                        style={[
-                          styles.qtyText,
-                          {
-                            fontSize: 24,
-                            height: 50,
-                            borderWidth: 1,
-                            borderColor: colors.error[200],
-                            borderRadius: 8,
-                            marginTop: 4,
-                          },
-                        ]}
-                        value={damageQty}
-                        onChangeText={setDamageQty}
-                        keyboardType="numeric"
-                        placeholder="0"
-                      />
-                    </View>
-
-                    <View style={styles.photoContainer}>
-                      <TouchableOpacity
-                        style={[
-                          styles.photoButton,
-                          damagePhoto && styles.photoButtonSuccess,
-                        ]}
-                        onPress={handleTakePhoto}
-                      >
-                        <Ionicons
-                          name={damagePhoto ? "checkmark-circle" : "camera"}
-                          size={24}
-                          color={damagePhoto ? colors.white : colors.error[600]}
-                        />
-                        <Text
-                          style={[
-                            styles.photoButtonText,
-                            damagePhoto && { color: colors.white },
-                          ]}
-                        >
-                          {damagePhoto ? "Update Photo" : "Capture Photo"}
-                        </Text>
-                      </TouchableOpacity>
-
-                      {damagePhoto && (
-                        <View style={styles.photoPreviewWrapper}>
-                          <Ionicons
-                            name="checkmark-circle"
-                            size={16}
-                            color={colors.success[600]}
-                          />
-                          <Text style={styles.photoPreviewText}>
-                            Photo captured
-                          </Text>
-                          <TouchableOpacity
-                            onPress={() => setDamagePhoto(null)}
-                          >
-                            <Text style={styles.photoRemoveText}>Remove</Text>
-                          </TouchableOpacity>
-                        </View>
-                      )}
-                    </View>
-                  </View>
-                )}
-              </View>
-
-              {/* Optional Item Photos Section */}
-              <View style={styles.section}>
-                <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: semanticColors.text.primary },
-                  ]}
-                >
-                  Item Photos (Optional)
-                </Text>
-
-                <View style={styles.itemPhotosRow}>
-                  {itemPhotos.map((uri, idx) => (
-                    <View key={idx} style={styles.itemPhotoWrapper}>
-                      <ModernCard style={styles.itemPhotoCard}>
-                        <Ionicons
-                          name="image"
-                          size={32}
-                          color={colors.primary[200]}
-                        />
-                        <TouchableOpacity
-                          style={styles.removePhotoBadge}
-                          onPress={() =>
-                            setItemPhotos((prev) =>
-                              prev.filter((_, i) => i !== idx),
-                            )
-                          }
-                        >
-                          <Ionicons
-                            name="close-circle"
-                            size={20}
-                            color={colors.error[600]}
-                          />
-                        </TouchableOpacity>
-                      </ModernCard>
-                    </View>
-                  ))}
-
-                  {itemPhotos.length < 3 && (
-                    <TouchableOpacity
-                      style={styles.addPhotoCard}
-                      onPress={handleCaptureItemPhoto}
-                    >
-                      <Ionicons
-                        name="add-circle-outline"
-                        size={32}
-                        color={colors.primary[600]}
-                      />
-                      <Text style={styles.addPhotoSubtext}>Add Photo</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-
-              {/* Variance Remark */}
-              <View style={styles.section}>
-                <ModernInput
-                  value={varianceRemark}
-                  onChangeText={setVarianceRemark}
-                  placeholder="Variance reason (if any)"
-                  label="Variance Remark"
-                />
-              </View>
-
-              <View style={styles.section}>
-                <ModernInput
-                  value={remark}
-                  onChangeText={setRemark}
-                  placeholder="Add remarks (optional)"
-                  label="Remarks"
-                  multiline
-                  numberOfLines={3}
-                />
-              </View>
+              <EvidenceNotesSection
+                damagePhoto={damagePhoto}
+                damageQty={damageQty}
+                damageType={damageType}
+                isDamageEnabled={isDamageEnabled}
+                itemPhotos={itemPhotos}
+                remark={remark}
+                varianceRemark={varianceRemark}
+                onAddItemPhoto={handleAddItemPhoto}
+                onDamageQtyChange={setDamageQty}
+                onDamageToggle={setIsDamageEnabled}
+                onDamageTypeChange={setDamageType}
+                onRemarkChange={setRemark}
+                onRemoveDamagePhoto={removeDamagePhoto}
+                onRemoveItemPhoto={removeItemPhoto}
+                onTakeDamagePhoto={handleTakeDamagePhoto}
+                onVarianceRemarkChange={setVarianceRemark}
+              />
             </>
           )}
 

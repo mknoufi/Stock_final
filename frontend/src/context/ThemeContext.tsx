@@ -23,6 +23,11 @@ import { useColorScheme, Appearance } from "react-native";
 import { themes, AppTheme } from "../theme/themes";
 import { mmkvStorage } from "../services/mmkvStorage";
 import { useSettingsStore } from "../store/settingsStore";
+import { useAuthStore } from "../store/authStore";
+import {
+  getScopedStorageKey,
+  getScopedStorageKeyCandidates,
+} from "../services/userPreferenceScope";
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const normalized = hex.replace("#", "").trim();
@@ -165,7 +170,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-// Storage keys
+// Base storage keys
 const STORAGE_KEYS = {
   THEME_KEY: "app_theme_key",
   THEME_MODE: "app_theme_mode",
@@ -200,7 +205,7 @@ const PATTERN_METADATA: { key: PatternType; name: string; icon: string }[] = [
   { key: "aurora", name: "Aurora", icon: "color-wand-outline" },
   { key: "mesh", name: "Mesh", icon: "apps-outline" },
   { key: "circuit", name: "Circuit", icon: "git-network-outline" },
-  { key: "hexagon", name: "Hexagon", icon: "hexagon-outline" },
+  { key: "hexagon", name: "Hexagon", icon: "diamond-outline" },
 ];
 
 // Layout metadata
@@ -222,6 +227,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const systemColorScheme = useColorScheme();
   const { settings } = useSettingsStore();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
 
   // State
   const [themeKey, setThemeKeyState] = useState<ThemeKey>("light");
@@ -348,11 +354,40 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   // Load persisted settings
   useEffect(() => {
     const loadSettings = () => {
+      setThemeKeyState("light");
+      setThemeModeState("light");
+      setPatternState("none");
+      setLayoutState("default");
+
       try {
-        const savedThemeKey = mmkvStorage.getItem(STORAGE_KEYS.THEME_KEY);
-        const savedThemeMode = mmkvStorage.getItem(STORAGE_KEYS.THEME_MODE);
-        const savedPattern = mmkvStorage.getItem(STORAGE_KEYS.PATTERN);
-        const savedLayout = mmkvStorage.getItem(STORAGE_KEYS.LAYOUT);
+        const readScopedValue = (baseKey: string): string | null => {
+          const [resolvedActiveKey, ...fallbackKeys] = getScopedStorageKeyCandidates(
+            baseKey,
+            userId,
+          );
+          const activeKey = resolvedActiveKey ?? baseKey;
+          const activeValue = mmkvStorage.getItem(activeKey);
+          if (activeValue != null) {
+            return activeValue;
+          }
+
+          for (const fallbackKey of fallbackKeys) {
+            const fallbackValue = mmkvStorage.getItem(fallbackKey);
+            if (fallbackValue != null) {
+              if (fallbackKey !== activeKey) {
+                mmkvStorage.setItem(activeKey, fallbackValue);
+              }
+              return fallbackValue;
+            }
+          }
+
+          return null;
+        };
+
+        const savedThemeKey = readScopedValue(STORAGE_KEYS.THEME_KEY);
+        const savedThemeMode = readScopedValue(STORAGE_KEYS.THEME_MODE);
+        const savedPattern = readScopedValue(STORAGE_KEYS.PATTERN);
+        const savedLayout = readScopedValue(STORAGE_KEYS.LAYOUT);
 
         if (savedThemeKey && themes[savedThemeKey as ThemeKey]) {
           setThemeKeyState(savedThemeKey as ThemeKey);
@@ -373,7 +408,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
     };
 
     loadSettings();
-  }, []);
+  }, [userId]);
 
   // Listen for system theme changes
   useEffect(() => {
@@ -391,23 +426,23 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   // Actions
   const setThemeKey = useCallback((key: ThemeKey) => {
     setThemeKeyState(key);
-    mmkvStorage.setItem(STORAGE_KEYS.THEME_KEY, key);
-  }, []);
+    mmkvStorage.setItem(getScopedStorageKey(STORAGE_KEYS.THEME_KEY, userId), key);
+  }, [userId]);
 
   const setThemeMode = useCallback((mode: ThemeMode) => {
     setThemeModeState(mode);
-    mmkvStorage.setItem(STORAGE_KEYS.THEME_MODE, mode);
-  }, []);
+    mmkvStorage.setItem(getScopedStorageKey(STORAGE_KEYS.THEME_MODE, userId), mode);
+  }, [userId]);
 
   const setPattern = useCallback((p: PatternType) => {
     setPatternState(p);
-    mmkvStorage.setItem(STORAGE_KEYS.PATTERN, p);
-  }, []);
+    mmkvStorage.setItem(getScopedStorageKey(STORAGE_KEYS.PATTERN, userId), p);
+  }, [userId]);
 
   const setLayout = useCallback((l: LayoutArrangement) => {
     setLayoutState(l);
-    mmkvStorage.setItem(STORAGE_KEYS.LAYOUT, l);
-  }, []);
+    mmkvStorage.setItem(getScopedStorageKey(STORAGE_KEYS.LAYOUT, userId), l);
+  }, [userId]);
 
   const toggleDarkMode = useCallback(() => {
     if (themeMode === "system") {

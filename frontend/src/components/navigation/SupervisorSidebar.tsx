@@ -160,7 +160,6 @@ export const SupervisorSidebar: React.FC<SupervisorSidebarProps> = ({
 
   const handleLogout = async () => {
     await logout();
-    router.replace("/welcome" as any);
   };
 
   const toggleGroup = (title: string) => {

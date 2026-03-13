@@ -7,3 +7,8 @@ export { useScanState } from "./useScanState";
 export { usePhotoState } from "./usePhotoState";
 export { useItemState } from "./useItemState";
 export { useWorkflowState } from "./useWorkflowState";
+export { useDeferredItemSubmission } from "./useDeferredItemSubmission";
+export { useSerialEntryManager } from "./useSerialEntryManager";
+export { useItemDetailData } from "./useItemDetailData";
+export { useQuantityCountManager } from "./useQuantityCountManager";
+export { useItemEvidenceState } from "./useItemEvidenceState";

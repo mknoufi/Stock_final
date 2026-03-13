@@ -43,6 +43,7 @@ export default function SessionDetail() {
   const [toVerifyLines, setToVerifyLines] = React.useState<any[]>([]);
   const [verifiedLines, setVerifiedLines] = React.useState<any[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [sessionMissing, setSessionMissing] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<"toVerify" | "verified">(
     "toVerify",
   );
@@ -65,6 +66,16 @@ export default function SessionDetail() {
         getCountLines(targetSessionId, 1, 100, false), // Not verified
         getCountLines(targetSessionId, 1, 100, true), // Verified
       ]);
+      if (!sessionData) {
+        setSession(null);
+        setToVerifyLines([]);
+        setVerifiedLines([]);
+        setSessionMissing(true);
+        show("This session is no longer available", "warning");
+        return;
+      }
+
+      setSessionMissing(false);
       setSession(sessionData);
       setToVerifyLines(toVerifyData?.items || []);
       setVerifiedLines(verifiedData?.items || []);
@@ -80,6 +91,42 @@ export default function SessionDetail() {
   React.useEffect(() => {
     loadData();
   }, [loadData]);
+
+  if (!loading && sessionMissing) {
+    return (
+      <AuroraBackground>
+        <StatusBar style="light" />
+        <View style={styles.header}>
+          <AnimatedPressable
+            onPress={() => router.replace("/supervisor/sessions")}
+            style={styles.backButton}
+          >
+            <Ionicons
+              name="arrow-back"
+              size={24}
+              color={auroraTheme.colors.text.primary}
+            />
+          </AnimatedPressable>
+          <Text style={styles.headerTitle}>Session Details</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <Ionicons
+            name="alert-circle-outline"
+            size={56}
+            color={auroraTheme.colors.warning[500]}
+          />
+          <Text style={styles.loadingText}>This session is no longer available.</Text>
+          <AnimatedPressable
+            onPress={() => router.replace("/supervisor/sessions")}
+            style={styles.closeButton}
+          >
+            <Text style={styles.buttonText}>Back to Sessions</Text>
+          </AnimatedPressable>
+        </View>
+      </AuroraBackground>
+    );
+  }
 
   const loadAssignableStaff = React.useCallback(async () => {
     if (assignableStaff.length > 0) {
