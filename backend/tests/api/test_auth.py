@@ -1,6 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import Response
 
 from backend.api.auth import (
     UserRegister,
@@ -186,7 +187,7 @@ async def test_register_success(mock_db, mock_refresh_token_service, mock_settin
         mock_hash.return_value = "hashed_password"
         mock_create_token.return_value = "access_token"
 
-        response = await register(user_input)
+        response = await register(user_input, Response())
 
         assert response["access_token"] == "access_token"
         assert response["refresh_token"] == "refresh_token"

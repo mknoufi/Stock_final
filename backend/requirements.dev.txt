@@ -29,7 +29,7 @@ memory-profiler>=0.61.0
 numpy>=2.0.2
 Pillow>=11.0.0
 sentence-transformers>=2.2.2
-redis[hiredis]>=5.2.1
+redis[hiredis]>=7.3.0
 copilotkit>=0.1.39
 
 # Optional observability extras

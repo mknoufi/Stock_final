@@ -12,9 +12,6 @@ import {
   Switch,
   TouchableOpacity,
   TextInput,
-  Modal,
-  FlatList,
-  Pressable,
   InteractionManager,
   ActivityIndicator,
   Platform,
@@ -52,12 +49,17 @@ import {
 } from "@/utils/scanUtils";
 import { getStockQty, sortItemsByStockDesc } from "@/utils/itemBatchUtils";
 import { SerialScannerModal } from "@/components/modals/SerialScannerModal";
+import { OptionSelectModal } from "@/components/modals/OptionSelectModal";
 
 import ModernHeader from "@/components/ui/ModernHeader";
 import ModernCard from "@/components/ui/ModernCard";
 import ModernButton from "@/components/ui/ModernButton";
 import ModernInput from "@/components/ui/ModernInput";
 import { ThemedScreen } from "@/components/ui/ThemedScreen";
+import { BatchVariantsSection } from "@/components/scan/BatchVariantsSection";
+import { FlexibleDateField } from "@/components/scan/FlexibleDateField";
+import { SerialEntriesSection } from "@/components/scan/SerialEntriesSection";
+import { useFlexibleDateField } from "@/domains/inventory/hooks/scan/useFlexibleDateField";
 import {
   colors,
   semanticColors,
@@ -169,11 +171,18 @@ export default function ItemDetailScreen() {
   const [itemExpiryDate, setItemExpiryDate] = useState("");
   const [itemExpiryDateFormat, setItemExpiryDateFormat] =
     useState<DateFormatType>("full");
-
-  const isMfgFull = itemMfgDateFormat === "full";
-  const isMfgMonthYear = itemMfgDateFormat === "month_year";
-  const isExpiryFull = itemExpiryDateFormat === "full";
-  const isExpiryMonthYear = itemExpiryDateFormat === "month_year";
+  const mfgDateField = useFlexibleDateField({
+    value: itemMfgDate,
+    format: itemMfgDateFormat,
+    onChangeValue: setItemMfgDate,
+    onChangeFormat: setItemMfgDateFormat,
+  });
+  const expiryDateField = useFlexibleDateField({
+    value: itemExpiryDate,
+    format: itemExpiryDateFormat,
+    onChangeValue: setItemExpiryDate,
+    onChangeFormat: setItemExpiryDateFormat,
+  });
 
   const [isInteractionsComplete, setIsInteractionsComplete] = useState(false);
 
@@ -595,334 +604,6 @@ export default function ItemDetailScreen() {
         entry.serial_number.trim() ? validateSerialNumber(entry.serial_number) : null,
       ),
     [serialEntries],
-  );
-
-  const renderSerialEntry = useCallback(
-    ({ item: entry, index }: { item: SerialEntryData; index: number }) => {
-      const validationError = serialValidationMessages[index];
-      const hasValue = entry.serial_number.trim().length > 0;
-
-      return (
-        <View style={styles.serialEntryCard}>
-          <View style={styles.serialEntryHeader}>
-            <Text
-              style={[
-                styles.serialLabel,
-                { color: semanticColors.text.secondary },
-              ]}
-            >
-              Unit #{index + 1}
-            </Text>
-            <TouchableOpacity
-              style={styles.removeSerialButton}
-              onPress={() => handleRemoveSerial(index)}
-            >
-              <Ionicons
-                name="trash-outline"
-                size={18}
-                color={colors.error[500]}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.serialInputContainer}>
-            <TextInput
-              style={[
-                styles.serialTextInput,
-                {
-                  color: semanticColors.text.primary,
-                  backgroundColor: semanticColors.background.paper,
-                  borderColor: hasValue
-                    ? validationError
-                      ? colors.error[500]
-                      : colors.success[500]
-                    : colors.neutral[300],
-                },
-              ]}
-              value={entry.serial_number}
-              onChangeText={(text) =>
-                handleSerialChange(index, "serial_number", text)
-              }
-              placeholder="Serial number"
-              placeholderTextColor={semanticColors.text.disabled}
-              autoCapitalize="characters"
-              autoCorrect={false}
-            />
-          </View>
-
-          {validationError && (
-            <Text style={styles.serialErrorText}>{validationError}</Text>
-          )}
-        </View>
-      );
-    },
-    [
-      handleRemoveSerial,
-      handleSerialChange,
-      serialValidationMessages,
-    ],
-  );
-
-  // Date format options for flexible date input
-  const DATE_FORMAT_OPTIONS: {
-    value: DateFormatType;
-    label: string;
-    placeholder: string;
-  }[] = [
-      { value: "full", label: "Full Date", placeholder: "DD/MM/YYYY" },
-      { value: "month_year", label: "Month & Year", placeholder: "MM/YYYY" },
-      { value: "year_only", label: "Year Only", placeholder: "YYYY" },
-    ];
-
-  // Local pieces for picker-based date selection
-  const [mfgDay, setMfgDay] = useState<string>("");
-  const [mfgMonth, setMfgMonth] = useState<string>("");
-  const [mfgYear, setMfgYear] = useState<string>("");
-  const [expiryDay, setExpiryDay] = useState<string>("");
-  const [expiryMonth, setExpiryMonth] = useState<string>("");
-  const [expiryYear, setExpiryYear] = useState<string>("");
-  const [selectVisible, setSelectVisible] = useState(false);
-  const [selectOptions, setSelectOptions] = useState<string[]>([]);
-  const [selectTitle, setSelectTitle] = useState("");
-  const [selectType, setSelectType] = useState<"day" | "month" | "year" | null>(
-    null,
-  );
-  const [selectFor, setSelectFor] = useState<"mfg" | "exp" | null>(null);
-
-  const today = useMemo(() => new Date(), []);
-  const currentYear = today.getFullYear();
-  const earliestYear = currentYear - 10; // last 10 years
-
-  // Initialize parts when itemMfgDate changes (or when format changes)
-  useEffect(() => {
-    if (!itemMfgDate) {
-      setMfgDay("");
-      setMfgMonth("");
-      setMfgYear("");
-      return;
-    }
-    const parts = itemMfgDate.split("/");
-    if (itemMfgDateFormat === "full" && parts.length === 3) {
-      setMfgDay(parts[0] ?? "");
-      setMfgMonth(parts[1] ?? "");
-      setMfgYear(parts[2] ?? "");
-    } else if (itemMfgDateFormat === "month_year" && parts.length === 2) {
-      setMfgDay("");
-      setMfgMonth(parts[0] ?? "");
-      setMfgYear(parts[1] ?? "");
-    } else if (itemMfgDateFormat === "year_only") {
-      setMfgDay("");
-      setMfgMonth("");
-      setMfgYear(parts[0] || "");
-    }
-  }, [itemMfgDate, itemMfgDateFormat]);
-
-  // Initialize parts when itemExpiryDate changes (or when format changes)
-  useEffect(() => {
-    if (!itemExpiryDate) {
-      setExpiryDay("");
-      setExpiryMonth("");
-      setExpiryYear("");
-      return;
-    }
-    const parts = itemExpiryDate.split("/");
-    if (itemExpiryDateFormat === "full" && parts.length === 3) {
-      setExpiryDay(parts[0] ?? "");
-      setExpiryMonth(parts[1] ?? "");
-      setExpiryYear(parts[2] ?? "");
-    } else if (itemExpiryDateFormat === "month_year" && parts.length === 2) {
-      setExpiryDay("");
-      setExpiryMonth(parts[0] ?? "");
-      setExpiryYear(parts[1] ?? "");
-    } else if (itemExpiryDateFormat === "year_only") {
-      setExpiryDay("");
-      setExpiryMonth("");
-      setExpiryYear(parts[0] || "");
-    }
-  }, [itemExpiryDate, itemExpiryDateFormat]);
-
-  // Compose itemMfgDate from parts
-  const composeMfgDate = useCallback(() => {
-    if (itemMfgDateFormat === "full") {
-      if (!mfgDay || !mfgMonth || !mfgYear) return "";
-      return `${mfgDay.padStart(2, "0")}/${mfgMonth.padStart(2, "0")}/${mfgYear}`;
-    }
-    if (itemMfgDateFormat === "month_year") {
-      if (!mfgMonth || !mfgYear) return "";
-      return `${mfgMonth.padStart(2, "0")}/${mfgYear}`;
-    }
-    if (itemMfgDateFormat === "year_only") {
-      return mfgYear || "";
-    }
-    return "";
-  }, [mfgDay, mfgMonth, mfgYear, itemMfgDateFormat]);
-
-  const composeExpiryDate = useCallback(() => {
-    if (itemExpiryDateFormat === "full") {
-      if (!expiryDay || !expiryMonth || !expiryYear) return "";
-      return `${expiryDay.padStart(2, "0")}/${expiryMonth.padStart(2, "0")}/${expiryYear}`;
-    }
-    if (itemExpiryDateFormat === "month_year") {
-      if (!expiryMonth || !expiryYear) return "";
-      return `${expiryMonth.padStart(2, "0")}/${expiryYear}`;
-    }
-    if (itemExpiryDateFormat === "year_only") {
-      return expiryYear || "";
-    }
-    return "";
-  }, [expiryDay, expiryMonth, expiryYear, itemExpiryDateFormat]);
-
-  const generateMonthOptions = useCallback((): string[] => {
-    return Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0"));
-  }, []);
-
-  const generateYearOptions = useCallback((): string[] => {
-    const years: string[] = [];
-    for (let y = currentYear; y >= earliestYear; y--) years.push(String(y));
-    return years;
-  }, [currentYear, earliestYear]);
-
-  const generateDayOptions = useCallback((): string[] => {
-    const month = Number(mfgMonth) || 1;
-    const year = Number(mfgYear) || currentYear;
-    const daysInMonth = new Date(year, month, 0).getDate();
-    return Array.from({ length: daysInMonth }, (_, i) =>
-      String(i + 1).padStart(2, "0"),
-    );
-  }, [mfgMonth, mfgYear, currentYear]);
-
-  const generateExpiryDayOptions = useCallback((): string[] => {
-    const month = Number(expiryMonth) || 1;
-    const year = Number(expiryYear) || currentYear;
-    const daysInMonth = new Date(year, month, 0).getDate();
-    return Array.from({ length: daysInMonth }, (_, i) =>
-      String(i + 1).padStart(2, "0"),
-    );
-  }, [expiryMonth, expiryYear, currentYear]);
-
-  const openSelect = useCallback(
-    (type: "day" | "month" | "year", target: "mfg" | "exp" = "mfg") => {
-      setSelectFor(target);
-      setSelectType(type);
-      if (type === "day") {
-        setSelectOptions(
-          target === "mfg" ? generateDayOptions() : generateExpiryDayOptions(),
-        );
-        setSelectTitle("Select Day");
-      } else if (type === "month") {
-        setSelectOptions(generateMonthOptions());
-        setSelectTitle("Select Month");
-      } else {
-        setSelectOptions(generateYearOptions());
-        setSelectTitle("Select Year");
-      }
-      setSelectVisible(true);
-    },
-    [
-      generateDayOptions,
-      generateMonthOptions,
-      generateYearOptions,
-      generateExpiryDayOptions,
-    ],
-  );
-
-  const onSelectOption = useCallback(
-    (val: string) => {
-      if (selectFor === "mfg") {
-        if (selectType === "day") setMfgDay(val);
-        if (selectType === "month") {
-          setMfgMonth(val);
-          setMfgDay("");
-        }
-        if (selectType === "year") {
-          setMfgYear(val);
-          setMfgDay("");
-        }
-        setSelectVisible(false);
-        setTimeout(() => {
-          const composed = composeMfgDate();
-          setItemMfgDate(composed);
-        }, 0);
-        return;
-      }
-
-      if (selectFor === "exp") {
-        if (selectType === "day") setExpiryDay(val);
-        if (selectType === "month") {
-          setExpiryMonth(val);
-          setExpiryDay("");
-        }
-        if (selectType === "year") {
-          setExpiryYear(val);
-          setExpiryDay("");
-        }
-        setSelectVisible(false);
-        setTimeout(() => {
-          const composed = composeExpiryDate();
-          setItemExpiryDate(composed);
-        }, 0);
-        return;
-      }
-    },
-    [
-      selectType,
-      selectFor,
-      composeMfgDate,
-      composeExpiryDate,
-      setItemMfgDate,
-      setItemExpiryDate,
-    ],
-  );
-
-  // Validate date input based on format
-  const validateDateInput = useCallback(
-    (input: string, format: DateFormatType): boolean => {
-      if (!input) return true; // Empty is valid (optional)
-
-      const now = new Date();
-
-      switch (format) {
-        case "full": {
-          const parts = input.split("/");
-          if (parts.length !== 3) return false;
-          const day = Number(parts[0]);
-          const month = Number(parts[1]);
-          const year = Number(parts[2]);
-          if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
-          if (day < 1 || day > 31 || month < 1 || month > 12) return false;
-          // Build date and ensure not in future
-          const dt = new Date(year, month - 1, day);
-          if (isNaN(dt.getTime())) return false;
-          if (dt > now) return false;
-          if (year < earliestYear) return false;
-          return true;
-        }
-        case "month_year": {
-          const parts = input.split("/");
-          if (parts.length !== 2) return false;
-          const month = Number(parts[0]);
-          const year = Number(parts[1]);
-          if (isNaN(month) || isNaN(year)) return false;
-          if (month < 1 || month > 12) return false;
-          // If same year, month must not be in future
-          if (year > now.getFullYear()) return false;
-          if (year === now.getFullYear() && month > now.getMonth() + 1)
-            return false;
-          if (year < earliestYear) return false;
-          return true;
-        }
-        case "year_only": {
-          const year = Number(input);
-          if (isNaN(year)) return false;
-          if (year > now.getFullYear()) return false;
-          if (year < earliestYear) return false;
-          return true;
-        }
-        default:
-          return true;
-      }
-    },
-    [earliestYear],
   );
 
   const validateSerials = useCallback((): boolean => {
@@ -1784,511 +1465,76 @@ export default function ItemDetailScreen() {
               </View>
 
               {/* Batches */}
-              {(sameNameVariants.length > 0 || rawVariants.length > 0) && (
-                <View style={styles.section}>
-                  <View style={styles.batchHeader}>
-                    <Text
-                      style={[
-                        styles.sectionTitle,
-                        { color: semanticColors.text.primary, marginBottom: 0 },
-                      ]}
-                    >
-                      Batches
-                    </Text>
-                    {batchLoading && (
-                      <ActivityIndicator
-                        size="small"
-                        color={colors.primary[600]}
-                      />
-                    )}
-                    <View style={styles.batchToggle}>
-                      <Text
-                        style={[
-                          styles.batchToggleLabel,
-                          { color: semanticColors.text.secondary },
-                        ]}
-                      >
-                        Include 0 stock
-                      </Text>
-                      <Switch
-                        value={showZeroStock}
-                        onValueChange={setShowZeroStock}
-                        trackColor={{
-                          true: colors.primary[600],
-                          false: colors.neutral[200],
-                        }}
-                        thumbColor={colors.white}
-                        style={styles.batchToggleSwitch}
-                      />
-                    </View>
-                  </View>
-
-                  {sameNameVariants.length === 0 ? (
-                    <Text
-                      style={[
-                        styles.batchEmpty,
-                        {
-                          color: batchError
-                            ? colors.warning[700]
-                            : semanticColors.text.secondary,
-                        },
-                      ]}
-                    >
-                      {batchError ||
-                        (showZeroStock
-                          ? "No other batches."
-                          : "No batches with stock.")}
-                    </Text>
-                  ) : (
-                    <View style={styles.batchList}>
-                      {sameNameVariants.map((variant, index) => {
-                        const stockQty = getStockQty(variant);
-                        const batchTitle =
-                          variant.batch_no || variant.item_code || "N/A";
-                        const numericMrp = Number.parseFloat(
-                          String(variant.mrp ?? ""),
-                        );
-                        const mrpDisplay = Number.isFinite(numericMrp)
-                          ? numericMrp.toFixed(2)
-                          : "-";
-                        const barcodeText = variant.barcode || "-";
-                        const variantKey =
-                          variant._id ??
-                          [
-                            variant.item_code,
-                            variant.barcode,
-                            variant.batch_no,
-                            `idx-${index}`,
-                          ]
-                            .filter(
-                              (value) =>
-                                value !== undefined &&
-                                value !== null &&
-                                value !== "",
-                            )
-                            .join(":");
-
-                        return (
-                          <TouchableOpacity
-                            key={variantKey}
-                            onPress={() => {
-                              // Switch to this item/batch
-                              setLoading(true);
-                              router.replace({
-                                pathname: "/staff/item-detail",
-                                params: { barcode: variant.barcode, sessionId },
-                              });
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <ModernCard style={styles.batchCard}>
-                              <View style={styles.batchRow}>
-                                <View style={styles.batchInfo}>
-                                  <View style={styles.batchTitleRow}>
-                                    <Text
-                                      style={[
-                                        styles.batchTitle,
-                                        { color: semanticColors.text.primary },
-                                      ]}
-                                    >
-                                      Batch {batchTitle}
-                                    </Text>
-                                    <Text
-                                      style={[
-                                        styles.batchMrp,
-                                        { color: semanticColors.text.secondary },
-                                      ]}
-                                    >
-                                      MRP Rs.{mrpDisplay}
-                                    </Text>
-                                  </View>
-                                  <Text
-                                    style={[
-                                      styles.batchMeta,
-                                      { color: semanticColors.text.secondary },
-                                    ]}
-                                    numberOfLines={1}
-                                  >
-                                    Barcode: {barcodeText}
-                                  </Text>
-                                </View>
-                                <View style={styles.batchStock}>
-                                  <Text
-                                    style={[
-                                      styles.batchStockValue,
-                                      { color: semanticColors.text.primary },
-                                    ]}
-                                  >
-                                    {stockQty}
-                                  </Text>
-                                  <Text
-                                    style={[
-                                      styles.batchStockLabel,
-                                      { color: semanticColors.text.secondary },
-                                    ]}
-                                  >
-                                    Stock
-                                  </Text>
-                                </View>
-                              </View>
-                            </ModernCard>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  )}
-                </View>
-              )}
+              <BatchVariantsSection
+                variants={sameNameVariants}
+                rawVariantsCount={rawVariants.length}
+                loading={batchLoading}
+                error={batchError}
+                showZeroStock={showZeroStock}
+                onToggleShowZeroStock={setShowZeroStock}
+                onSelectVariant={(variantBarcode) => {
+                  setLoading(true);
+                  router.replace({
+                    pathname: "/staff/item-detail",
+                    params: { barcode: variantBarcode, sessionId },
+                  });
+                }}
+              />
 
               {/* Manufacturing & Expiry Date Section */}
               {(settings.columnVisibility.mfgDate ||
                 settings.columnVisibility.expiryDate) && (
-                  <View style={styles.section}>
-                    {/* Mfg Date Toggle */}
-                    {settings.columnVisibility.mfgDate && (
-                      <View style={styles.toggleRow}>
-                        <View style={styles.toggleLabelContainer}>
-                          <Ionicons
-                            name="calendar-outline"
-                            size={20}
-                            color={colors.primary[600]}
-                          />
-                          <Text
-                            style={[
-                              styles.toggleLabel,
-                              { color: semanticColors.text.primary },
-                            ]}
-                          >
-                            Has Manufacturing Date
-                          </Text>
-                        </View>
-                        <Switch
-                          value={hasMfgDate}
-                          onValueChange={(val) => {
-                            setHasMfgDate(val);
-                            if (!val) setItemMfgDate("");
-                          }}
-                          trackColor={{
-                            false: colors.neutral[200],
-                            true: colors.primary[600],
-                          }}
-                          thumbColor={
-                            hasMfgDate ? colors.white : colors.neutral[50]
+                <View style={styles.section}>
+                  {settings.columnVisibility.mfgDate && (
+                    <FlexibleDateField
+                      label="Manufacturing Date"
+                      enabled={hasMfgDate}
+                      onToggleEnabled={(enabled) => {
+                        setHasMfgDate(enabled);
+                        if (!enabled) {
+                          setItemMfgDate("");
+                        }
+                      }}
+                      format={itemMfgDateFormat}
+                      onChangeFormat={mfgDateField.handleFormatChange}
+                      value={itemMfgDate}
+                      isValid={mfgDateField.isValid}
+                      isFull={mfgDateField.isFull}
+                      isMonthYear={mfgDateField.isMonthYear}
+                      parts={mfgDateField.parts}
+                      onOpenPicker={mfgDateField.openPicker}
+                      iconName="calendar-outline"
+                      iconColor={colors.primary[600]}
+                      trackColor={colors.primary[600]}
+                    />
+                  )}
+
+                  {settings.columnVisibility.expiryDate && (
+                    <View style={settings.columnVisibility.mfgDate ? styles.dateFieldSpacing : undefined}>
+                      <FlexibleDateField
+                        label="Expiry Date"
+                        enabled={hasExpiryDate}
+                        onToggleEnabled={(enabled) => {
+                          setHasExpiryDate(enabled);
+                          if (!enabled) {
+                            setItemExpiryDate("");
                           }
-                        />
-                      </View>
-                    )}
-
-                    {/* Manufacturing Date Input */}
-                    {settings.columnVisibility.mfgDate && hasMfgDate && (
-                      <View style={styles.itemDateSection}>
-                        <View style={styles.dateLabelRow}>
-                          <Text style={styles.itemDateLabel}>
-                            Manufacturing Date
-                          </Text>
-                          <View style={styles.dateFormatPicker}>
-                            {DATE_FORMAT_OPTIONS.map((opt) => (
-                              <TouchableOpacity
-                                key={opt.value}
-                                style={[
-                                  styles.dateFormatOption,
-                                  itemMfgDateFormat === opt.value &&
-                                  styles.dateFormatOptionActive,
-                                ]}
-                                onPress={() => {
-                                  setItemMfgDateFormat(opt.value);
-                                  setItemMfgDate("");
-                                }}
-                              >
-                                <Text
-                                  style={[
-                                    styles.dateFormatOptionText,
-                                    itemMfgDateFormat === opt.value &&
-                                    styles.dateFormatOptionTextActive,
-                                  ]}
-                                >
-                                  {opt.label}
-                                </Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        </View>
-                        <View
-                          style={[
-                            styles.itemDateInput,
-                            {
-                              borderColor:
-                                itemMfgDate &&
-                                  !validateDateInput(itemMfgDate, itemMfgDateFormat)
-                                  ? colors.error[500]
-                                  : colors.neutral[300],
-                              backgroundColor: semanticColors.background.paper,
-                            },
-                          ]}
-                        >
-                          {isMfgFull ? (
-                            <View style={{ flexDirection: "row", gap: 8 }}>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("day")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !mfgDay && styles.placeholderText,
-                                  ]}
-                                >
-                                  {mfgDay || "DD"}
-                                </Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("month")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !mfgMonth && styles.placeholderText,
-                                  ]}
-                                >
-                                  {mfgMonth || "MM"}
-                                </Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("year")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !mfgYear && styles.placeholderText,
-                                  ]}
-                                >
-                                  {mfgYear || "YYYY"}
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                          ) : isMfgMonthYear ? (
-                            <View style={{ flexDirection: "row", gap: 8 }}>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("month")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !mfgMonth && styles.placeholderText,
-                                  ]}
-                                >
-                                  {mfgMonth || "MM"}
-                                </Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("year")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !mfgYear && styles.placeholderText,
-                                  ]}
-                                >
-                                  {mfgYear || "YYYY"}
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                          ) : (
-                            <TouchableOpacity
-                              style={styles.smallPickerFull}
-                              onPress={() => openSelect("year")}
-                            >
-                              <Text
-                                style={[
-                                  styles.smallPickerText,
-                                  !mfgYear && styles.placeholderText,
-                                ]}
-                              >
-                                {mfgYear || "YYYY"}
-                              </Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-                    )}
-
-                    {/* Exp Date Toggle */}
-                    {settings.columnVisibility.expiryDate && (
-                      <View style={[styles.toggleRow, { marginTop: spacing.md }]}>
-                        <View style={styles.toggleLabelContainer}>
-                          <Ionicons
-                            name="time-outline"
-                            size={20}
-                            color={colors.warning[600]}
-                          />
-                          <Text
-                            style={[
-                              styles.toggleLabel,
-                              { color: semanticColors.text.primary },
-                            ]}
-                          >
-                            Has Expiry Date
-                          </Text>
-                        </View>
-                        <Switch
-                          value={hasExpiryDate}
-                          onValueChange={(val) => {
-                            setHasExpiryDate(val);
-                            if (!val) setItemExpiryDate("");
-                          }}
-                          trackColor={{
-                            false: colors.neutral[200],
-                            true: colors.warning[600],
-                          }}
-                          thumbColor={
-                            hasExpiryDate ? colors.white : colors.neutral[50]
-                          }
-                        />
-                      </View>
-                    )}
-
-                    {/* Expiry Date Input */}
-                    {settings.columnVisibility.expiryDate && hasExpiryDate && (
-                      <View style={styles.itemDateSection}>
-                        <View style={styles.dateLabelRow}>
-                          <Text style={styles.itemDateLabel}>Expiry Date</Text>
-                          <View style={styles.dateFormatPicker}>
-                            {DATE_FORMAT_OPTIONS.map((opt) => (
-                              <TouchableOpacity
-                                key={opt.value}
-                                style={[
-                                  styles.dateFormatOption,
-                                  itemExpiryDateFormat === opt.value &&
-                                  styles.dateFormatOptionActive,
-                                ]}
-                                onPress={() => {
-                                  setItemExpiryDateFormat(opt.value);
-                                  setItemExpiryDate("");
-                                }}
-                              >
-                                <Text
-                                  style={[
-                                    styles.dateFormatOptionText,
-                                    itemExpiryDateFormat === opt.value &&
-                                    styles.dateFormatOptionTextActive,
-                                  ]}
-                                >
-                                  {opt.label}
-                                </Text>
-                              </TouchableOpacity>
-                            ))}
-                          </View>
-                        </View>
-                        <View
-                          style={[
-                            styles.itemDateInput,
-                            {
-                              borderColor:
-                                itemExpiryDate &&
-                                  !validateDateInput(
-                                    itemExpiryDate,
-                                    itemExpiryDateFormat,
-                                  )
-                                  ? colors.error[500]
-                                  : colors.neutral[300],
-                              backgroundColor: semanticColors.background.paper,
-                            },
-                          ]}
-                        >
-                          {isExpiryFull ? (
-                            <View style={{ flexDirection: "row", gap: 8 }}>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("day", "exp")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !expiryDay && styles.placeholderText,
-                                  ]}
-                                >
-                                  {expiryDay || "DD"}
-                                </Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("month", "exp")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !expiryMonth && styles.placeholderText,
-                                  ]}
-                                >
-                                  {expiryMonth || "MM"}
-                                </Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("year", "exp")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !expiryYear && styles.placeholderText,
-                                  ]}
-                                >
-                                  {expiryYear || "YYYY"}
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                          ) : isExpiryMonthYear ? (
-                            <View style={{ flexDirection: "row", gap: 8 }}>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("month", "exp")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !expiryMonth && styles.placeholderText,
-                                  ]}
-                                >
-                                  {expiryMonth || "MM"}
-                                </Text>
-                              </TouchableOpacity>
-                              <TouchableOpacity
-                                style={styles.smallPicker}
-                                onPress={() => openSelect("year", "exp")}
-                              >
-                                <Text
-                                  style={[
-                                    styles.smallPickerText,
-                                    !expiryYear && styles.placeholderText,
-                                  ]}
-                                >
-                                  {expiryYear || "YYYY"}
-                                </Text>
-                              </TouchableOpacity>
-                            </View>
-                          ) : (
-                            <TouchableOpacity
-                              style={styles.smallPickerFull}
-                              onPress={() => openSelect("year", "exp")}
-                            >
-                              <Text
-                                style={[
-                                  styles.smallPickerText,
-                                  !expiryYear && styles.placeholderText,
-                                ]}
-                              >
-                                {expiryYear || "YYYY"}
-                              </Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                      </View>
-                    )}
-                  </View>
+                        }}
+                        format={itemExpiryDateFormat}
+                        onChangeFormat={expiryDateField.handleFormatChange}
+                        value={itemExpiryDate}
+                        isValid={expiryDateField.isValid}
+                        isFull={expiryDateField.isFull}
+                        isMonthYear={expiryDateField.isMonthYear}
+                        parts={expiryDateField.parts}
+                        onOpenPicker={expiryDateField.openPicker}
+                        iconName="time-outline"
+                        iconColor={colors.warning[600]}
+                        trackColor={colors.warning[600]}
+                      />
+                    </View>
+                  )}
+                </View>
                 )}
 
               {/* Is Serialized Toggle */}
@@ -2337,87 +1583,17 @@ export default function ItemDetailScreen() {
 
               {/* Serial Number Input - Only visible when Is Serialized is enabled */}
               {settings.columnVisibility.serialNumber && isSerializedItem && (
-                <View style={styles.section}>
-                  <View style={styles.serialHeader}>
-                    <View style={styles.serialTitleRow}>
-                      <Ionicons
-                        name="barcode-outline"
-                        size={20}
-                        color={colors.primary[600]}
-                      />
-                      <Text
-                        style={[
-                          styles.sectionTitle,
-                          {
-                            color: semanticColors.text.primary,
-                            marginLeft: spacing.xs,
-                          },
-                        ]}
-                      >
-                        Serial Numbers
-                      </Text>
-                    </View>
-                    <Text
-                      style={[
-                        styles.serialHelperText,
-                        { color: semanticColors.text.secondary },
-                      ]}
-                    >
-                      Scan or type serial numbers - quantity auto-updates (
-                      {serialEntries.length} scanned)
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.scanSerialButton}
-                    onPress={() => setShowSerialScanner(true)}
-                  >
-                    <Ionicons name="scan" size={24} color={colors.white} />
-                    <Text style={styles.scanSerialButtonText}>
-                      Scan Serial Numbers
-                    </Text>
-                  </TouchableOpacity>
-
-                  {serialValidationErrors.length > 0 && (
-                    <View style={styles.validationErrorContainer}>
-                      {serialValidationErrors.map((error, idx) => (
-                        <Text key={idx} style={styles.validationErrorText}>
-                          • {error}
-                        </Text>
-                      ))}
-                    </View>
-                  )}
-
-                  <FlatList
-                    data={serialEntries}
-                    keyExtractor={(entry) => entry.id}
-                    renderItem={renderSerialEntry}
-                    extraData={serialValidationMessages}
-                    style={styles.serialEntriesList}
-                    contentContainerStyle={styles.serialEntriesContent}
-                    nestedScrollEnabled={Platform.OS === "android"}
-                    // Let the parent screen ScrollView own vertical scrolling to avoid gesture lockups.
-                    scrollEnabled={false}
-                    initialNumToRender={8}
-                    maxToRenderPerBatch={10}
-                    windowSize={5}
-                    removeClippedSubviews={Platform.OS === "android"}
-                  />
-
-                  <TouchableOpacity
-                    style={styles.addSerialButton}
-                    onPress={handleAddSerial}
-                  >
-                    <Ionicons
-                      name="add-circle-outline"
-                      size={20}
-                      color={colors.primary[600]}
-                    />
-                    <Text style={styles.addSerialButtonText}>
-                      Add Serial Manually
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                <SerialEntriesSection
+                  serialEntries={serialEntries}
+                  serialValidationErrors={serialValidationErrors}
+                  serialValidationMessages={serialValidationMessages}
+                  onOpenScanner={() => setShowSerialScanner(true)}
+                  onAddSerial={handleAddSerial}
+                  onSerialChange={(index, text) =>
+                    handleSerialChange(index, "serial_number", text)
+                  }
+                  onRemoveSerial={handleRemoveSerial}
+                />
               )}
 
               {/* MRP Selection / Override */}
@@ -2774,32 +1950,21 @@ export default function ItemDetailScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* Global Modals & Selection */}
-      <Modal visible={selectVisible} transparent animationType="slide">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectTitle}</Text>
-            <FlatList
-              data={selectOptions}
-              keyExtractor={(i) => i}
-              renderItem={({ item: opt }) => (
-                <Pressable
-                  onPress={() => onSelectOption(opt)}
-                  style={styles.modalOption}
-                >
-                  <Text style={styles.modalOptionText}>{opt}</Text>
-                </Pressable>
-              )}
-            />
-            <TouchableOpacity
-              style={styles.modalClose}
-              onPress={() => setSelectVisible(false)}
-            >
-              <Text style={styles.modalCloseText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <OptionSelectModal
+        visible={mfgDateField.pickerState.visible}
+        title={mfgDateField.pickerState.title}
+        options={mfgDateField.pickerState.options}
+        onSelect={mfgDateField.selectOption}
+        onClose={mfgDateField.closePicker}
+      />
+
+      <OptionSelectModal
+        visible={expiryDateField.pickerState.visible}
+        title={expiryDateField.pickerState.title}
+        options={expiryDateField.pickerState.options}
+        onSelect={expiryDateField.selectOption}
+        onClose={expiryDateField.closePicker}
+      />
 
       <SerialScannerModal
         visible={showSerialScanner}
@@ -3465,6 +2630,9 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     borderColor: colors.neutral[200],
+  },
+  dateFieldSpacing: {
+    marginTop: spacing.md,
   },
   itemDateLabel: {
     fontSize: fontSize.sm,

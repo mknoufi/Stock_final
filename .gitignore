@@ -4,6 +4,7 @@
 
 # Environment files (secrets)
 .env
+.env.prod
 .env.bak
 .env.local
 .env.production

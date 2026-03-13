@@ -214,24 +214,29 @@ eval-security:
 # =============================================================================
 # 🚀 DEPLOYMENT
 # =============================================================================
-.PHONY: deploy deploy-check
+.PHONY: deploy deploy-check deploy-certs
+
+PROD_COMPOSE_FILE := docker-compose.production.yml
+PROD_ENV_FILE := .env.prod
 
 deploy-check:
 	@echo "🔍 Checking deployment prerequisites..."
-	@if [ ! -f .env.prod ]; then \
-		echo "❌ Error: .env.prod file not found!"; \
+	@if [ ! -f $(PROD_ENV_FILE) ]; then \
+		echo "❌ Error: $(PROD_ENV_FILE) file not found!"; \
 		echo "   Please copy .env.production.example to .env.prod and configure it."; \
 		exit 1; \
 	fi
+	@docker compose --env-file $(PROD_ENV_FILE) -f $(PROD_COMPOSE_FILE) config >/dev/null
 	@if [ ! -f nginx/ssl/fullchain.pem ] || [ ! -f nginx/ssl/privkey.pem ]; then \
 		echo "⚠️  Warning: SSL certificates not found in nginx/ssl/. Nginx might fail to start."; \
-		echo "   For testing, you can run: ./scripts/generate_ssl.sh"; \
+		echo "   To provision Let's Encrypt certificates, run: ./scripts/init_letsencrypt.sh"; \
 	fi
 
 deploy: deploy-check
-	@echo "📦 Building Frontend (Web)..."
-	cd frontend && npm install && npm run build:web
-	@echo "🚀 Deploying Standard App (Production)..."
-	docker-compose --env-file .env.prod -f docker-compose.prod.yml build --no-cache
-	docker-compose --env-file .env.prod -f docker-compose.prod.yml up -d
-	@echo "✅ Deployment complete! Access the app at https://localhost"
+	@echo "🚀 Deploying canonical Docker Compose stack..."
+	docker compose --env-file $(PROD_ENV_FILE) -f $(PROD_COMPOSE_FILE) up -d --build
+	@echo "✅ Deployment complete. Verify the stack at your configured DOMAIN."
+
+deploy-certs: deploy-check
+	@echo "🔐 Provisioning TLS certificates..."
+	./scripts/init_letsencrypt.sh
