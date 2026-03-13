@@ -175,7 +175,7 @@ test.describe("Recount Assignment UI", () => {
 
     await supervisorPage
       .getByText(`${ownerFullName} (${ownerUsername})`, { exact: true })
-      .click();
+      .click({ force: true });
     await supervisorPage.getByTestId("recount-assignee-picker-search").fill(assigneeUsername);
     await supervisorPage
       .getByText(`${assigneeFullName} (${assigneeUsername})`, { exact: true })
