@@ -504,17 +504,22 @@ async def lifespan(app: FastAPI):  # noqa: C901
                 f"MongoDB is required but unavailable ({error_type}). Please start MongoDB and try again."
             ) from e
 
-    # Initialize default users
+    # Optional bootstrap seeding for controlled dev/test environments only.
     try:
-        await init_default_users(db)
-        logger.info("OK: Default users initialized")
+        if getattr(settings, "AUTO_SEED_DEFAULT_USERS", False):
+            await init_default_users(db)
+            logger.info("OK: Default users initialized")
+        else:
+            logger.info("Default user seeding disabled")
 
-        # Initialize mock ERP data (if empty) to ensure search works
-        await init_mock_erp_data(db)
-        logger.info("OK: Mock ERP data check complete")
+        if getattr(settings, "AUTO_SEED_MOCK_ERP_DATA", False):
+            await init_mock_erp_data(db)
+            logger.info("OK: Mock ERP data check complete")
+        else:
+            logger.info("Mock ERP data seeding disabled")
     except Exception as e:
         logger.warning(
-            f"Could not initialize default data (may be due to MongoDB unavailability): {str(e)}"
+            f"Could not initialize optional seed data (may be due to MongoDB unavailability): {str(e)}"
         )
 
     # Run migrations

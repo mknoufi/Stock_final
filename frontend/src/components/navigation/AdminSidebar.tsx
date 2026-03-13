@@ -85,6 +85,12 @@ const ADMIN_GROUPS: SidebarGroup[] = [
     title: "Monitoring",
     items: [
       {
+        key: "user-workflows",
+        label: "User Workflows",
+        icon: "git-network",
+        route: "/supervisor/user-workflows",
+      },
+      {
         key: "live-view",
         label: "Live View",
         icon: "pulse",

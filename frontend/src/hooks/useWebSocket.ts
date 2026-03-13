@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { Platform } from "react-native";
 import { API_BASE_URL } from "../services/httpClient";
 import { useAuthStore } from "../store/authStore";
 import { secureStorage } from "../services/storage/secureStorage";
@@ -31,7 +32,7 @@ export const useWebSocket = (sessionId?: string) => {
     }
 
     const token = await secureStorage.getItem("auth_token");
-    if (!token) {
+    if (!token && Platform.OS !== "web") {
       setIsConnected(false);
       if (isAuthenticated) {
         handleUnauthorized();
@@ -41,8 +42,14 @@ export const useWebSocket = (sessionId?: string) => {
 
     // Convert http:// to ws:// or https:// to wss://
     const wsUrl = API_BASE_URL.replace(/^http/, "ws") + "/ws/updates";
-    // Use query parameter for authentication instead of subprotocols
-    const urlWithParams = `${wsUrl}?token=${encodeURIComponent(token)}${sessionId ? `&session_id=${sessionId}` : ""}`;
+    const query = new URLSearchParams();
+    if (token) {
+      query.set("token", token);
+    }
+    if (sessionId) {
+      query.set("session_id", sessionId);
+    }
+    const urlWithParams = query.toString() ? `${wsUrl}?${query.toString()}` : wsUrl;
 
     console.log("[WebSocket] Connecting to:", wsUrl.replace(/token=[^&]+/, "token=***"));
 

@@ -335,9 +335,24 @@ export default function SupervisorDashboard() {
       onPress: () => setShowCreateSessionModal(true),
     },
     {
+      icon: "albums-outline",
+      label: "Sessions",
+      onPress: () => router.push("/supervisor/sessions" as any),
+    },
+    {
+      icon: "alert-circle-outline",
+      label: "Variances",
+      onPress: () => router.push("/supervisor/variances" as any),
+    },
+    {
       icon: "eye-outline",
       label: "Watchtower",
       onPress: () => router.push("/supervisor/watchtower" as any),
+    },
+    {
+      icon: "git-network-outline",
+      label: "User Workflows",
+      onPress: () => router.push("/supervisor/user-workflows" as any),
     },
     {
       icon: "cloud-offline-outline",
@@ -345,24 +360,31 @@ export default function SupervisorDashboard() {
       onPress: () => router.push("/supervisor/offline-queue" as any),
     },
     {
-      icon: "pricetag-outline",
-      label: "Update MRP",
-      onPress: () => Alert.alert("Update MRP", "MRP update feature"),
+      icon: "download-outline",
+      label: "Exports",
+      onPress: () => router.push("/supervisor/export" as any),
     },
     {
-      icon: "filter-outline",
-      label: "Filter",
-      onPress: () => Alert.alert("Filter", "Filter sessions"),
+      icon: "settings-outline",
+      label: "Settings",
+      onPress: () => router.push("/supervisor/settings" as any),
+    },
+  ];
+
+  const overviewActions = [
+    {
+      key: "new-session",
+      icon: "add-circle-outline" as const,
+      label: "Create session",
+      onPress: () => setShowCreateSessionModal(true),
+      primary: true,
     },
     {
-      icon: "bar-chart-outline",
-      label: "Analytics",
-      onPress: () => Alert.alert("Analytics", "View analytics"),
-    },
-    {
-      icon: "layers-outline",
-      label: "Bulk Ops",
-      onPress: () => router.push("/supervisor/bulk-ops" as any),
+      key: "review-variances",
+      icon: "alert-circle-outline" as const,
+      label: "Review variances",
+      onPress: () => router.push("/supervisor/variances" as any),
+      primary: false,
     },
   ];
 
@@ -376,8 +398,8 @@ export default function SupervisorDashboard() {
   return (
     <ScreenContainer
       header={{
-        title: "Dashboard",
-        subtitle: "Supervisor Panel",
+        title: "Supervisor Dashboard",
+        subtitle: "Operations overview",
         showUsername: true,
         showLogoutButton: true,
         rightAction: {
@@ -385,6 +407,7 @@ export default function SupervisorDashboard() {
           onPress: () => router.push("/supervisor/settings" as any),
         },
       }}
+      backgroundType="aurora"
       statusBarStyle="light"
       contentMode="static"
       noPadding
@@ -420,37 +443,87 @@ export default function SupervisorDashboard() {
           }
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
           <Animated.View
             entering={FadeInDown.delay(0).springify()}
-            style={styles.header}
+            style={styles.overviewSection}
           >
-            <View>
-              <Text
-                style={[
-                  styles.headerTitle,
-                  {
-                    fontSize: 48,
-                    color: theme.colors.text.primary,
-                  },
-                ]}
-              >
-                Dashboard
-              </Text>
-              <LiveIndicator label="Real-time monitoring" size="small" />
-            </View>
-            <AnimatedPressable
-              onPress={() => router.push("/supervisor/settings" as any)}
-              hapticFeedback="light"
+            <GlassCard
+              variant="medium"
+              intensity={24}
+              borderRadius={theme.borderRadius.xl}
+              padding={theme.spacing.lg}
+              withGradientBorder={true}
+              elevation="lg"
             >
-              <View style={styles.settingsButton}>
-                <Ionicons
-                  name="settings-outline"
-                  size={24}
-                  color={theme.colors.text.primary}
-                />
+              <View style={styles.overviewTopRow}>
+                <View style={styles.overviewCopy}>
+                  <Text style={styles.overviewEyebrow}>Supervisor overview</Text>
+                  <Text style={styles.overviewTitle}>
+                    Keep sessions moving and catch issues early.
+                  </Text>
+                  <Text style={styles.overviewSubtitle}>
+                    Monitor progress, jump into live workflows, and resolve
+                    variances from one place.
+                  </Text>
+                </View>
+                <View style={styles.overviewIndicator}>
+                  <LiveIndicator label="Real-time monitoring" size="small" />
+                </View>
               </View>
-            </AnimatedPressable>
+
+              <View style={styles.overviewMetrics}>
+                <View style={styles.overviewMetricCard}>
+                  <Text style={styles.overviewMetricValue}>
+                    {stats.openSessions}
+                  </Text>
+                  <Text style={styles.overviewMetricLabel}>Open sessions</Text>
+                </View>
+                <View style={styles.overviewMetricCard}>
+                  <Text style={styles.overviewMetricValue}>
+                    {stats.highRiskSessions}
+                  </Text>
+                  <Text style={styles.overviewMetricLabel}>High risk</Text>
+                </View>
+                <View style={styles.overviewMetricCard}>
+                  <Text style={styles.overviewMetricValue}>
+                    {Math.round(completionPercentage)}%
+                  </Text>
+                  <Text style={styles.overviewMetricLabel}>Completion</Text>
+                </View>
+              </View>
+
+              <View style={styles.overviewActions}>
+                {overviewActions.map((action) => (
+                  <AnimatedPressable
+                    key={action.key}
+                    onPress={action.onPress}
+                    hapticFeedback="light"
+                    style={[
+                      styles.overviewActionButton,
+                      action.primary && styles.overviewActionButtonPrimary,
+                    ]}
+                  >
+                    <Ionicons
+                      name={action.icon}
+                      size={18}
+                      color={
+                        action.primary
+                          ? unifiedColors.white
+                          : theme.colors.text.primary
+                      }
+                    />
+                    <Text
+                      style={[
+                        styles.overviewActionLabel,
+                        action.primary && styles.overviewActionLabelPrimary,
+                      ]}
+                    >
+                      {action.label}
+                    </Text>
+                  </AnimatedPressable>
+                ))}
+              </View>
+            </GlassCard>
           </Animated.View>
 
           {/* Stats Grid */}
@@ -803,6 +876,34 @@ export default function SupervisorDashboard() {
                 </AnimatedPressable>
               </Animated.View>
             ))}
+            {sessions.length === 0 && (
+              <GlassCard
+                variant="medium"
+                intensity={25}
+                borderRadius={theme.borderRadius.lg}
+                padding={theme.spacing.lg}
+                elevation="md"
+              >
+                <View style={styles.emptyState}>
+                  <Ionicons
+                    name="file-tray-outline"
+                    size={48}
+                    color={theme.colors.text.secondary}
+                  />
+                  <Text
+                    style={[
+                      styles.emptyText,
+                      {
+                        fontSize: 16,
+                        color: theme.colors.text.secondary,
+                      },
+                    ]}
+                  >
+                    No sessions available yet
+                  </Text>
+                </View>
+              </GlassCard>
+            )}
           </Animated.View>
 
           {/* Bottom Spacing for Speed Dial */}
@@ -960,26 +1061,94 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: theme.spacing.lg,
   },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
+  overviewSection: {
     marginBottom: theme.spacing.xl,
   },
-  headerTitle: {
-    fontWeight: "700",
-    marginBottom: theme.spacing.sm,
-    letterSpacing: -1,
+  overviewTopRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: theme.spacing.md,
   },
-  settingsButton: {
-    width: 48,
-    height: 48,
-    borderRadius: theme.borderRadius.xl,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  overviewCopy: {
+    flex: 1,
+    gap: theme.spacing.xs,
+  },
+  overviewIndicator: {
+    alignSelf: "flex-start",
+  },
+  overviewEyebrow: {
+    color: theme.colors.primary[300],
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  overviewTitle: {
+    color: theme.colors.text.primary,
+    fontSize: 28,
+    fontWeight: "700",
+    lineHeight: 34,
+  },
+  overviewSubtitle: {
+    color: theme.colors.text.secondary,
+    fontSize: 14,
+    lineHeight: 22,
+  },
+  overviewMetrics: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.lg,
+  },
+  overviewMetricCard: {
+    minWidth: 120,
+    flex: 1,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    backgroundColor: "rgba(255, 255, 255, 0.06)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-    justifyContent: "center",
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    gap: theme.spacing.xs,
+  },
+  overviewMetricValue: {
+    color: theme.colors.text.primary,
+    fontSize: 26,
+    fontWeight: "700",
+  },
+  overviewMetricLabel: {
+    color: theme.colors.text.secondary,
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  overviewActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.md,
+    marginTop: theme.spacing.lg,
+  },
+  overviewActionButton: {
+    minHeight: 48,
+    flexDirection: "row",
     alignItems: "center",
+    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.16)",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  overviewActionButtonPrimary: {
+    backgroundColor: theme.colors.primary[500],
+    borderColor: theme.colors.primary[400],
+  },
+  overviewActionLabel: {
+    color: theme.colors.text.primary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  overviewActionLabelPrimary: {
+    color: unifiedColors.white,
   },
   statsGrid: {
     gap: theme.spacing.md,

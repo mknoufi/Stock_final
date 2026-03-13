@@ -740,6 +740,142 @@ class TestActiveSessionsEndpoint:
             app.dependency_overrides.clear()
 
 
+class TestUserWorkflowEndpoint:
+    """Test GET /api/sessions/user-workflows"""
+
+    @pytest.mark.asyncio
+    async def test_get_user_workflows(self, mock_user_supervisor):
+        """Aggregates active session, review queue, and recount queue by user."""
+        now = time.time()
+        active_sessions = [
+            {
+                "session_id": "sess_1",
+                "user_id": "staff1",
+                "status": "ACTIVE",
+                "started_at": now - 300,
+                "last_heartbeat": now,
+                "rack_id": "R1",
+                "floor": "F1",
+            }
+        ]
+
+        verification_cursor = MagicMock()
+        verification_cursor.sort = MagicMock(return_value=verification_cursor)
+        verification_cursor.to_list = AsyncMock(return_value=active_sessions)
+
+        sessions_cursor = MagicMock()
+        sessions_cursor.to_list = AsyncMock(
+            return_value=[
+                {
+                    "id": "sess_1",
+                    "session_id": "sess_1",
+                    "warehouse": "WH001",
+                    "type": "STANDARD",
+                    "total_items": 12,
+                    "total_variance": 4.5,
+                    "started_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                }
+            ]
+        )
+
+        session_count_cursor = MagicMock()
+        session_count_cursor.to_list = AsyncMock(
+            return_value=[
+                {
+                    "_id": "sess_1",
+                    "items_counted": 6,
+                    "reviewed_items": 3,
+                    "last_counted_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                }
+            ]
+        )
+
+        pending_cursor = MagicMock()
+        pending_cursor.to_list = AsyncMock(
+            return_value=[
+                {
+                    "_id": "staff1",
+                    "pending_approvals": 2,
+                    "pending_review_since": datetime.now(timezone.utc).replace(tzinfo=None),
+                    "last_pending_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                }
+            ]
+        )
+
+        recount_cursor = MagicMock()
+        recount_cursor.to_list = AsyncMock(
+            return_value=[
+                {
+                    "_id": "staff1",
+                    "assigned_recounts": 1,
+                    "recount_assigned_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    "last_recount_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                }
+            ]
+        )
+
+        users_cursor = MagicMock()
+        users_cursor.to_list = AsyncMock(
+            return_value=[
+                {
+                    "username": "staff1",
+                    "full_name": "Staff One",
+                    "role": "staff",
+                }
+            ]
+        )
+
+        mock_db = MagicMock()
+        mock_db.verification_sessions = MagicMock()
+        mock_db.verification_sessions.find = MagicMock(return_value=verification_cursor)
+        mock_db.sessions = MagicMock()
+        mock_db.sessions.find = MagicMock(return_value=sessions_cursor)
+        mock_db.count_lines = MagicMock()
+        mock_db.count_lines.aggregate = MagicMock(
+            side_effect=[session_count_cursor, pending_cursor, recount_cursor]
+        )
+        mock_db.users = MagicMock()
+        mock_db.users.find = MagicMock(return_value=users_cursor)
+
+        async def override_get_db():
+            return mock_db
+
+        async def override_get_current_user():
+            return mock_user_supervisor
+
+        from backend.auth.dependencies import get_current_user_async
+        from backend.db.runtime import get_db
+
+        app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_current_user_async] = override_get_current_user
+
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.get("/api/sessions/user-workflows")
+                assert response.status_code == 200
+                data = response.json()
+
+                assert len(data) == 1
+                assert data[0]["username"] == "staff1"
+                assert data[0]["workflow_stage"] == "RECOUNT_QUEUE"
+                assert data[0]["presence_status"] == "ONLINE"
+                assert data[0]["warehouse"] == "WH001"
+                assert data[0]["pending_approvals"] == 2
+                assert data[0]["assigned_recounts"] == 1
+                assert data[0]["items_counted"] == 6
+                assert data[0]["progress_percent"] == 50.0
+                assert data[0]["next_action"] == "HANDLE_RECOUNT"
+                assert data[0]["priority_score"] > 0
+                assert data[0]["priority_band"] in {"HIGH", "CRITICAL"}
+                assert data[0]["pending_review_since"] is not None
+                assert data[0]["recount_assigned_at"] is not None
+        finally:
+            app.dependency_overrides.clear()
+
+
 class TestSessionAnalyticsEndpoint:
     """Test GET /api/sessions/analytics"""
 

@@ -1,6 +1,7 @@
 import apiClient from "./httpClient";
 import { useAuthStore } from "../store/authStore";
 import { secureStorage } from "./storage/secureStorage";
+import { Platform } from "react-native";
 
 const TOKEN_STORAGE_KEY = "auth_token";
 const REFRESH_TOKEN_STORAGE_KEY = "refresh_token";
@@ -30,14 +31,15 @@ export const authService = {
   async refreshToken(): Promise<string | null> {
     try {
       const refreshToken = await this.getRefreshToken();
-      if (!refreshToken) {
+      if (!refreshToken && Platform.OS !== "web") {
         console.warn("[AuthService] No refresh token available");
         return null;
       }
 
-      const response = await apiClient.post("/api/auth/refresh", {
-        refresh_token: refreshToken,
-      });
+      const response = await apiClient.post(
+        "/api/auth/refresh",
+        refreshToken ? { refresh_token: refreshToken } : {},
+      );
 
       if (response.data.success && response.data.data) {
         const { access_token, refresh_token } = response.data.data;

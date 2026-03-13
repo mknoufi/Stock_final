@@ -1,0 +1,42 @@
+# Development and test requirements
+# Use: pip install -r requirements.dev.txt
+#
+# This file extends the production runtime set with local-only packages used by:
+# - pytest and local validation
+# - optional feature modules that are safe to exclude from the production image
+# - developer tooling and load-test scripts
+
+-r requirements.production.txt
+
+# Test dependencies
+pytest>=8.3.4
+pytest-asyncio>=0.24.0
+pytest-cov==7.0.0
+requests>=2.32.3
+respx>=0.22.0
+
+# Developer tooling
+black>=24.10.0
+isort>=5.13.2
+flake8>=7.1.1
+mypy>=1.13.0
+bandit>=1.8.6
+locust>=2.34.0
+aiohttp>=3.9.0
+memory-profiler>=0.61.0
+
+# Optional local feature packages
+numpy>=2.0.2
+Pillow>=11.0.0
+sentence-transformers>=2.2.2
+redis[hiredis]>=5.2.1
+copilotkit>=0.1.39
+
+# Optional observability extras
+opentelemetry-api>=1.25.0
+opentelemetry-sdk>=1.25.0
+opentelemetry-exporter-otlp-proto-http>=1.25.0
+opentelemetry-instrumentation-fastapi>=0.46b0
+opentelemetry-instrumentation-requests>=0.46b0
+opentelemetry-instrumentation-logging>=0.46b0
+opentelemetry-instrumentation-pymongo>=0.46b0

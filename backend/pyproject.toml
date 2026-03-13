@@ -15,9 +15,9 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "fastapi>=0.115.8",
-    "uvicorn[standard]>=0.34.1",
-    "gunicorn>=23.0.0",
+    "fastapi>=0.135.1",
+    "uvicorn[standard]>=0.41.0",
+    "gunicorn>=25.1.0",
     "pydantic>=2.12.5",
 ]
 

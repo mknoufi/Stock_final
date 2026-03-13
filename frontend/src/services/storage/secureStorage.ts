@@ -15,6 +15,17 @@ const OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK, // iOS: Allow access when device is unlocked
 };
 
+const WEB_MEMORY_ONLY_KEYS = new Set([
+  "auth_token",
+  "refresh_token",
+  "auth_user",
+  "biometric_pin",
+]);
+const webMemoryStore = new Map<string, string>();
+
+const isWebMemoryOnlyKey = (key: string) =>
+  Platform.OS === "web" && WEB_MEMORY_ONLY_KEYS.has(key);
+
 class SecureStorage {
   /**
    * Safe set item
@@ -22,8 +33,11 @@ class SecureStorage {
   async setItem(key: string, value: string): Promise<void> {
     try {
       if (Platform.OS === "web") {
-        // Fallback for web (NOT SECURE, but functional for dev)
-        // In production web, HttpOnly cookies are preferred
+        if (isWebMemoryOnlyKey(key)) {
+          webMemoryStore.set(key, value);
+          localStorage.removeItem(key);
+          return;
+        }
         localStorage.setItem(key, value);
         return;
       }
@@ -40,6 +54,20 @@ class SecureStorage {
   async getItem(key: string): Promise<string | null> {
     try {
       if (Platform.OS === "web") {
+        if (isWebMemoryOnlyKey(key)) {
+          const cached = webMemoryStore.get(key);
+          if (cached != null) {
+            return cached;
+          }
+
+          const migrated = localStorage.getItem(key);
+          if (migrated != null) {
+            webMemoryStore.set(key, migrated);
+            localStorage.removeItem(key);
+            return migrated;
+          }
+          return null;
+        }
         return localStorage.getItem(key);
       }
 
@@ -64,6 +92,9 @@ class SecureStorage {
   async removeItem(key: string): Promise<void> {
     try {
       if (Platform.OS === "web") {
+        if (isWebMemoryOnlyKey(key)) {
+          webMemoryStore.delete(key);
+        }
         localStorage.removeItem(key);
         return;
       }

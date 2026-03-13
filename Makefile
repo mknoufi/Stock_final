@@ -20,6 +20,7 @@ help:
 	@echo "  make test        - Run all tests"
 	@echo "  make lint        - Run all linters"
 	@echo "  make format      - Format all code"
+	@echo "  make node-e2e-recount-smoke - Run recount assignment smoke (requires backend on 8001)"
 	@echo ""
 	@echo "🛠️  Development:"
 	@echo "  make install     - Install dependencies"
@@ -82,7 +83,7 @@ python-typecheck:
 # =============================================================================
 # 📦 NODE.JS FRONTEND
 # =============================================================================
-.PHONY: node-ci node-test node-lint node-typecheck
+.PHONY: node-ci node-test node-lint node-typecheck node-e2e-recount-smoke
 
 node-ci: node-lint node-typecheck node-test
 
@@ -118,6 +119,10 @@ node-clean:
 	@echo "Cleaning Node.js cache and build artifacts..."
 	cd frontend && npm run clean
 
+node-e2e-recount-smoke:
+	@echo "Running recount assignment smoke against backend on http://127.0.0.1:8001..."
+	cd frontend && E2E_BACKEND_URL=http://127.0.0.1:8001 npm run e2e:recount-smoke
+
 # =============================================================================
 # 🔄 COMBINED TARGETS
 # =============================================================================
@@ -142,7 +147,7 @@ pre-commit:
 # =============================================================================
 install:
 	@echo "Installing Python dependencies..."
-	$(PYTHON) -m pip install -r backend/requirements.txt
+	$(PYTHON) -m pip install -r backend/requirements.dev.txt
 	$(PYTHON) -m pip install pre-commit black ruff mypy pytest pytest-cov
 	@echo "Installing Node.js dependencies..."
 	cd frontend && npm ci

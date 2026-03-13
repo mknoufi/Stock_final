@@ -447,7 +447,7 @@ const ScanScreen = React.memo(function ScanScreen() {
                 // Optional: updateSessionStatus(sessionId, "paused");
               }
               await logout();
-              router.replace("/auth/login");
+              router.replace("/welcome");
             } catch (e) {
               console.error(e);
             }

@@ -23,6 +23,7 @@ import * as Haptics from "expo-haptics";
 import Animated, { FadeInDown } from "react-native-reanimated";
 
 import { useAuthStore } from "../src/store/authStore";
+import { useSettingsStore } from "../src/store/settingsStore";
 import ModernButton from "../src/components/ui/ModernButton";
 import ModernCard from "../src/components/ui/ModernCard";
 import ModernInput from "../src/components/ui/ModernInput";
@@ -115,7 +116,16 @@ const getLoginErrorAlert = (
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, loginWithPin, isLoading, lastLoggedUser } = useAuthStore();
+  const {
+    login,
+    loginWithPin,
+    authenticateWithBiometrics,
+    isLoading,
+    lastLoggedUser,
+  } = useAuthStore();
+  const biometricAuthEnabled = useSettingsStore(
+    (state) => state.settings.biometricAuth,
+  );
   const [loginMode, setLoginMode] = useState<LoginMode>("credentials");
   const [pin, setPin] = useState("");
   const [username, setUsername] = useState("");
@@ -196,8 +206,22 @@ export default function LoginScreen() {
     if (isLoading) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    Alert.alert("Biometric Auth", "Biometric authentication is not enabled.");
-  }, [isLoading]);
+    if (!biometricAuthEnabled) {
+      Alert.alert(
+        "Biometric Unlock Unavailable",
+        "Biometric login is not enabled on this device yet.",
+      );
+      return;
+    }
+
+    const result = await authenticateWithBiometrics();
+    if (!result.success) {
+      Alert.alert(
+        "Biometric Login Failed",
+        result.message || "Unable to sign in with biometrics.",
+      );
+    }
+  }, [authenticateWithBiometrics, biometricAuthEnabled, isLoading]);
 
   const handleForgotPin = useCallback(() => {
     Alert.alert(
@@ -454,19 +478,21 @@ export default function LoginScreen() {
 
                     {/* Biometric & Switch Options */}
                     <View style={styles.pinActions}>
-                      <TouchableOpacity
-                        onPress={handleBiometricAuth}
-                        style={styles.biometricButton}
-                      >
-                        <Ionicons
-                          name="finger-print"
-                          size={44}
-                          color={colors.primary[500]}
-                        />
-                        <Text style={styles.biometricText}>
-                          Unlock with TouchID
-                        </Text>
-                      </TouchableOpacity>
+                      {biometricAuthEnabled && lastLoggedUser?.has_pin ? (
+                        <TouchableOpacity
+                          onPress={handleBiometricAuth}
+                          style={styles.biometricButton}
+                        >
+                          <Ionicons
+                            name="finger-print"
+                            size={44}
+                            color={colors.primary[500]}
+                          />
+                          <Text style={styles.biometricText}>
+                            Unlock with Biometrics
+                          </Text>
+                        </TouchableOpacity>
+                      ) : null}
 
                       <View style={styles.pinBottomActions}>
                         <TouchableOpacity onPress={handleForgotPin}>

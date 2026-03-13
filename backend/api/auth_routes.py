@@ -3,7 +3,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 
 from backend.api.schemas import (
     ApiResponse,
@@ -17,6 +17,7 @@ from backend.api.schemas import (
     UserRegister,
 )
 from backend.auth.dependencies import auth_deps, get_current_user
+from backend.auth.cookies import set_auth_cookies
 from backend.config import settings
 from backend.db.runtime import get_db
 from backend.error_messages import get_error_message
@@ -352,7 +353,7 @@ async def log_successful_login(user: dict[str, Any], ip_address: str, request: R
 
 
 @router.post("/auth/register", response_model=TokenResponse, status_code=201)
-async def register(user: UserRegister):
+async def register(user: UserRegister, response: Response):
     """
     Register a new user.
     """
@@ -412,6 +413,7 @@ async def register(user: UserRegister):
         # Store refresh token in database
         expires_at = datetime.now(timezone.utc) + timedelta(days=30)
         await refresh_token_service.store_refresh_token(refresh_token, user.username, expires_at)
+        set_auth_cookies(response, access_token, refresh_token)
 
         return {
             "access_token": access_token,
@@ -490,7 +492,11 @@ def _validate_user_password(
 
 @router.post("/auth/login", response_model=ApiResponse[TokenResponse])
 @result_to_response(success_status=200)
-async def login(credentials: UserLogin, request: Request) -> Result[dict[str, Any], Exception]:
+async def login(
+    credentials: UserLogin,
+    request: Request,
+    response: Response,
+) -> Result[dict[str, Any], Exception]:
     """
     User login endpoint with enhanced security and monitoring.
 
@@ -571,6 +577,7 @@ async def login(credentials: UserLogin, request: Request) -> Result[dict[str, An
             return tokens_result
 
         tokens = tokens_result.unwrap()
+        set_auth_cookies(response, tokens["access_token"], tokens["refresh_token"])
 
         # Log success and cleanup
         await log_successful_login(user, client_ip, request)
@@ -648,7 +655,9 @@ async def _find_user_by_pin(
 @router.post("/auth/login-pin", response_model=ApiResponse[TokenResponse])
 @result_to_response(success_status=200)
 async def login_with_pin(
-    credentials: PinLogin, request: Request
+    credentials: PinLogin,
+    request: Request,
+    response: Response,
 ) -> Result[dict[str, Any], Exception]:
     """
     Staff PIN login endpoint (4-digit numeric PIN).
@@ -730,6 +739,7 @@ async def login_with_pin(
             return tokens_result
 
         tokens = tokens_result.unwrap()
+        set_auth_cookies(response, tokens["access_token"], tokens["refresh_token"])
 
         # Log success and cleanup
         await log_successful_login(found_user, client_ip, request)
@@ -868,9 +878,12 @@ async def get_me(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     return {
+        "id": str(current_user["_id"]),
         "username": current_user["username"],
         "full_name": current_user["full_name"],
         "role": current_user["role"],
+        "email": current_user.get("email"),
+        "is_active": current_user.get("is_active", True),
         "permissions": current_user.get("permissions", []),
         "has_pin": bool(current_user.get("pin_hash")),
     }

@@ -38,6 +38,12 @@ def _extract_jwt_from_websocket(
     if len(subprotocols) == 1 and subprotocols[0].count(".") == 2:
         return subprotocols[0], None
 
+    cookie_token = websocket.cookies.get(getattr(settings, "AUTH_ACCESS_COOKIE_NAME", "sv_access_token"))
+    if cookie_token and len(cookie_token) >= 2 and cookie_token[0] == cookie_token[-1] == '"':
+        cookie_token = cookie_token[1:-1]
+    if cookie_token:
+        return cookie_token, None
+
     # Legacy support (avoid in production; URLs may be logged by intermediaries)
     if token_query:
         return token_query, None
@@ -57,6 +63,7 @@ async def websocket_endpoint(
     Authentication supports:
     - Authorization: Bearer <token>
     - Sec-WebSocket-Protocol: jwt,<token> (preferred for browsers/clients without headers)
+    - HttpOnly access-token cookie (browser session restore)
     - Legacy query param ?token=... (discouraged)
     """
     jwt_token, accept_subprotocol = _extract_jwt_from_websocket(websocket, token)

@@ -502,6 +502,13 @@ export default function DashboardWeb() {
       icon: "eye" as const,
       onPress: () => router.push("/admin/realtime-dashboard" as any),
     },
+    {
+      key: "user-workflows",
+      title: "User Workflows",
+      subtitle: "See current workflow state by operator",
+      icon: "git-network" as const,
+      onPress: () => router.push("/supervisor/user-workflows" as any),
+    },
   ];
 
   const renderDiagnosis = () => (

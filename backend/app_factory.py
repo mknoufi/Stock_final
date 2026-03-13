@@ -18,7 +18,7 @@ except ImportError:
     pass
 
 import jwt  # noqa: E402
-from fastapi import APIRouter, Depends, FastAPI, HTTPException  # noqa: E402
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Response  # noqa: E402
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer  # noqa: E402
 from starlette.requests import Request  # noqa: E402
 
@@ -80,6 +80,7 @@ from backend.api.user_settings_api import router as user_settings_router  # noqa
 from backend.api.variance_api import router as variance_router  # noqa: E402
 from backend.api.websocket_api import router as websocket_router  # noqa: E402
 from backend.api.sql_verification_api import router as sql_verification_router  # noqa: E402
+from backend.auth.cookies import clear_auth_cookies, get_refresh_token_cookie, set_auth_cookies  # noqa: E402
 from backend.auth.dependencies import get_current_user as auth_get_current_user  # noqa: E402
 from backend.config import settings  # noqa: E402
 from backend.core.lifespan import (  # noqa: E402
@@ -99,6 +100,7 @@ from backend.utils.api_utils import result_to_response, sanitize_for_logging  # 
 from backend.utils.auth_utils import get_password_hash  # noqa: E402
 from backend.utils.result import Fail, Ok, Result  # noqa: E402
 from backend.utils.tracing import instrument_fastapi_app  # noqa: E402
+from backend.services.runtime import get_refresh_token_service  # noqa: E402
 
 # Initialize logger early
 logger = logging.getLogger("stock-verify")
@@ -585,22 +587,34 @@ async def log_successful_login(user: dict[str, Any], ip_address: str, request: R
 
 @api_router.post("/auth/refresh", response_model=ApiResponse[TokenResponse])
 @result_to_response(success_status=200)
-async def refresh_token(request: Request) -> Result[dict[str, Any], Exception]:
+async def refresh_token(
+    request: Request,
+    response: Response,
+) -> Result[dict[str, Any], Exception]:
     """
     Refresh access token using refresh token.
 
     Request body should contain: {"refresh_token": "uuid-string"}
     """
     try:
-        body = await request.json()
-        refresh_token_value = body.get("refresh_token")
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        refresh_token_value = body.get("refresh_token") or get_refresh_token_cookie(request)
 
         if not refresh_token_value:
             return Fail(ValidationError("Refresh token is required"))
 
-        refreshed = await refresh_token_service.refresh_access_token(refresh_token_value)
+        token_service = get_refresh_token_service()
+        refreshed = await token_service.refresh_access_token(refresh_token_value)
         if not refreshed:
             return Fail(AuthenticationError("Invalid or expired refresh token"))
+
+        access_token = refreshed.get("access_token")
+        next_refresh_token = refreshed.get("refresh_token")
+        if isinstance(access_token, str) and isinstance(next_refresh_token, str):
+            set_auth_cookies(response, access_token, next_refresh_token)
 
         return Ok(refreshed)
     except Exception as e:
@@ -610,7 +624,9 @@ async def refresh_token(request: Request) -> Result[dict[str, Any], Exception]:
 
 @api_router.post("/auth/logout")
 async def logout(
-    request: Request, current_user: dict[str, Any] = Depends(get_current_user)
+    request: Request,
+    response: Response,
+    current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
     """
     Logout user by revoking their refresh token.
@@ -622,13 +638,15 @@ async def logout(
             body = await request.json()
         except Exception:
             body = {}
-        refresh_token_value = body.get("refresh_token")
+        refresh_token_value = body.get("refresh_token") or get_refresh_token_cookie(request)
 
         if refresh_token_value:
-            payload = await refresh_token_service.verify_refresh_token(refresh_token_value)
+            token_service = get_refresh_token_service()
+            payload = await token_service.verify_refresh_token(refresh_token_value)
             if payload and payload.get("sub") == current_user.get("username"):
-                await refresh_token_service.revoke_token(refresh_token_value)
+                await token_service.revoke_token(refresh_token_value)
 
+        clear_auth_cookies(response)
         return {"message": "Logged out successfully"}
     except Exception as e:
         logger.error(f"Logout error: {str(e)}")

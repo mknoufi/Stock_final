@@ -49,6 +49,7 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
+    minWidth: 0,
     backgroundColor: auroraTheme.colors.background.primary,
   },
 });

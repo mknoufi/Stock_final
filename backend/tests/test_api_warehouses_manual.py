@@ -1,6 +1,10 @@
 import time
 
-import requests  # type: ignore
+import pytest
+
+requests = pytest.importorskip("requests")
+
+pytestmark = pytest.mark.manual
 
 BASE_URL = "http://localhost:8001"
 

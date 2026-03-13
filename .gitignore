@@ -7,6 +7,9 @@
 .env.bak
 .env.local
 .env.production
+backend_port.json
+frontend/public/backend_port.json
+frontend/src/backend_port.json
 
 # Keep example templates
 !.env.example
@@ -17,6 +20,10 @@ __pycache__/
 *.py[cod]
 *.pyo
 *.egg-info/
+.venv/
+.venv311/
+backend/.venv/
+backend/venv/
 dist/
 build/
 *.spec
@@ -84,7 +91,6 @@ frontend/test-results/
 
 # Expo
 .expo/
-backend/venv/
 
 # Local/repair database snapshots (never commit)
 backend/data/db_backup_*/

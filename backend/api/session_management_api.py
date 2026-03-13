@@ -6,7 +6,8 @@ Extends existing session API with rack-based workflow support
 import logging
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+from enum import Enum
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,7 +16,10 @@ from pydantic import BaseModel
 
 from backend.api.response_models import PaginatedResponse
 from backend.api.schemas import Session, SessionCreate
-from backend.auth.dependencies import get_current_user_async as get_current_user
+from backend.auth.dependencies import (
+    get_current_user_async as get_current_user,
+    require_role,
+)
 from backend.core.websocket_manager import manager
 from backend.db.runtime import get_db
 from backend.services.lock_manager import get_lock_manager
@@ -78,6 +82,294 @@ class SessionIntegrityResponse(BaseModel):
     updates_detected: bool
     affected_items: int
     message: str
+
+
+class CanonicalSessionStatus(str, Enum):
+    OPEN = "OPEN"
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    RECONCILE = "RECONCILE"
+    COMPLETED = "COMPLETED"
+    CLOSED = "CLOSED"
+    CANCELLED = "CANCELLED"
+    UNKNOWN = "UNKNOWN"
+
+
+class WorkflowStage(str, Enum):
+    IDLE = "IDLE"
+    COUNTING = "COUNTING"
+    PAUSED = "PAUSED"
+    RECONCILING = "RECONCILING"
+    AWAITING_REVIEW = "AWAITING_REVIEW"
+    RECOUNT_QUEUE = "RECOUNT_QUEUE"
+
+
+class WorkflowPresenceStatus(str, Enum):
+    ONLINE = "ONLINE"
+    IDLE = "IDLE"
+    OFFLINE = "OFFLINE"
+
+
+class WorkflowNextAction(str, Enum):
+    REVIEW_PENDING = "REVIEW_PENDING"
+    HANDLE_RECOUNT = "HANDLE_RECOUNT"
+    RESUME_PAUSED_SESSION = "RESUME_PAUSED_SESSION"
+    FOLLOW_UP_INACTIVE_SESSION = "FOLLOW_UP_INACTIVE_SESSION"
+    MONITOR_ACTIVE_COUNT = "MONITOR_ACTIVE_COUNT"
+    CLOSE_SESSION = "CLOSE_SESSION"
+    NONE = "NONE"
+
+
+class WorkflowPriorityBand(str, Enum):
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
+
+
+class UserWorkflowSummary(BaseModel):
+    """Running workflow snapshot grouped by user."""
+
+    username: str
+    full_name: Optional[str] = None
+    role: str = "staff"
+    workflow_stage: WorkflowStage
+    presence_status: WorkflowPresenceStatus
+    active_session_id: Optional[str] = None
+    session_status: Optional[CanonicalSessionStatus] = None
+    session_type: Optional[str] = None
+    warehouse: Optional[str] = None
+    rack_id: Optional[str] = None
+    floor: Optional[str] = None
+    session_started_at: Optional[datetime] = None
+    last_activity: Optional[datetime] = None
+    pending_review_since: Optional[datetime] = None
+    recount_assigned_at: Optional[datetime] = None
+    open_session_count: int = 0
+    items_counted: int = 0
+    reviewed_items: int = 0
+    total_items: int = 0
+    progress_percent: float = 0.0
+    pending_approvals: int = 0
+    assigned_recounts: int = 0
+    total_variance: float = 0.0
+    priority_score: int = 0
+    priority_band: WorkflowPriorityBand = WorkflowPriorityBand.LOW
+    next_action: WorkflowNextAction = WorkflowNextAction.NONE
+
+
+ACTIVE_WORKFLOW_SESSION_STATES = {
+    "OPEN",
+    "ACTIVE",
+    "PAUSED",
+    "RECONCILE",
+    "open",
+    "active",
+    "paused",
+    "reconcile",
+    "in_progress",
+}
+PENDING_APPROVAL_MATCH = {
+    "$or": [
+        {"status": {"$in": ["pending_approval", "NEEDS_REVIEW"]}},
+        {"approval_status": "NEEDS_REVIEW"},
+    ]
+}
+OPEN_RECOUNT_MATCH = {
+    "assigned_to": {"$exists": True, "$nin": [None, ""]},
+    "recount_requested_at": {"$exists": True},
+    "status": {"$nin": ["approved", "locked"]},
+}
+PENDING_REVIEW_SLA_MINUTES = 20
+RECOUNT_SLA_MINUTES = 30
+INACTIVE_SESSION_SLA_MINUTES = 10
+
+
+def _coerce_datetime(value: Any) -> Optional[datetime]:
+    """Best-effort conversion for datetimes stored as epoch, ISO string, or datetime."""
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.fromtimestamp(float(value), tz=timezone.utc).replace(tzinfo=None)
+        except (OverflowError, OSError, ValueError):
+            return None
+
+    if isinstance(value, str):
+        normalized = value.strip()
+        if not normalized:
+            return None
+        try:
+            parsed = datetime.fromisoformat(normalized.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None:
+            return parsed
+        return parsed.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return None
+
+
+def _max_datetime(*values: Any) -> Optional[datetime]:
+    candidates = [candidate for candidate in (_coerce_datetime(v) for v in values) if candidate]
+    return max(candidates) if candidates else None
+
+
+def _normalize_session_status(value: Any) -> Optional[CanonicalSessionStatus]:
+    if not isinstance(value, str) or not value.strip():
+        return None
+
+    normalized = value.strip().upper()
+    aliases = {
+        "IN_PROGRESS": CanonicalSessionStatus.ACTIVE,
+        "RECONCILING": CanonicalSessionStatus.RECONCILE,
+    }
+    if normalized in aliases:
+        return aliases[normalized]
+
+    try:
+        return CanonicalSessionStatus(normalized)
+    except ValueError:
+        return CanonicalSessionStatus.UNKNOWN
+
+
+def _derive_presence_status(
+    last_activity: Optional[datetime],
+) -> WorkflowPresenceStatus:
+    if not last_activity:
+        return WorkflowPresenceStatus.OFFLINE
+
+    age = datetime.now(timezone.utc).replace(tzinfo=None) - last_activity
+    if age <= timedelta(minutes=2):
+        return WorkflowPresenceStatus.ONLINE
+    if age <= timedelta(minutes=15):
+        return WorkflowPresenceStatus.IDLE
+    return WorkflowPresenceStatus.OFFLINE
+
+
+def _derive_workflow_stage(
+    session_status: Optional[CanonicalSessionStatus],
+    pending_approvals: int,
+    assigned_recounts: int,
+) -> WorkflowStage:
+    if assigned_recounts > 0:
+        return WorkflowStage.RECOUNT_QUEUE
+    if pending_approvals > 0:
+        return WorkflowStage.AWAITING_REVIEW
+    if session_status == CanonicalSessionStatus.PAUSED:
+        return WorkflowStage.PAUSED
+    if session_status == CanonicalSessionStatus.RECONCILE:
+        return WorkflowStage.RECONCILING
+    if session_status in {CanonicalSessionStatus.OPEN, CanonicalSessionStatus.ACTIVE}:
+        return WorkflowStage.COUNTING
+    return WorkflowStage.IDLE
+
+
+def _minutes_since(value: Optional[datetime]) -> float:
+    if not value:
+        return 0.0
+    return max(
+        0.0,
+        (datetime.now(timezone.utc).replace(tzinfo=None) - value).total_seconds() / 60,
+    )
+
+
+def _calculate_priority_score(
+    workflow_stage: WorkflowStage,
+    presence_status: WorkflowPresenceStatus,
+    session_status: Optional[CanonicalSessionStatus],
+    pending_approvals: int,
+    assigned_recounts: int,
+    total_variance: float,
+    pending_review_since: Optional[datetime],
+    recount_assigned_at: Optional[datetime],
+    last_activity: Optional[datetime],
+) -> int:
+    score = 0
+
+    if workflow_stage == WorkflowStage.RECOUNT_QUEUE:
+        score += 55 + min(assigned_recounts * 8, 20)
+    elif workflow_stage == WorkflowStage.AWAITING_REVIEW:
+        score += 45 + min(pending_approvals * 5, 20)
+    elif workflow_stage == WorkflowStage.PAUSED:
+        score += 25
+    elif workflow_stage == WorkflowStage.RECONCILING:
+        score += 15
+    elif workflow_stage == WorkflowStage.COUNTING:
+        score += 10
+
+    score += min(int(abs(total_variance) // 10), 15)
+
+    pending_age = _minutes_since(pending_review_since)
+    if pending_age > PENDING_REVIEW_SLA_MINUTES:
+        score += 10
+    if pending_age > PENDING_REVIEW_SLA_MINUTES * 2:
+        score += 10
+
+    recount_age = _minutes_since(recount_assigned_at)
+    if recount_age > RECOUNT_SLA_MINUTES:
+        score += 10
+    if recount_age > RECOUNT_SLA_MINUTES * 2:
+        score += 10
+
+    if session_status in {
+        CanonicalSessionStatus.OPEN,
+        CanonicalSessionStatus.ACTIVE,
+        CanonicalSessionStatus.PAUSED,
+        CanonicalSessionStatus.RECONCILE,
+    }:
+        inactive_age = _minutes_since(last_activity)
+        if presence_status == WorkflowPresenceStatus.IDLE:
+            score += 8
+        elif presence_status == WorkflowPresenceStatus.OFFLINE:
+            score += 18
+
+        if inactive_age > INACTIVE_SESSION_SLA_MINUTES:
+            score += 5
+        if inactive_age > INACTIVE_SESSION_SLA_MINUTES * 2:
+            score += 7
+
+    return max(0, min(100, score))
+
+
+def _priority_band_for_score(score: int) -> WorkflowPriorityBand:
+    if score >= 75:
+        return WorkflowPriorityBand.CRITICAL
+    if score >= 50:
+        return WorkflowPriorityBand.HIGH
+    if score >= 25:
+        return WorkflowPriorityBand.MEDIUM
+    return WorkflowPriorityBand.LOW
+
+
+def _derive_next_action(
+    workflow_stage: WorkflowStage,
+    presence_status: WorkflowPresenceStatus,
+    session_status: Optional[CanonicalSessionStatus],
+) -> WorkflowNextAction:
+    if workflow_stage == WorkflowStage.RECOUNT_QUEUE:
+        return WorkflowNextAction.HANDLE_RECOUNT
+    if workflow_stage == WorkflowStage.AWAITING_REVIEW:
+        return WorkflowNextAction.REVIEW_PENDING
+    if workflow_stage == WorkflowStage.PAUSED:
+        return WorkflowNextAction.RESUME_PAUSED_SESSION
+    if session_status in {
+        CanonicalSessionStatus.OPEN,
+        CanonicalSessionStatus.ACTIVE,
+        CanonicalSessionStatus.RECONCILE,
+    } and presence_status != WorkflowPresenceStatus.ONLINE:
+        return WorkflowNextAction.FOLLOW_UP_INACTIVE_SESSION
+    if workflow_stage in {WorkflowStage.COUNTING, WorkflowStage.RECONCILING}:
+        return WorkflowNextAction.MONITOR_ACTIVE_COUNT
+    if session_status in {CanonicalSessionStatus.CLOSED, CanonicalSessionStatus.COMPLETED}:
+        return WorkflowNextAction.CLOSE_SESSION
+    return WorkflowNextAction.NONE
 
 
 async def _build_sessions_analytics_payload(db: AsyncIOMotorDatabase) -> dict[str, Any]:
@@ -434,6 +726,254 @@ async def get_active_sessions(
         )
 
     return result
+
+
+@router.get("/user-workflows", response_model=list[UserWorkflowSummary])
+async def get_user_workflows(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict[str, Any] = Depends(require_role("supervisor", "admin")),
+) -> list[UserWorkflowSummary]:
+    """Return the currently running workflow grouped by user."""
+    del current_user  # Authorization is enforced by the dependency above.
+
+    active_sessions_cursor = db.verification_sessions.find(
+        {"status": {"$in": sorted(ACTIVE_WORKFLOW_SESSION_STATES)}}
+    ).sort("last_heartbeat", -1)
+    active_sessions = await active_sessions_cursor.to_list(length=200)
+
+    session_ids = [
+        session.get("session_id")
+        for session in active_sessions
+        if isinstance(session.get("session_id"), str) and session.get("session_id")
+    ]
+
+    session_meta_by_id: dict[str, dict[str, Any]] = {}
+    if session_ids:
+        session_docs = await db.sessions.find(
+            {
+                "$or": [
+                    {"id": {"$in": session_ids}},
+                    {"session_id": {"$in": session_ids}},
+                ]
+            }
+        ).to_list(length=max(len(session_ids) * 2, 1))
+
+        for document in session_docs:
+            document_id = document.get("id")
+            if isinstance(document_id, str) and document_id:
+                session_meta_by_id[document_id] = document
+
+            legacy_id = document.get("session_id")
+            if isinstance(legacy_id, str) and legacy_id:
+                session_meta_by_id[legacy_id] = document
+
+    session_counts_by_id: dict[str, dict[str, Any]] = {}
+    if session_ids:
+        session_count_rows = await db.count_lines.aggregate(
+            [
+                {"$match": {"session_id": {"$in": session_ids}}},
+                {
+                    "$group": {
+                        "_id": "$session_id",
+                        "items_counted": {"$sum": 1},
+                        "reviewed_items": {
+                            "$sum": {
+                                "$cond": [{"$in": ["$status", ["approved", "locked"]]}, 1, 0]
+                            }
+                        },
+                        "last_counted_at": {"$max": {"$ifNull": ["$updated_at", "$counted_at"]}},
+                    }
+                },
+            ]
+        ).to_list(length=max(len(session_ids), 1))
+
+        session_counts_by_id = {
+            row["_id"]: row for row in session_count_rows if isinstance(row.get("_id"), str)
+        }
+
+    pending_rows = await db.count_lines.aggregate(
+        [
+            {
+                "$match": {
+                    "counted_by": {"$exists": True, "$nin": [None, ""]},
+                    **PENDING_APPROVAL_MATCH,
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$counted_by",
+                    "pending_approvals": {"$sum": 1},
+                    "pending_review_since": {"$min": {"$ifNull": ["$submitted_at", "$counted_at"]}},
+                    "last_pending_at": {"$max": {"$ifNull": ["$updated_at", "$counted_at"]}},
+                }
+            },
+        ]
+    ).to_list(length=500)
+    pending_by_user = {
+        row["_id"]: row for row in pending_rows if isinstance(row.get("_id"), str)
+    }
+
+    recount_rows = await db.count_lines.aggregate(
+        [
+            {"$match": OPEN_RECOUNT_MATCH},
+            {
+                "$group": {
+                    "_id": "$assigned_to",
+                    "assigned_recounts": {"$sum": 1},
+                    "recount_assigned_at": {
+                        "$min": {
+                            "$ifNull": [
+                                "$recount_requested_at",
+                                {"$ifNull": ["$rejected_at", "$counted_at"]},
+                            ]
+                        }
+                    },
+                    "last_recount_at": {
+                        "$max": {
+                            "$ifNull": [
+                                "$rejected_at",
+                                {"$ifNull": ["$updated_at", "$counted_at"]},
+                            ]
+                        }
+                    },
+                }
+            },
+        ]
+    ).to_list(length=500)
+    recount_by_user = {
+        row["_id"]: row for row in recount_rows if isinstance(row.get("_id"), str)
+    }
+
+    sessions_by_user: dict[str, list[dict[str, Any]]] = {}
+    candidate_usernames = set(pending_by_user.keys()) | set(recount_by_user.keys())
+
+    for session in active_sessions:
+        username = session.get("user_id")
+        if not isinstance(username, str) or not username:
+            continue
+        candidate_usernames.add(username)
+        sessions_by_user.setdefault(username, []).append(session)
+
+    if not candidate_usernames:
+        return []
+
+    user_docs = await db.users.find(
+        {"username": {"$in": sorted(candidate_usernames)}}
+    ).to_list(length=len(candidate_usernames))
+    user_by_username = {
+        user.get("username"): user
+        for user in user_docs
+        if isinstance(user.get("username"), str) and user.get("username")
+    }
+
+    results: list[UserWorkflowSummary] = []
+
+    for username in sorted(candidate_usernames):
+        user_sessions = sessions_by_user.get(username, [])
+        user_sessions.sort(
+            key=lambda item: _coerce_datetime(item.get("last_heartbeat")) or datetime.min,
+            reverse=True,
+        )
+        active_session = user_sessions[0] if user_sessions else None
+        active_session_id = active_session.get("session_id") if active_session else None
+        session_meta = session_meta_by_id.get(active_session_id, {}) if active_session_id else {}
+        session_counts = session_counts_by_id.get(active_session_id, {}) if active_session_id else {}
+
+        pending_info = pending_by_user.get(username, {})
+        recount_info = recount_by_user.get(username, {})
+        items_counted = int(session_counts.get("items_counted", 0) or 0)
+        reviewed_items = int(session_counts.get("reviewed_items", 0) or 0)
+        total_items = int(session_meta.get("total_items", 0) or 0)
+        progress_percent = round((items_counted / total_items) * 100, 1) if total_items > 0 else 0.0
+        pending_review_since = _coerce_datetime(
+            pending_info.get("pending_review_since") or pending_info.get("last_pending_at")
+        )
+        recount_assigned_at = _coerce_datetime(
+            recount_info.get("recount_assigned_at") or recount_info.get("last_recount_at")
+        )
+
+        last_activity = _max_datetime(
+            active_session.get("last_heartbeat") if active_session else None,
+            session_counts.get("last_counted_at"),
+            pending_info.get("last_pending_at"),
+            recount_info.get("last_recount_at"),
+        )
+        session_status = _normalize_session_status(
+            active_session.get("status") if active_session else None
+        )
+        workflow_stage = _derive_workflow_stage(
+            session_status,
+            int(pending_info.get("pending_approvals", 0) or 0),
+            int(recount_info.get("assigned_recounts", 0) or 0),
+        )
+        presence_status = _derive_presence_status(last_activity)
+        priority_score = _calculate_priority_score(
+            workflow_stage=workflow_stage,
+            presence_status=presence_status,
+            session_status=session_status,
+            pending_approvals=int(pending_info.get("pending_approvals", 0) or 0),
+            assigned_recounts=int(recount_info.get("assigned_recounts", 0) or 0),
+            total_variance=float(session_meta.get("total_variance", 0) or 0),
+            pending_review_since=pending_review_since,
+            recount_assigned_at=recount_assigned_at,
+            last_activity=last_activity,
+        )
+
+        user_doc = user_by_username.get(username, {})
+        results.append(
+            UserWorkflowSummary(
+                username=username,
+                full_name=user_doc.get("full_name"),
+                role=user_doc.get("role") or "staff",
+                workflow_stage=workflow_stage,
+                presence_status=presence_status,
+                active_session_id=active_session_id if isinstance(active_session_id, str) else None,
+                session_status=session_status,
+                session_type=session_meta.get("type"),
+                warehouse=session_meta.get("warehouse"),
+                rack_id=active_session.get("rack_id") if active_session else None,
+                floor=active_session.get("floor") if active_session else None,
+                session_started_at=_max_datetime(
+                    session_meta.get("started_at"),
+                    active_session.get("started_at") if active_session else None,
+                ),
+                last_activity=last_activity,
+                pending_review_since=pending_review_since,
+                recount_assigned_at=recount_assigned_at,
+                open_session_count=len(user_sessions),
+                items_counted=items_counted,
+                reviewed_items=reviewed_items,
+                total_items=total_items,
+                progress_percent=progress_percent,
+                pending_approvals=int(pending_info.get("pending_approvals", 0) or 0),
+                assigned_recounts=int(recount_info.get("assigned_recounts", 0) or 0),
+                total_variance=float(session_meta.get("total_variance", 0) or 0),
+                priority_score=priority_score,
+                priority_band=_priority_band_for_score(priority_score),
+                next_action=_derive_next_action(
+                    workflow_stage=workflow_stage,
+                    presence_status=presence_status,
+                    session_status=session_status,
+                ),
+            )
+        )
+
+    presence_rank = {
+        WorkflowPresenceStatus.ONLINE: 2,
+        WorkflowPresenceStatus.IDLE: 1,
+        WorkflowPresenceStatus.OFFLINE: 0,
+    }
+    results.sort(
+        key=lambda row: (
+            row.priority_score,
+            row.active_session_id is not None,
+            presence_rank.get(row.presence_status, 0),
+            row.last_activity or datetime.min,
+        ),
+        reverse=True,
+    )
+
+    return results
 
 
 @router.get("/analytics")

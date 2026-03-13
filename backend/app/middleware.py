@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 
 def register_middleware(
@@ -19,6 +20,12 @@ def register_middleware(
 ) -> None:
     """Register app middleware while preserving current behavior/order."""
     env = getattr(settings, "ENVIRONMENT", "development").lower()
+    allowed_hosts_value = getattr(settings, "ALLOWED_HOSTS", None)
+    allowed_hosts: list[str] = []
+    if isinstance(allowed_hosts_value, str):
+        allowed_hosts = [host.strip() for host in allowed_hosts_value.split(",") if host.strip()]
+    elif allowed_hosts_value:
+        allowed_hosts = [str(host).strip() for host in allowed_hosts_value if str(host).strip()]
 
     if getattr(settings, "CORS_ALLOW_ORIGINS", None):
         allowed_origins = [
@@ -69,6 +76,15 @@ def register_middleware(
         ],
     )
 
+    if allowed_hosts and "*" not in allowed_hosts:
+        app.add_middleware(TrustedHostMiddleware, allowed_hosts=allowed_hosts)
+        logger.info(f"✓ Trusted host middleware enabled (hosts: {allowed_hosts})")
+    elif env not in {"development", "test"}:
+        logger.warning(
+            "ALLOWED_HOSTS not configured for non-development environment; "
+            "Host header validation is disabled"
+        )
+
     if security_headers_middleware is not None:
         try:
             strict_csp = os.getenv("STRICT_CSP", "false").lower() == "true"
@@ -85,5 +101,13 @@ def register_middleware(
     else:
         logger.warning("Security headers middleware not available")
 
-    app.add_middleware(GZipMiddleware, minimum_size=1000)
+    if getattr(settings, "ENABLE_LAN_ENFORCEMENT", False):
+        try:
+            from backend.middleware.lan_enforcement import LANEnforcementMiddleware
 
+            app.add_middleware(LANEnforcementMiddleware)
+            logger.info("✓ LAN enforcement middleware enabled")
+        except Exception as exc:
+            logger.warning(f"LAN enforcement middleware registration failed: {exc}")
+
+    app.add_middleware(GZipMiddleware, minimum_size=1000)

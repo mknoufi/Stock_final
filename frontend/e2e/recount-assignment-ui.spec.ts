@@ -100,10 +100,14 @@ test.describe("Recount Assignment UI", () => {
   test("supervisor can assign recount and assignee can open it from notifications", async ({
     browser,
     request,
-  }) => {
+  }, testInfo) => {
     test.setTimeout(180000);
 
-    const suffix = Date.now().toString().slice(-8);
+    const projectSlug = testInfo.project.name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "")
+      .slice(0, 12);
+    const suffix = `${projectSlug}_${Date.now().toString(36)}_${testInfo.parallelIndex}`;
     const ownerUsername = `ui_owner_${suffix}`;
     const assigneeUsername = `ui_assignee_${suffix}`;
     const sharedPassword = "SmokePass123!";

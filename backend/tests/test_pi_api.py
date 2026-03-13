@@ -1,9 +1,10 @@
 import pytest
-import respx
 from fastapi.testclient import TestClient
 from backend.server import app
 from backend.auth.dependencies import get_current_user
 from backend.config import settings
+
+respx = pytest.importorskip("respx")
 
 
 # Mock user for testing

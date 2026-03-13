@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { Platform } from "react-native";
 import { secureStorage } from "../services/storage/secureStorage";
 import apiClient from "../services/httpClient";
 import { useSettingsStore } from "./settingsStore";
@@ -22,6 +23,20 @@ type AuthResult = {
   success: boolean;
   message?: string;
   code?: string;
+};
+
+type LastLoggedUser = {
+  username: string;
+  full_name: string;
+  has_pin?: boolean;
+};
+
+type AuthSessionPayload = {
+  access_token: string;
+  refresh_token?: string | null;
+  user: User;
+  has_pin?: boolean;
+  biometricPin?: string | null;
 };
 
 export interface AuthState {
@@ -48,6 +63,7 @@ export interface AuthState {
   }>;
   savePinForBiometrics: (pin: string) => Promise<void>;
   getPinForBiometrics: () => Promise<string | null>;
+  establishSession: (payload: AuthSessionPayload) => Promise<void>;
   setUser: (user: User) => void;
   logout: () => Promise<void>;
   logoutAll: (
@@ -59,14 +75,8 @@ export interface AuthState {
   ) => Promise<AuthResult>;
   setLoading: (loading: boolean) => void;
   loadStoredAuth: () => Promise<void>;
-  lastLoggedUser: {
-    username: string;
-    full_name: string;
-    has_pin?: boolean;
-  } | null;
-  setLastLoggedUser: (
-    user: { username: string; full_name: string } | null,
-  ) => void;
+  lastLoggedUser: LastLoggedUser | null;
+  setLastLoggedUser: (user: LastLoggedUser | null) => void;
   clearLastLoggedUser: () => Promise<void>;
 }
 
@@ -151,6 +161,27 @@ const parseAuthError = (
   return { success: false, message: apiMessage || fallbackMessage, code };
 };
 
+const buildLastLoggedUser = (
+  user: User,
+  hasPinOverride?: boolean,
+): LastLoggedUser => ({
+  username: user.username,
+  full_name: user.full_name,
+  has_pin: hasPinOverride ?? user.has_pin,
+});
+
+const syncOfflineQueueInBackground = async () => {
+  const networkState = useNetworkStore.getState();
+  if (!networkState.isOnline) return;
+
+  const { syncOfflineQueue } = await import("../services/syncService");
+  syncOfflineQueue({ background: true }).catch((err) => {
+    log.warn("Sync after auth failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
@@ -161,9 +192,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return !!get().user;
   },
 
-  setLastLoggedUser: async (
-    user: { username: string; full_name: string; has_pin?: boolean } | null,
-  ) => {
+  setLastLoggedUser: async (user: LastLoggedUser | null) => {
     set({ lastLoggedUser: user });
     if (user) {
       await secureStorage.setItem(LAST_USER_STORAGE_KEY, JSON.stringify(user));
@@ -175,6 +204,56 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearLastLoggedUser: async () => {
     await secureStorage.removeItem(LAST_USER_STORAGE_KEY);
     set({ lastLoggedUser: null });
+  },
+
+  establishSession: async ({
+    access_token,
+    refresh_token,
+    user,
+    has_pin,
+    biometricPin,
+  }: AuthSessionPayload) => {
+    if (!access_token) {
+      throw new Error("Invalid response format: missing access_token");
+    }
+
+    const authenticatedUser =
+      has_pin === undefined ? user : { ...user, has_pin };
+    const lastUser = buildLastLoggedUser(authenticatedUser, has_pin);
+
+    apiClient.defaults.headers.common["Authorization"] = `Bearer ${access_token}`;
+    await secureStorage.setItem(TOKEN_STORAGE_KEY, access_token);
+
+    if (refresh_token) {
+      await secureStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refresh_token);
+    } else {
+      await secureStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+    }
+
+    await secureStorage.setItem(
+      AUTH_STORAGE_KEY,
+      JSON.stringify(authenticatedUser),
+    );
+    await secureStorage.setItem(
+      LAST_USER_STORAGE_KEY,
+      JSON.stringify(lastUser),
+    );
+
+    if (biometricPin) {
+      await secureStorage.setItem(BIOMETRIC_PIN_KEY, biometricPin);
+    }
+
+    set({
+      user: authenticatedUser,
+      isAuthenticated: true,
+      isLoading: false,
+      isInitialized: true,
+      lastLoggedUser: lastUser,
+    });
+
+    get().startHeartbeat();
+    useSettingsStore.getState().syncFromBackend();
+    await syncOfflineQueueInBackground();
   },
 
   login: async (
@@ -197,43 +276,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           });
           throw new Error("Invalid response format: missing access_token");
         }
-
-        apiClient.defaults.headers.common["Authorization"] =
-          `Bearer ${access_token}`;
-        await secureStorage.setItem(TOKEN_STORAGE_KEY, access_token);
-        if (refresh_token) {
-          await secureStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refresh_token);
-        }
-        await secureStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-
-        const lastUser = {
-          username: user.username,
-          full_name: user.full_name,
-          has_pin: user.has_pin,
-        };
-        await secureStorage.setItem(
-          LAST_USER_STORAGE_KEY,
-          JSON.stringify(lastUser),
-        );
-
-        set({
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-          isInitialized: true,
-          lastLoggedUser: lastUser,
-        });
-
-        get().startHeartbeat();
-        useSettingsStore.getState().syncFromBackend();
-
-        const networkState = useNetworkStore.getState();
-        if (networkState.isOnline) {
-          const { syncOfflineQueue } = await import("../services/syncService");
-          syncOfflineQueue({ background: true }).catch((err) => {
-            log.warn("Sync after login failed", { error: err.message });
-          });
-        }
+        await get().establishSession({ access_token, refresh_token, user });
 
         return { success: true };
       }
@@ -266,47 +309,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       if (response.data.success && response.data.data) {
         const { access_token, refresh_token, user } = response.data.data;
-        apiClient.defaults.headers.common["Authorization"] =
-          `Bearer ${access_token}`;
-        await secureStorage.setItem(TOKEN_STORAGE_KEY, access_token);
-        if (refresh_token) {
-          await secureStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refresh_token);
-        }
-        await secureStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
-
-        const lastUser = {
-          username: user.username,
-          full_name: user.full_name,
-          has_pin: true,
-        };
-        await secureStorage.setItem(
-          LAST_USER_STORAGE_KEY,
-          JSON.stringify(lastUser),
-        );
-
         const settings = useSettingsStore.getState().settings;
-        if (settings.biometricAuth && pin) {
-          await secureStorage.setItem(BIOMETRIC_PIN_KEY, pin);
-        }
-
-        set({
+        await get().establishSession({
+          access_token,
+          refresh_token,
           user,
-          isAuthenticated: true,
-          isLoading: false,
-          isInitialized: true,
-          lastLoggedUser: lastUser,
+          has_pin: true,
+          biometricPin: settings.biometricAuth ? pin : null,
         });
-
-        get().startHeartbeat();
-        useSettingsStore.getState().syncFromBackend();
-
-        const networkState = useNetworkStore.getState();
-        if (networkState.isOnline) {
-          const { syncOfflineQueue } = await import("../services/syncService");
-          syncOfflineQueue({ background: true }).catch((err) =>
-            log.warn("Sync error", err),
-          );
-        }
 
         return { success: true };
       }
@@ -378,7 +388,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     get().stopHeartbeat();
     try {
-      if (apiClient.defaults.headers.common["Authorization"]) {
+      if (
+        Platform.OS === "web" ||
+        apiClient.defaults.headers.common["Authorization"]
+      ) {
         await apiClient.post("/api/auth/logout").catch(() => {});
       }
     } catch (_) {}
@@ -529,6 +542,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isInitialized: true,
         });
         get().startHeartbeat();
+      } else if (Platform.OS === "web") {
+        try {
+          const response = await apiClient.get("/api/auth/me");
+          const payload =
+            response.data && typeof response.data === "object" && "data" in response.data
+              ? (response.data as { data?: User }).data
+              : (response.data as User | null);
+
+          if (payload?.username) {
+            await secureStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload));
+            set({
+              user: payload,
+              isAuthenticated: true,
+              isLoading: false,
+              isInitialized: true,
+            });
+            get().startHeartbeat();
+            return;
+          }
+        } catch (_cookieAuthError) {
+          // No active browser session; continue to unauthenticated state.
+        }
+
+        set({ isLoading: false, isInitialized: true });
       } else {
         set({ isLoading: false, isInitialized: true });
       }

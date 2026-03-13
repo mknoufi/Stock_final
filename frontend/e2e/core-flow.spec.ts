@@ -67,7 +67,10 @@ test.describe("Core User Flow", () => {
     await page.getByText("Start Session", { exact: true }).click();
 
     await page.waitForURL("**/staff/scan?sessionId=**", { timeout: 30000 });
-    await expect(page.getByText("Scan Items", { exact: true })).toBeVisible();
+    await expect(
+      page.getByPlaceholder("Enter barcode or item code..."),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Finish Rack" })).toBeVisible();
 
     // 3. Search/Lookup item
     await page.getByPlaceholder("Enter barcode or item code...").fill("513456");
@@ -93,7 +96,9 @@ test.describe("Core User Flow", () => {
       timeout: 5000,
     });
     await page.waitForURL("**/staff/scan?sessionId=**", { timeout: 60000 });
-    await expect(page.getByText("Scan Items", { exact: true })).toBeVisible();
+    await expect(
+      page.getByPlaceholder("Enter barcode or item code..."),
+    ).toBeVisible();
 
     // 6. Logout via Settings page
     await page.goto("/staff/settings");

@@ -64,7 +64,7 @@ class Settings(PydanticBaseSettings):
     DEBUG: bool = False
     ENVIRONMENT: str = Field(
         default="development",
-        description="Environment: development, staging, production",
+        description="Environment: development, test, staging, production",
     )
 
     @field_validator("DEBUG", mode="before")
@@ -321,6 +321,38 @@ class Settings(PydanticBaseSettings):
     # Security
     FORCE_HTTPS: bool = False  # Enable HSTS
     BLOCK_SANITIZATION_VIOLATIONS: bool = True
+    ALLOWED_HOSTS: Optional[str] = Field(
+        None,
+        description="Comma-separated trusted hostnames for Host header validation.",
+    )
+    ENABLE_LAN_ENFORCEMENT: bool = Field(
+        default=False,
+        description="Restrict inbound requests to private or loopback IP ranges.",
+    )
+    AUTO_SEED_DEFAULT_USERS: bool = Field(
+        default=False,
+        description="Seed default users for development or automated smoke environments.",
+    )
+    AUTO_SEED_MOCK_ERP_DATA: bool = Field(
+        default=False,
+        description="Seed mock ERP inventory for development or automated smoke environments.",
+    )
+    AUTH_ACCESS_COOKIE_NAME: str = Field(
+        default="sv_access_token",
+        description="Cookie name used for the short-lived access token.",
+    )
+    AUTH_REFRESH_COOKIE_NAME: str = Field(
+        default="sv_refresh_token",
+        description="Cookie name used for the refresh token.",
+    )
+    AUTH_COOKIE_DOMAIN: Optional[str] = Field(
+        default=None,
+        description="Optional cookie domain override for browser authentication.",
+    )
+    AUTH_COOKIE_SAMESITE: str = Field(
+        default="lax",
+        description="Browser SameSite setting for auth cookies: lax, strict, or none.",
+    )
 
     @field_validator("LOG_LEVEL")
     @classmethod
@@ -331,6 +363,14 @@ class Settings(PydanticBaseSettings):
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         if normalized not in valid_levels:
             raise ValueError(f"LOG_LEVEL must be one of: {', '.join(valid_levels)} (WARN accepted)")
+        return normalized
+
+    @field_validator("AUTH_COOKIE_SAMESITE")
+    @classmethod
+    def validate_auth_cookie_samesite(cls, v: str) -> str:
+        normalized = str(v).strip().lower()
+        if normalized not in {"lax", "strict", "none"}:
+            raise ValueError("AUTH_COOKIE_SAMESITE must be one of: lax, strict, none")
         return normalized
 
     # Server
@@ -458,6 +498,25 @@ except Exception as e:
             # Normalize MIN_CLIENT_VERSION: use default when env var is missing or empty, and strip whitespace
             self.MIN_CLIENT_VERSION = (os.getenv("MIN_CLIENT_VERSION") or "1.0.0").strip()
             self.PI_SERVER_URL = os.getenv("PI_SERVER_URL", "http://localhost:8045/v1")
+            self.ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS")
+            self.ENABLE_LAN_ENFORCEMENT = (
+                os.getenv("ENABLE_LAN_ENFORCEMENT", "false").lower() == "true"
+            )
+            self.AUTO_SEED_DEFAULT_USERS = (
+                os.getenv("AUTO_SEED_DEFAULT_USERS", "false").lower() == "true"
+            )
+            self.AUTO_SEED_MOCK_ERP_DATA = (
+                os.getenv("AUTO_SEED_MOCK_ERP_DATA", "false").lower() == "true"
+            )
+            self.AUTH_ACCESS_COOKIE_NAME = os.getenv(
+                "AUTH_ACCESS_COOKIE_NAME", "sv_access_token"
+            )
+            self.AUTH_REFRESH_COOKIE_NAME = os.getenv(
+                "AUTH_REFRESH_COOKIE_NAME", "sv_refresh_token"
+            )
+            self.AUTH_COOKIE_DOMAIN = os.getenv("AUTH_COOKIE_DOMAIN")
+            self.AUTH_COOKIE_SAMESITE = os.getenv("AUTH_COOKIE_SAMESITE", "lax")
+            self.FORCE_HTTPS = os.getenv("FORCE_HTTPS", "false").lower() == "true"
 
     settings = FallbackSettings()  # type: ignore[assignment]
 
@@ -523,7 +582,7 @@ def _enforce_production_guards(settings_obj):
     is_staging = env == "staging"
 
     # Guard 1: Validate ENVIRONMENT value
-    valid_envs = {"development", "staging", "production"}
+    valid_envs = {"development", "test", "staging", "production"}
     if env not in valid_envs:
         raise RuntimeError(
             f"Invalid ENVIRONMENT='{env}'. Must be one of: {', '.join(sorted(valid_envs))}"
@@ -552,6 +611,17 @@ def _enforce_production_guards(settings_obj):
             "CRITICAL: DEBUG_ENDPOINTS=true is not allowed in production. "
             "Set DEBUG_ENDPOINTS=false in your environment."
         )
+
+    # Guard 5: Production must not auto-seed privileged users or mock inventory.
+    if is_prod or is_staging:
+        if getattr(settings_obj, "AUTO_SEED_DEFAULT_USERS", False):
+            raise RuntimeError(
+                "CRITICAL: AUTO_SEED_DEFAULT_USERS=true is not allowed in production/staging."
+            )
+        if getattr(settings_obj, "AUTO_SEED_MOCK_ERP_DATA", False):
+            raise RuntimeError(
+                "CRITICAL: AUTO_SEED_MOCK_ERP_DATA=true is not allowed in production/staging."
+            )
 
     if is_prod:
         logger.info("✅ Production runtime guards passed")

@@ -10,6 +10,7 @@ from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from .cookies import get_access_token_cookie
 from .jwt_provider import jwt
 
 logger = logging.getLogger(__name__)
@@ -99,6 +100,10 @@ class JWTValidator:
         """Extract JWT token from request credentials or headers"""
         if credentials:
             return credentials.credentials
+
+        cookie_token = get_access_token_cookie(request)
+        if cookie_token:
+            return cookie_token
 
         # Fallback to manual header extraction
         auth_header = request.headers.get("Authorization")

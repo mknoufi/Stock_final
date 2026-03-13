@@ -438,12 +438,30 @@ const StaffHome = React.memo(function StaffHome() {
     } as any);
   };
 
-  const renderSessionCard = (session: any) => (
+  const handleOpenSessionHistory = (session: any) => {
+    Haptics.selectionAsync();
+
+    const sessionId = session?.id || session?._id || session?.session_id;
+    if (!sessionId) {
+      toastService.showError("Unable to open session history (missing ID).");
+      return;
+    }
+
+    router.push({
+      pathname: "/staff/history",
+      params: { sessionId },
+    } as any);
+  };
+
+  const renderSessionCard = (
+    session: any,
+    onPress: (session: any) => void = handleResumeSession,
+  ) => (
     <ModernCard
       key={session.id || session._id}
       style={styles.sessionCard}
       padding={spacing.md}
-      onPress={() => handleResumeSession(session)}
+      onPress={() => onPress(session)}
     >
       <View style={styles.sessionHeader}>
         <View style={styles.sessionIcon}>
@@ -515,7 +533,9 @@ const StaffHome = React.memo(function StaffHome() {
               </Text>
             </View>
           ) : (
-            uniqueActiveSessions.map(renderSessionCard)
+            uniqueActiveSessions.map((session) =>
+              renderSessionCard(session, handleResumeSession),
+            )
           )}
         </Animated.View>
       );
@@ -534,7 +554,9 @@ const StaffHome = React.memo(function StaffHome() {
               <Text style={styles.emptyText}>No history yet</Text>
             </View>
           ) : (
-            finishedSessions.map(renderSessionCard)
+            finishedSessions.map((session) =>
+              renderSessionCard(session, handleOpenSessionHistory),
+            )
           )}
         </Animated.View>
       );

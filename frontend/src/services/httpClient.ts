@@ -1,4 +1,5 @@
 import axios from "axios";
+import { Platform } from "react-native";
 import { BACKEND_URL } from "./backendUrl";
 import { createLogger } from "./logging";
 import { secureStorage } from "./storage/secureStorage";
@@ -22,6 +23,7 @@ const IS_TEST_ENV =
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 30000, // Increased timeout to 30s for slower emulator networks
+  withCredentials: true,
 });
 
 delete apiClient.defaults.headers.common["Content-Type"];
@@ -128,23 +130,26 @@ const summarizeResponseData = (data: unknown): Record<string, unknown> | undefin
 const shouldLogNetworkDebug =
   !IS_TEST_ENV &&
   (typeof __DEV__ !== "undefined" ? __DEV__ : process.env.NODE_ENV === "development");
+const CAN_USE_COOKIE_AUTH = Platform.OS === "web";
 
 let refreshInFlight: Promise<string | null> | null = null;
 
 const refreshAccessToken = async (): Promise<string | null> => {
   const refreshToken = await secureStorage.getItem("refresh_token");
-  if (!refreshToken) return null;
+  if (!refreshToken && !CAN_USE_COOKIE_AUTH) return null;
 
   const baseURL = apiClient.defaults.baseURL || API_BASE_URL;
   const refreshUrl = toFullUrl(baseURL, "/api/auth/refresh");
+  const refreshPayload = refreshToken ? { refresh_token: refreshToken } : {};
 
   try {
     const response = await axios.post(
       refreshUrl,
-      { refresh_token: refreshToken },
+      refreshPayload,
       {
         timeout: 20000,
         headers: { "Content-Type": "application/json" },
+        withCredentials: true,
       }
     );
 
@@ -243,7 +248,7 @@ apiClient.interceptors.request.use(
       fullUrl.includes("/auth/register") ||
       fullUrl.includes("/auth/logout") ||
       isHealthRequest;
-    if (!isPublic && !hasAuth) {
+    if (!isPublic && !hasAuth && !CAN_USE_COOKIE_AUTH) {
       log.warn("Blocking authenticated call: No token available", {
         url: fullUrl,
       });
@@ -278,7 +283,7 @@ apiClient.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     const fullUrl = toFullUrl(error.config?.baseURL, error.config?.url);
     const status = error.response?.status;
     const data = error.response?.data as { code?: string; message?: string } | undefined;
@@ -355,20 +360,17 @@ apiClient.interceptors.response.use(
           url: fullUrl,
         });
 
-        return secureStorage
-          .getItem("auth_token")
-          .then((token) => {
-            if (token) {
-              originalRequest.headers["Authorization"] = `Bearer ${token}`;
-              apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-              return apiClient(originalRequest);
-            }
-            return Promise.reject(error);
-          })
-          .catch(() => {
-            // If storage lookup fails, proceed to logout
-            return Promise.reject(error);
-          });
+        try {
+          const token = await secureStorage.getItem("auth_token");
+          if (token) {
+            originalRequest.headers = originalRequest.headers || {};
+            originalRequest.headers["Authorization"] = `Bearer ${token}`;
+            apiClient.defaults.headers.common["Authorization"] = `Bearer ${token}`;
+            return apiClient(originalRequest);
+          }
+        } catch (_storageError) {
+          // Fall through to cookie or refresh-token recovery below.
+        }
       }
 
       // If we already retried with the stored access token, attempt a refresh-token flow once.

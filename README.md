@@ -1,35 +1,27 @@
 # Stock Verify Application (v2.1)
 
 This repository is available as a GitHub template. Use the template to create a new instance.
-See `docs/STARTUP_GUIDE.md` for setup instructions.
+Use this README for the repo workflow, `backend/README.md` for backend governance constraints,
+and `docs/TESTING_GUIDE.md` for verification commands.
 
 ## Start Here
 
-Guides:
-- `docs/START_HERE.md` (recommended first read)
-- `docs/QUICK_START.md`
-- `docs/VIBE_CODING_WORKFLOW.md`
-- `docs/FEATURE_ROADMAP.md`
-- `docs/STUDY_GUIDE_AGENTS_AND_VSCODE.md`
+Tracked guides:
+- `backend/README.md`
+- `docs/TESTING_GUIDE.md`
+- `docs/user-wise-running-workflow-diagram.md`
 
 ## Documentation
 
-Core:
-- `docs/codebase_memory_v2.1.md`
-- `docs/STOCK_VERIFY_2.1_cursor_rules.md`
-- `docs/verified_coding_policy.md`
-- `docs/CHANGELOG.md`
-
-Production:
-- `docs/PRODUCTION_DEPLOYMENT_GUIDE.md`
-- `docs/PRODUCTION_READINESS_CHECKLIST.md`
-- `docs/FEATURE_ROADMAP.md`
+This repository currently keeps a smaller tracked docs set. Keep this section aligned with the
+files that actually exist in git so a fresh clone does not point at missing documentation.
 
 ## Quick Start
 
 New deployments:
-1) Read `docs/STARTUP_GUIDE.md`
-2) Run `./init-new-instance.sh`
+1) Copy the backend and frontend example env files.
+2) Run `make install`.
+3) Start services with `make start`.
 
 Development:
 
@@ -68,9 +60,9 @@ Network configuration (dynamic IP):
 
 - Frontend: `cd frontend && npm run ci`
 - Backend: `./scripts/python.sh -m pytest backend/tests`
-- E2E: see `frontend/e2e/README.md` (Maestro)
+- E2E: `cd frontend && npx playwright test` or `npm run e2e:recount-smoke`
 
-Details: `docs/TESTING_GUIDE.md`
+Details: `docs/TESTING_GUIDE.md` and `frontend/e2e/README.md`
 
 ## Production Deployment (Docker Compose)
 

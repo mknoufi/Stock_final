@@ -10,7 +10,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Platform,
   useWindowDimensions,
   ViewStyle,
 } from "react-native";
@@ -59,6 +58,12 @@ const SUPERVISOR_GROUPS: SidebarGroup[] = [
   {
     title: "Monitoring",
     items: [
+      {
+        key: "user-workflows",
+        label: "User Workflows",
+        icon: "git-network",
+        route: "/supervisor/user-workflows",
+      },
       {
         key: "activity-logs",
         label: "Activity Logs",
@@ -124,7 +129,7 @@ interface SupervisorSidebarProps {
 
 export const SupervisorSidebar: React.FC<SupervisorSidebarProps> = ({
   collapsed = false,
-  onToggleCollapse: _onToggleCollapse,
+  onToggleCollapse,
   style,
   testID,
 }) => {
@@ -171,6 +176,10 @@ export const SupervisorSidebar: React.FC<SupervisorSidebarProps> = ({
   const sidebarWidth = collapsed
     ? layout.sidebarCollapsedWidth
     : layout.sidebarWidth;
+  const panelBackground = theme.colors.surfaceElevated || theme.colors.surface;
+  const subtleBorder = theme.colors.borderLight || theme.colors.border;
+  const activeBackground =
+    theme.colors.overlayPrimary || "rgba(14, 165, 233, 0.14)";
 
   if (isMobile && !collapsed) {
     // On mobile, sidebar is handled by drawer component
@@ -192,14 +201,77 @@ export const SupervisorSidebar: React.FC<SupervisorSidebarProps> = ({
     >
       <ScrollView
         style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <View
+          style={[
+            styles.brandSection,
+            { borderBottomColor: subtleBorder, backgroundColor: panelBackground },
+          ]}
+        >
+          <View
+            style={[
+              styles.brandBadge,
+              { backgroundColor: activeBackground, borderColor: subtleBorder },
+            ]}
+          >
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={collapsed ? 20 : 18}
+              color={theme.colors.primary}
+            />
+          </View>
+
+          {!collapsed && (
+            <View style={styles.brandCopy}>
+              <Text style={[styles.brandTitle, { color: theme.colors.text }]}>
+                Supervisor Hub
+              </Text>
+              <Text
+                style={[
+                  styles.brandSubtitle,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Monitor sessions and resolve issues
+              </Text>
+            </View>
+          )}
+
+          {onToggleCollapse && (
+            <TouchableOpacity
+              style={[
+                styles.collapseButton,
+                { backgroundColor: activeBackground, borderColor: subtleBorder },
+              ]}
+              onPress={onToggleCollapse}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={
+                collapsed ? "Expand supervisor sidebar" : "Collapse supervisor sidebar"
+              }
+            >
+              <Ionicons
+                name={
+                  collapsed ? "chevron-forward-outline" : "chevron-back-outline"
+                }
+                size={18}
+                color={theme.colors.text}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+
         {/* User Profile Section */}
         {!collapsed && (
           <View
             style={[
               styles.profileSection,
-              { borderBottomColor: theme.colors.border },
+              {
+                borderBottomColor: subtleBorder,
+                backgroundColor: panelBackground,
+              },
             ]}
           >
             <View style={styles.profileAvatar}>
@@ -229,7 +301,16 @@ export const SupervisorSidebar: React.FC<SupervisorSidebarProps> = ({
           const isExpanded = expandedGroups.has(group.title);
 
           return (
-            <View key={group.title} style={styles.group}>
+            <View
+              key={group.title}
+              style={[
+                styles.group,
+                {
+                  backgroundColor: panelBackground,
+                  borderColor: subtleBorder,
+                },
+              ]}
+            >
               {!collapsed && (
                 <TouchableOpacity
                   style={styles.groupHeader}
@@ -268,7 +349,12 @@ export const SupervisorSidebar: React.FC<SupervisorSidebarProps> = ({
                         key={item.key}
                         style={[
                           styles.item,
-                          { backgroundColor: bgColor },
+                          {
+                            backgroundColor: bgColor,
+                            borderColor: active
+                              ? theme.colors.primary
+                              : "transparent",
+                          },
                           active && styles.itemActive,
                         ]}
                         onPress={() => handleItemPress(item)}
@@ -323,7 +409,13 @@ export const SupervisorSidebar: React.FC<SupervisorSidebarProps> = ({
       {/* Logout Button */}
       {!collapsed && (
         <TouchableOpacity
-          style={[styles.logoutButton, { borderTopColor: theme.colors.border }]}
+          style={[
+            styles.logoutButton,
+            {
+              borderTopColor: subtleBorder,
+              backgroundColor: panelBackground,
+            },
+          ]}
           onPress={handleLogout}
           activeOpacity={0.7}
           accessibilityRole="button"
@@ -347,24 +439,55 @@ const styles = StyleSheet.create({
   container: {
     height: "100%",
     borderRightWidth: 1,
-    ...(Platform.OS === "web"
-      ? {
-          position: "fixed" as const,
-          left: 0,
-          top: 0,
-          bottom: 0,
-        }
-      : {}),
-  } as any,
+  },
   scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.sm,
+    gap: spacing.sm,
+  },
+  brandSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderRadius: 16,
+    gap: spacing.sm,
+  },
+  brandBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  brandCopy: {
+    flex: 1,
+  },
+  brandTitle: {
+    ...typography.bodyMedium,
+    fontWeight: "700",
+  },
+  brandSubtitle: {
+    ...typography.caption,
+    marginTop: 2,
+  },
+  collapseButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileSection: {
     flexDirection: "row",
     alignItems: "center",
     padding: spacing.md,
     borderBottomWidth: 1,
-    marginBottom: spacing.sm,
+    borderRadius: 16,
   },
   profileAvatar: {
     width: 40,
@@ -387,7 +510,9 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   group: {
-    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: "hidden",
   },
   groupHeader: {
     flexDirection: "row",
@@ -409,11 +534,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     marginHorizontal: spacing.xs,
-    borderRadius: 8,
+    borderRadius: 12,
+    borderWidth: 1,
     gap: spacing.sm,
   },
   itemActive: {
-    // Active state handled by backgroundColor
+    // Active state handled by backgroundColor and borderColor
   },
   itemLabel: {
     ...typography.bodySmall,
@@ -437,6 +563,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: spacing.md,
     borderTopWidth: 1,
+    margin: spacing.sm,
+    borderRadius: 16,
     gap: spacing.sm,
   },
   logoutLabel: {

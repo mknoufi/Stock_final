@@ -44,14 +44,6 @@ fi
 # Start backend
 echo "🚀 Starting backend server..."
 cd "$(dirname "$0")/.."
-
-if [ -d "backend/.venv" ]; then
-    source backend/.venv/bin/activate
-elif [ -d ".venv311" ]; then
-    source .venv311/bin/activate
-fi
-
-cd backend
-python -m uvicorn backend.server:app --host 0.0.0.0 --port 8000 --reload
+./scripts/python.sh -m uvicorn backend.server:app --host 0.0.0.0 --port 8000 --reload
 
 echo "✅ Backend started on http://localhost:8000"

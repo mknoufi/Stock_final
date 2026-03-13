@@ -66,6 +66,12 @@ export default function HistoryScreen() {
   }, []);
 
   const loadCountLines = React.useCallback(async () => {
+    if (!sessionId) {
+      setCountLines([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const data = await getCountLines(sessionId as string);
       const safeData = Array.isArray(data?.items) ? data.items : [];
@@ -240,15 +246,7 @@ export default function HistoryScreen() {
     if (flags.enableSwipeActions && Platform.OS !== "web") {
       return (
         <SwipeableRow
-          leftLabel="Details"
           rightLabel="Delete"
-          onLeftAction={() => {
-            if (flags.enableHaptics) haptics.light?.();
-            router.push({
-              pathname: "/supervisor/session/[id]",
-              params: { id: sessionId as string },
-            });
-          }}
           onRightAction={() => {
             if (flags.enableHaptics) haptics.selection?.();
             handleDeleteRequest(item);
@@ -300,7 +298,11 @@ export default function HistoryScreen() {
                   color={theme.colors.text.tertiary}
                 />
                 <Text style={styles.emptyText}>
-                  {loading ? "Loading..." : "No counts yet"}
+                  {loading
+                    ? "Loading..."
+                    : sessionId
+                      ? "No counts yet"
+                      : "Open a session from Dashboard history to view its counts"}
                 </Text>
               </View>
             }

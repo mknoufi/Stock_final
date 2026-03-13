@@ -86,7 +86,8 @@ export default defineConfig({
   webServer: {
     command: `npx expo start --web --port ${webPort}`,
     url: webBaseUrl,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer:
+      process.env.E2E_REUSE_EXISTING_SERVER === "true" || !process.env.CI,
     timeout: 120 * 1000, // 2 minutes to start
     env: {
       BROWSER: "none", // Don't auto-open browser

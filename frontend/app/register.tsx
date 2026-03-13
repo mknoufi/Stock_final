@@ -14,10 +14,10 @@ import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { LinearGradient } from "expo-linear-gradient";
 import { StatusBar } from "expo-status-bar";
-import { storage } from "@/services/asyncStorageService";
 import { useAuthStore } from "@/store/authStore";
 import { registerUser } from "@/services/api/api";
 import { AppLogo } from "@/components/AppLogo";
+import { getRouteForRole, type UserRole } from "@/utils/roleNavigation";
 
 export default function Register() {
   const [formData, setFormData] = React.useState({
@@ -33,6 +33,7 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
   const router = useRouter();
+  const establishSession = useAuthStore((state) => state.establishSession);
 
   const handleRegister = async () => {
     // Validation
@@ -61,20 +62,20 @@ export default function Register() {
         phone: formData.phone.trim() || undefined,
       });
 
-      // Save user data (the registration response should include user info)
-      if (response.user) {
-        await storage.set("user", JSON.stringify(response.user));
-
-        // Update auth store using setUser method
-        useAuthStore.getState().setUser(response.user);
+      if (!response.user || !response.access_token) {
+        throw new Error("Registration succeeded but did not return a valid session.");
       }
 
-      // Navigate based on role
-      if (response.user?.role === "staff") {
-        router.replace("/staff/home");
-      } else {
-        router.replace("/supervisor/dashboard");
-      }
+      await establishSession({
+        ...response,
+        user: {
+          ...response.user,
+          role: response.user.role as UserRole,
+        },
+      });
+
+      const targetRoute = getRouteForRole(response.user.role as UserRole);
+      router.replace(targetRoute as any);
     } catch (error: any) {
       let errorMessage = "Unable to register. Please try again.";
 
