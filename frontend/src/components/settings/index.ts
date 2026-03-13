@@ -8,4 +8,5 @@
 export { ChangePinModal } from "./ChangePinModal";
 export { ChangePasswordModal } from "./ChangePasswordModal";
 export { FontSizeSlider } from "./FontSizeSlider";
+export { FontStylePicker } from "./FontStylePicker";
 export { ColorPicker, COLOR_PALETTE, type ColorId } from "./ColorPicker";

@@ -92,6 +92,24 @@ export default function SessionDetail() {
     loadData();
   }, [loadData]);
 
+  const loadAssignableStaff = React.useCallback(async () => {
+    if (assignableStaff.length > 0) {
+      return assignableStaff;
+    }
+
+    try {
+      setStaffLoading(true);
+      const staff = await getAssignableStaffUsers();
+      setAssignableStaff(staff);
+      return staff;
+    } catch {
+      show("Failed to load staff list", "error");
+      throw new Error("Failed to load staff list");
+    } finally {
+      setStaffLoading(false);
+    }
+  }, [assignableStaff, show]);
+
   if (!loading && sessionMissing) {
     return (
       <AuroraBackground>
@@ -127,24 +145,6 @@ export default function SessionDetail() {
       </AuroraBackground>
     );
   }
-
-  const loadAssignableStaff = React.useCallback(async () => {
-    if (assignableStaff.length > 0) {
-      return assignableStaff;
-    }
-
-    try {
-      setStaffLoading(true);
-      const staff = await getAssignableStaffUsers();
-      setAssignableStaff(staff);
-      return staff;
-    } catch {
-      show("Failed to load staff list", "error");
-      throw new Error("Failed to load staff list");
-    } finally {
-      setStaffLoading(false);
-    }
-  }, [assignableStaff, show]);
 
   const handleApproveLine = async (lineId: string) => {
     try {

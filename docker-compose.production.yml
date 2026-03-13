@@ -37,9 +37,7 @@ services:
 
   backend:
     container_name: stock-verify-backend
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: ${BACKEND_IMAGE}
     restart: unless-stopped
     environment:
       ENVIRONMENT: production
@@ -81,11 +79,7 @@ services:
 
   nginx:
     container_name: stock-verify-nginx
-    build:
-      context: .
-      dockerfile: nginx/Dockerfile
-      args:
-        EXPO_PUBLIC_API_TIMEOUT: ${EXPO_PUBLIC_API_TIMEOUT:-30000}
+    image: ${NGINX_IMAGE}
     restart: unless-stopped
     depends_on:
       backend:

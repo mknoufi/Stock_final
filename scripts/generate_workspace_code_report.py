@@ -309,8 +309,9 @@ def main() -> int:
         "(via connectors/APIs).\n"
         "- Frontend: React Native (Expo) with an offline-first API layer "
         "and caching.\n"
-        "- Dynamic LAN configuration: backend writes `backend_port.json`, "
-        "frontend reads it (per README).\n"
+        "- Frontend runtime resolves the backend via same-origin or explicit "
+        "environment configuration; local tooling may still emit "
+        "`backend_port.json` for development diagnostics.\n"
     )
 
     report.append("## Workspace Scale\n")

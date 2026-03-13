@@ -7,14 +7,26 @@ import {
   getScopedStorageKey,
   getScopedStorageKeyCandidates,
 } from "../services/userPreferenceScope";
+import {
+  FontStylePreference,
+  normalizeFontSizePreference,
+  normalizeFontStylePreference,
+  normalizeThemePreference,
+} from "../theme/fontPreferences";
 
 const log = createLogger("settingsStore");
 const APP_SETTINGS_KEY = "app_settings";
+const REMOTE_USER_SETTING_KEYS = new Set<keyof Settings>([
+  "theme",
+  "fontSizeValue",
+  "fontStyle",
+]);
+let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 
 export interface Settings {
   // Theme
   darkMode: boolean;
-  theme: "light" | "dark" | "auto";
+  theme: "light" | "dark";
 
   // Notifications
   notificationsEnabled: boolean;
@@ -40,6 +52,7 @@ export interface Settings {
   // Display
   fontSize: "small" | "medium" | "large";
   fontSizeValue: number; // Numeric font size (12-22)
+  fontStyle: FontStylePreference;
   primaryColor: string; // Hex color or color id
   primaryColorId: string; // Color palette id (aurora, ocean, etc.)
   showItemImages: boolean;
@@ -72,7 +85,7 @@ export interface Settings {
 
 const DEFAULT_SETTINGS: Settings = {
   darkMode: false,
-  theme: "auto",
+  theme: "light",
   notificationsEnabled: true,
   notificationSound: true,
   notificationBadge: true,
@@ -88,6 +101,7 @@ const DEFAULT_SETTINGS: Settings = {
   scannerTimeout: 30,
   fontSize: "medium",
   fontSizeValue: 16,
+  fontStyle: "system",
   primaryColor: "#0EA5E9",
   primaryColorId: "aurora",
   showItemImages: true,
@@ -114,6 +128,28 @@ const persistSettings = (settings: Settings) => {
   mmkvStorage.setItem(getScopedStorageKey(APP_SETTINGS_KEY), JSON.stringify(settings));
 };
 
+const deriveFontSizeLabel = (value: number): Settings["fontSize"] => {
+  if (value <= 14) {
+    return "small";
+  }
+  if (value >= 18) {
+    return "large";
+  }
+  return "medium";
+};
+
+const normalizeSettings = (settings: Settings): Settings => {
+  const fontSizeValue = normalizeFontSizePreference(settings.fontSizeValue);
+
+  return {
+    ...settings,
+    theme: normalizeThemePreference(settings.theme),
+    fontSizeValue,
+    fontSize: deriveFontSizeLabel(fontSizeValue),
+    fontStyle: normalizeFontStylePreference(settings.fontStyle),
+  };
+};
+
 interface SettingsState {
   settings: Settings;
   isSyncing: boolean;
@@ -129,7 +165,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   isSyncing: false,
 
   setSetting: (key, value) => {
-    const newSettings = { ...get().settings, [key]: value };
+    const newSettings = normalizeSettings({
+      ...get().settings,
+      [key]: value,
+    } as Settings);
     set({ settings: newSettings });
 
     // Persist to storage
@@ -139,12 +178,22 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     if (key === "theme") {
       ThemeService.setTheme(value as Theme);
     }
+
+    if (REMOTE_USER_SETTING_KEYS.has(key)) {
+      if (syncTimeout) {
+        clearTimeout(syncTimeout);
+      }
+      syncTimeout = setTimeout(() => {
+        void get().syncToBackend();
+      }, 400);
+    }
   },
 
   resetSettings: async () => {
     set({ settings: DEFAULT_SETTINGS });
     persistSettings(DEFAULT_SETTINGS);
     ThemeService.setTheme(DEFAULT_SETTINGS.theme as Theme);
+    void get().syncToBackend();
   },
 
   loadSettings: async () => {
@@ -159,7 +208,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         }
 
         const parsedSettings = JSON.parse(storedSettings);
-        mergedSettings = { ...DEFAULT_SETTINGS, ...parsedSettings };
+        mergedSettings = normalizeSettings({
+          ...DEFAULT_SETTINGS,
+          ...parsedSettings,
+        } as Settings);
 
         if (storageKey !== activeStorageKey) {
           persistSettings(mergedSettings);
@@ -167,7 +219,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         break;
       }
 
-      set({ settings: mergedSettings });
+      set({ settings: normalizeSettings(mergedSettings) });
       ThemeService.setTheme(mergedSettings.theme as Theme);
     } catch (error) {
       log.warn("Failed to load settings", {
@@ -189,15 +241,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       // Map backend fields to frontend settings
       const updatedSettings: Partial<Settings> = {
         ...currentSettings,
-        theme: backendSettings.theme as Settings["theme"],
-        fontSizeValue: backendSettings.font_size,
-        primaryColor: backendSettings.primary_color,
-        scannerVibration: backendSettings.haptic_enabled,
-        scannerSound: backendSettings.sound_enabled,
-        autoSyncEnabled: backendSettings.auto_sync_enabled,
+        theme: normalizeThemePreference(backendSettings.theme),
+        fontSizeValue: normalizeFontSizePreference(backendSettings.font_size),
+        fontStyle: normalizeFontStylePreference(backendSettings.font_style),
       };
 
-      const mergedSettings = { ...currentSettings, ...updatedSettings };
+      const mergedSettings = normalizeSettings({
+        ...currentSettings,
+        ...updatedSettings,
+      } as Settings);
       set({ settings: mergedSettings });
 
       // Persist locally
@@ -228,12 +280,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
       // Map frontend settings to backend schema
       const backendPayload: Partial<UserSettings> = {
-        theme: currentSettings.theme,
-        font_size: currentSettings.fontSizeValue,
-        primary_color: currentSettings.primaryColor,
-        haptic_enabled: currentSettings.scannerVibration,
-        sound_enabled: currentSettings.scannerSound,
-        auto_sync_enabled: currentSettings.autoSyncEnabled,
+        theme: normalizeThemePreference(currentSettings.theme),
+        font_size: normalizeFontSizePreference(currentSettings.fontSizeValue),
+        font_style: normalizeFontStylePreference(currentSettings.fontStyle),
       };
 
       await authApi.updateUserSettings(backendPayload);

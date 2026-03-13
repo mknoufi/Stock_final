@@ -37,12 +37,12 @@ BACKEND_PID=$(pgrep -f "python.*server.py")
 if [ -n "$BACKEND_PID" ]; then
     echo -e "   ${GREEN}✅ Running${NC} (PID: $BACKEND_PID)"
 
-    # Check port 8000 or 8001
+    # Check port 8001 first, then legacy fallbacks
     BACKEND_PORT=""
-    if lsof -ti:8000 > /dev/null 2>&1; then
-        BACKEND_PORT="8000"
-    elif lsof -ti:8001 > /dev/null 2>&1; then
+    if lsof -ti:8001 > /dev/null 2>&1; then
         BACKEND_PORT="8001"
+    elif lsof -ti:8000 > /dev/null 2>&1; then
+        BACKEND_PORT="8000"
     fi
 
     if [ -n "$BACKEND_PORT" ]; then

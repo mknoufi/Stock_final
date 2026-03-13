@@ -36,6 +36,31 @@ ROOT_DIR = Path(__file__).parent
 logger = logging.getLogger(__name__)
 
 
+def _env_first(*names: str) -> Optional[str]:
+    """Return the first non-empty environment variable from the provided names."""
+    for name in names:
+        value = os.getenv(name)
+        if value is not None and str(value).strip() != "":
+            return str(value).strip()
+    return None
+
+
+def _parse_bool(value: object, *, default: bool = False) -> bool:
+    """Coerce common environment-style boolean values."""
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    normalized = str(value).strip().lower()
+    if normalized in {"1", "true", "yes", "y", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "n", "off", ""}:
+        return False
+    return default
+
+
 class Settings(PydanticBaseSettings):
     """Application settings with validation"""
 
@@ -401,6 +426,17 @@ class Settings(PydanticBaseSettings):
     METRICS_ENABLED: bool = True
     METRICS_HISTORY_SIZE: int = Field(1000, ge=0)
 
+    @field_validator("CORS_ALLOW_ORIGINS", mode="before")
+    @classmethod
+    def resolve_cors_allow_origins(cls, v: Optional[str]) -> Optional[str]:
+        return _env_first("CORS_ALLOW_ORIGINS", "CORS_ORIGINS") or v
+
+    @field_validator("METRICS_ENABLED", mode="before")
+    @classmethod
+    def resolve_metrics_enabled(cls, v: object) -> bool:
+        env_value = _env_first("METRICS_ENABLED", "ENABLE_METRICS")
+        return _parse_bool(env_value if env_value is not None else v, default=True)
+
     # Enhanced Connection Pool Settings
     CONNECTION_RETRY_ATTEMPTS: int = Field(
         3,
@@ -439,9 +475,7 @@ except Exception as e:
         def __init__(self):
             # Keep behavior consistent with Settings: support env aliases + auto-detect
             mongo_url = (
-                os.getenv("MONGO_URL")
-                or os.getenv("MONGODB_URI")
-                or os.getenv("MONGODB_URL")
+                _env_first("MONGO_URL", "MONGODB_URI", "MONGODB_URL")
                 or "mongodb://localhost:27017"
             )
             if mongo_url == "mongodb://localhost:27017":
@@ -452,7 +486,7 @@ except Exception as e:
                 except Exception:
                     pass
             self.MONGO_URL = mongo_url
-            self.DB_NAME = os.getenv("DB_NAME", "stock_count")
+            self.DB_NAME = os.getenv("DB_NAME", "stock_verification")
             self.SQL_SERVER_HOST = os.getenv("SQL_SERVER_HOST")
             self.SQL_SERVER_PORT = int(os.getenv("SQL_SERVER_PORT", 1433))
             self.SQL_SERVER_DATABASE = os.getenv("SQL_SERVER_DATABASE", "")
@@ -492,7 +526,7 @@ except Exception as e:
             # New settings for rate limiting and CORS
             self.RATE_LIMIT_MAX_ATTEMPTS = int(os.getenv("RATE_LIMIT_MAX_ATTEMPTS", 5))
             self.RATE_LIMIT_TTL_SECONDS = int(os.getenv("RATE_LIMIT_TTL_SECONDS", 300))
-            self.CORS_ALLOW_ORIGINS = os.getenv("CORS_ALLOW_ORIGINS")
+            self.CORS_ALLOW_ORIGINS = _env_first("CORS_ALLOW_ORIGINS", "CORS_ORIGINS")
             self.APP_NAME = os.getenv("APP_NAME", "Stock Count API")
             self.APP_VERSION = os.getenv("APP_VERSION", "1.0.0")
             # Normalize MIN_CLIENT_VERSION: use default when env var is missing or empty, and strip whitespace
@@ -501,6 +535,9 @@ except Exception as e:
             self.ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS")
             self.ENABLE_LAN_ENFORCEMENT = (
                 os.getenv("ENABLE_LAN_ENFORCEMENT", "false").lower() == "true"
+            )
+            self.METRICS_ENABLED = _parse_bool(
+                _env_first("METRICS_ENABLED", "ENABLE_METRICS"), default=True
             )
             self.AUTO_SEED_DEFAULT_USERS = (
                 os.getenv("AUTO_SEED_DEFAULT_USERS", "false").lower() == "true"

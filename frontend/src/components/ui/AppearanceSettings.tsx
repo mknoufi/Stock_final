@@ -2,7 +2,7 @@
  * AppearanceSettings Component
  *
  * Complete appearance customization section for Settings screen
- * Combines Theme, Pattern, Layout, Font Size, and Color pickers
+ * Limits customization to theme mode, font size, and font style
  */
 
 import React from "react";
@@ -11,10 +11,8 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useTheme } from "../../hooks/useTheme";
 import { useSettingsStore } from "../../store/settingsStore";
 import { ThemePicker } from "./ThemePicker";
-import { PatternPicker } from "./PatternPicker";
-import { LayoutPicker } from "./LayoutPicker";
 import { GlassCard } from "./GlassCard";
-import { FontSizeSlider, ColorPicker, type ColorId } from "../settings";
+import { FontSizeSlider, FontStylePicker } from "../settings";
 
 interface AppearanceSettingsProps {
   showTitle?: boolean;
@@ -27,16 +25,11 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
   scrollable = true,
   compact = false,
 }) => {
-  const { colors } = useTheme();
+  const { colors, typography } = useTheme();
   const { settings, setSetting } = useSettingsStore();
 
   const handleFontSizeChange = (value: number) => {
     setSetting("fontSizeValue", value);
-  };
-
-  const handleColorChange = (color: string, colorId: ColorId) => {
-    setSetting("primaryColor", color);
-    setSetting("primaryColorId", colorId);
   };
 
   const content = (
@@ -54,29 +47,15 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
         </Animated.View>
       )}
 
-      {/* Theme Selection */}
+      {/* Theme Mode */}
       <Animated.View entering={FadeInDown.delay(100).springify()}>
         <GlassCard variant="medium" padding={16} style={styles.section}>
-          <ThemePicker showModeToggle={true} compact={compact} />
-        </GlassCard>
-      </Animated.View>
-
-      {/* Pattern Selection */}
-      <Animated.View entering={FadeInDown.delay(200).springify()}>
-        <GlassCard variant="medium" padding={16} style={styles.section}>
-          <PatternPicker compact={compact} />
-        </GlassCard>
-      </Animated.View>
-
-      {/* Layout Selection */}
-      <Animated.View entering={FadeInDown.delay(300).springify()}>
-        <GlassCard variant="medium" padding={16} style={styles.section}>
-          <LayoutPicker compact={compact} />
+          <ThemePicker compact={compact} />
         </GlassCard>
       </Animated.View>
 
       {/* Font Size */}
-      <Animated.View entering={FadeInDown.delay(350).springify()}>
+      <Animated.View entering={FadeInDown.delay(200).springify()}>
         <GlassCard variant="medium" padding={0} style={styles.section}>
           <FontSizeSlider
             value={
@@ -89,18 +68,18 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
         </GlassCard>
       </Animated.View>
 
-      {/* Primary Color */}
-      <Animated.View entering={FadeInDown.delay(400).springify()}>
+      {/* Font Style */}
+      <Animated.View entering={FadeInDown.delay(300).springify()}>
         <GlassCard variant="medium" padding={0} style={styles.section}>
-          <ColorPicker
-            value={settings.primaryColorId || settings.primaryColor}
-            onValueChange={handleColorChange}
+          <FontStylePicker
+            value={settings.fontStyle}
+            onValueChange={(value) => setSetting("fontStyle", value)}
           />
         </GlassCard>
       </Animated.View>
 
       {/* Preview Card */}
-      <Animated.View entering={FadeInDown.delay(450).springify()}>
+      <Animated.View entering={FadeInDown.delay(400).springify()}>
         <GlassCard variant="strong" padding={20} style={styles.section}>
           <Text style={[styles.previewTitle, { color: colors.text }]}>
             Preview
@@ -134,7 +113,11 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
                 <View
                   style={[
                     styles.previewLine,
-                    { backgroundColor: colors.text, width: "60%" },
+                    {
+                      backgroundColor: colors.text,
+                      width: "60%",
+                      height: Math.max(8, settings.fontSizeValue * 0.55),
+                    },
                   ]}
                 />
                 <View
@@ -143,6 +126,7 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
                     {
                       backgroundColor: colors.textSecondary,
                       width: "80%",
+                      height: Math.max(6, settings.fontSizeValue * 0.35),
                     },
                   ]}
                 />
@@ -156,7 +140,11 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
                 <View
                   style={[
                     styles.previewLine,
-                    { backgroundColor: colors.text, width: "50%" },
+                    {
+                      backgroundColor: colors.text,
+                      width: "50%",
+                      height: Math.max(8, settings.fontSizeValue * 0.5),
+                    },
                   ]}
                 />
                 <View
@@ -165,11 +153,24 @@ export const AppearanceSettings: React.FC<AppearanceSettingsProps> = ({
                     {
                       backgroundColor: colors.textSecondary,
                       width: "70%",
+                      height: Math.max(6, settings.fontSizeValue * 0.32),
                     },
                   ]}
                 />
               </View>
             </View>
+            <Text
+              style={[
+                styles.previewSampleText,
+                {
+                  color: colors.text,
+                  fontSize: settings.fontSizeValue,
+                  fontFamily: typography.fontFamily.body,
+                },
+              ]}
+            >
+              Sample text uses your selected font style.
+            </Text>
             <View
               style={[styles.previewButton, { backgroundColor: colors.accent }]}
             >
@@ -269,6 +270,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 12,
     borderRadius: 8,
+  },
+  previewSampleText: {
+    marginTop: 4,
   },
 });
 

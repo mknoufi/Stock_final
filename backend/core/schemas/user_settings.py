@@ -1,11 +1,11 @@
 """
 User Settings Schema
 
-Pydantic models for user-specific settings like theme, font size, and colors.
+Pydantic models for user-specific appearance settings.
 """
 
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -13,18 +13,19 @@ from pydantic import BaseModel, ConfigDict, Field
 class UserSettings(BaseModel):
     """User settings stored in MongoDB user document."""
 
-    theme: str = Field(
+    theme: Literal["light", "dark"] = Field(
         default="light",
-        description="UI theme: light, dark, premium, ocean, sunset, highContrast",
+        description="UI theme mode: light or dark",
     )
-    font_size: str = Field(default="medium", description="Font size: small, medium, large, xlarge")
-    primary_color: Optional[str] = Field(
-        default=None, description="Custom primary color in hex format (e.g., #3B82F6)"
+    font_size: int = Field(
+        default=16,
+        ge=12,
+        le=22,
+        description="Preferred base font size in points",
     )
-    haptic_enabled: bool = Field(default=True, description="Enable haptic feedback for scans")
-    sound_enabled: bool = Field(default=True, description="Enable sound feedback for scans")
-    auto_sync_enabled: bool = Field(
-        default=True, description="Enable automatic data synchronization"
+    font_style: Literal["system", "serif", "mono"] = Field(
+        default="system",
+        description="Preferred font family style",
     )
     updated_at: Optional[datetime] = Field(
         default=None, description="Timestamp of last settings update"
@@ -34,11 +35,8 @@ class UserSettings(BaseModel):
         json_schema_extra={
             "example": {
                 "theme": "dark",
-                "font_size": "large",
-                "primary_color": "#3B82F6",
-                "haptic_enabled": True,
-                "sound_enabled": True,
-                "auto_sync_enabled": True,
+                "font_size": 18,
+                "font_style": "serif",
             }
         }
     )
@@ -47,31 +45,23 @@ class UserSettings(BaseModel):
 class UserSettingsUpdate(BaseModel):
     """Partial update model for user settings."""
 
-    theme: Optional[str] = Field(
+    theme: Optional[Literal["light", "dark"]] = Field(
         default=None,
-        description=("UI theme: light, dark, premium, ocean, sunset, highContrast"),
+        description="UI theme mode: light or dark",
     )
-    font_size: Optional[str] = Field(
-        default=None, description="Font size: small, medium, large, xlarge"
-    )
-    primary_color: Optional[str] = Field(
-        default=None, description="Custom primary color in hex format"
-    )
-    haptic_enabled: Optional[bool] = Field(
+    font_size: Optional[int] = Field(
         default=None,
-        description="Enable haptic feedback",
+        ge=12,
+        le=22,
+        description="Preferred base font size in points",
     )
-    sound_enabled: Optional[bool] = Field(
+    font_style: Optional[Literal["system", "serif", "mono"]] = Field(
         default=None,
-        description="Enable sound feedback",
-    )
-    auto_sync_enabled: Optional[bool] = Field(
-        default=None,
-        description="Enable automatic sync",
+        description="Preferred font family style",
     )
 
     model_config = ConfigDict(
-        json_schema_extra={"example": {"theme": "dark", "font_size": "large"}}
+        json_schema_extra={"example": {"theme": "dark", "font_size": 18, "font_style": "mono"}}
     )
 
 
@@ -89,11 +79,8 @@ class UserSettingsResponse(BaseModel):
                 "message": "Settings retrieved successfully",
                 "data": {
                     "theme": "dark",
-                    "font_size": "medium",
-                    "primary_color": "#3B82F6",
-                    "haptic_enabled": True,
-                    "sound_enabled": True,
-                    "auto_sync_enabled": True,
+                    "font_size": 16,
+                    "font_style": "system",
                 },
             }
         }

@@ -6,6 +6,7 @@
  */
 
 import api from "../httpClient";
+import { FontStylePreference } from "../../theme/fontPreferences";
 
 export interface ChangePinResponse {
   status: string;
@@ -24,13 +25,9 @@ export interface ChangePasswordResponse {
 }
 
 export interface UserSettings {
-  theme: string;
+  theme: "light" | "dark";
   font_size: number;
-  primary_color: string;
-  haptic_enabled: boolean;
-  sound_enabled: boolean;
-  auto_sync_enabled: boolean;
-  language: string;
+  font_style: FontStylePreference;
   updated_at: string | null;
 }
 

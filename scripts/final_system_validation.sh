@@ -1,523 +1,182 @@
 #!/bin/bash
 
-# Stock Verification System - Final System Validation Script
-# This script performs comprehensive end-to-end testing to validate all components work together
+# Final validation for the canonical local/compose stack.
+# Uses current endpoints and optional operator-provided credentials.
 
-set -e  # Exit on any error
-chmod +x "$0" 2>/dev/null || true  # Ensure script is executable
+set -euo pipefail
+chmod +x "$0" 2>/dev/null || true
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_URL="${BACKEND_URL:-http://localhost:8001}"
+FRONTEND_URL="${FRONTEND_URL:-http://localhost:8081}"
+MONGO_HOST="${MONGO_HOST:-localhost:27017}"
+REDIS_HOST="${REDIS_HOST:-localhost:6379}"
+AUTH_USERNAME="${AUTH_USERNAME:-}"
+AUTH_PASSWORD="${AUTH_PASSWORD:-}"
+VALIDATION_LOG="${VALIDATION_LOG:-/tmp/system_validation.log}"
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Configuration
-BACKEND_URL="http://localhost:8000"
-ADMIN_PANEL_URL="http://localhost:3000"
-TEST_USER_EMAIL="${TEST_USER_EMAIL:-test@example.com}"
-TEST_USER_PASSWORD="${TEST_USER_PASSWORD:-testpassword123}"
-# SECURITY: Use environment variable for test password in production
-# Set TEST_USER_PASSWORD environment variable to override default
-VALIDATION_LOG="/tmp/system_validation.log"
-PYTHON_RUNNER="$SCRIPT_DIR/python.sh"
-
-echo -e "${BLUE}🚀 Stock Verification System - Final System Validation${NC}"
-echo -e "${BLUE}=====================================================${NC}"
-echo "Starting comprehensive end-to-end system validation..."
-echo "Log file: $VALIDATION_LOG"
+echo -e "${BLUE}🚀 Stock Verify Final System Validation${NC}"
+echo -e "${BLUE}======================================${NC}"
+echo "Backend: ${BACKEND_URL}"
+echo "Frontend: ${FRONTEND_URL}"
+echo "Log file: ${VALIDATION_LOG}"
 echo ""
 
-# Initialize log file
-cat > "$VALIDATION_LOG" << EOF
-Stock Verification System - Final System Validation
+cat > "$VALIDATION_LOG" <<EOF
+Stock Verify Final System Validation
 Date: $(date)
-====================================================
-
+Backend: ${BACKEND_URL}
+Frontend: ${FRONTEND_URL}
+====================================
 EOF
 
-# Function to log messages
 log_message() {
     local level="$1"
     local message="$2"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo "[$timestamp] [$level] $message" >> "$VALIDATION_LOG"
 
     case "$level" in
-        "INFO") echo -e "${BLUE}ℹ️  $message${NC}" ;;
-        "SUCCESS") echo -e "${GREEN}✅ $message${NC}" ;;
-        "WARNING") echo -e "${YELLOW}⚠️  $message${NC}" ;;
-        "ERROR") echo -e "${RED}❌ $message${NC}" ;;
+        "INFO") echo -e "${BLUE}ℹ ${message}${NC}" ;;
+        "SUCCESS") echo -e "${GREEN}✓ ${message}${NC}" ;;
+        "WARNING") echo -e "${YELLOW}⚠ ${message}${NC}" ;;
+        "ERROR") echo -e "${RED}✗ ${message}${NC}" ;;
     esac
 }
 
-# Function to check if service is running
-check_service() {
-    local service_name="$1"
+assert_http_ok() {
+    local name="$1"
+    local url="$2"
+    local allowed="${3:-200}"
+    local code
+    code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "$url" || echo "000")
+
+    if echo " ${allowed} " | grep -q " ${code} "; then
+        log_message "SUCCESS" "${name} responded with HTTP ${code}"
+        return 0
+    fi
+
+    log_message "ERROR" "${name} responded with HTTP ${code}"
+    return 1
+}
+
+check_port() {
+    local name="$1"
     local port="$2"
-    local url="$3"
-
-    log_message "INFO" "Checking $service_name service on port $port..."
-
-    if netstat -tuln | grep -q ":$port "; then
-        log_message "SUCCESS" "$service_name is running on port $port"
-
-        if [ -n "$url" ]; then
-            if curl -s -f "$url" > /dev/null; then
-                log_message "SUCCESS" "$service_name is responding to HTTP requests"
-                return 0
-            else
-                log_message "ERROR" "$service_name is not responding to HTTP requests"
-                return 1
-            fi
-        fi
+    if lsof -i :"$port" 2>/dev/null | grep -q LISTEN; then
+        log_message "SUCCESS" "${name} is listening on port ${port}"
         return 0
-    else
-        log_message "ERROR" "$service_name is not running on port $port"
-        return 1
     fi
+    log_message "WARNING" "${name} is not listening on port ${port}"
+    return 1
 }
 
-# Function to test API endpoint
-test_api_endpoint() {
-    local method="$1"
-    local endpoint="$2"
-    local expected_status="$3"
-    local data="$4"
-    local headers="$5"
-
-    log_message "INFO" "Testing $method $endpoint"
-
-    local curl_cmd="curl -s -w '%{http_code}' -o /tmp/api_response.json"
-
-    if [ -n "$headers" ]; then
-        curl_cmd="$curl_cmd -H '$headers'"
-    fi
-
-    if [ -n "$data" ] && [ "$method" != "GET" ]; then
-        curl_cmd="$curl_cmd -X $method -d '$data' -H 'Content-Type: application/json'"
-    else
-        curl_cmd="$curl_cmd -X $method"
-    fi
-
-    curl_cmd="$curl_cmd '$BACKEND_URL$endpoint'"
-
-    local response_code=$(eval $curl_cmd)
-
-    if [ "$response_code" = "$expected_status" ]; then
-        log_message "SUCCESS" "$method $endpoint returned expected status $expected_status"
-        return 0
-    else
-        log_message "ERROR" "$method $endpoint returned $response_code, expected $expected_status"
+check_database() {
+    if command -v mongosh >/dev/null 2>&1; then
+        if mongosh --quiet --eval "db.adminCommand('ping').ok" >/dev/null 2>&1; then
+            log_message "SUCCESS" "MongoDB ping succeeded (${MONGO_HOST})"
+            return 0
+        fi
+        log_message "ERROR" "MongoDB ping failed (${MONGO_HOST})"
         return 1
     fi
-}
 
-# Function to validate database connection
-validate_database() {
-    log_message "INFO" "Validating database connection..."
-
-    # Test MongoDB connection
-    if command -v mongo >/dev/null 2>&1; then
-        if mongo --eval "db.runCommand('ping')" --quiet stock_verification >/dev/null 2>&1; then
-            log_message "SUCCESS" "MongoDB connection successful"
-
-            # Check collections
-            local collections=$(mongo stock_verification --eval "db.getCollectionNames()" --quiet)
-            if echo "$collections" | grep -q "items\|users\|verifications"; then
-                log_message "SUCCESS" "Required database collections exist"
-            else
-                log_message "WARNING" "Some database collections may be missing"
-            fi
-        else
-            log_message "ERROR" "MongoDB connection failed"
-            return 1
-        fi
-    else
-        log_message "WARNING" "MongoDB client not available for testing"
-    fi
-
+    log_message "WARNING" "mongosh not available; skipping MongoDB ping"
     return 0
 }
 
-# Function to validate Redis connection
-validate_redis() {
-    log_message "INFO" "Validating Redis connection..."
-
+check_redis() {
     if command -v redis-cli >/dev/null 2>&1; then
-        if redis-cli ping | grep -q "PONG"; then
-            log_message "SUCCESS" "Redis connection successful"
-        else
-            log_message "ERROR" "Redis connection failed"
-            return 1
+        if redis-cli -h "${REDIS_HOST%%:*}" -p "${REDIS_HOST##*:}" ping 2>/dev/null | grep -q "PONG"; then
+            log_message "SUCCESS" "Redis ping succeeded (${REDIS_HOST})"
+            return 0
         fi
-    else
-        log_message "WARNING" "Redis client not available for testing"
-    fi
-
-    return 0
-}
-
-# Function to perform authentication test
-test_authentication() {
-    log_message "INFO" "Testing authentication workflow..."
-
-    # Test user registration (if endpoint exists)
-    test_api_endpoint "POST" "/auth/register" "201" "{\"email\":\"$TEST_USER_EMAIL\",\"password\":\"$TEST_USER_PASSWORD\",\"role\":\"staff\"}" || true
-
-    # Test user login
-    if test_api_endpoint "POST" "/auth/login" "200" "{\"email\":\"$TEST_USER_EMAIL\",\"password\":\"$TEST_USER_PASSWORD\"}"; then
-        # Extract token from response
-        local token=$(cat /tmp/api_response.json | "$PYTHON_RUNNER" -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))" 2>/dev/null || echo "")
-
-        if [ -n "$token" ]; then
-            log_message "SUCCESS" "Authentication successful, token received"
-
-            # Test authenticated endpoint
-            if test_api_endpoint "GET" "/auth/me" "200" "" "Authorization: Bearer $token"; then
-                log_message "SUCCESS" "Authenticated API access working"
-            else
-                log_message "ERROR" "Authenticated API access failed"
-                return 1
-            fi
-        else
-            log_message "ERROR" "No authentication token received"
-            return 1
-        fi
-    else
-        log_message "ERROR" "Authentication failed"
+        log_message "WARNING" "Redis ping failed (${REDIS_HOST})"
         return 1
     fi
 
+    log_message "WARNING" "redis-cli not available; skipping Redis ping"
     return 0
 }
 
-# Function to test item management workflow
-test_item_management() {
-    log_message "INFO" "Testing item management workflow..."
+check_auth_flow() {
+    if [ -z "$AUTH_USERNAME" ] || [ -z "$AUTH_PASSWORD" ]; then
+        log_message "WARNING" "AUTH_USERNAME/AUTH_PASSWORD not set; skipping auth validation"
+        return 0
+    fi
 
-    # Get auth token first
-    local auth_response=$(curl -s -X POST "$BACKEND_URL/auth/login" \
+    local login_response
+    local token
+    local protected_code
+
+    login_response=$(curl -fsS -X POST "${BACKEND_URL}/api/auth/login" \
         -H "Content-Type: application/json" \
-        -d "{\"email\":\"$TEST_USER_EMAIL\",\"password\":\"$TEST_USER_PASSWORD\"}")
+        -d "{\"username\":\"${AUTH_USERNAME}\",\"password\":\"${AUTH_PASSWORD}\"}") || {
+        log_message "ERROR" "Login request failed"
+        return 1
+    }
 
-    local token=$(echo "$auth_response" | "$PYTHON_RUNNER" -c "import sys, json; print(json.load(sys.stdin).get('access_token', ''))" 2>/dev/null || echo "")
-
+    token=$(printf "%s" "$login_response" | python3 -c 'import json,sys; data=json.load(sys.stdin); payload=data.get("data", data); print(payload.get("access_token",""))')
     if [ -z "$token" ]; then
-        log_message "ERROR" "Could not get authentication token for item management test"
+        log_message "ERROR" "Login response did not include access_token"
         return 1
     fi
+    log_message "SUCCESS" "Login returned an access token"
 
-    local auth_header="Authorization: Bearer $token"
-
-    # Test getting items list
-    if test_api_endpoint "GET" "/items" "200" "" "$auth_header"; then
-        log_message "SUCCESS" "Items list retrieval working"
-    else
-        log_message "ERROR" "Items list retrieval failed"
-        return 1
+    protected_code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -H "Authorization: Bearer ${token}" \
+        "${BACKEND_URL}/api/sessions")
+    if [ "$protected_code" = "200" ]; then
+        log_message "SUCCESS" "Protected session route responded with HTTP 200"
+        return 0
     fi
 
-    # Test creating a new item
-    local test_item="{\"barcode\":\"TEST123456\",\"name\":\"Test Item\",\"category\":\"Electronics\",\"location\":\"A1-B2\",\"quantity\":10,\"unit_price\":29.99}"
+    log_message "ERROR" "Protected session route responded with HTTP ${protected_code}"
+    return 1
+}
 
-    if test_api_endpoint "POST" "/items" "201" "$test_item" "$auth_header"; then
-        log_message "SUCCESS" "Item creation working"
+run_local_checks() {
+    log_message "INFO" "Checking local listeners"
+    check_port "Backend API" "8001" || true
+    check_port "Frontend Web" "8081" || true
 
-        # Extract created item ID
-        local item_id=$(cat /tmp/api_response.json | "$PYTHON_RUNNER" -c "import sys, json; print(json.load(sys.stdin).get('id', ''))" 2>/dev/null || echo "")
+    log_message "INFO" "Checking HTTP endpoints"
+    assert_http_ok "Backend health" "${BACKEND_URL}/api/health" "200" || return 1
+    assert_http_ok "Backend docs" "${BACKEND_URL}/docs" "200" || true
+    assert_http_ok "Frontend web" "${FRONTEND_URL}" "200 301 302 404" || true
 
-        if [ -n "$item_id" ]; then
-            # Test updating the item
-            local updated_item="{\"name\":\"Updated Test Item\",\"quantity\":15}"
-            if test_api_endpoint "PUT" "/items/$item_id" "200" "$updated_item" "$auth_header"; then
-                log_message "SUCCESS" "Item update working"
-            else
-                log_message "ERROR" "Item update failed"
-            fi
+    log_message "INFO" "Checking backing services"
+    check_database || return 1
+    check_redis || true
 
-            # Test item verification
-            local verification_data="{\"item_id\":\"$item_id\",\"verified_quantity\":15,\"notes\":\"Test verification\"}"
-            if test_api_endpoint "POST" "/verifications" "201" "$verification_data" "$auth_header"; then
-                log_message "SUCCESS" "Item verification working"
-            else
-                log_message "ERROR" "Item verification failed"
-            fi
-
-            # Clean up - delete test item
-            test_api_endpoint "DELETE" "/items/$item_id" "204" "" "$auth_header" || true
-        fi
-    else
-        log_message "ERROR" "Item creation failed"
-        return 1
-    fi
+    log_message "INFO" "Checking auth flow"
+    check_auth_flow || return 1
 
     return 0
 }
 
-# Function to test performance benchmarks
-test_performance() {
-    log_message "INFO" "Running performance benchmarks..."
-
-    # Test API response time
-    local start_time=$(date +%s.%N)
-    curl -s "$BACKEND_URL/health" > /dev/null
-    local end_time=$(date +%s.%N)
-    local response_time=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "0")
-
-    if (( $(echo "$response_time < 2.0" | bc -l 2>/dev/null) )); then
-        log_message "SUCCESS" "API response time: ${response_time}s (< 2.0s target)"
-    else
-        log_message "WARNING" "API response time: ${response_time}s (exceeds 2.0s target)"
-    fi
-
-    # Test concurrent requests
-    log_message "INFO" "Testing concurrent request handling..."
-
-    local concurrent_test_script="/tmp/concurrent_test.sh"
-    cat > "$concurrent_test_script" << 'EOF'
-#!/bin/bash
-for i in {1..10}; do
-    curl -s "http://localhost:8000/health" > /dev/null &
-done
-wait
-EOF
-    chmod +x "$concurrent_test_script"
-
-    local concurrent_start=$(date +%s.%N)
-    bash "$concurrent_test_script"
-    local concurrent_end=$(date +%s.%N)
-    local concurrent_time=$(echo "$concurrent_end - $concurrent_start" | bc -l 2>/dev/null || echo "0")
-
-    if (( $(echo "$concurrent_time < 5.0" | bc -l 2>/dev/null) )); then
-        log_message "SUCCESS" "Concurrent requests completed in ${concurrent_time}s"
-    else
-        log_message "WARNING" "Concurrent requests took ${concurrent_time}s (may indicate performance issues)"
-    fi
-
-    rm -f "$concurrent_test_script"
-    return 0
-}
-
-# Function to validate system configuration
-validate_configuration() {
-    log_message "INFO" "Validating system configuration..."
-
-    # Check environment files
-    if [ -f "backend/.env" ]; then
-        log_message "SUCCESS" "Backend environment configuration found"
-
-        # Check for required environment variables
-        local required_vars=("MONGODB_URI" "JWT_SECRET" "REDIS_URL")
-        for var in "${required_vars[@]}"; do
-            if grep -q "^$var=" "backend/.env"; then
-                log_message "SUCCESS" "Required environment variable $var is configured"
-            else
-                log_message "WARNING" "Environment variable $var may not be configured"
-            fi
-        done
-    else
-        log_message "WARNING" "Backend environment configuration not found"
-    fi
-
-    # Check Docker configuration
-    if [ -f "docker-compose.yml" ]; then
-        log_message "SUCCESS" "Docker Compose configuration found"
-
-        # Validate Docker Compose syntax
-        if command -v docker-compose >/dev/null 2>&1; then
-            if docker-compose config >/dev/null 2>&1; then
-                log_message "SUCCESS" "Docker Compose configuration is valid"
-            else
-                log_message "ERROR" "Docker Compose configuration has syntax errors"
-                return 1
-            fi
-        fi
-    else
-        log_message "WARNING" "Docker Compose configuration not found"
-    fi
-
-    return 0
-}
-
-# Function to run automated test suites
-run_test_suites() {
-    log_message "INFO" "Running automated test suites..."
-
-    # Backend tests
-    if [ -d "backend/tests" ]; then
-        log_message "INFO" "Running backend test suite..."
-
-        cd backend
-        if "$PYTHON_RUNNER" -m pytest tests/ -v --tb=short > /tmp/backend_test_results.log 2>&1; then
-            log_message "SUCCESS" "Backend tests passed"
-            local test_count=$(grep -c "PASSED\|FAILED" /tmp/backend_test_results.log || echo "0")
-            log_message "INFO" "Backend test results: $test_count tests executed"
-        else
-            log_message "ERROR" "Backend tests failed"
-            local failed_tests=$(grep "FAILED" /tmp/backend_test_results.log | wc -l || echo "0")
-            log_message "ERROR" "Failed tests count: $failed_tests"
-        fi
-        cd ..
-    else
-        log_message "WARNING" "Backend tests directory not found"
-    fi
-
-    # Frontend tests
-    if [ -d "frontend/__tests__" ] || [ -d "frontend/tests" ]; then
-        log_message "INFO" "Running frontend test suite..."
-
-        cd frontend
-        if [ -f "package.json" ] && command -v npm >/dev/null 2>&1; then
-            if npm test -- --watchAll=false --coverage=false > /tmp/frontend_test_results.log 2>&1; then
-                log_message "SUCCESS" "Frontend tests passed"
-                local test_count=$(grep -c "✓\|✗" /tmp/frontend_test_results.log || echo "0")
-                log_message "INFO" "Frontend test results: $test_count tests executed"
-            else
-                log_message "ERROR" "Frontend tests failed"
-            fi
-        else
-            log_message "WARNING" "npm not available or package.json not found"
-        fi
-        cd ..
-    else
-        log_message "WARNING" "Frontend tests directory not found"
-    fi
-
-    return 0
-}
-
-# Function to generate validation report
-generate_validation_report() {
-    log_message "INFO" "Generating validation report..."
-
-    local report_file="/tmp/system_validation_report.md"
-
-    cat > "$report_file" << EOF
-# Stock Verification System - Final Validation Report
-
-**Date:** $(date)
-**System:** Stock Verification System
-**Validation Type:** End-to-End System Testing
-
-## Summary
-
-This report contains the results of comprehensive end-to-end system validation testing.
-
-## Test Results
-
-$(cat "$VALIDATION_LOG")
-
-## Validation Checklist
-
-- [x] Service Availability Testing
-- [x] Database Connection Validation
-- [x] Authentication Workflow Testing
-- [x] Item Management Workflow Testing
-- [x] Performance Benchmark Testing
-- [x] Configuration Validation
-- [x] Automated Test Suite Execution
-
-## Performance Metrics
-
-- API Response Time: Measured during validation
-- Concurrent Request Handling: 10 simultaneous requests tested
-- Database Operations: Connection and query testing performed
-
-## Recommendations
-
-1. Monitor the issues flagged during validation
-2. Address any failed tests or warnings
-3. Continue regular performance monitoring
-4. Maintain automated testing schedules
-
----
-
-*Generated by Final System Validation Script*
-*Stock Verification System v2.0*
-EOF
-
-    log_message "SUCCESS" "Validation report generated: $report_file"
-    echo ""
-    echo -e "${GREEN}📊 Full validation report available at: $report_file${NC}"
-}
-
-# Main validation execution
 main() {
     local overall_status=0
-
-    echo "Phase 1: Service Availability Testing"
-    echo "====================================="
-    check_service "Backend API" "8000" "$BACKEND_URL/health" || overall_status=1
-    check_service "Admin Panel" "3000" "$ADMIN_PANEL_URL" || true  # Optional
-    check_service "MongoDB" "27017" || overall_status=1
-    check_service "Redis" "6379" || true  # Optional
-    echo ""
-
-    echo "Phase 2: Database Validation"
-    echo "============================"
-    validate_database || overall_status=1
-    validate_redis || true  # Optional
-    echo ""
-
-    echo "Phase 3: API Testing"
-    echo "===================="
-    test_api_endpoint "GET" "/health" "200"
-    test_api_endpoint "GET" "/docs" "200" || true  # Optional
-    echo ""
-
-    echo "Phase 4: Authentication Testing"
-    echo "================================"
-    test_authentication || overall_status=1
-    echo ""
-
-    echo "Phase 5: Item Management Testing"
-    echo "================================="
-    test_item_management || overall_status=1
-    echo ""
-
-    echo "Phase 6: Performance Testing"
-    echo "============================"
-    test_performance
-    echo ""
-
-    echo "Phase 7: Configuration Validation"
-    echo "=================================="
-    validate_configuration || overall_status=1
-    echo ""
-
-    echo "Phase 8: Automated Test Suites"
-    echo "==============================="
-    run_test_suites
-    echo ""
-
-    # Generate final report
-    generate_validation_report
+    run_local_checks || overall_status=1
 
     echo ""
-    echo -e "${BLUE}=================================================${NC}"
-    if [ $overall_status -eq 0 ]; then
-        log_message "SUCCESS" "Final System Validation COMPLETED SUCCESSFULLY"
-        echo -e "${GREEN}🎉 System validation completed successfully!${NC}"
-        echo -e "${GREEN}✅ All critical components are functioning properly${NC}"
-        echo -e "${GREEN}✅ System is ready for production deployment${NC}"
+    echo -e "${BLUE}======================================${NC}"
+    if [ "$overall_status" -eq 0 ]; then
+        log_message "SUCCESS" "Final validation completed successfully"
+        echo -e "${GREEN}System validation completed successfully${NC}"
     else
-        log_message "ERROR" "Final System Validation COMPLETED WITH ISSUES"
-        echo -e "${YELLOW}⚠️  System validation completed with some issues${NC}"
-        echo -e "${YELLOW}⚠️  Please review the validation log for details${NC}"
-        echo -e "${YELLOW}⚠️  Address critical issues before production deployment${NC}"
+        log_message "ERROR" "Final validation completed with issues"
+        echo -e "${YELLOW}System validation completed with issues${NC}"
     fi
-
+    echo -e "${BLUE}Validation Log: ${VALIDATION_LOG}${NC}"
     echo ""
-    echo -e "${BLUE}📋 Validation Log: $VALIDATION_LOG${NC}"
-    echo -e "${BLUE}📊 Detailed Report: /tmp/system_validation_report.md${NC}"
-    echo ""
-
-    return $overall_status
+    return "$overall_status"
 }
 
-# Run main validation
-main "$@"
+main

@@ -6,14 +6,15 @@
 set -e
 
 # Configuration
-APP_URL="${APP_URL:-http://localhost:8000}"
+APP_URL="${APP_URL:-http://localhost:8001}"
 ALERT_EMAIL="${ALERT_EMAIL:-admin@yourdomain.com}"
 SLACK_WEBHOOK="${SLACK_WEBHOOK:-}"
-LOG_FILE="/var/log/stock_count/monitoring.log"
+LOG_FILE="/var/log/stock_verify/monitoring.log"
 THRESHOLD_CPU=80
 THRESHOLD_MEMORY=80
 THRESHOLD_DISK=85
 THRESHOLD_RESPONSE_TIME=2000  # milliseconds
+HEALTH_PATH="${HEALTH_PATH:-/api/health}"
 
 # Colors for output
 RED='\033[0;31m'
@@ -36,7 +37,7 @@ send_alert() {
 
     # Email alert
     if [ -n "${ALERT_EMAIL}" ]; then
-        echo "${message}" | mail -s "[Stock Count] ${title}" "${ALERT_EMAIL}"
+        echo "${message}" | mail -s "[Stock Verify] ${title}" "${ALERT_EMAIL}"
     fi
 
     # Slack alert
@@ -52,7 +53,7 @@ send_alert() {
                     \"color\": \"${color}\",
                     \"title\": \"${title}\",
                     \"text\": \"${message}\",
-                    \"footer\": \"Stock Count Monitor\",
+                    \"footer\": \"Stock Verify Monitor\",
                     \"ts\": $(date +%s)
                 }]
             }" > /dev/null 2>&1
@@ -64,7 +65,7 @@ check_api_health() {
     log "Checking API health..."
 
     local start_time=$(date +%s%3N)
-    local response=$(curl -s -o /dev/null -w "%{http_code}|%{time_total}" "${APP_URL}/health" || echo "000|0")
+    local response=$(curl -s -o /dev/null -w "%{http_code}|%{time_total}" "${APP_URL}${HEALTH_PATH}" || echo "000|0")
     local end_time=$(date +%s%3N)
 
     local http_code=$(echo $response | cut -d'|' -f1)
@@ -164,7 +165,7 @@ check_system_resources() {
 check_ssl_certificate() {
     log "Checking SSL certificate..."
 
-    local cert_file="/opt/stock_count/nginx/ssl/fullchain.pem"
+    local cert_file="/opt/stock_verify/nginx/ssl/fullchain.pem"
 
     if [ ! -f "$cert_file" ]; then
         echo -e "${YELLOW}⚠${NC} SSL certificate not found"
@@ -191,14 +192,14 @@ check_ssl_certificate() {
 check_backup_status() {
     log "Checking backup status..."
 
-    local backup_dir="/opt/stock_count/backups"
+    local backup_dir="/opt/stock_verify/backups"
 
     if [ ! -d "$backup_dir" ]; then
         echo -e "${YELLOW}⚠${NC} Backup directory not found"
         return 0
     fi
 
-    local latest_backup=$(ls -t "$backup_dir"/stock_count_backup_*.tar.gz 2>/dev/null | head -1)
+    local latest_backup=$(ls -t "$backup_dir"/stock_verify_backup_*.tar.gz 2>/dev/null | head -1)
 
     if [ -z "$latest_backup" ]; then
         echo -e "${RED}✗${NC} No backups found"
@@ -249,7 +250,7 @@ generate_report() {
 
 # Main execution
 main() {
-    echo "🔍 Stock Count Production Monitoring"
+    echo "🔍 Stock Verify Production Monitoring"
     echo "======================================"
     echo ""
 

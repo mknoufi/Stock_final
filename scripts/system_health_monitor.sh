@@ -15,8 +15,8 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Configuration
-BACKEND_URL="http://localhost:8000"
-ADMIN_URL="http://localhost:3000"
+BACKEND_URL="${BACKEND_URL:-http://localhost:8001}"
+FRONTEND_URL="${FRONTEND_URL:-http://localhost:8081}"
 MONGODB_HOST="localhost:27017"
 REDIS_HOST="localhost:6379"
 LOG_FILE="/tmp/system_health_monitor.log"
@@ -208,7 +208,7 @@ check_api_endpoints() {
     echo -e "${BLUE}🌐 Checking API Endpoints...${NC}"
 
     local endpoints=(
-        "/health/:Health Check"
+        "/api/health:Health Check"
         "/docs:API Documentation"
         "/api/auth/login:Authentication"
         "/api/erp/items:Items Management"
@@ -282,7 +282,7 @@ run_performance_tests() {
     local test_count=5
 
     for i in $(seq 1 $test_count); do
-        local response_time=$(curl -w "%{time_total}" -s -o /dev/null --connect-timeout 5 "$BACKEND_URL/health" 2>/dev/null)
+        local response_time=$(curl -w "%{time_total}" -s -o /dev/null --connect-timeout 5 "$BACKEND_URL/api/health" 2>/dev/null)
         total_time=$(echo "$total_time + $response_time" | bc -l 2>/dev/null || echo "0")
     done
 
@@ -299,7 +299,7 @@ run_performance_tests() {
     local concurrent_start=$(date +%s.%N 2>/dev/null || date +%s)
 
     for i in {1..10}; do
-        curl -s "$BACKEND_URL/health" > /dev/null &
+        curl -s "$BACKEND_URL/api/health" > /dev/null &
     done
     wait
 
@@ -327,7 +327,7 @@ generate_health_report() {
     "components": {
         "services": {
             "backend_api": "$(grep "Backend API" "$LOG_FILE" | grep -q "HEALTHY" && echo "HEALTHY" || echo "UNHEALTHY")",
-            "admin_panel": "$(grep "Admin Panel" "$LOG_FILE" | grep -q "HEALTHY" && echo "HEALTHY" || echo "UNHEALTHY")",
+            "frontend_web": "$(grep "Frontend Web" "$LOG_FILE" | grep -q "HEALTHY" && echo "HEALTHY" || echo "UNHEALTHY")",
             "mongodb": "$(grep "MongoDB" "$LOG_FILE" | grep -q "HEALTHY" && echo "HEALTHY" || echo "UNHEALTHY")",
             "redis": "$(grep "Redis" "$LOG_FILE" | grep -q "HEALTHY" && echo "HEALTHY" || echo "UNHEALTHY")"
         },
@@ -357,8 +357,8 @@ main() {
 
     # Service Health Checks
     echo -e "${PURPLE}=== SERVICE HEALTH CHECKS ===${NC}"
-    check_service_health "Backend API" "$BACKEND_URL/health/" "8000"
-    check_service_health "Admin Panel" "$ADMIN_URL" "3000"
+    check_service_health "Backend API" "$BACKEND_URL/api/health" "8001"
+    check_service_health "Frontend Web" "$FRONTEND_URL" "8081"
     echo ""
 
     # Database Health Checks

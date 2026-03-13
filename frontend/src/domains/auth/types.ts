@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { UserSchema, LoginResponseSchema } from "../../types/schemas";
+import { FontStylePreference } from "../../theme/fontPreferences";
 
 // Re-export Zod schemas
 export { UserSchema, LoginResponseSchema } from "../../types/schemas";
@@ -9,13 +10,9 @@ export type User = z.infer<typeof UserSchema>;
 export type LoginResponse = z.infer<typeof LoginResponseSchema>;
 
 export interface UserSettings {
-  theme: string;
+  theme: "light" | "dark";
   font_size: number;
-  primary_color: string;
-  haptic_enabled: boolean;
-  sound_enabled: boolean;
-  auto_sync_enabled: boolean;
-  language: string;
+  font_style: FontStylePreference;
   updated_at: string | null;
 }
 

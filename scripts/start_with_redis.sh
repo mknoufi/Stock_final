@@ -44,6 +44,7 @@ fi
 # Start backend
 echo "🚀 Starting backend server..."
 cd "$(dirname "$0")/.."
-./scripts/python.sh -m uvicorn backend.server:app --host 0.0.0.0 --port 8000 --reload
+BACKEND_PORT="${BACKEND_PORT:-8001}"
+./scripts/python.sh -m uvicorn backend.server:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
 
-echo "✅ Backend started on http://localhost:8000"
+echo "✅ Backend started on http://localhost:${BACKEND_PORT}"

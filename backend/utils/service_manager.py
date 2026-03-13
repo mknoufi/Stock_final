@@ -112,7 +112,7 @@ class ServiceManager:
         return killed
 
     @staticmethod
-    def ensure_single_backend(preferred_port: int = 8000) -> tuple[int, bool]:
+    def ensure_single_backend(preferred_port: int = 8001) -> tuple[int, bool]:
         """
         Ensure only one backend instance runs
         Returns: (port, was_killed)

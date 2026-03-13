@@ -1,7 +1,7 @@
 """
 User Settings API
 
-Endpoints for managing user-specific settings like theme, font size, colors.
+Endpoints for managing user-specific appearance settings.
 """
 
 import logging
@@ -28,12 +28,35 @@ router = APIRouter(prefix="/api/user", tags=["User Settings"])
 # Default settings for new users
 DEFAULT_SETTINGS: dict[str, Any] = {
     "theme": "light",
-    "font_size": "medium",
-    "primary_color": "#1976D2",
-    "haptic_enabled": True,
-    "sound_enabled": True,
-    "auto_sync_enabled": True,
+    "font_size": 16,
+    "font_style": "system",
 }
+
+
+def _normalize_theme(value: Any) -> str:
+    if value == "dark":
+        return "dark"
+    if value in {"premium", "ocean", "sunset", "highContrast"}:
+        return "dark"
+    return "light"
+
+
+def _normalize_font_size(value: Any) -> int:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return max(12, min(22, int(round(value))))
+
+    return {
+        "small": 14,
+        "medium": 16,
+        "large": 18,
+        "xlarge": 20,
+    }.get(str(value).lower(), DEFAULT_SETTINGS["font_size"])
+
+
+def _normalize_font_style(value: Any) -> str:
+    if value in {"serif", "mono"}:
+        return str(value)
+    return "system"
 
 
 @router.get("/settings", response_model=UserSettingsResponse)
@@ -58,20 +81,9 @@ async def get_user_settings(
                 status="success",
                 message="Settings retrieved successfully",
                 data=UserSettings(
-                    theme=settings_doc.get("theme", DEFAULT_SETTINGS["theme"]),
-                    font_size=settings_doc.get("font_size", DEFAULT_SETTINGS["font_size"]),
-                    primary_color=settings_doc.get(
-                        "primary_color", DEFAULT_SETTINGS["primary_color"]
-                    ),
-                    haptic_enabled=settings_doc.get(
-                        "haptic_enabled", DEFAULT_SETTINGS["haptic_enabled"]
-                    ),
-                    sound_enabled=settings_doc.get(
-                        "sound_enabled", DEFAULT_SETTINGS["sound_enabled"]
-                    ),
-                    auto_sync_enabled=settings_doc.get(
-                        "auto_sync_enabled", DEFAULT_SETTINGS["auto_sync_enabled"]
-                    ),
+                    theme=_normalize_theme(settings_doc.get("theme")),
+                    font_size=_normalize_font_size(settings_doc.get("font_size")),
+                    font_style=_normalize_font_style(settings_doc.get("font_style")),
                     updated_at=settings_doc.get("updated_at"),
                 ),
             )
@@ -158,16 +170,9 @@ async def update_user_settings(
             status="success",
             message="Settings updated successfully",
             data=UserSettings(
-                theme=updated_doc.get("theme", DEFAULT_SETTINGS["theme"]),
-                font_size=updated_doc.get("font_size", DEFAULT_SETTINGS["font_size"]),
-                primary_color=updated_doc.get("primary_color", DEFAULT_SETTINGS["primary_color"]),
-                haptic_enabled=updated_doc.get(
-                    "haptic_enabled", DEFAULT_SETTINGS["haptic_enabled"]
-                ),
-                sound_enabled=updated_doc.get("sound_enabled", DEFAULT_SETTINGS["sound_enabled"]),
-                auto_sync_enabled=updated_doc.get(
-                    "auto_sync_enabled", DEFAULT_SETTINGS["auto_sync_enabled"]
-                ),
+                theme=_normalize_theme(updated_doc.get("theme")),
+                font_size=_normalize_font_size(updated_doc.get("font_size")),
+                font_style=_normalize_font_style(updated_doc.get("font_style")),
                 updated_at=updated_doc.get("updated_at"),
             ),
         )

@@ -26,7 +26,7 @@ sleep 2
 
 echo "🚀 Starting frontend (Expo)..."
 
-# Update IP address in .env based on backend_port.json
+# Update frontend backend URL based on the current local runtime
 echo "🔄 Updating Frontend configuration..."
 npm run update-ip
 

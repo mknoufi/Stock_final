@@ -234,7 +234,8 @@ deploy-check:
 
 deploy: deploy-check
 	@echo "🚀 Deploying canonical Docker Compose stack..."
-	docker compose --env-file $(PROD_ENV_FILE) -f $(PROD_COMPOSE_FILE) up -d --build
+	docker compose --env-file $(PROD_ENV_FILE) -f $(PROD_COMPOSE_FILE) pull
+	docker compose --env-file $(PROD_ENV_FILE) -f $(PROD_COMPOSE_FILE) up -d --remove-orphans
 	@echo "✅ Deployment complete. Verify the stack at your configured DOMAIN."
 
 deploy-certs: deploy-check

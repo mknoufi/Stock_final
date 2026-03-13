@@ -18,11 +18,7 @@ logger = logging.getLogger(__name__)
 DEFAULT_USER_SETTINGS = {
     "theme": "light",
     "font_size": 16,
-    "primary_color": "#1976D2",
-    "haptic_enabled": True,
-    "sound_enabled": True,
-    "auto_sync_enabled": True,
-    "language": "en",
+    "font_style": "system",
     "updated_at": None,  # Will be set during migration
 }
 

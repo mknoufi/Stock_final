@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def save_backend_info(port: int, local_ip: str, protocol: str = "http") -> None:
-    """Save backend port info to JSON files."""
+    """Save backend port info for local tooling without exposing it via the frontend."""
     try:
         port_data = {
             "port": port,
@@ -29,29 +29,13 @@ def save_backend_info(port: int, local_ip: str, protocol: str = "http") -> None:
             "EXPO_PUBLIC_FRONTEND_PORT": "8081",
         }
 
-        # Save to backend_port.json in multiple locations
-        # File is at root/backend/utils/port_detector.py -> root is 3 parents up
+        # Save only to the project root for local tooling. Frontend runtime discovery
+        # now relies on same-origin or explicit env configuration instead of served JSON.
         project_root = Path(__file__).parent.parent.parent
 
-        # 1. Project Root
         with open(project_root / "backend_port.json", "w") as f:
             json.dump(port_data, f)
-
-        # 2. frontend/public (Static folder for Web)
-        frontend_public = project_root / "frontend" / "public"
-        frontend_public.mkdir(exist_ok=True)
-        with open(frontend_public / "backend_port.json", "w") as f:
-            json.dump(port_data, f)
-        logger.info(f"Saved to {frontend_public / 'backend_port.json'}")
-
-        # 3. frontend/src (For React Native)
-        frontend_src = project_root / "frontend" / "src"
-        frontend_src.mkdir(exist_ok=True)
-        with open(frontend_src / "backend_port.json", "w") as f:
-            json.dump(port_data, f)
-        logger.info(f"Saved to {frontend_src / 'backend_port.json'}")
-
-        logger.info(f"Saved backend info (IP: {local_ip}, Port: {port}) to multiple locations")
+        logger.info(f"Saved backend info (IP: {local_ip}, Port: {port}) to project root")
     except Exception as e:
         logger.warning(f"Failed to save backend port info: {e}")
 

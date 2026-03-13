@@ -209,7 +209,7 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
         },
       },
     ]);
-  }, [logout, router, logoutConfirmMessage]);
+  }, [logout, logoutConfirmMessage]);
 
   const handleRightAction = useCallback(() => {
     if (Platform.OS !== "web") {

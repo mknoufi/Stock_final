@@ -314,7 +314,7 @@ jobs:
     name: Build Docker Images
     runs-on: ubuntu-latest
     needs: [backend-test, frontend-test, frontend-recount-smoke]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     
     permissions:
       contents: read
@@ -344,23 +344,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=sha,prefix=
-            type=ref,event=branch
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-
       - name: Build and push Backend
         uses: docker/build-push-action@v5
         with:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -370,7 +362,9 @@ jobs:
           context: .
           file: ./nginx/Dockerfile
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:${{ github.sha }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:${{ github.sha }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -381,29 +375,39 @@ jobs:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [build-images]
-    if: github.ref == 'refs/heads/main'
-    environment: staging
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency: deploy-staging
+    permissions:
+      contents: read
+    environment:
+      name: staging
+      url: ${{ vars.DEPLOY_HEALTHCHECK_URL }}
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to staging
-        run: |
-          echo "🚀 Deploying to staging environment..."
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}"
-          # Add your deployment commands here:
-          # - SSH to server and docker-compose pull/up
-          # - kubectl apply for Kubernetes
-          # - AWS ECS update-service
-          # Example:
-          # ssh ${{ secrets.STAGING_SSH_HOST }} "cd /app && docker-compose pull && docker-compose up -d"
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: Health check
+      - name: Deploy to staging
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_HEALTHCHECK_URL: ${{ vars.DEPLOY_HEALTHCHECK_URL }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+          DEPLOY_REGISTRY_USERNAME: ${{ secrets.DEPLOY_REGISTRY_USERNAME }}
+          DEPLOY_REGISTRY_TOKEN: ${{ secrets.DEPLOY_REGISTRY_TOKEN }}
+          BACKEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}
+          NGINX_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:${{ github.sha }}
         run: |
-          echo "Waiting for deployment..."
-          sleep 30
-          # curl -f https://staging.yourdomain.com/health || exit 1
+          chmod +x scripts/deploy_remote_compose.sh
+          ./scripts/deploy_remote_compose.sh
 
   # ==========================================
   # Deploy to Production (Manual Trigger)
@@ -411,28 +415,45 @@ jobs:
   deploy-production:
     name: Deploy to Production
     runs-on: ubuntu-latest
-    needs: [deploy-staging]
-    if: github.ref == 'refs/heads/main'
-    environment: production
+    needs: [build-images]
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    concurrency: deploy-production
+    permissions:
+      contents: read
+    environment:
+      name: production
+      url: ${{ vars.DEPLOY_HEALTHCHECK_URL }}
     
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Deploy to production
-        run: |
-          echo "🚀 Deploying to PRODUCTION..."
-          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}"
-          # Add production deployment commands
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
-      - name: Health check
+      - name: Deploy to production
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          DEPLOY_HEALTHCHECK_URL: ${{ vars.DEPLOY_HEALTHCHECK_URL }}
+          DEPLOY_KNOWN_HOSTS: ${{ vars.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+          DEPLOY_REGISTRY_USERNAME: ${{ secrets.DEPLOY_REGISTRY_USERNAME }}
+          DEPLOY_REGISTRY_TOKEN: ${{ secrets.DEPLOY_REGISTRY_TOKEN }}
+          BACKEND_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}
+          NGINX_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:${{ github.sha }}
         run: |
-          echo "Verifying production deployment..."
-          sleep 30
-          # curl -f https://api.yourdomain.com/health || exit 1
+          chmod +x scripts/deploy_remote_compose.sh
+          ./scripts/deploy_remote_compose.sh
 
       - name: Notify on success
         if: success()
         run: |
           echo "✅ Production deployment successful!"
-          # Add Slack/Discord notification here
+          echo "Images:"
+          echo "  backend=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.sha }}"
+          echo "  nginx=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-nginx:${{ github.sha }}"

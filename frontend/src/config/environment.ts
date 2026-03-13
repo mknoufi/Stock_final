@@ -131,10 +131,41 @@ class EnvironmentConfig {
     return "lan";
   }
 
+  private getCurrentOrigin(): string | null {
+    if (Platform.OS !== "web" || typeof window === "undefined") {
+      return null;
+    }
+
+    try {
+      return window.location.origin.replace(/\/+$/, "");
+    } catch {
+      return null;
+    }
+  }
+
   /**
    * Detect backend URL with fallback chain
    */
   private async detectBackendUrl(): Promise<string> {
+    const currentOrigin = this.getCurrentOrigin();
+    if (currentOrigin) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        const response = await fetch(`${currentOrigin}/api/health`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (await isValidBackendHealthResponse(response)) {
+          log.info("Using healthy same-origin backend", currentOrigin);
+          return currentOrigin;
+        }
+      } catch (error) {
+        log.debug("Same-origin backend probe failed", error);
+      }
+    }
+
     // 1. Environment override (highest priority)
     const envUrl = process.env.EXPO_PUBLIC_BACKEND_URL;
     if (envUrl) {
@@ -149,27 +180,15 @@ class EnvironmentConfig {
       return expoConfigUrl;
     }
 
-    // 3. Try to load from backend_port.json
-    try {
-      const response = await fetch("http://localhost/backend_port.json");
-      if (response.ok) {
-        const portData = await response.json();
-        if (portData.url) {
-          log.info("Using backend URL from port file", portData.url);
-          return portData.url;
-        }
-      }
-    } catch (error) {
-      log.debug("Could not load backend_port.json", error);
-    }
-
-    // 4. Try common development URLs
+    // 3. Probe common development URLs
+    const hostUri = Constants.expoConfig?.hostUri;
+    const expoHost = hostUri?.split(":")[0];
     const developmentUrls = [
+      expoHost ? `http://${expoHost}:8001` : null,
+      Platform.OS === "android" ? "http://10.0.2.2:8001" : null,
       "http://localhost:8001",
       "http://127.0.0.1:8001",
-      "http://192.168.1.2:8001",
-      "http://10.0.2.2:8001",
-    ];
+    ].filter((value): value is string => Boolean(value));
 
     for (const url of developmentUrls) {
       try {
@@ -194,8 +213,9 @@ class EnvironmentConfig {
       }
     }
 
-    // 5. Default fallback
-    const fallbackUrl = "http://localhost:8001";
+    // 4. Default fallback
+    const fallbackUrl =
+      Platform.OS === "android" ? "http://10.0.2.2:8001" : "http://localhost:8001";
     log.warn("Using fallback backend URL", fallbackUrl);
     return fallbackUrl;
   }

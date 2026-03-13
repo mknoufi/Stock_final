@@ -143,39 +143,21 @@ class ConnectionManager {
       });
     }
 
-    // 2. On web, the runtime port file is the freshest source of truth.
-    // Prefer it over saved or build-time URLs because the backend port can
-    // change between runs while the Expo bundle stays the same.
-    if (Platform.OS === "web") {
-      try {
-        const response = await fetch("/backend_port.json");
-        if (response.ok) {
-          const portData = await response.json();
-          if (portData.url && typeof portData.url === "string") {
-            candidates.push({ url: normalize(portData.url), priority: 12 });
-          }
-        }
-      } catch (error) {
-        log.debug("Could not load backend_port.json", error);
-      }
-    }
-
-    // 3. Expo host URI (best signal on LAN in development)
+    // 2. Expo host URI (best signal on LAN in development)
     const hostUri = Constants.expoConfig?.hostUri;
     const expoHost = hostUri?.split(":")[0];
     if (expoHost) {
       candidates.push({ url: `http://${expoHost}:8001`, priority: 8 });
-      candidates.push({ url: `http://${expoHost}:8000`, priority: 7 });
     }
 
-    // 4. Platform-specific defaults
+    // 3. Platform-specific defaults
     if (Platform.OS === "android") {
       // Android emulator default
       candidates.push({ url: "http://10.0.2.2:8001", priority: 5 });
     }
 
-    // 5. Common development ports
-    const commonPorts = [8001, 8000, 8080, 8085, 3000, 3001];
+    // 4. Common development ports
+    const commonPorts = [8001, 8085];
     const detectedIp = this.getDeviceIp();
 
     for (const port of commonPorts) {
@@ -185,7 +167,7 @@ class ConnectionManager {
       });
     }
 
-    // 6. Localhost fallback (safe for web/simulators; poor on real devices)
+    // 5. Localhost fallback (safe for web/simulators; poor on real devices)
     if (Platform.OS === "web" || Platform.OS === "ios") {
       candidates.push({ url: "http://localhost:8001", priority: 3 });
       candidates.push({ url: "http://127.0.0.1:8001", priority: 2 });

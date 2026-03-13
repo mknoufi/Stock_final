@@ -12,3 +12,4 @@ export { useSerialEntryManager } from "./useSerialEntryManager";
 export { useItemDetailData } from "./useItemDetailData";
 export { useQuantityCountManager } from "./useQuantityCountManager";
 export { useItemEvidenceState } from "./useItemEvidenceState";
+export { useItemMetadataState } from "./useItemMetadataState";

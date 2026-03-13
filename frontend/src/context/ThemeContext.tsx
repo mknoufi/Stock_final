@@ -2,12 +2,9 @@
  * Theme Context - Global Theme Management
  *
  * Provides:
- * - Full theme switching (6 variants)
- * - System theme auto-detection
- * - Persistent storage via MMKV
- * - Pattern selection
+ * - Light/dark theme switching
  * - Dynamic font size
- * - Dynamic primary color
+ * - Dynamic font style
  */
 
 import * as React from "react";
@@ -19,15 +16,14 @@ import {
   useCallback,
   useMemo,
 } from "react";
-import { useColorScheme, Appearance } from "react-native";
+import { useColorScheme } from "react-native";
 import { themes, AppTheme } from "../theme/themes";
-import { mmkvStorage } from "../services/mmkvStorage";
 import { useSettingsStore } from "../store/settingsStore";
 import { useAuthStore } from "../store/authStore";
 import {
-  getScopedStorageKey,
-  getScopedStorageKeyCandidates,
-} from "../services/userPreferenceScope";
+  normalizeThemePreference,
+  resolveFontFamilies,
+} from "../theme/fontPreferences";
 
 const hexToRgba = (hex: string, alpha: number): string => {
   const normalized = hex.replace("#", "").trim();
@@ -170,30 +166,10 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-// Base storage keys
-const STORAGE_KEYS = {
-  THEME_KEY: "app_theme_key",
-  THEME_MODE: "app_theme_mode",
-  PATTERN: "app_pattern",
-  LAYOUT: "app_layout",
-};
-
 // Theme metadata for picker UI
 const THEME_METADATA: { key: ThemeKey; name: string; preview: string[] }[] = [
   { key: "light", name: "Light", preview: ["#FAFBFC", "#0969DA", "#1A7F37"] },
   { key: "dark", name: "Midnight", preview: ["#0D1117", "#58A6FF", "#3FB950"] },
-  {
-    key: "premium",
-    name: "Aurora Pro",
-    preview: ["#030712", "#0284C7", "#06B6D4"],
-  },
-  { key: "ocean", name: "Ocean", preview: ["#042F2E", "#14B8A6", "#0EA5E9"] },
-  { key: "sunset", name: "Sunset", preview: ["#1C1917", "#F97316", "#E11D48"] },
-  {
-    key: "highContrast",
-    name: "High Contrast",
-    preview: ["#000000", "#00D4FF", "#00FF88"],
-  },
 ];
 
 // Pattern metadata
@@ -230,29 +206,22 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   const userId = useAuthStore((state) => state.user?.id ?? null);
 
   // State
-  const [themeKey, setThemeKeyState] = useState<ThemeKey>("light");
+  const [, setThemeKeyState] = useState<ThemeKey>("light");
   const [themeMode, setThemeModeState] = useState<ThemeMode>("light");
   const [pattern, setPatternState] = useState<PatternType>("none");
   const [layout, setLayoutState] = useState<LayoutArrangement>("default");
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Get dynamic values from settings store
+  const normalizedTheme = normalizeThemePreference(settings.theme);
   const fontSize = settings.fontSizeValue || 16;
-  const primaryColor = settings.primaryColor || "#0EA5E9";
+  const fontFamilies = resolveFontFamilies(settings.fontStyle);
+  const primaryColor = themes[normalizedTheme]?.colors.accent || "#0EA5E9";
 
   // Compute effective theme based on mode
   const effectiveThemeKey = useMemo((): ThemeKey => {
-    if (themeMode === "system") {
-      return systemColorScheme === "dark" ? "dark" : "light";
-    }
-    if (themeMode === "dark" && themeKey === "light") {
-      return "dark";
-    }
-    if (themeMode === "light" && themeKey === "dark") {
-      return "light";
-    }
-    return themeKey;
-  }, [themeMode, themeKey, systemColorScheme]);
+    return themeMode === "dark" ? "dark" : "light";
+  }, [themeMode]);
 
   const theme = useMemo<AppTheme>(() => {
     const resolved = (themes as any)?.[effectiveThemeKey] as
@@ -265,17 +234,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [effectiveThemeKey]);
 
   const isDark = useMemo(() => {
-    return (
-      effectiveThemeKey === "dark" ||
-      effectiveThemeKey === "premium" ||
-      effectiveThemeKey === "ocean" ||
-      effectiveThemeKey === "sunset" ||
-      effectiveThemeKey === "highContrast"
-    );
+    return effectiveThemeKey === "dark";
   }, [effectiveThemeKey]);
 
   const themeLegacy = useMemo<ThemeContextType["themeLegacy"]>(() => {
-    const resolvedPrimary = primaryColor || theme.colors.accent;
+    const resolvedPrimary = theme.colors.accent;
     const baseFontSize = fontSize;
 
     const fontSizeTokens = {
@@ -332,6 +295,10 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
       },
       typography: {
         ...theme.typography,
+        fontFamily: {
+          ...(theme.typography as any)?.fontFamily,
+          ...fontFamilies,
+        },
         fontSize: {
           ...(theme.typography as any)?.fontSize,
           ...fontSizeTokens,
@@ -349,108 +316,54 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
       componentSizes: theme.componentSizes,
       layout: theme.layout,
     };
-  }, [theme, isDark, primaryColor, fontSize]);
+  }, [fontFamilies, fontSize, isDark, theme]);
 
-  // Load persisted settings
+  // Sync theme context to the scoped settings store and clear retired pattern/layout state.
   useEffect(() => {
-    const loadSettings = () => {
-      setThemeKeyState("light");
-      setThemeModeState("light");
-      setPatternState("none");
-      setLayoutState("default");
-
-      try {
-        const readScopedValue = (baseKey: string): string | null => {
-          const [resolvedActiveKey, ...fallbackKeys] = getScopedStorageKeyCandidates(
-            baseKey,
-            userId,
-          );
-          const activeKey = resolvedActiveKey ?? baseKey;
-          const activeValue = mmkvStorage.getItem(activeKey);
-          if (activeValue != null) {
-            return activeValue;
-          }
-
-          for (const fallbackKey of fallbackKeys) {
-            const fallbackValue = mmkvStorage.getItem(fallbackKey);
-            if (fallbackValue != null) {
-              if (fallbackKey !== activeKey) {
-                mmkvStorage.setItem(activeKey, fallbackValue);
-              }
-              return fallbackValue;
-            }
-          }
-
-          return null;
-        };
-
-        const savedThemeKey = readScopedValue(STORAGE_KEYS.THEME_KEY);
-        const savedThemeMode = readScopedValue(STORAGE_KEYS.THEME_MODE);
-        const savedPattern = readScopedValue(STORAGE_KEYS.PATTERN);
-        const savedLayout = readScopedValue(STORAGE_KEYS.LAYOUT);
-
-        if (savedThemeKey && themes[savedThemeKey as ThemeKey]) {
-          setThemeKeyState(savedThemeKey as ThemeKey);
-        }
-        if (savedThemeMode) {
-          setThemeModeState(savedThemeMode as ThemeMode);
-        }
-        if (savedPattern) {
-          setPatternState(savedPattern as PatternType);
-        }
-        if (savedLayout) {
-          setLayoutState(savedLayout as LayoutArrangement);
-        }
-      } catch (error) {
-        console.warn("Failed to load theme settings:", error);
-      }
-      setIsInitialized(true);
-    };
-
-    loadSettings();
-  }, [userId]);
-
-  // Listen for system theme changes
-  useEffect(() => {
-    const subscription = Appearance.addChangeListener(
-      ({ colorScheme: _colorScheme }) => {
-        if (themeMode === "system") {
-          // Theme will auto-update via effectiveThemeKey computation
-        }
-      },
-    );
-
-    return () => subscription.remove();
-  }, [themeMode]);
+    setThemeModeState(normalizedTheme);
+    setThemeKeyState(normalizedTheme);
+    setPatternState("none");
+    setLayoutState("default");
+    setIsInitialized(true);
+  }, [normalizedTheme, userId]);
 
   // Actions
   const setThemeKey = useCallback((key: ThemeKey) => {
-    setThemeKeyState(key);
-    mmkvStorage.setItem(getScopedStorageKey(STORAGE_KEYS.THEME_KEY, userId), key);
-  }, [userId]);
+    const nextTheme = key === "dark" ? "dark" : "light";
+    setThemeKeyState(nextTheme);
+    setThemeModeState(nextTheme);
+    if (useSettingsStore.getState().settings.theme !== nextTheme) {
+      useSettingsStore.getState().setSetting("theme", nextTheme);
+    }
+  }, []);
 
   const setThemeMode = useCallback((mode: ThemeMode) => {
-    setThemeModeState(mode);
-    mmkvStorage.setItem(getScopedStorageKey(STORAGE_KEYS.THEME_MODE, userId), mode);
-  }, [userId]);
+    const nextTheme =
+      mode === "system"
+        ? systemColorScheme === "dark"
+          ? "dark"
+          : "light"
+        : mode === "dark"
+          ? "dark"
+          : "light";
+    setThemeModeState(nextTheme);
+    setThemeKeyState(nextTheme);
+    if (useSettingsStore.getState().settings.theme !== nextTheme) {
+      useSettingsStore.getState().setSetting("theme", nextTheme);
+    }
+  }, [systemColorScheme]);
 
   const setPattern = useCallback((p: PatternType) => {
     setPatternState(p);
-    mmkvStorage.setItem(getScopedStorageKey(STORAGE_KEYS.PATTERN, userId), p);
-  }, [userId]);
+  }, []);
 
   const setLayout = useCallback((l: LayoutArrangement) => {
     setLayoutState(l);
-    mmkvStorage.setItem(getScopedStorageKey(STORAGE_KEYS.LAYOUT, userId), l);
-  }, [userId]);
+  }, []);
 
   const toggleDarkMode = useCallback(() => {
-    if (themeMode === "system") {
-      setThemeMode(systemColorScheme === "dark" ? "light" : "dark");
-    } else {
-      setThemeMode(themeMode === "dark" ? "light" : "dark");
-    }
-  }, [themeMode, systemColorScheme, setThemeMode]);
+    setThemeMode(themeMode === "dark" ? "light" : "dark");
+  }, [themeMode, setThemeMode]);
 
   // Helper to get nested color value
   const getThemeColor = useCallback(

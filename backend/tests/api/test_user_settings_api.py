@@ -60,13 +60,14 @@ async def test_get_settings_defaults(async_client: AsyncClient, auth_headers):
     data = response.json()
     assert data["status"] == "success"
     assert data["data"]["theme"] == "light"  # Default
-    assert data["data"]["font_size"] == "medium"  # Default
+    assert data["data"]["font_size"] == 16  # Default
+    assert data["data"]["font_style"] == "system"
 
 
 @pytest.mark.asyncio
 async def test_update_settings(async_client: AsyncClient, auth_headers, test_db):
     """Test updating user settings."""
-    payload = {"theme": "dark", "font_size": "large", "primary_color": "#000000"}
+    payload = {"theme": "dark", "font_size": 20, "font_style": "serif"}
 
     response = await async_client.patch("/api/user/settings", json=payload, headers=auth_headers)
 
@@ -74,12 +75,14 @@ async def test_update_settings(async_client: AsyncClient, auth_headers, test_db)
     data = response.json()
     assert data["status"] == "success"
     assert data["data"]["theme"] == "dark"
-    assert data["data"]["font_size"] == "large"
+    assert data["data"]["font_size"] == 20
+    assert data["data"]["font_style"] == "serif"
 
     # Verify in DB
     settings = await test_db.user_settings.find_one({"user_id": TEST_USER_ID})
     assert settings is not None
     assert settings["theme"] == "dark"
+    assert settings["font_style"] == "serif"
 
 
 @pytest.mark.asyncio
@@ -87,16 +90,16 @@ async def test_get_settings_existing(async_client: AsyncClient, auth_headers, te
     """Test getting settings that already exist."""
     # Pre-seed settings
     await test_db.user_settings.insert_one(
-        {"user_id": TEST_USER_ID, "theme": "ocean", "haptic_enabled": False}
+        {"user_id": TEST_USER_ID, "theme": "ocean", "font_size": "large"}
     )
 
     response = await async_client.get("/api/user/settings", headers=auth_headers)
 
     assert response.status_code == 200
     data = response.json()
-    assert data["data"]["theme"] == "ocean"
-    assert data["data"]["haptic_enabled"] is False
-    assert data["data"]["font_size"] == "medium"  # Should still have default for missing field
+    assert data["data"]["theme"] == "dark"
+    assert data["data"]["font_size"] == 18
+    assert data["data"]["font_style"] == "system"
 
 
 @pytest.mark.asyncio

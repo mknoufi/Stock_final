@@ -68,6 +68,8 @@ The supported production path for this repo is root `.env.prod` plus
 2) Update `.env.prod` with real values:
    - `DOMAIN`
    - `CERTBOT_EMAIL`
+   - `BACKEND_IMAGE`
+   - `NGINX_IMAGE`
    - `JWT_SECRET`
    - `JWT_REFRESH_SECRET`
    - `MONGO_ROOT_PASSWORD`
@@ -89,7 +91,31 @@ The supported production path for this repo is root `.env.prod` plus
 Notes:
 - Nginx serves the exported frontend and reverse-proxies `/api` and `/ws`.
 - MongoDB and Redis stay on the internal Docker network; only ports `80` and `443` are exposed.
+- Production deploys pull prebuilt GHCR images referenced by `BACKEND_IMAGE` and `NGINX_IMAGE`.
+- If the GHCR packages are private, run `docker login ghcr.io` on the host before `make deploy`.
 - Kubernetes manifests under `k8s/` are reference material and are not the canonical release path.
+
+## GitHub Actions Deploy Configuration
+
+The workflow in `.github/workflows/main.yml` now deploys through SSH to a remote Docker host.
+Configure `staging` and `production` GitHub Environments with:
+
+- Variables:
+  - `DEPLOY_HOST`
+  - `DEPLOY_USER`
+  - `DEPLOY_PORT`
+  - `DEPLOY_PATH`
+  - `DEPLOY_HEALTHCHECK_URL`
+  - `DEPLOY_KNOWN_HOSTS` (optional but recommended)
+- Secrets:
+  - `DEPLOY_SSH_KEY`
+  - `DEPLOY_ENV_FILE`
+  - `DEPLOY_REGISTRY_USERNAME`
+  - `DEPLOY_REGISTRY_TOKEN`
+
+Behavior:
+- `push` to `main`: build images and deploy `staging`
+- `workflow_dispatch` on `main`: build images and deploy `production`
 
 ## Configuration
 

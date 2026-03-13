@@ -13,15 +13,13 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
-  Modal,
   RefreshControl,
 } from "react-native";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
-import Animated, {
-  FadeInDown,
+import {
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -54,10 +52,12 @@ import {
 } from "../../src/utils/itemBatchUtils";
 
 import ModernHeader from "../../src/components/ui/ModernHeader";
-import ModernCard from "../../src/components/ui/ModernCard";
 import ModernButton from "../../src/components/ui/ModernButton";
-import ModernInput from "../../src/components/ui/ModernInput";
 import { SyncStatusPill } from "../../src/components/ui/SyncStatusPill";
+import { FinishRackModal } from "../../src/components/scan/FinishRackModal";
+import { ScanCameraOverlay } from "../../src/components/scan/ScanCameraOverlay";
+import { ScanLookupPanel } from "../../src/components/scan/ScanLookupPanel";
+import { ScanStatsCard } from "../../src/components/scan/ScanStatsCard";
 import {
   colors,
   spacing,
@@ -458,137 +458,18 @@ const ScanScreen = React.memo(function ScanScreen() {
   };
 
   if (isScanning) {
-    if (!permission) {
-      // Camera permissions are still loading
-      return <View />;
-    }
-
-    if (!permission.granted) {
-      return (
-        <View style={styles.permissionContainer}>
-          <Text style={styles.permissionText}>
-            We need your permission to show the camera
-          </Text>
-          <ModernButton onPress={requestPermission} title="Grant Permission" />
-          <ModernButton
-            onPress={() => safeSetState(setIsScanning, false)}
-            title="Cancel"
-            variant="outline"
-            style={{ marginTop: spacing.md }}
-          />
-        </View>
-      );
-    }
-
     return (
-      <View style={styles.cameraContainer}>
-        <CameraView
-          style={StyleSheet.absoluteFill}
-          onBarcodeScanned={scanned ? undefined : handleBarcodeScan}
-          barcodeScannerSettings={{
-            barcodeTypes: [
-              "ean13",
-              "ean8",
-              "upc_a",
-              "upc_e",
-              "code128",
-              "code39",
-              "qr",
-            ],
-          }}
-        >
-          <SafeAreaView style={styles.cameraOverlay}>
-            <View style={styles.cameraHeader}>
-              <TouchableOpacity
-                onPress={() => safeSetState(setIsScanning, false)}
-                style={styles.closeCameraButton}
-              >
-                <Ionicons name="close" size={28} color={colors.white} />
-              </TouchableOpacity>
-              <Text style={styles.cameraTitle}>Scan Barcode</Text>
-            </View>
-
-            <View style={styles.scanFrameContainer}>
-              {/* Animated Scan Frame with Corner Brackets */}
-              <View style={styles.scanFrameWrapper}>
-                {/* Corner Brackets */}
-                <Animated.View
-                  style={[
-                    styles.cornerBracket,
-                    styles.cornerTopLeft,
-                    animatedCorners,
-                  ]}
-                />
-                <Animated.View
-                  style={[
-                    styles.cornerBracket,
-                    styles.cornerTopRight,
-                    animatedCorners,
-                  ]}
-                />
-                <Animated.View
-                  style={[
-                    styles.cornerBracket,
-                    styles.cornerBottomLeft,
-                    animatedCorners,
-                  ]}
-                />
-                <Animated.View
-                  style={[
-                    styles.cornerBracket,
-                    styles.cornerBottomRight,
-                    animatedCorners,
-                  ]}
-                />
-
-                {/* Animated Scan Line */}
-                <Animated.View style={[styles.scanLine, animatedScanLine]} />
-              </View>
-              <Text style={styles.scanInstruction}>
-                Align barcode within frame
-              </Text>
-            </View>
-          </SafeAreaView>
-        </CameraView>
-      </View>
+      <ScanCameraOverlay
+        animatedCorners={animatedCorners}
+        animatedScanLine={animatedScanLine}
+        onBarcodeScanned={handleBarcodeScan}
+        onClose={() => safeSetState(setIsScanning, false)}
+        permission={permission}
+        requestPermission={requestPermission}
+        scanned={scanned}
+      />
     );
   }
-
-  // Skeleton Loader Component
-  const SkeletonLoader = ({ style }: { style?: any }) => (
-    <View style={[styles.skeleton, style]}>
-      <Animated.View
-        style={styles.skeletonShimmer}
-        entering={FadeInDown.duration(300)}
-      />
-    </View>
-  );
-
-  // Empty State Component
-  const EmptyState = ({
-    icon,
-    title,
-    subtitle,
-  }: {
-    icon: string;
-    title: string;
-    subtitle: string;
-  }) => (
-    <View style={styles.emptyState}>
-      <View style={styles.emptyIconContainer}>
-        <Ionicons name={icon as any} size={48} color={colors.gray[300]} />
-      </View>
-      <Text style={styles.emptyTitle}>{title}</Text>
-      <Text style={styles.emptySubtitle}>{subtitle}</Text>
-    </View>
-  );
-
-  const buildItemKey = (item: any, index: number) => {
-    const code = item?.item_code ?? "no-code";
-    const barcode = item?.barcode ?? "no-barcode";
-    const id = item?.id ?? item?._id ?? "no-id";
-    return `${code}-${barcode}-${id}-${index}`;
-  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -623,209 +504,27 @@ const ScanScreen = React.memo(function ScanScreen() {
           />
         }
       >
-        {/* Stats Card */}
-        <Animated.View entering={FadeInDown.duration(500)}>
-          {initialLoading ? (
-            <ModernCard style={styles.statsCard}>
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <SkeletonLoader
-                    style={{ width: 48, height: 32, borderRadius: 8 }}
-                  />
-                  <SkeletonLoader
-                    style={{
-                      width: 60,
-                      height: 12,
-                      marginTop: 8,
-                      borderRadius: 4,
-                    }}
-                  />
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <SkeletonLoader
-                    style={{ width: 48, height: 32, borderRadius: 8 }}
-                  />
-                  <SkeletonLoader
-                    style={{
-                      width: 60,
-                      height: 12,
-                      marginTop: 8,
-                      borderRadius: 4,
-                    }}
-                  />
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <SkeletonLoader
-                    style={{ width: 48, height: 32, borderRadius: 8 }}
-                  />
-                  <SkeletonLoader
-                    style={{
-                      width: 60,
-                      height: 12,
-                      marginTop: 8,
-                      borderRadius: 4,
-                    }}
-                  />
-                </View>
-              </View>
-            </ModernCard>
-          ) : (
-            <ModernCard style={styles.statsCard}>
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>
-                    {sessionStats.scannedItems}
-                  </Text>
-                  <Text style={styles.statLabel}>Scanned</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text
-                    style={[styles.statValue, { color: colors.success[600] }]}
-                  >
-                    {sessionStats.verifiedItems}
-                  </Text>
-                  <Text style={styles.statLabel}>Verified</Text>
-                </View>
-                <View style={styles.statDivider} />
-                <View style={styles.statItem}>
-                  <Text
-                    style={[styles.statValue, { color: colors.warning[600] }]}
-                  >
-                    {sessionStats.pendingItems}
-                  </Text>
-                  <Text style={styles.statLabel}>Pending</Text>
-                </View>
-              </View>
-            </ModernCard>
-          )}
-        </Animated.View>
+        <ScanStatsCard
+          initialLoading={initialLoading}
+          sessionStats={sessionStats}
+        />
 
-        {/* Search Section */}
-        <Animated.View
-          entering={FadeInDown.delay(100).duration(500)}
-          style={styles.searchSection}
-        >
-          <View style={styles.searchRow}>
-            <View style={styles.searchInputWrapper}>
-              <ModernInput
-                placeholder="Enter barcode or item code..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                icon="search"
-                rightIcon={searchQuery ? "close-circle" : undefined}
-                onRightIconPress={() => safeSetState(setSearchQuery, "")}
-                onSubmitEditing={() => {
-                  if (searchQuery.trim()) {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    handleLookup(searchQuery.trim());
-                  }
-                }}
-                returnKeyType="search"
-                keyboardType="default"
-                containerStyle={{ marginBottom: 0 }}
-              />
-            </View>
-            <TouchableOpacity
-              style={[
-                styles.searchButton,
-                loading && styles.searchButtonDisabled,
-              ]}
-              testID="scan-search-submit"
-              onPress={() => {
-                if (searchQuery.trim()) {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                  handleLookup(searchQuery.trim());
-                } else {
-                  safeSetState(setIsScanning, true);
-                }
-              }}
-              disabled={loading}
-              activeOpacity={0.7}
-            >
-              <Ionicons
-                name={searchQuery.trim() ? "arrow-forward" : "scan"}
-                size={24}
-                color={colors.white}
-              />
-            </TouchableOpacity>
-          </View>
-
-          {searchResults.length > 0 && (
-            <View style={styles.searchResultsContainer}>
-              {searchResults.map((item, index) => (
-                <React.Fragment key={buildItemKey(item, index)}>
-                  <SearchResultItem
-                    item={item}
-                    onPress={() => handleLookup(item.barcode || item.item_code)}
-                  />
-                  {index < searchResults.length - 1 && (
-                    <View style={styles.searchResultSeparator} />
-                  )}
-                </React.Fragment>
-              ))}
-            </View>
-          )}
-        </Animated.View>
-
-        {/* Recent Items - Only show when not searching */}
-        {searchResults.length === 0 && (
-          <Animated.View
-            entering={FadeInDown.delay(300).duration(500)}
-            style={styles.recentSection}
-          >
-            <Text style={styles.sectionTitle}>Recent Items</Text>
-
-            {initialLoading ? (
-              // Loading Skeleton
-              <>
-                {[1, 2, 3].map((i) => (
-                  <ModernCard key={i} style={styles.recentCard}>
-                    <View style={styles.recentRow}>
-                      <SkeletonLoader
-                        style={{ width: 44, height: 44, borderRadius: 12 }}
-                      />
-                      <View
-                        style={[styles.recentInfo, { marginLeft: spacing.md }]}
-                      >
-                        <SkeletonLoader
-                          style={{ width: "80%", height: 16, borderRadius: 4 }}
-                        />
-                        <SkeletonLoader
-                          style={{
-                            width: "50%",
-                            height: 12,
-                            marginTop: 6,
-                            borderRadius: 4,
-                          }}
-                        />
-                      </View>
-                    </View>
-                  </ModernCard>
-                ))}
-              </>
-            ) : recentItems.length === 0 ? (
-              // Empty State
-              <EmptyState
-                icon="time-outline"
-                title="No Recent Scans"
-                subtitle="Items you scan will appear here for quick access"
-              />
-            ) : (
-              <View style={styles.recentListContainer}>
-                {recentItems.slice(0, 5).map((item, index) => (
-                  <RecentItemCard
-                    key={buildItemKey(item, index)}
-                    item={item}
-                    onPress={() => handleLookup(item.barcode || item.item_code)}
-                  />
-                ))}
-              </View>
-            )}
-          </Animated.View>
-        )}
+        <ScanLookupPanel
+          initialLoading={initialLoading}
+          loading={loading}
+          recentItems={recentItems}
+          searchQuery={searchQuery}
+          searchResults={searchResults}
+          onChangeSearchQuery={setSearchQuery}
+          onClearSearchQuery={() => safeSetState(setSearchQuery, "")}
+          onOpenScanner={() => safeSetState(setIsScanning, true)}
+          onPressItem={(item) => handleLookup(item.barcode || item.item_code)}
+          onSubmitSearch={() => {
+            if (!searchQuery.trim()) return;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            handleLookup(searchQuery.trim());
+          }}
+        />
 
         <View style={styles.footerSpacer} />
       </ScrollView>
@@ -841,85 +540,15 @@ const ScanScreen = React.memo(function ScanScreen() {
         />
       </View>
 
-      {/* Close Session Modal - Enterprise Standard */}
-      <Modal
+      <FinishRackModal
+        currentFloor={currentFloor}
+        currentRack={currentRack}
+        isFinishing={isFinishing}
+        onClose={() => safeSetState(setShowCloseSessionModal, false)}
+        onConfirm={handleFinishRack}
+        sessionStats={sessionStats}
         visible={showCloseSessionModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => safeSetState(setShowCloseSessionModal, false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Animated.View
-            entering={FadeInDown.duration(300)}
-            style={styles.modalContent}
-          >
-            {/* Modal Icon */}
-            <View style={styles.modalIconContainer}>
-              <Ionicons
-                name="checkmark-circle"
-                size={48}
-                color={colors.success[500]}
-              />
-            </View>
-
-            <Text style={styles.modalTitle}>Complete Rack Scan?</Text>
-            <Text style={styles.modalText}>
-              This will finalize the scan for {currentFloor || "this location"}{" "}
-              {currentRack ? `• ${currentRack}` : ""}. You won't be able to add
-              more items after confirming.
-            </Text>
-
-            {/* Session Summary */}
-            <View style={styles.modalSummary}>
-              <View style={styles.modalSummaryRow}>
-                <Text style={styles.modalSummaryLabel}>Items Scanned</Text>
-                <Text style={styles.modalSummaryValue}>
-                  {sessionStats.scannedItems}
-                </Text>
-              </View>
-              <View style={styles.modalSummaryRow}>
-                <Text style={styles.modalSummaryLabel}>Verified</Text>
-                <Text
-                  style={[
-                    styles.modalSummaryValue,
-                    { color: colors.success[600] },
-                  ]}
-                >
-                  {sessionStats.verifiedItems}
-                </Text>
-              </View>
-              <View style={styles.modalSummaryRow}>
-                <Text style={styles.modalSummaryLabel}>Pending Review</Text>
-                <Text
-                  style={[
-                    styles.modalSummaryValue,
-                    { color: colors.warning[600] },
-                  ]}
-                >
-                  {sessionStats.pendingItems}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.modalActions}>
-              <ModernButton
-                title="Keep Scanning"
-                onPress={() => safeSetState(setShowCloseSessionModal, false)}
-                variant="outline"
-                style={{ flex: 1 }}
-              />
-              <View style={{ width: spacing.md }} />
-              <ModernButton
-                title="Complete"
-                onPress={handleFinishRack}
-                loading={isFinishing}
-                icon="checkmark"
-                style={{ flex: 1 }}
-              />
-            </View>
-          </Animated.View>
-        </View>
-      </Modal>
+      />
 
       {loading && (
         <View pointerEvents="none" style={styles.loadingOverlay}>
@@ -945,57 +574,6 @@ const ScanScreen = React.memo(function ScanScreen() {
     </SafeAreaView>
   );
 });
-
-// Optimized Recent Item Card Component
-type RecentItemCardProps = { item: any; onPress: () => void };
-const RecentItemCard = React.memo(function RecentItemCard(
-  props: RecentItemCardProps,
-) {
-  const { item, onPress } = props;
-  return (
-    <ModernCard style={styles.recentCard} onPress={onPress}>
-      <View style={styles.recentRow}>
-        <View style={styles.recentIcon}>
-          <Ionicons name="cube-outline" size={22} color={colors.primary[600]} />
-        </View>
-        <View style={styles.recentInfo}>
-          <Text style={styles.recentName} numberOfLines={1}>
-            {item.item_name}
-          </Text>
-          <Text style={styles.recentCode}>{item.item_code}</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
-      </View>
-    </ModernCard>
-  );
-});
-
-// Optimized Search Result Item Component
-type SearchResultItemProps = { item: any; onPress: () => void };
-const SearchResultItem = React.memo(function SearchResultItem(
-  props: SearchResultItemProps,
-) {
-  const { item, onPress } = props;
-  const stockQty = getStockQty(item);
-  return (
-    <TouchableOpacity
-      style={styles.resultItem}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <Ionicons name="cube-outline" size={20} color={colors.primary[600]} />
-      <View style={styles.resultInfo}>
-        <Text style={styles.resultName}>{item.item_name}</Text>
-        <Text style={styles.resultCode}>{item.item_code}</Text>
-        <Text style={styles.resultStock}>Stock: {stockQty}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.gray[400]} />
-    </TouchableOpacity>
-  );
-});
-
-RecentItemCard.displayName = "RecentItemCard";
-SearchResultItem.displayName = "SearchResultItem";
 
 export default ScanScreen;
 
