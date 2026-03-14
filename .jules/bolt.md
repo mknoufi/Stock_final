@@ -1,0 +1,3 @@
+## 2025-05-18 - Replacing FlatList with VirtualList for Performance
+**Learning:** Native React Native `FlatList` can severely impact performance and cause frame drops when dealing with infinite scrolling and large datasets. The `VirtualList` component wrapping Shopify's `FlashList` efficiently reuses views and handles virtualization, yielding a significantly smoother user experience, particularly on mobile devices.
+**Action:** When implementing new lists with potentially large or unbound datasets (like search autocomplete or infinite scroll), immediately reach for `VirtualList` (or `FlashList`) over `FlatList`. Always provide an accurate `estimatedItemSize` to maximize performance.
