@@ -17,6 +17,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { SearchResult } from "../../services/enhancedSearchService";
 import { Skeleton } from "../ui/Skeleton";
 import { BatchDetailsModal } from "./BatchDetailsModal";
+import { VirtualList } from "../common/VirtualList";
 
 interface ItemSearchProps {
   manualBarcode: string;
@@ -294,10 +295,11 @@ export const ItemSearch: React.FC<ItemSearchProps> = ({
               {totalResults > searchResults.length ? ` of ${totalResults}` : ""}
             </Text>
           </View>
-          <FlatList
+          {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList under the hood) to significantly improve rendering performance and reduce memory usage for potentially long lists of search results. */}
+          <VirtualList
             data={searchResults}
-            renderItem={renderSearchResultItem}
-            keyExtractor={(item, index) =>
+            renderItem={renderSearchResultItem as any}
+            keyExtractor={(item: SearchResult, index: number) =>
               `search-${index}-${item.item_code || "no-code"}-${item.barcode || "no-barcode"}`
             }
             style={styles.searchResultsFlatList}
@@ -309,6 +311,7 @@ export const ItemSearch: React.FC<ItemSearchProps> = ({
             initialNumToRender={10}
             maxToRenderPerBatch={10}
             windowSize={5}
+            estimatedItemSize={70}
           />
         </View>
       )}
