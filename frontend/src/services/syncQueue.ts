@@ -3,6 +3,7 @@ import {
   deletePendingVerification,
   updatePendingVerificationStatus,
   saveLocalItems,
+  getLatestItemSyncTimestamp,
   LocalItem,
 } from "../db/localDb";
 import { syncBatch, isOnline } from "./api/api";
@@ -76,8 +77,9 @@ export const syncQueue = {
     if (!isOnline()) return 0;
 
     try {
+      const since = lastSyncTimestamp ?? (await getLatestItemSyncTimestamp()) ?? undefined;
       const response = await api.get("/api/v2/erp/items/sync", {
-        params: { since: lastSyncTimestamp },
+        params: { since },
       });
 
       const items: LocalItem[] = response.data.items.map((item: any) => ({

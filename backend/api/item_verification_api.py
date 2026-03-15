@@ -580,6 +580,63 @@ async def get_filtered_items(
         raise HTTPException(status_code=500, detail=f"Failed to get items: {str(e)}")
 
 
+@verification_router.get("/sync")
+async def sync_items_for_offline_cache(
+    since: Optional[datetime] = Query(
+        None, description="Return items updated after this timestamp (ISO 8601)"
+    ),
+    limit: int = Query(5000, ge=1, le=20000, description="Maximum items to return"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Incremental item sync for offline caching.
+
+    Used by the mobile app to keep its local SQLite item table fresh for offline search.
+    """
+    try:
+        query: dict[str, Any] = {"barcode": {"$exists": True, "$ne": ""}}
+
+        if since:
+            # Items can be updated via verification, scanning, or master updates.
+            query["$or"] = [
+                {"last_scanned_at": {"$gt": since}},
+                {"verified_at": {"$gt": since}},
+                {"last_updated_at": {"$gt": since}},
+            ]
+
+        projection = {
+            "_id": 0,
+            "barcode": 1,
+            "item_code": 1,
+            "item_name": 1,
+            "category": 1,
+            "verified": 1,
+            "verified_at": 1,
+            "last_scanned_at": 1,
+        }
+
+        cursor = (
+            db.erp_items.find(query, projection)
+            .sort("last_scanned_at", -1)
+            .limit(limit)
+        )
+        items = await cursor.to_list(length=limit)
+        items = [serialize_item_document(item) for item in items]
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        return {
+            "success": True,
+            "items": items,
+            "count": len(items),
+            "since": serialize_mongo_datetime(since) if since else None,
+            "server_time": now.isoformat(),
+        }
+
+    except Exception as e:
+        logger.error(f"Error syncing items: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to sync items: {str(e)}")
+
+
 @verification_router.get("/export/csv")
 async def export_items_csv(
     category: Optional[str] = Query(None),

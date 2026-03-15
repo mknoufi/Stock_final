@@ -69,7 +69,10 @@ from backend.api.pi_api import router as pi_router  # noqa: E402
 
 # Phase 1-3: New Upgrade APIs
 from backend.api.sync_batch_api import router as sync_batch_router  # noqa: E402
-from backend.api.unknown_items_api import router as unknown_items_router  # noqa: E402
+from backend.api.unknown_items_api import (  # noqa: E402
+    public_router as unknown_items_public_router,
+    router as unknown_items_router,
+)
 
 # New feature services
 from backend.api.sync_conflicts_api import sync_conflicts_router  # noqa: E402
@@ -1308,6 +1311,7 @@ register_routers(
         analytics_router=analytics_router,
         sync_batch_router=sync_batch_router,
         unknown_items_router=unknown_items_router,
+        unknown_items_public_router=unknown_items_public_router,
         rack_router=rack_router,
         session_mgmt_router=session_mgmt_router,
         user_settings_router=user_settings_router,

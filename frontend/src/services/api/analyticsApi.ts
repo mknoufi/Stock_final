@@ -49,10 +49,16 @@ export interface SessionAnalyticsResponse {
 }
 
 export interface EnrichmentStats {
-  total_enriched: number;
-  pending: number;
-  failed: number;
-  by_type: Record<string, number>;
+  total_enrichments: number;
+  total_fields_updated: number;
+  field_counts: Record<string, number>;
+  total_items: number;
+  complete_items: number;
+  completion_rate: number;
+  date_range: {
+    start: string | null;
+    end: string | null;
+  };
 }
 
 export interface SyncStats {
@@ -246,11 +252,15 @@ export const analyticsApi = {
 
   /**
    * Get enrichment statistics
-   * @param warehouseId - Optional warehouse filter
+   * @param params - Optional date/user filters
    * @returns Enrichment stats
    */
-  async getEnrichmentStats(warehouseId?: string): Promise<EnrichmentStats> {
-    log.debug("Fetching enrichment stats", { warehouseId });
+  async getEnrichmentStats(params?: {
+    startDate?: string;
+    endDate?: string;
+    userId?: string;
+  }): Promise<EnrichmentStats> {
+    log.debug("Fetching enrichment stats", params);
 
     if (!(await isOnline())) {
       throw new AnalyticsApiError(
@@ -261,11 +271,18 @@ export const analyticsApi = {
     }
 
     try {
-      const params = warehouseId ? `?warehouse_id=${warehouseId}` : "";
+      const searchParams = new URLSearchParams();
+      if (params?.startDate) searchParams.append("start_date", params.startDate);
+      if (params?.endDate) searchParams.append("end_date", params.endDate);
+      if (params?.userId) searchParams.append("user_id", params.userId);
+      const query = searchParams.toString();
+
+      const basePath = "/api/v1/enrichment/stats";
+      const url = query ? `${basePath}?${query}` : basePath;
       const response = await api.get<{
         success: boolean;
         stats: EnrichmentStats;
-      }>(`/api/enrichment/stats${params}`);
+      }>(url);
 
       return response.data.stats;
     } catch (error) {

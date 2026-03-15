@@ -1,6 +1,8 @@
 /**
  * Enrichment API Service
  * Frontend service for item data enrichment operations
+ *
+ * Backend routes live under: /api/v1/enrichment/*
  */
 
 import apiClient from "../httpClient";
@@ -26,6 +28,18 @@ interface ApiError {
   message?: string;
 }
 
+const ENRICHMENT_BASE = "/api/v1/enrichment";
+
+const toErrorMessage = (error: unknown, fallback: string) => {
+  const err = error as ApiError;
+  const detail = err.response?.data?.detail;
+  return (
+    (typeof detail === "object" && detail !== null ? detail.message : detail) ||
+    err.message ||
+    fallback
+  );
+};
+
 /**
  * Enrich/correct data for a specific item
  */
@@ -34,20 +48,28 @@ export const enrichItem = async (
   enrichmentData: EnrichmentData,
 ): Promise<EnrichmentResponse> => {
   try {
-    const response = await apiClient.post(
-      `/enrichment/items/${itemCode}`,
-      enrichmentData,
-    );
-    return response.data.data;
+    const response = await apiClient.post(`${ENRICHMENT_BASE}/record`, {
+      item_code: itemCode,
+      ...enrichmentData,
+    });
+
+    const payload = response.data;
+    const fieldsUpdated = Array.isArray(payload?.fields_updated)
+      ? payload.fields_updated
+      : [];
+
+    // Map backend response into the app's canonical type.
+    return {
+      success: Boolean(payload?.success),
+      item_code: payload?.item_code ?? itemCode,
+      fields_updated: fieldsUpdated,
+      data_complete: Boolean(payload?.data_complete),
+      completion_percentage: Number(payload?.completion_percentage ?? 0),
+      updated_at: new Date().toISOString(),
+    };
   } catch (error: unknown) {
     __DEV__ && console.error("Enrichment failed:", error);
-    const err = error as ApiError;
-    const detail = err.response?.data?.detail;
-    const message =
-      typeof detail === "object" && detail !== null
-        ? detail.message
-        : (detail as string) || err.message || "Failed to enrich item data";
-    throw new Error(message);
+    throw new Error(toErrorMessage(error, "Failed to enrich item data"));
   }
 };
 
@@ -59,16 +81,19 @@ export const getMissingFields = async (
 ): Promise<MissingFieldsInfo> => {
   try {
     const response = await apiClient.get(
-      `/enrichment/items/${itemCode}/missing-fields`,
+      `${ENRICHMENT_BASE}/completeness/${encodeURIComponent(itemCode)}`,
     );
-    return response.data.data;
+
+    const payload = response.data;
+    return {
+      item_code: payload?.item_code ?? itemCode,
+      missing_fields: payload?.missing_fields ?? [],
+      completion_percentage: Number(payload?.percentage ?? 0),
+      is_complete: Boolean(payload?.is_complete),
+    };
   } catch (error: unknown) {
     __DEV__ && console.error("Failed to get missing fields:", error);
-    const err = error as ApiError;
-    const detail = err.response?.data?.detail;
-    const message =
-      (detail as string) || err.message || "Failed to get missing fields";
-    throw new Error(message);
+    throw new Error(toErrorMessage(error, "Failed to get missing fields"));
   }
 };
 
@@ -79,42 +104,33 @@ export const getEnrichmentHistory = async (
   itemCode: string,
   limit: number = 10,
 ): Promise<EnrichmentHistoryEntry[]> => {
-  try {
-    const response = await apiClient.get(
-      `/enrichment/items/${itemCode}/history`,
-      {
-        params: { limit },
-      },
-    );
-    return response.data.data.history;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Failed to get enrichment history:", error);
-    const err = error as ApiError;
-    const detail = err.response?.data?.detail;
-    const message =
-      (detail as string) || err.message || "Failed to get enrichment history";
-    throw new Error(message);
-  }
+  // Not currently implemented on the backend.
+  throw new Error(
+    `Enrichment history is not available (no backend endpoint). itemCode=${itemCode}, limit=${limit}`,
+  );
 };
 
 /**
  * Validate enrichment data without saving
  */
 export const validateEnrichmentData = async (
+  itemCode: string,
   enrichmentData: EnrichmentData,
 ): Promise<EnrichmentValidation> => {
   try {
-    const response = await apiClient.post(
-      "/enrichment/validate",
-      enrichmentData,
-    );
-    return response.data.data;
+    const response = await apiClient.post(`${ENRICHMENT_BASE}/validate`, {
+      item_code: itemCode,
+      ...enrichmentData,
+    });
+
+    const payload = response.data;
+    return {
+      is_valid: Boolean(payload?.is_valid),
+      errors: payload?.errors ?? [],
+    };
   } catch (error: unknown) {
     __DEV__ && console.error("Validation failed:", error);
-    const err = error as ApiError;
-    const detail = err.response?.data?.detail;
-    const message = (detail as string) || err.message || "Validation failed";
-    throw new Error(message);
+    throw new Error(toErrorMessage(error, "Validation failed"));
   }
 };
 
@@ -127,17 +143,24 @@ export const getIncompleteItems = async (
   category?: string,
 ): Promise<IncompleteItemsResponse> => {
   try {
-    const response = await apiClient.get("/enrichment/incomplete-items", {
-      params: { limit, skip, category },
+    const response = await apiClient.get(`${ENRICHMENT_BASE}/incomplete`, {
+      params: { limit, category },
     });
-    return response.data.data;
+
+    const payload = response.data;
+    const items = payload?.items ?? [];
+    const total = Number(payload?.count ?? items.length);
+
+    // Backend doesn't support paging; we keep the API stable for callers.
+    return {
+      items,
+      total,
+      limit,
+      skip,
+    };
   } catch (error: unknown) {
     __DEV__ && console.error("Failed to get incomplete items:", error);
-    const err = error as ApiError;
-    const detail = err.response?.data?.detail;
-    const message =
-      (detail as string) || err.message || "Failed to get incomplete items";
-    throw new Error(message);
+    throw new Error(toErrorMessage(error, "Failed to get incomplete items"));
   }
 };
 
@@ -149,17 +172,32 @@ export const getEnrichmentStats = async (
   dateTo?: string,
 ): Promise<EnrichmentStats> => {
   try {
-    const response = await apiClient.get("/enrichment/stats", {
-      params: { date_from: dateFrom, date_to: dateTo },
+    const response = await apiClient.get(`${ENRICHMENT_BASE}/stats`, {
+      params: { start_date: dateFrom, end_date: dateTo },
     });
-    return response.data.data;
+
+    // Backend returns: { success: true, stats: {...} }
+    const payload = response.data?.stats ?? response.data;
+    const totalItems = Number(payload?.total_items ?? 0);
+    const completeItems = Number(payload?.complete_items ?? 0);
+    const fieldCounts = payload?.field_counts ?? {};
+
+    return {
+      total_items: totalItems,
+      complete_items: completeItems,
+      incomplete_items: Math.max(0, totalItems - completeItems),
+      completion_percentage: Number(payload?.completion_rate ?? 0),
+      field_stats: {
+        serial_numbers: Number(fieldCounts?.serial_number ?? 0),
+        mrp: Number(fieldCounts?.mrp ?? 0),
+        hsn_codes: Number(fieldCounts?.hsn_code ?? 0),
+        locations: Number(fieldCounts?.location ?? 0),
+      },
+      top_contributors: [],
+    };
   } catch (error: unknown) {
     __DEV__ && console.error("Failed to get enrichment stats:", error);
-    const err = error as ApiError;
-    const detail = err.response?.data?.detail;
-    const message =
-      (detail as string) || err.message || "Failed to get enrichment stats";
-    throw new Error(message);
+    throw new Error(toErrorMessage(error, "Failed to get enrichment stats"));
   }
 };
 
@@ -170,16 +208,18 @@ export const bulkImportEnrichments = async (
   enrichments: EnrichmentRequest[],
 ): Promise<BulkImportResult> => {
   try {
-    const response = await apiClient.post("/enrichment/bulk-import", {
-      enrichments,
-    });
-    return response.data.data;
+    const payload = {
+      enrichments: enrichments.map((entry) => ({
+        item_code: entry.item_code,
+        ...(entry.enrichment || {}),
+      })),
+    };
+
+    const response = await apiClient.post(`${ENRICHMENT_BASE}/bulk`, payload);
+    return response.data.results;
   } catch (error: unknown) {
     __DEV__ && console.error("Bulk import failed:", error);
-    const err = error as ApiError;
-    const detail = err.response?.data?.detail;
-    const message = (detail as string) || err.message || "Bulk import failed";
-    throw new Error(message);
+    throw new Error(toErrorMessage(error, "Bulk import failed"));
   }
 };
 
@@ -190,19 +230,10 @@ export const bulkImportEnrichments = async (
 export const checkItemQtyRealtime = async (
   itemCode: string,
 ): Promise<QtyCheckResult> => {
-  try {
-    const response = await apiClient.get(
-      `/enrichment/items/${itemCode}/check-qty`,
-    );
-    return response.data.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Real-time qty check failed:", error);
-    const err = error as ApiError;
-    const detail = err.response?.data?.detail;
-    const message =
-      (detail as string) || err.message || "Failed to check quantity";
-    throw new Error(message);
-  }
+  // Not currently implemented on the backend.
+  throw new Error(
+    `Real-time qty check is not available (no backend endpoint). itemCode=${itemCode}`,
+  );
 };
 
 /**
@@ -211,17 +242,7 @@ export const checkItemQtyRealtime = async (
 export const recalculateCompleteness = async (): Promise<{
   items_updated: number;
 }> => {
-  try {
-    const response = await apiClient.post(
-      "/enrichment/recalculate-completeness",
-    );
-    return response.data.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Recalculation failed:", error);
-    const err = error as ApiError;
-    const detail = err.response?.data?.detail;
-    const message =
-      (detail as string) || err.message || "Failed to recalculate completeness";
-    throw new Error(message);
-  }
+  // Not currently implemented on the backend.
+  throw new Error("Recalculate completeness is not available (no backend endpoint).");
 };
+

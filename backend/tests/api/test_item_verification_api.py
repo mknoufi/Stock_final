@@ -1,13 +1,15 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from fastapi import HTTPException
+from datetime import datetime, timezone
 
 from backend.api.item_verification_api import (
     ItemUpdateRequest,
     VerificationRequest,
     build_item_filter_query,
     init_verification_api,
+    sync_items_for_offline_cache,
     update_item_master,
     verify_item,
 )
@@ -123,3 +125,63 @@ def test_build_item_filter_query():
     # Test empty filters
     query = build_item_filter_query()
     assert query == {}
+
+
+@pytest.mark.asyncio
+async def test_sync_items_for_offline_cache_with_since(setup_mocks):
+    mock_db, _ = setup_mocks
+
+    since = datetime(2025, 1, 1, tzinfo=timezone.utc).replace(tzinfo=None)
+
+    cursor = Mock()
+    cursor.sort.return_value = cursor
+    cursor.limit.return_value = cursor
+    cursor.to_list = AsyncMock(
+        return_value=[
+        {
+            "barcode": "510001",
+            "item_code": "CODE123",
+            "item_name": "Test Item",
+            "category": "Cat",
+            "verified": True,
+            "verified_at": since,
+            "last_scanned_at": since,
+        }
+        ]
+    )
+    # Motor's collection.find() is sync (returns a cursor), so use a normal Mock.
+    mock_db.erp_items.find = Mock(return_value=cursor)
+
+    response = await sync_items_for_offline_cache(since=since, limit=10, current_user={"username": "u"})
+
+    assert response["success"] is True
+    assert response["count"] == 1
+    assert len(response["items"]) == 1
+    assert response["items"][0]["barcode"] == "510001"
+    assert response["items"][0]["verified_at"] == since.isoformat()
+    assert response["items"][0]["last_scanned_at"] == since.isoformat()
+
+    # Ensure the query includes a since filter for change timestamps.
+    find_args, _find_kwargs = mock_db.erp_items.find.call_args
+    assert "barcode" in find_args[0]
+    assert "$or" in find_args[0]
+
+
+@pytest.mark.asyncio
+async def test_sync_items_for_offline_cache_without_since(setup_mocks):
+    mock_db, _ = setup_mocks
+
+    cursor = Mock()
+    cursor.sort.return_value = cursor
+    cursor.limit.return_value = cursor
+    cursor.to_list = AsyncMock(return_value=[])
+    mock_db.erp_items.find = Mock(return_value=cursor)
+
+    response = await sync_items_for_offline_cache(since=None, limit=5, current_user={"username": "u"})
+
+    assert response["success"] is True
+    assert response["count"] == 0
+    assert response["items"] == []
+
+    find_args, _find_kwargs = mock_db.erp_items.find.call_args
+    assert find_args[0] == {"barcode": {"$exists": True, "$ne": ""}}

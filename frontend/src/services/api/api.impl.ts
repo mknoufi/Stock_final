@@ -279,7 +279,7 @@ export const testMapping = async (
     if (user) params.append("user", user);
     if (password) params.append("password", password);
 
-    const response = await api.post(`/api/mapping/test?${params.toString()}`, config);
+    const response = await api.post(`/api/mapping/preview?${params.toString()}`, config);
     return response.data;
   } catch (error: unknown) {
     __DEV__ && console.error("Test mapping error:", error);

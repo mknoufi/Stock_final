@@ -38,6 +38,7 @@ class RouterRegistry:
     analytics_router: APIRouter
     sync_batch_router: APIRouter
     unknown_items_router: APIRouter
+    unknown_items_public_router: APIRouter
     rack_router: APIRouter
     session_mgmt_router: APIRouter
     user_settings_router: APIRouter
@@ -96,6 +97,7 @@ def register_routers(app: FastAPI, registry: RouterRegistry, logger: Any) -> Non
     app.include_router(registry.analytics_router, prefix="/api")
 
     app.include_router(registry.sync_batch_router)
+    app.include_router(registry.unknown_items_public_router, prefix="/api")
     app.include_router(registry.unknown_items_router)
     app.include_router(registry.rack_router)
     app.include_router(registry.session_mgmt_router)

@@ -23,7 +23,7 @@ class WebSocketService {
   /**
    * Connect to the WebSocket server with authentication.
    * @param baseUrl - Base URL (e.g., "ws://192.168.1.100:8001")
-   * @param endpoint - Endpoint path (e.g., "/api/ws/supervisor")
+   * @param endpoint - Endpoint path (e.g., "/ws/updates")
    */
   async connect(baseUrl: string, endpoint: string = "/ws/updates") {
     // Get auth token
@@ -213,8 +213,8 @@ export const webSocketService = new WebSocketService();
 /**
  * Example usage:
  *
- * // Connect to supervisor WebSocket
- * await webSocketService.connect("ws://192.168.1.100:8001", "/api/ws/supervisor");
+ * // Connect to updates WebSocket
+ * await webSocketService.connect("ws://192.168.1.100:8001", "/ws/updates");
  *
  * // Subscribe to session updates
  * webSocketService.subscribe("session_update", (data) => {

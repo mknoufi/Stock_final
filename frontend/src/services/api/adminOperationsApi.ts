@@ -465,7 +465,7 @@ export const batchResolveSyncConflicts = async (
 
 export const getSyncConflictStats = async () => {
   try {
-    const response = await api.get("/api/sync/conflicts/stats");
+    const response = await api.get("/api/sync/conflicts/stats/summary");
     return response.data;
   } catch (error: unknown) {
     __DEV__ && console.error("Get sync conflict stats error:", error);
@@ -747,43 +747,25 @@ export const getIpTracking = async (hours: number = 24) => {
 
 // SQL Server Connection API
 export const getSQLStatus = async () => {
-  try {
-    const response = await api.get("/api/admin/sql/status");
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get SQL status error:", error);
-    throw error;
-  }
+  // Backwards-compatible alias: the backend exposes connection status via
+  // POST /api/admin/control/sql-server/test (with an empty body).
+  return await testSqlServerConnection();
 };
 
 export const testSQLConnection = async (config: Record<string, unknown>) => {
-  try {
-    const response = await api.post("/api/admin/sql/test", config);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Test SQL connection error:", error);
-    throw error;
-  }
+  // Backwards-compatible alias
+  return await testSqlServerConnection(config);
 };
 
 export const configureSQLConnection = async (config: Record<string, unknown>) => {
-  try {
-    const response = await api.post("/api/admin/sql/configure", config);
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Configure SQL connection error:", error);
-    throw error;
-  }
+  // Backwards-compatible alias
+  return await updateSqlServerConfig(config);
 };
 
 export const getSQLConnectionHistory = async () => {
-  try {
-    const response = await api.get("/api/admin/sql/history");
-    return response.data;
-  } catch (error: unknown) {
-    __DEV__ && console.error("Get SQL connection history error:", error);
-    throw error;
-  }
+  // Backwards-compatible alias: the backend doesn't have a dedicated SQL
+  // connection history endpoint, but we do expose service logs for sql_server.
+  return await getServiceLogs("sql_server", 200);
 };
 
 // Master Settings API

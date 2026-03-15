@@ -116,6 +116,18 @@ export const getLocalItems = async (): Promise<LocalItem[]> => {
 };
 
 /**
+ * Get the latest item sync timestamp from the local items table.
+ * Used to request incremental updates from the backend.
+ */
+export const getLatestItemSyncTimestamp = async (): Promise<string | null> => {
+  const db = await getDb();
+  const row = await db.getFirstAsync<{ last_sync: string | null }>(
+    "SELECT MAX(last_sync) as last_sync FROM items",
+  );
+  return row?.last_sync ?? null;
+};
+
+/**
  * Add a pending verification.
  */
 export const addPendingVerification = async (

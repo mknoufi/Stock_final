@@ -3,12 +3,13 @@ Unknown Items API - Management of items scanned but not found in ERP/Cache
 """
 
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from backend.auth.dependencies import get_current_user_async as get_current_user
 from backend.db.runtime import get_db
@@ -16,6 +17,23 @@ from backend.db.runtime import get_db
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin/unknown-items", tags=["Unknown Items Management"])
+public_router = APIRouter(prefix="/unknown-items", tags=["Unknown Items"])
+
+
+class UnknownItemReportRequest(BaseModel):
+    """Report an unknown barcode/item encountered during counting.
+
+    Keep this schema flexible: clients may attach extra metadata which we persist.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    session_id: Optional[str] = None
+    barcode: Optional[str] = None
+    counted_qty: Optional[float] = None
+    floor_no: Optional[str] = None
+    rack_no: Optional[str] = None
+    notes: Optional[str] = None
 
 
 class MapUnknownItemRequest(BaseModel):
@@ -37,6 +55,32 @@ def _require_admin(current_user: dict = Depends(get_current_user)):
     if current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return current_user
+
+
+@public_router.post("")
+async def report_unknown_item(
+    request: UnknownItemReportRequest,
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = Depends(get_current_user),
+):
+    """Create an unknown item report (staff/supervisor/admin)."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    item_data: dict[str, Any] = request.model_dump(exclude_none=True)
+    # Prevent clients from spoofing audit fields.
+    item_data.pop("reported_by", None)
+    item_data.pop("reported_at", None)
+    item_data.pop("synced_at", None)
+
+    item_data.setdefault("id", str(uuid.uuid4()))
+    item_data.setdefault("counted_qty", 1.0)
+    item_data["reported_by"] = current_user.get("username")
+    item_data["reported_at"] = now
+    item_data["synced_at"] = now
+
+    await db.unknown_items.insert_one(item_data)
+
+    return {"success": True, "data": {"id": item_data["id"]}}
 
 
 @router.get("")
