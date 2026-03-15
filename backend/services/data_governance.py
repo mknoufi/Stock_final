@@ -42,7 +42,9 @@ class DataSubjectRequest(BaseModel):
     subject_id: str  # User ID or email
     subject_email: Optional[str] = None
     status: str = "pending"  # pending, processing, completed, denied
-    requested_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None))
+    requested_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc).replace(tzinfo=None)
+    )
     completed_at: Optional[datetime] = None
     processed_by: Optional[str] = None
     notes: Optional[str] = None
@@ -151,7 +153,9 @@ class DataGovernanceService:
         async for policy_doc in self.policies_collection.find():
             policy = RetentionPolicy(**{k: v for k, v in policy_doc.items() if k != "_id"})
 
-            cutoff_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=policy.retention_days)
+            cutoff_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+                days=policy.retention_days
+            )
             collection = self.db[policy.collection_name]
 
             try:

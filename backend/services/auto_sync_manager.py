@@ -158,7 +158,9 @@ class AutoSyncManager:
         logger.info("✅ SQL Server connection restored - triggering sync")
         self._sql_available = True
         self._stats["connection_restored"] += 1
-        self._stats["last_connection_time"] = datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        self._stats["last_connection_time"] = (
+            datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+        )
 
         await self._trigger_sync()
 
@@ -191,7 +193,9 @@ class AutoSyncManager:
 
         # Check if enough time has passed since last sync
         if self._last_sync_attempt:
-            time_since_last = (datetime.now(timezone.utc).replace(tzinfo=None) - self._last_sync_attempt).total_seconds()
+            time_since_last = (
+                datetime.now(timezone.utc).replace(tzinfo=None) - self._last_sync_attempt
+            ).total_seconds()
             if time_since_last < self.sync_interval:
                 logger.info(
                     f"Sync skipped - only {time_since_last:.0f}s since last sync (interval: {self.sync_interval}s)"

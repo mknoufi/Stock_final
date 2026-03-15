@@ -43,7 +43,9 @@ class SystemReportService:
         metric_rows = [
             self._serialize_row(row)
             for row in system_metrics
-            if self._is_in_range(self._extract_timestamp(row, "timestamp", "recorded_at"), start_dt, end_dt)
+            if self._is_in_range(
+                self._extract_timestamp(row, "timestamp", "recorded_at"), start_dt, end_dt
+            )
         ]
         if metric_rows:
             metric_rows.sort(key=lambda row: row.get("timestamp", ""), reverse=True)
@@ -107,7 +109,9 @@ class SystemReportService:
                     {
                         "timestamp": timestamp,
                         "username": log.get("actor_username") or log.get("user"),
-                        "action": self._normalize_scalar(log.get("event_type") or log.get("action")),
+                        "action": self._normalize_scalar(
+                            log.get("event_type") or log.get("action")
+                        ),
                         "status": self._normalize_scalar(log.get("status", "success")),
                         "ip_address": log.get("ip_address"),
                         "source": "audit_log",
@@ -171,7 +175,9 @@ class SystemReportService:
                         "timestamp": timestamp,
                         "sync_type": log.get("_id") or log.get("type") or "erp_sync_metadata",
                         "status": self._normalize_scalar(log.get("status", "completed")),
-                        "items_processed": log.get("items_processed") or log.get("updated_count") or 0,
+                        "items_processed": log.get("items_processed")
+                        or log.get("updated_count")
+                        or 0,
                         "duration_ms": log.get("duration_ms") or log.get("last_sync_duration"),
                         "source": "erp_sync_metadata",
                     }
@@ -220,7 +226,9 @@ class SystemReportService:
                 self._serialize_row(
                     {
                         "timestamp": timestamp,
-                        "action": self._normalize_scalar(log.get("event_type") or log.get("action")),
+                        "action": self._normalize_scalar(
+                            log.get("event_type") or log.get("action")
+                        ),
                         "user": log.get("actor_username") or log.get("user") or "System",
                         "status": self._normalize_scalar(log.get("status") or "success"),
                         "resource_id": log.get("resource_id"),
@@ -266,7 +274,10 @@ class SystemReportService:
             collection = self.db[collection_name]
             return await collection.find({}).limit(limit).to_list(length=limit)
         except Exception as exc:
-            logger.warning("Failed to fetch report source collection", extra={"collection": collection_name, "error": str(exc)})
+            logger.warning(
+                "Failed to fetch report source collection",
+                extra={"collection": collection_name, "error": str(exc)},
+            )
             return []
 
     async def _count_rows_in_range(
@@ -284,7 +295,10 @@ class SystemReportService:
         return count
 
     def _aggregate_api_metrics(
-        self, metrics: list[dict[str, Any]], start_dt: Optional[datetime], end_dt: Optional[datetime]
+        self,
+        metrics: list[dict[str, Any]],
+        start_dt: Optional[datetime],
+        end_dt: Optional[datetime],
     ) -> list[dict[str, Any]]:
         buckets: dict[datetime, dict[str, Any]] = defaultdict(
             lambda: {"request_count": 0, "error_count": 0, "latency_total": 0.0, "latency_count": 0}
@@ -383,7 +397,10 @@ class SystemReportService:
         return None
 
     def _is_in_range(
-        self, timestamp: Optional[datetime], start_dt: Optional[datetime], end_dt: Optional[datetime]
+        self,
+        timestamp: Optional[datetime],
+        start_dt: Optional[datetime],
+        end_dt: Optional[datetime],
     ) -> bool:
         if timestamp is None:
             return False

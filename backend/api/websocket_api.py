@@ -38,7 +38,9 @@ def _extract_jwt_from_websocket(
     if len(subprotocols) == 1 and subprotocols[0].count(".") == 2:
         return subprotocols[0], None
 
-    cookie_token = websocket.cookies.get(getattr(settings, "AUTH_ACCESS_COOKIE_NAME", "sv_access_token"))
+    cookie_token = websocket.cookies.get(
+        getattr(settings, "AUTH_ACCESS_COOKIE_NAME", "sv_access_token")
+    )
     if cookie_token and len(cookie_token) >= 2 and cookie_token[0] == cookie_token[-1] == '"':
         cookie_token = cookie_token[1:-1]
     if cookie_token:

@@ -330,7 +330,9 @@ class SQLSyncService:
 
             if not mongo_items:
                 logger.info("No items in MongoDB to sync")
-                stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+                stats["duration"] = (
+                    datetime.now(timezone.utc).replace(tzinfo=None) - start_time
+                ).total_seconds()
                 return stats
 
             stats["items_checked"] = len(mongo_items)
@@ -384,7 +386,9 @@ class SQLSyncService:
                     logger.error(f"Error syncing batch starting at index {i}: {e}")
                     stats["errors"] += 1
 
-            stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+            stats["duration"] = (
+                datetime.now(timezone.utc).replace(tzinfo=None) - start_time
+            ).total_seconds()
             self._finalize_sync_stats(stats)
 
             logger.info(
@@ -455,7 +459,9 @@ class SQLSyncService:
 
             if not new_items:
                 logger.info("No new items found in SQL Server")
-                stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+                stats["duration"] = (
+                    datetime.now(timezone.utc).replace(tzinfo=None) - start_time
+                ).total_seconds()
                 self._last_new_item_check = datetime.now(timezone.utc).replace(tzinfo=None)
                 return stats
 
@@ -474,7 +480,9 @@ class SQLSyncService:
                     logger.error(f"Error creating item {sql_item.get('item_code')}: {e}")
                     stats["errors"] += 1
 
-            stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+            stats["duration"] = (
+                datetime.now(timezone.utc).replace(tzinfo=None) - start_time
+            ).total_seconds()
             self._last_new_item_check = datetime.now(timezone.utc).replace(tzinfo=None)
             self._sync_stats["new_items_discovered"] += stats["items_discovered"]
 
@@ -494,7 +502,9 @@ class SQLSyncService:
         """Check if it's time to discover new items (every 30 minutes)."""
         if self._last_new_item_check is None:
             return True
-        elapsed = (datetime.now(timezone.utc).replace(tzinfo=None) - self._last_new_item_check).total_seconds()
+        elapsed = (
+            datetime.now(timezone.utc).replace(tzinfo=None) - self._last_new_item_check
+        ).total_seconds()
         return elapsed >= self._new_item_check_interval
 
     def should_run_nightly_sync(self) -> bool:
@@ -568,7 +578,9 @@ class SQLSyncService:
                         logger.error(f"Error syncing item {sql_item.get('item_code')}: {e}")
                         stats["errors"] += 1
 
-            stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+            stats["duration"] = (
+                datetime.now(timezone.utc).replace(tzinfo=None) - start_time
+            ).total_seconds()
             self._last_nightly_sync = datetime.now(timezone.utc).replace(tzinfo=None)
             self._sync_stats["last_nightly_sync"] = self._last_nightly_sync.isoformat()
 
@@ -627,7 +639,9 @@ class SQLSyncService:
                         logger.error(f"Error syncing item {sql_item.get('item_code')}: {str(e)}")
                         stats["errors"] += 1
 
-            stats["duration"] = (datetime.now(timezone.utc).replace(tzinfo=None) - start_time).total_seconds()
+            stats["duration"] = (
+                datetime.now(timezone.utc).replace(tzinfo=None) - start_time
+            ).total_seconds()
             self._finalize_sync_stats(stats)
 
             logger.info(

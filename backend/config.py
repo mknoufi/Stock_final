@@ -475,8 +475,7 @@ except Exception as e:
         def __init__(self):
             # Keep behavior consistent with Settings: support env aliases + auto-detect
             mongo_url = (
-                _env_first("MONGO_URL", "MONGODB_URI", "MONGODB_URL")
-                or "mongodb://localhost:27017"
+                _env_first("MONGO_URL", "MONGODB_URI", "MONGODB_URL") or "mongodb://localhost:27017"
             )
             if mongo_url == "mongodb://localhost:27017":
                 try:
@@ -545,9 +544,7 @@ except Exception as e:
             self.AUTO_SEED_MOCK_ERP_DATA = (
                 os.getenv("AUTO_SEED_MOCK_ERP_DATA", "false").lower() == "true"
             )
-            self.AUTH_ACCESS_COOKIE_NAME = os.getenv(
-                "AUTH_ACCESS_COOKIE_NAME", "sv_access_token"
-            )
+            self.AUTH_ACCESS_COOKIE_NAME = os.getenv("AUTH_ACCESS_COOKIE_NAME", "sv_access_token")
             self.AUTH_REFRESH_COOKIE_NAME = os.getenv(
                 "AUTH_REFRESH_COOKIE_NAME", "sv_refresh_token"
             )

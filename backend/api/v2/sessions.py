@@ -119,7 +119,9 @@ async def get_sessions_v2(
                 status=session.get("status", "active"),
                 type=session.get("type", "STANDARD"),
                 created_by=session.get("created_by", ""),
-                created_at=session.get("created_at", datetime.now(timezone.utc).replace(tzinfo=None)),
+                created_at=session.get(
+                    "created_at", datetime.now(timezone.utc).replace(tzinfo=None)
+                ),
                 updated_at=session.get("updated_at"),
             )
             for session in sessions

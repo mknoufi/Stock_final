@@ -73,9 +73,7 @@ async def backfill_empty_session_snapshots(
                     stats["missing_sessions"] += 1
 
             warehouse = (
-                (session_doc or {}).get("warehouse")
-                or snapshot_doc.get("warehouse")
-                or ""
+                (session_doc or {}).get("warehouse") or snapshot_doc.get("warehouse") or ""
             ).strip()
             location_type = (session_doc or {}).get("location_type")
             location_name = (session_doc or {}).get("location_name")
@@ -136,10 +134,16 @@ async def backfill_empty_session_snapshots(
                 session_update = {"snapshot_hash": snapshot_hash}
                 if snapshot_doc.get("id") and not session_doc.get("snapshot_items_ref"):
                     session_update["snapshot_items_ref"] = snapshot_doc["id"]
-                if snapshot_doc.get("config_version_id") and not session_doc.get("config_version_id"):
+                if snapshot_doc.get("config_version_id") and not session_doc.get(
+                    "config_version_id"
+                ):
                     session_update["config_version_id"] = snapshot_doc["config_version_id"]
 
-                session_filter = {"_id": session_doc["_id"]} if session_doc.get("_id") else {"id": current_session_id}
+                session_filter = (
+                    {"_id": session_doc["_id"]}
+                    if session_doc.get("_id")
+                    else {"id": current_session_id}
+                )
                 session_result = await db.sessions.update_one(
                     session_filter,
                     {"$set": session_update},

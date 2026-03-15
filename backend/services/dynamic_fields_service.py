@@ -165,7 +165,12 @@ class DynamicFieldsService:
         try:
             result = await self.field_definitions.update_one(
                 {"_id": ObjectId(field_id)},
-                {"$set": {"enabled": False, "deleted_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
+                {
+                    "$set": {
+                        "enabled": False,
+                        "deleted_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    }
+                },
             )
 
             return result.modified_count > 0

@@ -288,9 +288,9 @@ class NotificationService:
         if not self.notification_devices:
             return
 
-        devices = await (
-            self.notification_devices.find({"user_id": user_id, "enabled": True}).to_list(length=None)
-        )
+        devices = await self.notification_devices.find(
+            {"user_id": user_id, "enabled": True}
+        ).to_list(length=None)
         expo_tokens = [
             device["token"]
             for device in devices
@@ -310,7 +310,9 @@ class NotificationService:
                     "action_url": notification.get("action_url"),
                     "metadata": notification.get("metadata", {}),
                 },
-                "priority": "high" if notification.get("priority") in {"high", "urgent"} else "default",
+                "priority": (
+                    "high" if notification.get("priority") in {"high", "urgent"} else "default"
+                ),
                 "sound": "default",
             }
             for token in expo_tokens

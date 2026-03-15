@@ -42,6 +42,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 def _get_request_user_agent(request: Request) -> Optional[str]:
     return request.headers.get("user-agent")
 
@@ -1298,7 +1299,12 @@ async def password_reset_confirm(data: PasswordResetConfirm):
 
         await db.users.update_one(
             {"_id": ObjectId(user_id)},
-            {"$set": {"hashed_password": hashed_password, "updated_at": datetime.now(timezone.utc)}},
+            {
+                "$set": {
+                    "hashed_password": hashed_password,
+                    "updated_at": datetime.now(timezone.utc),
+                }
+            },
         )
 
         # Optional: confirmation should not block a successful password reset

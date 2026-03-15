@@ -185,13 +185,11 @@ class DatabaseManager:
                 return {"status": "error", "error": "SQL Server not connected"}
 
             cursor = self.sql_connector.connection.cursor()
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT COUNT(*) FROM dbo.Products P
                 INNER JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID
                 WHERE P.IsActive = 1 AND PB.AutoBarcode IS NOT NULL
-            """
-            )
+            """)
             sql_count = cursor.fetchone()[0]
             cursor.close()
 
@@ -440,13 +438,11 @@ class DatabaseManager:
 
         try:
             cursor = self.sql_connector.connection.cursor()
-            cursor.execute(
-                """
+            cursor.execute("""
                 SELECT COUNT(*) FROM dbo.Products P
                 LEFT JOIN dbo.ProductBatches PB ON P.ProductID = PB.ProductID
                 WHERE P.IsActive = 1 AND (PB.AutoBarcode IS NULL OR PB.AutoBarcode = '')
-            """
-            )
+            """)
             items_without_barcodes = cursor.fetchone()[0]
             cursor.close()
 

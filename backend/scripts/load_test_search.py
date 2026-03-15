@@ -17,9 +17,7 @@ class SearchUser(HttpUser):
         )
         if response.status_code == 200:
             payload = response.json()
-            self.token = payload.get("access_token") or payload.get("data", {}).get(
-                "access_token"
-            )
+            self.token = payload.get("access_token") or payload.get("data", {}).get("access_token")
             if not self.token:
                 print("Login succeeded but no access token found:", payload)
         else:

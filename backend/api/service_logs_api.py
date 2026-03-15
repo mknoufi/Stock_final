@@ -13,7 +13,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from backend.auth.dependencies import require_admin
 
-
 logger = logging.getLogger(__name__)
 
 service_logs_router = APIRouter(prefix="/api/admin/logs", tags=["Service Logs"])
