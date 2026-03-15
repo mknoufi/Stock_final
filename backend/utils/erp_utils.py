@@ -352,7 +352,10 @@ async def refresh_stock_from_erp(
             # Update MongoDB
             await db.erp_items.update_one(
                 {"item_code": item_code},
-                {"$set": item_data, "$setOnInsert": {"created_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
+                {
+                    "$set": item_data,
+                    "$setOnInsert": {"created_at": datetime.now(timezone.utc).replace(tzinfo=None)},
+                },
                 upsert=True,
             )
 

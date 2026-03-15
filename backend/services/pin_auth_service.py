@@ -125,7 +125,9 @@ class PINAuthService:
 
                 # Lock account after max attempts
                 if failed_attempts >= self.max_attempts:
-                    locked_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=self.lockout_duration)
+                    locked_until = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(
+                        minutes=self.lockout_duration
+                    )
                     update_data["$set"]["locked_until"] = locked_until
                     logger.warning(f"PIN account locked due to failed attempts: {user_id}")
 
@@ -158,7 +160,8 @@ class PINAuthService:
                 return {"enabled": False, "status": "not_set"}
 
             is_locked = (
-                pin_record.get("locked_until") and datetime.now(timezone.utc).replace(tzinfo=None) < pin_record["locked_until"]
+                pin_record.get("locked_until")
+                and datetime.now(timezone.utc).replace(tzinfo=None) < pin_record["locked_until"]
             )
 
             return {

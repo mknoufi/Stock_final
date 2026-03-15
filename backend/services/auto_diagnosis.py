@@ -674,7 +674,9 @@ class AutoDiagnosisService:
 
 async def run_nightly_diagnosis():
     """Run nightly diagnosis and health check"""
-    logger.info(f"Starting nightly diagnosis at {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}")
+    logger.info(
+        f"Starting nightly diagnosis at {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}"
+    )
     service = AutoDiagnosisService()
 
     # Add some basic health checks

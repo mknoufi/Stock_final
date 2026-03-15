@@ -112,15 +112,19 @@ async def _lookup_identified_items(
         exact_terms.extend(_get_barcode_variations(term))
     exact_terms = _dedupe_preserve_order(exact_terms)
 
-    exact_matches = await db.erp_items.find(
-        {
-            "$or": [
-                {"barcode": {"$in": exact_terms}},
-                {"manual_barcode": {"$in": exact_terms}},
-                {"item_code": {"$in": exact_terms}},
-            ]
-        }
-    ).limit(limit).to_list(length=limit)
+    exact_matches = (
+        await db.erp_items.find(
+            {
+                "$or": [
+                    {"barcode": {"$in": exact_terms}},
+                    {"manual_barcode": {"$in": exact_terms}},
+                    {"item_code": {"$in": exact_terms}},
+                ]
+            }
+        )
+        .limit(limit)
+        .to_list(length=limit)
+    )
     if exact_matches:
         return exact_matches, exact_terms
 

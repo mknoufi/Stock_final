@@ -324,9 +324,7 @@ def _build_snapshot_source_data(item: dict[str, Any]) -> dict[str, Any]:
         "uom_code",
     )
     return {
-        field: item[field]
-        for field in fields
-        if field in item and item[field] not in (None, "")
+        field: item[field] for field in fields if field in item and item[field] not in (None, "")
     }
 
 
@@ -538,11 +536,15 @@ def _derive_next_action(
         return WorkflowNextAction.REVIEW_PENDING
     if workflow_stage == WorkflowStage.PAUSED:
         return WorkflowNextAction.RESUME_PAUSED_SESSION
-    if session_status in {
-        CanonicalSessionStatus.OPEN,
-        CanonicalSessionStatus.ACTIVE,
-        CanonicalSessionStatus.RECONCILE,
-    } and presence_status != WorkflowPresenceStatus.ONLINE:
+    if (
+        session_status
+        in {
+            CanonicalSessionStatus.OPEN,
+            CanonicalSessionStatus.ACTIVE,
+            CanonicalSessionStatus.RECONCILE,
+        }
+        and presence_status != WorkflowPresenceStatus.ONLINE
+    ):
         return WorkflowNextAction.FOLLOW_UP_INACTIVE_SESSION
     if workflow_stage in {WorkflowStage.COUNTING, WorkflowStage.RECONCILING}:
         return WorkflowNextAction.MONITOR_ACTIVE_COUNT
@@ -610,9 +612,7 @@ async def _build_sessions_analytics_payload(db: AsyncIOMotorDatabase) -> dict[st
     return {
         "overall": overall_summary,
         "sessions_by_date": {item["_id"]: item["count"] for item in by_date},
-        "variance_by_warehouse": {
-            item["_id"]: item["total_variance"] for item in by_warehouse
-        },
+        "variance_by_warehouse": {item["_id"]: item["total_variance"] for item in by_warehouse},
         "items_by_staff": {item["_id"]: item["total_items"] for item in by_staff},
         "total_sessions": overall_summary.get("total_sessions", 0),
     }
@@ -948,9 +948,7 @@ async def get_user_workflows(
                         "_id": "$session_id",
                         "items_counted": {"$sum": 1},
                         "reviewed_items": {
-                            "$sum": {
-                                "$cond": [{"$in": ["$status", ["approved", "locked"]]}, 1, 0]
-                            }
+                            "$sum": {"$cond": [{"$in": ["$status", ["approved", "locked"]]}, 1, 0]}
                         },
                         "last_counted_at": {"$max": {"$ifNull": ["$updated_at", "$counted_at"]}},
                     }
@@ -980,9 +978,7 @@ async def get_user_workflows(
             },
         ]
     ).to_list(length=500)
-    pending_by_user = {
-        row["_id"]: row for row in pending_rows if isinstance(row.get("_id"), str)
-    }
+    pending_by_user = {row["_id"]: row for row in pending_rows if isinstance(row.get("_id"), str)}
 
     recount_rows = await db.count_lines.aggregate(
         [
@@ -1011,9 +1007,7 @@ async def get_user_workflows(
             },
         ]
     ).to_list(length=500)
-    recount_by_user = {
-        row["_id"]: row for row in recount_rows if isinstance(row.get("_id"), str)
-    }
+    recount_by_user = {row["_id"]: row for row in recount_rows if isinstance(row.get("_id"), str)}
 
     sessions_by_user: dict[str, list[dict[str, Any]]] = {}
     candidate_usernames = set(pending_by_user.keys()) | set(recount_by_user.keys())
@@ -1028,9 +1022,9 @@ async def get_user_workflows(
     if not candidate_usernames:
         return []
 
-    user_docs = await db.users.find(
-        {"username": {"$in": sorted(candidate_usernames)}}
-    ).to_list(length=len(candidate_usernames))
+    user_docs = await db.users.find({"username": {"$in": sorted(candidate_usernames)}}).to_list(
+        length=len(candidate_usernames)
+    )
     user_by_username = {
         user.get("username"): user
         for user in user_docs
@@ -1048,7 +1042,9 @@ async def get_user_workflows(
         active_session = user_sessions[0] if user_sessions else None
         active_session_id = active_session.get("session_id") if active_session else None
         session_meta = session_meta_by_id.get(active_session_id, {}) if active_session_id else {}
-        session_counts = session_counts_by_id.get(active_session_id, {}) if active_session_id else {}
+        session_counts = (
+            session_counts_by_id.get(active_session_id, {}) if active_session_id else {}
+        )
 
         pending_info = pending_by_user.get(username, {})
         recount_info = recount_by_user.get(username, {})

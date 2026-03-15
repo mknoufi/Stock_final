@@ -12,7 +12,6 @@ from pydantic import BaseModel, Field
 from backend.auth.dependencies import require_admin
 from backend.db.runtime import get_db
 
-
 logger = logging.getLogger(__name__)
 
 master_settings_router = APIRouter(prefix="/api/admin/settings", tags=["Master Settings"])

@@ -307,7 +307,9 @@ async def get_dashboard_stats(
                         {
                             "$match": {
                                 "counted_at": {
-                                    "$gte": datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0)
+                                    "$gte": datetime.now(timezone.utc)
+                                    .replace(tzinfo=None)
+                                    .replace(hour=0, minute=0, second=0)
                                 }
                             }
                         },

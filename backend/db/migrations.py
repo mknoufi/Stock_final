@@ -285,7 +285,7 @@ class MigrationManager:
 
     @staticmethod
     def _normalize_index_key(
-        key: Union[str, list[tuple[str, int]], Dict[str, Any], Any]
+        key: Union[str, list[tuple[str, int]], Dict[str, Any], Any],
     ) -> list[tuple[str, Any]]:
         """Normalize index specs so list_indexes() output can be compared with requested keys."""
         if isinstance(key, str):

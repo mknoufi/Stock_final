@@ -20,7 +20,9 @@ class WatchdogService:
         Example: > 10 stock counts in 1 minute.
         """
         try:
-            window_start = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=time_window_seconds)
+            window_start = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+                seconds=time_window_seconds
+            )
 
             pipeline = [
                 {
@@ -57,7 +59,9 @@ class WatchdogService:
         Check for high volume of login failures across the system (Distributed Brute Force).
         """
         try:
-            window_start = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(seconds=time_window_seconds)
+            window_start = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+                seconds=time_window_seconds
+            )
 
             count = await self.db.audit_logs.count_documents(
                 {
@@ -82,7 +86,9 @@ class WatchdogService:
         start = datetime.now(timezone.utc).replace(tzinfo=None)
         try:
             await self.db.command("ping")
-            latency = (datetime.now(timezone.utc).replace(tzinfo=None) - start).total_seconds() * 1000
+            latency = (
+                datetime.now(timezone.utc).replace(tzinfo=None) - start
+            ).total_seconds() * 1000
 
             if latency > 500:  # 500ms threshold
                 await self._raise_alert(

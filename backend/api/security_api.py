@@ -39,7 +39,9 @@ async def get_failed_logins(
         # Build query
         query = {
             "success": False,
-            "timestamp": {"$gte": datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)},
+            "timestamp": {
+                "$gte": datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
+            },
         }
 
         if username:
@@ -206,17 +208,23 @@ async def get_security_sessions(
                             "ip_address": token.get("ip_address", "unknown"),
                             "user_agent": token.get("user_agent", "unknown"),
                             "created_at": (
-                                token.get("created_at", datetime.now(timezone.utc).replace(tzinfo=None)).isoformat()
+                                token.get(
+                                    "created_at", datetime.now(timezone.utc).replace(tzinfo=None)
+                                ).isoformat()
                                 if isinstance(token.get("created_at"), datetime)
                                 else str(token.get("created_at", ""))
                             ),
                             "expires_at": (
-                                token.get("expires_at", datetime.now(timezone.utc).replace(tzinfo=None)).isoformat()
+                                token.get(
+                                    "expires_at", datetime.now(timezone.utc).replace(tzinfo=None)
+                                ).isoformat()
                                 if isinstance(token.get("expires_at"), datetime)
                                 else str(token.get("expires_at", ""))
                             ),
                             "last_used": (
-                                token.get("last_used", datetime.now(timezone.utc).replace(tzinfo=None)).isoformat()
+                                token.get(
+                                    "last_used", datetime.now(timezone.utc).replace(tzinfo=None)
+                                ).isoformat()
                                 if isinstance(token.get("last_used"), datetime)
                                 else str(token.get("last_used", ""))
                             ),
@@ -226,7 +234,10 @@ async def get_security_sessions(
         # Get statistics
         total_sessions = await db.refresh_tokens.count_documents({"revoked": False})
         active_sessions = await db.refresh_tokens.count_documents(
-            {"revoked": False, "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)}}
+            {
+                "revoked": False,
+                "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)},
+            }
         )
 
         return {
@@ -261,7 +272,11 @@ async def get_audit_log(
         db = get_db()
 
         # Build query
-        query = {"timestamp": {"$gte": datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)}}
+        query = {
+            "timestamp": {
+                "$gte": datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
+            }
+        }
 
         # Security-related actions
         security_actions = [
@@ -404,7 +419,10 @@ async def get_security_summary(
 
         # Active sessions
         active_sessions = await db.refresh_tokens.count_documents(
-            {"revoked": False, "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)}}
+            {
+                "revoked": False,
+                "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)},
+            }
         )
 
         # Suspicious IPs (5+ failed attempts)

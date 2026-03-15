@@ -166,7 +166,11 @@ async def count_pending_variances(db) -> int:
 async def count_items_verified_today(db) -> int:
     """Count items verified today."""
     try:
-        today_start = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
+        today_start = (
+            datetime.now(timezone.utc)
+            .replace(tzinfo=None)
+            .replace(hour=0, minute=0, second=0, microsecond=0)
+        )
         return await db.verification_records.count_documents(
             {"created_at": {"$gte": today_start}, "status": "verified"}
         )
@@ -319,7 +323,9 @@ async def get_active_users(current_user: dict = Depends(require_admin)):
 
                 # Determine online status
                 last_seen = record.get("last_seen", datetime.now(timezone.utc).replace(tzinfo=None))
-                minutes_ago = (datetime.now(timezone.utc).replace(tzinfo=None) - last_seen).total_seconds() / 60
+                minutes_ago = (
+                    datetime.now(timezone.utc).replace(tzinfo=None) - last_seen
+                ).total_seconds() / 60
                 user_status = "online" if minutes_ago < 5 else "idle"
 
                 active_users.append(
@@ -368,7 +374,9 @@ async def get_error_logs(
         return [
             ErrorLogEntry(
                 id=str(log.get("_id", "")),
-                timestamp=log.get("timestamp", datetime.now(timezone.utc).replace(tzinfo=None)).isoformat(),
+                timestamp=log.get(
+                    "timestamp", datetime.now(timezone.utc).replace(tzinfo=None)
+                ).isoformat(),
                 level=log.get("level", "ERROR"),
                 message=log.get("message", "Unknown error"),
                 endpoint=log.get("endpoint"),
@@ -433,7 +441,9 @@ async def get_performance_metrics(
             metrics.append(
                 PerformanceMetric(
                     timestamp=(
-                        bucket_time.isoformat() if bucket_time else datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
+                        bucket_time.isoformat()
+                        if bucket_time
+                        else datetime.now(timezone.utc).replace(tzinfo=None).isoformat()
                     ),
                     latency_ms=round(r.get("avg_latency", 0), 2),
                     throughput_rps=round(throughput, 3),

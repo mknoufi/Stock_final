@@ -585,19 +585,24 @@ class DynamicReportService:
         elements = [
             Paragraph(template_name or "Dynamic Report", styles["Title"]),
             Spacer(1, 0.15 * inch),
-            Paragraph(f"Generated at: {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}", styles["Normal"]),
+            Paragraph(
+                f"Generated at: {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}",
+                styles["Normal"],
+            ),
             Paragraph(f"Rows: {len(data)}", styles["Normal"]),
             Spacer(1, 0.2 * inch),
         ]
 
-        ordered_fields = fields or [{"name": key, "label": key} for key in (data[0].keys() if data else [])]
-        header_row = [stringify(field.get("label") or field.get("name")) for field in ordered_fields]
+        ordered_fields = fields or [
+            {"name": key, "label": key} for key in (data[0].keys() if data else [])
+        ]
+        header_row = [
+            stringify(field.get("label") or field.get("name")) for field in ordered_fields
+        ]
         table_rows = [header_row]
 
         for row in data:
-            table_rows.append(
-                [stringify(row.get(field["name"])) for field in ordered_fields]
-            )
+            table_rows.append([stringify(row.get(field["name"])) for field in ordered_fields])
 
         if len(table_rows) == 1:
             table_rows.append(["No data available"] + [""] * max(len(header_row) - 1, 0))
@@ -614,7 +619,12 @@ class DynamicReportService:
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d1d5db")),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+                    (
+                        "ROWBACKGROUNDS",
+                        (0, 1),
+                        (-1, -1),
+                        [colors.white, colors.HexColor("#f9fafb")],
+                    ),
                     ("FONTSIZE", (0, 0), (-1, -1), 8),
                     ("LEADING", (0, 0), (-1, -1), 10),
                     ("LEFTPADDING", (0, 0), (-1, -1), 4),

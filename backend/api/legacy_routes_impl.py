@@ -520,7 +520,8 @@ async def log_successful_login(user: dict[str, Any], ip_address: str, request: R
 
         # Update last login timestamp
         await db.users.update_one(
-            {"_id": user["_id"]}, {"$set": {"last_login_at": datetime.now(timezone.utc).replace(tzinfo=None)}}
+            {"_id": user["_id"]},
+            {"$set": {"last_login_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
         )
 
         # Log to monitoring
@@ -735,7 +736,12 @@ async def bulk_close_sessions(
             try:
                 result = await db.sessions.update_one(
                     {"id": session_id},
-                    {"$set": {"status": "CLOSED", "closed_at": datetime.now(timezone.utc).replace(tzinfo=None)}},
+                    {
+                        "$set": {
+                            "status": "CLOSED",
+                            "closed_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                        }
+                    },
                 )
                 if result.modified_count > 0:
                     updated_count += 1

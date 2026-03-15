@@ -5,7 +5,6 @@ Prevents DOS attacks via large request payloads
 
 import logging
 
-
 logger = logging.getLogger(__name__)
 
 

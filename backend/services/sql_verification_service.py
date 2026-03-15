@@ -503,7 +503,9 @@ class SQLVerificationService:
             latency_ms = (time.perf_counter() - start_time) * 1000
             logger.error(f"Governance Error verifying {item_code}: {str(e)}")
             error_text = str(e).lower()
-            if any(term in error_text for term in ["connection", "sql server", "timeout", "reconnect"]):
+            if any(
+                term in error_text for term in ["connection", "sql server", "timeout", "reconnect"]
+            ):
                 error_info = self._error_response(
                     error_code="SQL_CONNECTION_ERROR",
                     message="ERP system is temporarily unavailable. Please try again later.",
@@ -577,7 +579,10 @@ class SQLVerificationService:
                 "error_count": 0,
                 "results": [],
                 "errors": [],
-                "batch_duration_ms": (datetime.now(timezone.utc).replace(tzinfo=None) - start).total_seconds() * 1000,
+                "batch_duration_ms": (
+                    datetime.now(timezone.utc).replace(tzinfo=None) - start
+                ).total_seconds()
+                * 1000,
             }
 
         from backend.sql_server_connector import (
@@ -665,7 +670,10 @@ class SQLVerificationService:
                 "error_count": len(errors),
                 "results": [],
                 "errors": errors,
-                "batch_duration_ms": (datetime.now(timezone.utc).replace(tzinfo=None) - start).total_seconds() * 1000,
+                "batch_duration_ms": (
+                    datetime.now(timezone.utc).replace(tzinfo=None) - start
+                ).total_seconds()
+                * 1000,
             }
 
         if len(quantities) != len(item_codes):
@@ -704,7 +712,10 @@ class SQLVerificationService:
                 "error_count": len(errors),
                 "results": [],
                 "errors": errors,
-                "batch_duration_ms": (datetime.now(timezone.utc).replace(tzinfo=None) - start).total_seconds() * 1000,
+                "batch_duration_ms": (
+                    datetime.now(timezone.utc).replace(tzinfo=None) - start
+                ).total_seconds()
+                * 1000,
             }
 
         tasks = [
@@ -737,7 +748,10 @@ class SQLVerificationService:
             "error_count": len(errors),
             "results": processed_results,
             "errors": errors,
-            "batch_duration_ms": (datetime.now(timezone.utc).replace(tzinfo=None) - start).total_seconds() * 1000,
+            "batch_duration_ms": (
+                datetime.now(timezone.utc).replace(tzinfo=None) - start
+            ).total_seconds()
+            * 1000,
         }
 
     async def get_verification_status(self, item_code: str) -> Dict[str, Any]:
