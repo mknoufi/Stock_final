@@ -9,7 +9,7 @@ export type ReportType =
   | "session_history"
   | "audit_trail";
 
-export type ExportFormat = "csv" | "xlsx" | "pdf";
+export type ExportFormat = "json" | "csv" | "xlsx";
 
 export interface ReportFilters {
   date_from?: string;
@@ -17,16 +17,14 @@ export interface ReportFilters {
   warehouse?: string;
   user_id?: string;
   status?: string;
-  min_variance?: number;
-  include_zero_variance?: boolean;
+  floor?: string;
+  category?: string;
 }
 
 export interface ReportTypeInfo {
   id: ReportType;
   name: string;
   description: string;
-  available_filters: string[];
-  supported_formats: ExportFormat[];
 }
 
 export interface ReportPreviewData {
@@ -39,8 +37,9 @@ export interface ReportPreviewData {
 
 export interface GenerateReportParams {
   report_type: ReportType;
-  format: ExportFormat;
+  format?: ExportFormat;
   filters?: ReportFilters;
+  include_summary?: boolean;
 }
 
 export interface ScheduleReportParams {

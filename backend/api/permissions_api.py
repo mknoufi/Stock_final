@@ -4,6 +4,7 @@ Endpoints for managing user permissions
 """
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
 
 from backend.auth.permissions import (
@@ -14,7 +15,9 @@ from backend.auth.permissions import (
     enable_permissions_for_user,
     get_user_permissions,
     remove_permissions_from_user,
+    require_permission,
 )
+from backend.db.runtime import get_db
 
 permissions_router = APIRouter(prefix="/permissions", tags=["permissions"])
 
@@ -79,22 +82,10 @@ async def list_role_permissions():
 @permissions_router.get("/users/{username}")
 async def get_user_permissions_api(
     username: str,
-    db=Depends(lambda: None),  # Will be injected
-    current_user: dict = Depends(lambda: None),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = require_permission(Permission.USER_MANAGE),
 ):
     """Get permissions for a specific user"""
-    # Check if current user has permission to view user permissions
-    from backend.auth.permissions import has_permission
-
-    if not has_permission(current_user, Permission.USER_MANAGE):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "success": False,
-                "error": {"message": "Permission denied", "code": "PERMISSION_DENIED"},
-            },
-        )
-
     # Get user
     user = await db.users.find_one({"username": username})
     if not user:
@@ -122,21 +113,10 @@ async def get_user_permissions_api(
 async def add_user_permissions(
     username: str,
     permission_update: PermissionUpdate,
-    db=Depends(lambda: None),
-    current_user: dict = Depends(lambda: None),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = require_permission(Permission.USER_MANAGE),
 ):
     """Add custom permissions to a user"""
-    from backend.auth.permissions import has_permission
-
-    if not has_permission(current_user, Permission.USER_MANAGE):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "success": False,
-                "error": {"message": "Permission denied", "code": "PERMISSION_DENIED"},
-            },
-        )
-
     # Validate permissions
     valid_permissions = [p.value for p in Permission]
     for perm in permission_update.permissions:
@@ -193,21 +173,10 @@ async def add_user_permissions(
 async def remove_user_permissions(
     username: str,
     permission_update: PermissionUpdate,
-    db=Depends(lambda: None),
-    current_user: dict = Depends(lambda: None),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = require_permission(Permission.USER_MANAGE),
 ):
     """Remove custom permissions from a user"""
-    from backend.auth.permissions import has_permission
-
-    if not has_permission(current_user, Permission.USER_MANAGE):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "success": False,
-                "error": {"message": "Permission denied", "code": "PERMISSION_DENIED"},
-            },
-        )
-
     success = await remove_permissions_from_user(db, username, permission_update.permissions)
 
     if not success:
@@ -249,21 +218,10 @@ async def remove_user_permissions(
 async def disable_user_permissions(
     username: str,
     permission_update: PermissionUpdate,
-    db=Depends(lambda: None),
-    current_user: dict = Depends(lambda: None),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = require_permission(Permission.USER_MANAGE),
 ):
     """Disable specific permissions for a user"""
-    from backend.auth.permissions import has_permission
-
-    if not has_permission(current_user, Permission.USER_MANAGE):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "success": False,
-                "error": {"message": "Permission denied", "code": "PERMISSION_DENIED"},
-            },
-        )
-
     success = await disable_permissions_for_user(db, username, permission_update.permissions)
 
     if not success:
@@ -305,21 +263,10 @@ async def disable_user_permissions(
 async def enable_user_permissions(
     username: str,
     permission_update: PermissionUpdate,
-    db=Depends(lambda: None),
-    current_user: dict = Depends(lambda: None),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+    current_user: dict = require_permission(Permission.USER_MANAGE),
 ):
     """Re-enable previously disabled permissions for a user"""
-    from backend.auth.permissions import has_permission
-
-    if not has_permission(current_user, Permission.USER_MANAGE):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "success": False,
-                "error": {"message": "Permission denied", "code": "PERMISSION_DENIED"},
-            },
-        )
-
     success = await enable_permissions_for_user(db, username, permission_update.permissions)
 
     if not success:

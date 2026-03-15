@@ -963,6 +963,51 @@ async def check_item_counted(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/count-lines/check-serial/{session_id}/{serial_number}")
+async def check_serial_uniqueness(
+    session_id: str,
+    serial_number: str,
+    current_user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """
+    Check whether a serial number has already been counted within a session.
+
+    Returns a small payload that the UI can use to prevent duplicate serial entry.
+    """
+    db = _get_db_client()
+
+    normalized = (serial_number or "").strip()
+    if not normalized:
+        raise HTTPException(status_code=400, detail="serial_number is required")
+
+    candidates = {normalized, normalized.upper()}
+    projection = {
+        "_id": 0,
+        "item_code": 1,
+        "item_name": 1,
+        "counted_by": 1,
+        "floor_no": 1,
+        "rack_no": 1,
+        "status": 1,
+    }
+
+    for candidate in candidates:
+        existing = await db.count_lines.find_one(
+            {
+                "session_id": session_id,
+                "$or": [
+                    {"serial_numbers": candidate},
+                    {"serial_entries.serial_number": candidate},
+                ],
+            },
+            projection,
+        )
+        if existing:
+            return {"exists": True, **existing}
+
+    return {"exists": False}
+
+
 @router.get("/count-lines/session/{session_id}")
 async def get_count_lines_route(
     session_id: str,

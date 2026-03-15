@@ -13,11 +13,35 @@ These rules help AI coding agents work productively and safely in this repo. Foc
 
 ## 🛠 Developer Workflows
 - **Startup**: Use `make start` for full stack. Individual: `make backend` (port 8001), `make frontend` (port 8081).
+- **Preferred Agent Verification**: Use `make agent-ci` for compact success output and full logs only on failure.
 - **Testing**:
   - **Backend**: `make python-test` (pytest). **Mock MongoDB** with `AsyncMock` for collection methods.
   - **Frontend**: `make node-test` (Jest).
   - **Full CI**: `make ci` runs lint, typecheck, and tests for both.
 - **Lint/Format**: `make format` (Black/Ruff/Prettier) and `make lint`.
+
+## 🧠 Human Checkpoints
+- For local analysis, code edits, and test runs, proceed autonomously.
+- Before any high-impact action, switch to an explicit confirmation flow.
+- High-impact actions include:
+  - Running scripts with mutating flags such as `--execute`, `--apply`, `--write`, or equivalent.
+  - Database backfills, migrations, or bulk repair jobs that update MongoDB state.
+  - Deployments, rollbacks, infrastructure changes, or changes with live-environment impact.
+  - Destructive git actions such as force pushes, history rewrites, or mass deletes.
+  - Security-sensitive changes affecting auth, secrets, permissions, or production access.
+- Required sequence for risky work:
+  - Inspect first.
+  - Prefer dry-run or read-only mode.
+  - Summarize expected impact.
+  - Log the request with `./scripts/python.sh scripts/agent_approval_log.py`.
+  - Ask the user to confirm before the mutating step.
+
+## 🎨 UI/UX Rules
+- For screen or component work, preserve the existing mobile design language and pick one visual direction per screen.
+- Stock and recount flows should favor functional minimal UI, semantic status colors, and clear hierarchy over decoration.
+- Avoid AI-purple or pink-heavy gradients, mixed icon styles, glass-heavy layering, and random shadow stacks on operational screens.
+- Minimum UX bar: `44x44` touch targets, `8dp` spacing between adjacent touchables, safe-area aware layouts, visible labels and focus states, and `4.5:1` text contrast.
+- Respect reduced motion and text scaling, and verify loading, empty, error, success, and disabled states before finishing UI work.
 
 ## 🚨 Critical Conventions
 - **SQL Queries**:
@@ -45,9 +69,11 @@ These rules help AI coding agents work productively and safely in this repo. Foc
 - **No SQL Writes**: `INSERT`, `UPDATE`, `DELETE` on SQL Server are strictly prohibited.
 - **No CORS Wildcards**: Use specific origins in `backend/config.py`.
 - **No Secrets in Code**: Fail fast if `JWT_SECRET` is missing.
+- **No Unconfirmed Mutations**: Do not run high-impact mutating commands without a prior human checkpoint.
 
 ## 📂 Key Files
 - `backend/server.py`: App entry, router mounting.
 - `backend/db_mapping_config.py`: SQL schema mappings.
 - `frontend/src/services/api/api.ts`: Frontend API layer & type normalization.
 - `Makefile`: Source of truth for build/test commands.
+- `agent_skills/session-snapshot-maintenance/SKILL.md`: Approval-safe snapshot repair workflow.

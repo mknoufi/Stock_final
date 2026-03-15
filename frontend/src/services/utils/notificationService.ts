@@ -4,12 +4,17 @@
  */
 
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import Notifications, {
   NotificationTriggerInput,
   SchedulableTriggerInputTypes,
 } from "expo-notifications";
 import { errorReporter } from "./errorRecovery";
 import { useSettingsStore } from "../../store/settingsStore";
+import {
+  registerNotificationDevice,
+  unregisterNotificationDevice,
+} from "../api/api.notifications";
 
 export interface NotificationOptions {
   title: string;
@@ -25,6 +30,7 @@ export interface NotificationOptions {
  */
 export class NotificationService {
   private static initialized = false;
+  private static registeredPushToken: string | null = null;
 
   /**
    * Initialize notifications
@@ -50,6 +56,13 @@ export class NotificationService {
         return;
       }
 
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("default", {
+          name: "default",
+          importance: Notifications.AndroidImportance.DEFAULT,
+        });
+      }
+
       // Configure notification handler
       Notifications.setNotificationHandler({
         handleNotification: async () => {
@@ -59,12 +72,13 @@ export class NotificationService {
               settings.notificationsEnabled && settings.notificationSound,
             shouldSetBadge:
               settings.notificationsEnabled && settings.notificationBadge,
-          shouldShowBanner: true,
-          shouldShowList: true,
+            shouldShowBanner: true,
+            shouldShowList: true,
           };
         },
       });
 
+      await this.registerPushToken();
       this.initialized = true;
     } catch (error) {
       errorReporter.report(error, "NotificationService.initialize");
@@ -180,6 +194,54 @@ export class NotificationService {
    */
   static async clearBadge() {
     await this.setBadgeCount(0);
+  }
+
+  static async unregisterCurrentDevice() {
+    const token = this.registeredPushToken;
+    if (!token || Platform.OS === "web") {
+      return;
+    }
+
+    try {
+      await unregisterNotificationDevice(token, Platform.OS);
+    } catch (error) {
+      errorReporter.report(error, "NotificationService.unregisterCurrentDevice");
+    } finally {
+      this.registeredPushToken = null;
+    }
+  }
+
+  private static async registerPushToken() {
+    if (Platform.OS === "web") {
+      return;
+    }
+
+    const projectId = this.getExpoProjectId();
+    const tokenResponse = projectId
+      ? await Notifications.getExpoPushTokenAsync({ projectId })
+      : await Notifications.getExpoPushTokenAsync();
+    const token = tokenResponse.data;
+    if (!token || token === this.registeredPushToken) {
+      return;
+    }
+
+    await registerNotificationDevice(token, Platform.OS);
+    this.registeredPushToken = token;
+  }
+
+  private static getExpoProjectId(): string | null {
+    const easConfig = (Constants.easConfig || {}) as { projectId?: string };
+    const expoExtra = (Constants.expoConfig?.extra || {}) as {
+      eas?: { projectId?: string };
+      projectId?: string;
+    };
+
+    return (
+      easConfig.projectId ||
+      expoExtra.eas?.projectId ||
+      expoExtra.projectId ||
+      null
+    );
   }
 }
 

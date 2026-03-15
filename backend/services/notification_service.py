@@ -9,9 +9,12 @@ Supports:
 """
 
 import logging
+import os
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Dict, List, Optional
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +44,8 @@ class NotificationService:
 
     def __init__(self, db):
         self.db = db
+        self.notification_devices = getattr(db, "notification_devices", None)
+        self.push_endpoint = os.getenv("EXPO_PUSH_ENDPOINT", "https://exp.host/--/api/v2/push/send")
 
     async def create_notification(
         self,
@@ -85,10 +90,53 @@ class NotificationService:
 
         logger.info(f"Created notification {notification_id} for user {user_id}: {title}")
 
-        # TODO: Send push notification if user has enabled it
-        # await self._send_push_notification(user_id, notification)
+        try:
+            await self._send_push_notification(user_id, notification)
+        except Exception as exc:
+            logger.warning(f"Push notification delivery skipped for {user_id}: {exc}")
 
         return notification_id
+
+    async def register_device(
+        self,
+        user_id: str,
+        token: str,
+        platform: Optional[str] = None,
+    ) -> None:
+        """Register or refresh a push-capable device token."""
+        if not self.notification_devices or not token:
+            return
+
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        await self.notification_devices.update_one(
+            {"user_id": user_id, "token": token},
+            {
+                "$set": {
+                    "platform": platform or "unknown",
+                    "enabled": True,
+                    "updated_at": now,
+                },
+                "$setOnInsert": {
+                    "created_at": now,
+                },
+            },
+            upsert=True,
+        )
+
+    async def unregister_device(self, user_id: str, token: str) -> None:
+        """Disable a previously registered device token."""
+        if not self.notification_devices or not token:
+            return
+
+        await self.notification_devices.update_one(
+            {"user_id": user_id, "token": token},
+            {
+                "$set": {
+                    "enabled": False,
+                    "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                }
+            },
+        )
 
     async def notify_recount_assigned(
         self,
@@ -236,7 +284,63 @@ class NotificationService:
         return await self.db.notifications.count_documents({"user_id": user_id, "read": False})
 
     async def _send_push_notification(self, user_id: str, notification: Dict[str, Any]):
-        """Send push notification (placeholder for future implementation)"""
-        # TODO: Integrate with Firebase Cloud Messaging or similar
-        logger.info(f"Push notification would be sent to {user_id}: {notification['title']}")
-        pass
+        """Send push notification via Expo push service for registered devices."""
+        if not self.notification_devices:
+            return
+
+        devices = await (
+            self.notification_devices.find({"user_id": user_id, "enabled": True}).to_list(length=None)
+        )
+        expo_tokens = [
+            device["token"]
+            for device in devices
+            if isinstance(device.get("token"), str) and device["token"].startswith("ExpoPushToken[")
+        ]
+
+        if not expo_tokens:
+            return
+
+        payload = [
+            {
+                "to": token,
+                "title": notification["title"],
+                "body": notification["message"],
+                "data": {
+                    "type": notification.get("type"),
+                    "action_url": notification.get("action_url"),
+                    "metadata": notification.get("metadata", {}),
+                },
+                "priority": "high" if notification.get("priority") in {"high", "urgent"} else "default",
+                "sound": "default",
+            }
+            for token in expo_tokens
+        ]
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                self.push_endpoint,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+
+        if response.status_code >= 400:
+            raise RuntimeError(f"Expo push request failed with status {response.status_code}")
+
+        result = response.json()
+        tickets = result.get("data", []) if isinstance(result, dict) else []
+        invalid_tokens = []
+        for token, ticket in zip(expo_tokens, tickets):
+            details = ticket.get("details", {}) if isinstance(ticket, dict) else {}
+            if ticket.get("status") == "error" and details.get("error") == "DeviceNotRegistered":
+                invalid_tokens.append(token)
+
+        if invalid_tokens:
+            await self.notification_devices.update_many(
+                {"user_id": user_id, "token": {"$in": invalid_tokens}},
+                {
+                    "$set": {
+                        "enabled": False,
+                        "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    }
+                },
+            )

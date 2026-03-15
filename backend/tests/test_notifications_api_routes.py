@@ -25,6 +25,12 @@ class _DummyNotificationService:
     async def get_unread_count(self, user_id: str):
         return 1
 
+    async def register_device(self, user_id: str, token: str, platform: str | None = None):
+        self.db["registered"] = {"user_id": user_id, "token": token, "platform": platform}
+
+    async def unregister_device(self, user_id: str, token: str):
+        self.db["unregistered"] = {"user_id": user_id, "token": token}
+
 
 @pytest.fixture
 def notifications_app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
@@ -34,7 +40,7 @@ def notifications_app(monkeypatch: pytest.MonkeyPatch) -> FastAPI:
         "username": "staff1",
         "role": "staff",
     }
-    app.dependency_overrides[notifications_api.get_db] = lambda: object()
+    app.dependency_overrides[notifications_api.get_db] = lambda: {}
     monkeypatch.setattr(notifications_api, "NotificationService", _DummyNotificationService)
     return app
 
@@ -55,3 +61,33 @@ async def test_get_notifications_accepts_both_route_forms(
     assert payload["total"] == 1
     assert payload["unread_count"] == 1
     assert payload["notifications"][0]["id"] == "notif-1"
+
+
+@pytest.mark.asyncio
+async def test_register_notification_device(notifications_app: FastAPI):
+    async with AsyncClient(
+        transport=ASGITransport(app=notifications_app),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/api/notifications/devices",
+            json={"token": "ExpoPushToken[test]", "platform": "android"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_unregister_notification_device(notifications_app: FastAPI):
+    async with AsyncClient(
+        transport=ASGITransport(app=notifications_app),
+        base_url="http://test",
+    ) as client:
+        response = await client.post(
+            "/api/notifications/devices/unregister",
+            json={"token": "ExpoPushToken[test]", "platform": "android"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["success"] is True

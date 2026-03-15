@@ -4,6 +4,19 @@
 process.env.EXPO_OS = "ios";
 process.env.EXPO_PLATFORM = "ios";
 
+// Some Expo internals still probe `window` even under the RN preset.
+if (!global.window) {
+  global.window = global;
+}
+
+if (!global.window.addEventListener) {
+  global.window.addEventListener = jest.fn();
+}
+
+if (!global.window.removeEventListener) {
+  global.window.removeEventListener = jest.fn();
+}
+
 // Fix for "The global process.env.EXPO_OS is not defined" warning (redundant but safe)
 if (!process.env.EXPO_OS) {
   process.env.EXPO_OS = "ios";
@@ -137,10 +150,122 @@ jest.mock("expo-haptics", () => ({
   selectionAsync: jest.fn(),
 }));
 
-// React Native Worklets 0.7+ requires its dedicated Jest mock before Reanimated.
-jest.mock("react-native-worklets", () =>
-  require("react-native-worklets/lib/module/mock")
-);
+jest.mock("expo-notifications", () => {
+  const getPermissionsAsync = jest.fn(async () => ({
+    status: "granted",
+    granted: true,
+    canAskAgain: true,
+  }));
+  const requestPermissionsAsync = jest.fn(async () => ({
+    status: "granted",
+    granted: true,
+    canAskAgain: true,
+  }));
+  const scheduleNotificationAsync = jest.fn(async () => "mock-notification-id");
+  const cancelScheduledNotificationAsync = jest.fn(async () => undefined);
+  const cancelAllScheduledNotificationsAsync = jest.fn(async () => undefined);
+  const setBadgeCountAsync = jest.fn(async () => undefined);
+  const setNotificationChannelAsync = jest.fn(async () => undefined);
+  const setNotificationHandler = jest.fn();
+  const getExpoPushTokenAsync = jest.fn(async () => ({
+    data: "ExponentPushToken[mock]",
+  }));
+
+  const notificationsModule = {
+    getPermissionsAsync,
+    requestPermissionsAsync,
+    scheduleNotificationAsync,
+    cancelScheduledNotificationAsync,
+    cancelAllScheduledNotificationsAsync,
+    setBadgeCountAsync,
+    setNotificationChannelAsync,
+    setNotificationHandler,
+    getExpoPushTokenAsync,
+    addNotificationReceivedListener: jest.fn(() => ({
+      remove: jest.fn(),
+    })),
+    addNotificationResponseReceivedListener: jest.fn(() => ({
+      remove: jest.fn(),
+    })),
+    removeNotificationSubscription: jest.fn(),
+    dismissNotificationAsync: jest.fn(async () => undefined),
+    dismissAllNotificationsAsync: jest.fn(async () => undefined),
+    getBadgeCountAsync: jest.fn(async () => 0),
+  };
+
+  return {
+    __esModule: true,
+    default: notificationsModule,
+    ...notificationsModule,
+    AndroidImportance: {
+      DEFAULT: "default",
+      HIGH: "high",
+      MAX: "max",
+    },
+    SchedulableTriggerInputTypes: {
+      DATE: "date",
+      TIME_INTERVAL: "timeInterval",
+      CALENDAR: "calendar",
+      DAILY: "daily",
+      WEEKLY: "weekly",
+      MONTHLY: "monthly",
+      YEARLY: "yearly",
+    },
+  };
+});
+
+// Newer reanimated builds depend on worklets, but older worklets releases do
+// not ship a dedicated Jest mock. Keep the mock inline and version-agnostic.
+jest.mock("react-native-worklets", () => {
+  const asCallable = (fn) =>
+    typeof fn === "function" ? (...args) => fn(...args) : () => fn;
+  const identity = (value) => value;
+
+  const workletsModule = {
+    installTurboModule: jest.fn(),
+  };
+
+  const base = {
+    __esModule: true,
+    WorkletsModule: workletsModule,
+    callMicrotasks: jest.fn(),
+    createSerializable: jest.fn(identity),
+    createSynchronizable: jest.fn(identity),
+    createWorkletRuntime: jest.fn(() => ({})),
+    executeOnUIRuntimeSync: jest.fn((fn) => asCallable(fn)),
+    getRuntimeKind: jest.fn(() => "rn"),
+    isSerializableRef: jest.fn(() => false),
+    isSynchronizable: jest.fn(() => false),
+    isWorkletFunction: jest.fn((value) => typeof value === "function"),
+    makeShareable: jest.fn(identity),
+    makeShareableCloneOnUIRecursive: jest.fn(identity),
+    makeShareableCloneRecursive: jest.fn(identity),
+    runOnJS: jest.fn((fn) => asCallable(fn)),
+    runOnRuntime: jest.fn((_runtime, fn) => asCallable(fn)),
+    runOnUI: jest.fn((fn) => asCallable(fn)),
+    runOnUIAsync: jest.fn((fn) => async (...args) => fn?.(...args)),
+    runOnUISync: jest.fn((fn) => asCallable(fn)),
+    RuntimeKind: {
+      JS: "js",
+      RN: "rn",
+      UI: "ui",
+    },
+    scheduleOnRN: jest.fn((fn) => fn?.()),
+    scheduleOnUI: jest.fn((fn) => fn?.()),
+    serializableMappingCache: new Map(),
+    shareableMappingCache: new Map(),
+    unstable_eventLoopTask: jest.fn(),
+  };
+
+  return new Proxy(base, {
+    get(target, prop) {
+      if (prop in target) {
+        return target[prop];
+      }
+      return jest.fn();
+    },
+  });
+});
 
 // Mock react-native-reanimated
 jest.mock("react-native-reanimated", () => {

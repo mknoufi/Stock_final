@@ -173,6 +173,9 @@ function Get-ProjectStructure {
         [Parameter(Mandatory=$false)]
         [string]$ProjectType
     )
+    if ((Test-Path (Join-Path $REPO_ROOT 'backend')) -and (Test-Path (Join-Path $REPO_ROOT 'frontend'))) {
+        return "backend/`nfrontend/`ndocs/`nscripts/"
+    }
     if ($ProjectType -match 'web') { return "backend/`nfrontend/`ntests/" } else { return "src/`ntests/" }
 }
 
@@ -181,6 +184,7 @@ function Get-CommandsForLanguage {
         [Parameter(Mandatory=$false)]
         [string]$Lang
     )
+    if (Test-Path (Join-Path $REPO_ROOT 'Makefile')) { return 'make agent-ci' }
     switch -Regex ($Lang) {
         'Python' { return "cd src; pytest; ruff check ." }
         'Rust' { return "cargo test; cargo clippy" }
@@ -195,6 +199,79 @@ function Get-LanguageConventions {
         [string]$Lang
     )
     if ($Lang) { "${Lang}: Follow standard conventions" } else { 'General: Follow standard conventions' }
+}
+
+function Test-IsGeneratedAgentFile {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$TargetFile
+    )
+    if (-not (Test-Path $TargetFile)) { return $false }
+    return [bool](Select-String -Pattern 'Auto-generated from all feature plans' -Path $TargetFile -Quiet)
+}
+
+function Add-AgentSafetyOverlayIfMissing {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$TargetFile
+    )
+    if (-not (Test-Path $TargetFile)) { return }
+
+    $content = Get-Content -LiteralPath $TargetFile -Raw -Encoding utf8
+    if ($content -match 'Human Checkpoint Rules|Human Checkpoints|Agent Safety Overlay') { return }
+
+    $overlay = @'
+
+## Agent Safety Overlay
+
+- Operate autonomously for inspection, code edits, and test execution.
+- Pause for explicit user confirmation before high-impact actions.
+
+### Human Checkpoint Triggers
+
+- Running scripts with mutating flags such as `--execute`, `--apply`, `--write`, or similar.
+- Database backfills, migrations, or bulk repair jobs that update MongoDB records.
+- Deployments, rollbacks, infrastructure changes, or commands that can affect live systems.
+- Destructive git actions such as force pushes, history rewrites, or mass deletes.
+- Security-sensitive changes touching auth, secrets, permissions, or production access.
+
+### Required Flow
+
+1. Inspect first.
+2. Prefer dry-run or read-only mode.
+3. Summarize expected impact.
+4. Log the request with `./scripts/python.sh scripts/agent_approval_log.py`.
+5. Ask for confirmation before the mutating step.
+'@
+
+    Set-Content -LiteralPath $TargetFile -Value ($content.TrimEnd() + $overlay + [Environment]::NewLine) -Encoding utf8
+}
+
+function Add-AgentUiOverlayIfMissing {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$TargetFile
+    )
+    if (-not (Test-Path $TargetFile)) { return }
+
+    $content = Get-Content -LiteralPath $TargetFile -Raw -Encoding utf8
+    if ($content -match 'UI/UX Overlay|UI/UX Rules|UI/UX Mode') { return }
+
+    $overlay = @'
+
+## UI/UX Overlay
+
+- For UI work, default to a functional mobile utility style with clear hierarchy and semantic status colors.
+- Avoid mixed visual languages, AI-purple or pink-heavy gradients, glass-heavy layering, and ornamental shadows on operational screens.
+- Require `44x44` minimum touch targets, safe-area aware layouts, visible labels, explicit states, and accessible contrast.
+- Respect reduced motion and text scaling before considering a screen complete.
+
+### UI/UX Reference
+
+- See `docs/AGENT_UI_UX_RULES.md` for the repo-specific screen design checklist and anti-patterns.
+'@
+
+    Set-Content -LiteralPath $TargetFile -Value ($content.TrimEnd() + $overlay + [Environment]::NewLine) -Encoding utf8
 }
 
 function New-AgentFile {
@@ -258,6 +335,8 @@ function New-AgentFile {
     if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent | Out-Null }
     Set-Content -LiteralPath $TargetFile -Value $content -NoNewline -Encoding utf8
     Remove-Item $temp -Force
+    Add-AgentSafetyOverlayIfMissing -TargetFile $TargetFile
+    Add-AgentUiOverlayIfMissing -TargetFile $TargetFile
     return $true
 }
 
@@ -288,6 +367,7 @@ function Update-ExistingAgentFile {
     if ($techStack) { $newChangeEntry = "- ${CURRENT_BRANCH}: Added ${techStack}" }
     elseif ($NEW_DB -and $NEW_DB -notin @('N/A','NEEDS CLARIFICATION')) { $newChangeEntry = "- ${CURRENT_BRANCH}: Added ${NEW_DB}" }
 
+    $shouldAddMissingSections = Test-IsGeneratedAgentFile -TargetFile $TargetFile
     $lines = Get-Content -LiteralPath $TargetFile -Encoding utf8
     $output = New-Object System.Collections.Generic.List[string]
     $inTech = $false; $inChanges = $false; $techAdded = $false; $changeAdded = $false; $existingChanges = 0
@@ -330,7 +410,21 @@ function Update-ExistingAgentFile {
         $newTechEntries | ForEach-Object { $output.Add($_) }
     }
 
+    if ($shouldAddMissingSections -and $newTechEntries.Count -gt 0 -and -not ($lines -contains '## Active Technologies')) {
+        $output.Add('')
+        $output.Add('## Active Technologies')
+        $newTechEntries | ForEach-Object { $output.Add($_) }
+    }
+
+    if ($shouldAddMissingSections -and $newChangeEntry -and -not ($lines -contains '## Recent Changes')) {
+        $output.Add('')
+        $output.Add('## Recent Changes')
+        $output.Add($newChangeEntry)
+    }
+
     Set-Content -LiteralPath $TargetFile -Value ($output -join [Environment]::NewLine) -Encoding utf8
+    Add-AgentSafetyOverlayIfMissing -TargetFile $TargetFile
+    Add-AgentUiOverlayIfMissing -TargetFile $TargetFile
     return $true
 }
 

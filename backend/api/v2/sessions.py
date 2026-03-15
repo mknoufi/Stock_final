@@ -4,7 +4,7 @@ Upgraded session endpoints with standardized responses
 """
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -28,6 +28,53 @@ class SessionResponse(BaseModel):
     created_by: str
     created_at: datetime
     updated_at: Optional[datetime] = None
+
+
+def _normalized_datetime_expression(field_name: str) -> dict[str, Any]:
+    field_ref = f"${field_name}"
+    field_type = {"$type": field_ref}
+    return {
+        "$switch": {
+            "branches": [
+                {"case": {"$eq": [field_type, "date"]}, "then": field_ref},
+                {
+                    "case": {"$eq": [field_type, "string"]},
+                    "then": {
+                        "$dateFromString": {
+                            "dateString": field_ref,
+                            "onError": None,
+                            "onNull": None,
+                        }
+                    },
+                },
+            ],
+            "default": None,
+        }
+    }
+
+
+def _watchtower_add_fields_stage() -> dict[str, Any]:
+    return {
+        "$addFields": {
+            "counted_at_normalized": _normalized_datetime_expression("counted_at"),
+            "counted_qty_normalized": {"$ifNull": ["$counted_qty", "$quantity"]},
+        }
+    }
+
+
+def _watchtower_recent_activity_payload(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    payload = []
+    for row in rows:
+        counted_at = row.get("counted_at_normalized") or row.get("counted_at")
+        payload.append(
+            {
+                "item_code": row.get("item_code"),
+                "qty": row.get("counted_qty_normalized"),
+                "user": row.get("counted_by", "Unknown"),
+                "time": counted_at.isoformat() if isinstance(counted_at, datetime) else counted_at,
+            }
+        )
+    return payload
 
 
 @router.get("/", response_model=ApiResponse[PaginatedResponse[SessionResponse]])
@@ -228,18 +275,25 @@ async def get_watchtower_stats(
         active_sessions_count = await db.sessions.count_documents({"status": "OPEN"})
 
         # 2. Total Scans Today
-        today_start = datetime.now(timezone.utc).replace(tzinfo=None).replace(hour=0, minute=0, second=0, microsecond=0)
-        total_scans_today = await db.count_lines.count_documents(
-            {"counted_at": {"$gte": today_start.isoformat()}}
-        )
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        total_scans_today_result = await db.count_lines.aggregate(
+            [
+                _watchtower_add_fields_stage(),
+                {"$match": {"counted_at_normalized": {"$gte": today_start}}},
+                {"$count": "count"},
+            ]
+        ).to_list(length=1)
+        total_scans_today = total_scans_today_result[0]["count"] if total_scans_today_result else 0
 
         # 3. Active Users (Last 15 mins)
         # Assuming we track 'last_active' in users or have an activity log.
         # For now, we'll approximate active users based on recent count_lines or activity logs if available.
         # Fallback: Count unique users who added a count_line in the last 15 mins.
-        fifteen_mins_ago = (datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=15)).isoformat()
+        fifteen_mins_ago = now - timedelta(minutes=15)
         active_users_pipeline = [
-            {"$match": {"counted_at": {"$gte": fifteen_mins_ago}}},
+            _watchtower_add_fields_stage(),
+            {"$match": {"counted_at_normalized": {"$gte": fifteen_mins_ago}}},
             {"$group": {"_id": "$counted_by"}},
             {"$count": "count"},
         ]
@@ -251,10 +305,11 @@ async def get_watchtower_stats(
         # 4. Hourly Throughput (Today)
         # Group count_lines by hour
         throughput_pipeline = [
-            {"$match": {"counted_at": {"$gte": today_start.isoformat()}}},
+            _watchtower_add_fields_stage(),
+            {"$match": {"counted_at_normalized": {"$gte": today_start}}},
             {
                 "$group": {
-                    "_id": {"$hour": {"$dateFromString": {"dateString": "$counted_at"}}},
+                    "_id": {"$hour": "$counted_at_normalized"},
                     "count": {"$sum": 1},
                 }
             },
@@ -271,12 +326,14 @@ async def get_watchtower_stats(
 
         # 5. Recent Variances (Top 5 most significant active variances)
         # Simplified: Get recent count lines where we might infer variance
-        recent_activity = (
-            await db.count_lines.find({"counted_at": {"$gte": today_start.isoformat()}})
-            .sort("counted_at", -1)
-            .limit(5)
-            .to_list(length=5)
-        )
+        recent_activity = await db.count_lines.aggregate(
+            [
+                _watchtower_add_fields_stage(),
+                {"$match": {"counted_at_normalized": {"$gte": today_start}}},
+                {"$sort": {"counted_at_normalized": -1}},
+                {"$limit": 5},
+            ]
+        ).to_list(length=5)
 
         # 6. AI Predicted Risks (Summary)
         # Get active sessions and count high-risk items
@@ -300,15 +357,7 @@ async def get_watchtower_stats(
                 "hourly_throughput": hourly_throughput,
                 "predicted_risk_count": total_high_risk,
                 "high_risk_items": risk_predictions[:5],
-                "recent_activity": [
-                    {
-                        "item_code": r.get("item_code"),
-                        "qty": r.get("quantity"),
-                        "user": r.get("counted_by", "Unknown"),
-                        "time": r.get("counted_at"),
-                    }
-                    for r in recent_activity
-                ],
+                "recent_activity": _watchtower_recent_activity_payload(recent_activity),
             },
             message="Watchtower stats retrieved",
         )

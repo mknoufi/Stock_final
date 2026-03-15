@@ -3,13 +3,16 @@ Scheduled Exports API
 Endpoints for managing scheduled exports
 """
 
+import base64
 from datetime import datetime, timezone
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from motor.motor_asyncio import AsyncIOMotorDatabase
 from pydantic import BaseModel
 
 from backend.auth.permissions import Permission, require_permission
+from backend.db.runtime import get_db
 from backend.services.scheduled_export_service import (
     ExportFormat,
     ExportFrequency,
@@ -17,6 +20,13 @@ from backend.services.scheduled_export_service import (
 )
 
 exports_router = APIRouter(prefix="/exports", tags=["exports"])
+
+
+async def get_scheduled_export_service(
+    db: AsyncIOMotorDatabase = Depends(get_db),
+) -> ScheduledExportService:
+    # Service is lightweight; background scheduling is handled by the lifespan instance.
+    return ScheduledExportService(db)
 
 
 class ExportScheduleCreate(BaseModel):
@@ -40,7 +50,7 @@ class ExportScheduleUpdate(BaseModel):
 @exports_router.post("/schedules")
 async def create_export_schedule(
     schedule_data: ExportScheduleCreate,
-    export_service: ScheduledExportService = Depends(lambda: None),
+    export_service: ScheduledExportService = Depends(get_scheduled_export_service),
     current_user: dict = require_permission(Permission.EXPORT_SCHEDULE),
 ):
     """Create a new export schedule"""
@@ -91,7 +101,7 @@ async def create_export_schedule(
 @exports_router.get("/schedules")
 async def list_export_schedules(
     enabled_only: bool = False,
-    export_service: ScheduledExportService = Depends(lambda: None),
+    export_service: ScheduledExportService = Depends(get_scheduled_export_service),
     current_user: dict = require_permission(Permission.EXPORT_SCHEDULE),
 ):
     """List all export schedules"""
@@ -103,7 +113,7 @@ async def list_export_schedules(
 @exports_router.get("/schedules/{schedule_id}")
 async def get_export_schedule(
     schedule_id: str,
-    export_service: ScheduledExportService = Depends(lambda: None),
+    export_service: ScheduledExportService = Depends(get_scheduled_export_service),
     current_user: dict = require_permission(Permission.EXPORT_SCHEDULE),
 ):
     """Get details of a specific export schedule"""
@@ -132,7 +142,7 @@ async def get_export_schedule(
 async def update_export_schedule(
     schedule_id: str,
     schedule_update: ExportScheduleUpdate,
-    export_service: ScheduledExportService = Depends(lambda: None),
+    export_service: ScheduledExportService = Depends(get_scheduled_export_service),
     current_user: dict = require_permission(Permission.EXPORT_SCHEDULE),
 ):
     """Update an export schedule"""
@@ -141,8 +151,34 @@ async def update_export_schedule(
     if schedule_update.name is not None:
         updates["name"] = schedule_update.name
     if schedule_update.frequency is not None:
+        try:
+            ExportFrequency(schedule_update.frequency)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "success": False,
+                    "error": {
+                        "message": f"Invalid frequency: {schedule_update.frequency}",
+                        "code": "INVALID_FREQUENCY",
+                    },
+                },
+            ) from exc
         updates["frequency"] = schedule_update.frequency
     if schedule_update.format is not None:
+        try:
+            ExportFormat(schedule_update.format)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "success": False,
+                    "error": {
+                        "message": f"Invalid format: {schedule_update.format}",
+                        "code": "INVALID_FORMAT",
+                    },
+                },
+            ) from exc
         updates["format"] = schedule_update.format
     if schedule_update.filters is not None:
         updates["filters"] = schedule_update.filters
@@ -177,7 +213,7 @@ async def update_export_schedule(
 @exports_router.delete("/schedules/{schedule_id}")
 async def delete_export_schedule(
     schedule_id: str,
-    export_service: ScheduledExportService = Depends(lambda: None),
+    export_service: ScheduledExportService = Depends(get_scheduled_export_service),
     current_user: dict = require_permission(Permission.EXPORT_SCHEDULE),
 ):
     """Delete an export schedule"""
@@ -207,7 +243,7 @@ async def delete_export_schedule(
 @exports_router.post("/schedules/{schedule_id}/execute")
 async def execute_export_schedule(
     schedule_id: str,
-    export_service: ScheduledExportService = Depends(lambda: None),
+    export_service: ScheduledExportService = Depends(get_scheduled_export_service),
     current_user: dict = require_permission(Permission.EXPORT_SCHEDULE),
 ):
     """Manually execute an export schedule"""
@@ -250,7 +286,7 @@ async def execute_export_schedule(
 async def list_export_results(
     schedule_id: Optional[str] = None,
     limit: int = 50,
-    export_service: ScheduledExportService = Depends(lambda: None),
+    export_service: ScheduledExportService = Depends(get_scheduled_export_service),
     current_user: dict = require_permission(Permission.EXPORT_ALL),
 ):
     """List export results"""
@@ -275,7 +311,7 @@ async def list_export_results(
 @exports_router.get("/results/{result_id}/download")
 async def download_export_result(
     result_id: str,
-    export_service: ScheduledExportService = Depends(lambda: None),
+    export_service: ScheduledExportService = Depends(get_scheduled_export_service),
     current_user: dict = require_permission(Permission.EXPORT_ALL),
 ):
     """Download an export result file"""
@@ -304,8 +340,14 @@ async def download_export_result(
     timestamp = created_at.strftime("%Y%m%d_%H%M%S")
     filename = f"{schedule_name}_{timestamp}.{file_extension}"
 
-    # Determine content type
-    content_type = "text/csv" if file_extension == "csv" else "application/json"
+    if file_extension == "xlsx":
+        if isinstance(file_content, str):
+            file_content = base64.b64decode(file_content)
+        content_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    elif file_extension == "csv":
+        content_type = "text/csv"
+    else:
+        content_type = "application/json"
 
     return Response(
         content=file_content,

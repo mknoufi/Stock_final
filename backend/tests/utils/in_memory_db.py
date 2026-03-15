@@ -368,6 +368,7 @@ class InMemoryDatabase:
         self.login_attempts = InMemoryCollection()
         self.activity_logs = InMemoryCollection()
         self.error_logs = InMemoryCollection()
+        self.data_archive = InMemoryCollection()
         self.sessions = InMemoryCollection()
         self.count_lines = InMemoryCollection()
         self.count_line_drafts = InMemoryCollection()

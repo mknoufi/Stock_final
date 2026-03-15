@@ -14,7 +14,6 @@ if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 import io  # noqa: E402
-import json  # noqa: E402
 import logging  # noqa: E402
 import os  # noqa: E402
 from collections.abc import Callable, Iterable

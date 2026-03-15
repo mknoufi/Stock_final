@@ -206,17 +206,18 @@ async def generate_report(
             runtime_filters=generation_data.runtime_filters,
             generated_by=current_user.get("username"),
         )
+        report_id = str(report.get("_id") or report.get("id"))
 
         return {
             "success": True,
             "message": "Report generated successfully",
             "report": {
-                "id": str(report["_id"]),
+                "id": report_id,
                 "file_name": report["file_name"],
                 "file_size": report["file_size"],
                 "record_count": report["record_count"],
                 "format": report["format"],
-                "download_url": f"/api/reports/{str(report['_id'])}/download",
+                "download_url": f"/api/dynamic-reports/{report_id}/download",
                 "generated_at": report["generated_at"],
             },
         }

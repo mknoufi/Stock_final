@@ -2,6 +2,8 @@
 Unit tests for NotificationService
 """
 
+from unittest.mock import AsyncMock
+
 import pytest
 from backend.services.notification_service import (
     NotificationService,
@@ -15,6 +17,7 @@ class MockDB:
 
     def __init__(self):
         self.notifications = MockCollection()
+        self.notification_devices = MockCollection()
 
 
 class MockCollection:
@@ -71,25 +74,40 @@ class MockCollection:
                 count += 1
         return count
 
-    async def update_one(self, query, update):
+    async def update_one(self, query, update, upsert=False):
         """Mock update_one"""
-
         notif_id = query.get("_id")
+        token = query.get("token")
+        user_id = query.get("user_id")
 
         for notif in self.data:
-            if notif.get("_id") == notif_id:
+            if notif_id is not None and notif.get("_id") == notif_id:
                 notif.update(update.get("$set", {}))
                 return type("obj", (object,), {"modified_count": 1})
+            if token is not None and user_id is not None:
+                if notif.get("token") == token and notif.get("user_id") == user_id:
+                    notif.update(update.get("$set", {}))
+                    return type("obj", (object,), {"modified_count": 1})
+
+        if upsert:
+            doc = {**query, **update.get("$setOnInsert", {}), **update.get("$set", {})}
+            self.data.append(doc)
+            return type("obj", (object,), {"modified_count": 1})
 
         return type("obj", (object,), {"modified_count": 0})
 
     async def update_many(self, query, update):
         """Mock update_many"""
         count = 0
+        token_in = query.get("token", {}).get("$in") if isinstance(query.get("token"), dict) else None
         for notif in self.data:
             match = True
             for key, value in query.items():
-                if notif.get(key) != value:
+                if key == "token" and token_in is not None:
+                    if notif.get("token") not in token_in:
+                        match = False
+                        break
+                elif notif.get(key) != value:
                     match = False
                     break
             if match:
@@ -115,6 +133,7 @@ async def test_create_notification():
     """Test creating a notification"""
     db = MockDB()
     service = NotificationService(db)
+    service._send_push_notification = AsyncMock()
 
     notif_id = await service.create_notification(
         user_id="user1",
@@ -134,6 +153,7 @@ async def test_create_notification():
     assert notif["message"] == "This is a test"
     assert notif["priority"] == "high"
     assert notif["read"] is False
+    service._send_push_notification.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -340,6 +360,19 @@ async def test_get_unread_count():
     count = await service.get_unread_count("user1")
 
     assert count == 2
+
+
+@pytest.mark.asyncio
+async def test_register_and_unregister_device():
+    db = MockDB()
+    service = NotificationService(db)
+
+    await service.register_device("user1", "ExpoPushToken[test]", "android")
+    assert len(db.notification_devices.data) == 1
+    assert db.notification_devices.data[0]["enabled"] is True
+
+    await service.unregister_device("user1", "ExpoPushToken[test]")
+    assert db.notification_devices.data[0]["enabled"] is False
 
 
 if __name__ == "__main__":

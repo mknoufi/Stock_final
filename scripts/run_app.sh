@@ -54,7 +54,7 @@ info "Launching Frontend (Expo) in a new Terminal window..."
 osascript -e "
 tell application \"Terminal\"
     activate
-    set frontendTab to do script \"clear && echo '📱 ═══ Frontend (Expo) ═══' && cd '$PROJECT_ROOT/frontend' && npm run update-ip && rm -rf .metro-cache node_modules/.cache ~/.expo/cache .expo 2>/dev/null || true && npx expo start --go --clear\"
+    set frontendTab to do script \"clear && echo '📱 ═══ Frontend (Expo) ═══' && export NVM_DIR=\\\"\$HOME/.nvm\\\" && [ -s \\\"\$NVM_DIR/nvm.sh\\\" ] && . \\\"\$NVM_DIR/nvm.sh\\\" && nvm use 20 && cd '$PROJECT_ROOT/frontend' && npm run update-ip && rm -rf .metro-cache node_modules/.cache ~/.expo/cache .expo 2>/dev/null || true && npx expo start --go --clear\"
     set custom title of front window to \"Frontend\"
 end tell
 "

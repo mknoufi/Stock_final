@@ -35,19 +35,25 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!isInitialized || isLoading || !segments?.length) return;
 
     const firstSegment = segments[0] as string;
-    const inAuthGroup =
-      firstSegment === "(auth)" ||
-      firstSegment === "login" ||
-      firstSegment === "welcome" ||
-      firstSegment === "register" ||
-      firstSegment === "help";
+    const publicSegments = new Set([
+      "(auth)",
+      "login",
+      "welcome",
+      "register",
+      "help",
+      "forgot-password",
+      "otp-verification",
+      "reset-password",
+    ]);
+    const inAuthGroup = publicSegments.has(firstSegment);
     const inProtectedGroup =
       firstSegment === "staff" ||
       firstSegment === "supervisor" ||
       firstSegment === "admin";
+    const requiresAuth = !inAuthGroup;
 
     // 1. Unauthenticated user trying to access protected routes
-    if (!user && inProtectedGroup) {
+    if (!user && requiresAuth) {
       console.log(
         "🔒 [AuthGuard] Unauthenticated access attempt. Redirecting to welcome.",
       );

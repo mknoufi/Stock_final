@@ -3,6 +3,8 @@ Session Management API - Enhanced session tracking with heartbeat
 Extends existing session API with rack-based workflow support
 """
 
+import hashlib
+import json
 import logging
 import re
 import time
@@ -219,11 +221,13 @@ def _exact_match_filter(value: str) -> dict[str, str]:
 
 
 def _infer_snapshot_warehouse_aliases(
-    location_type: Optional[str], location_name: Optional[str]
+    warehouse: Optional[str],
+    location_type: Optional[str],
+    location_name: Optional[str],
 ) -> list[str]:
     hints = " ".join(
         part.lower()
-        for part in (location_type, location_name)
+        for part in (warehouse, location_type, location_name)
         if isinstance(part, str) and part.strip()
     )
 
@@ -281,7 +285,7 @@ def _build_snapshot_queries(
             }
         )
 
-    for alias in _infer_snapshot_warehouse_aliases(parsed_type, parsed_name):
+    for alias in _infer_snapshot_warehouse_aliases(warehouse, parsed_type, parsed_name):
         queries.append({"warehouse": _exact_match_filter(alias)})
 
     unique_queries: list[dict[str, Any]] = []
@@ -294,6 +298,14 @@ def _build_snapshot_queries(
         unique_queries.append(query)
 
     return unique_queries
+
+
+def _build_snapshot_payload_and_hash(snapshot_items: list[Any]) -> tuple[list[dict[str, Any]], str]:
+    snapshot_items.sort(key=lambda item: item.item_code)
+    items_payload = [item.model_dump(mode="json") for item in snapshot_items]
+    payload_str = json.dumps(items_payload, sort_keys=True, default=str)
+    snapshot_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+    return items_payload, snapshot_hash
 
 
 def _build_snapshot_source_data(item: dict[str, Any]) -> dict[str, Any]:
@@ -771,8 +783,6 @@ async def create_session(
     )
 
     # GOVERNANCE: Snapshot & Config Enforcement
-    import hashlib
-    import json
     from backend.core.schemas.snapshot import SessionSnapshot
 
     # 1. Get latest config version
@@ -791,11 +801,7 @@ async def create_session(
     )
 
     # 3. Create Hash
-    # Sort by item code to ensure deterministic hash
-    snapshot_items.sort(key=lambda x: x.item_code)
-    items_payload = [item.model_dump(mode="json") for item in snapshot_items]
-    payload_str = json.dumps(items_payload, sort_keys=True, default=str)
-    snapshot_hash = hashlib.sha256(payload_str.encode()).hexdigest()
+    items_payload, snapshot_hash = _build_snapshot_payload_and_hash(snapshot_items)
 
     session.snapshot_hash = snapshot_hash
 

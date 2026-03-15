@@ -378,8 +378,15 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetVerify(BaseModel):
     """Verify OTP and get a reset token."""
 
-    username: str
+    username: Optional[str] = None
+    phone_number: Optional[str] = None
     otp: str
+
+    @model_validator(mode="after")
+    def validate_identifier(self) -> "PasswordResetVerify":
+        if not self.username and not self.phone_number:
+            raise ValueError("Either username or phone_number must be provided")
+        return self
 
 
 class PasswordResetConfirm(BaseModel):

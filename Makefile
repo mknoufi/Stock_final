@@ -1,7 +1,7 @@
 # Makefile for STOCK_VERIFY CI and Development Tasks
 # Usage: make <target>
 
-.PHONY: help ci test lint format typecheck pre-commit install clean eval security secrets
+.PHONY: help ci test lint format typecheck pre-commit install clean eval security secrets agent-ci agent-python agent-node
 
 PYTHON := ./scripts/python.sh
 
@@ -17,6 +17,7 @@ help:
 	@echo ""
 	@echo "✅ Quality Assurance:"
 	@echo "  make ci          - Run all CI checks (Python + Node.js)"
+	@echo "  make agent-ci    - Run compact agent-friendly CI checks"
 	@echo "  make test        - Run all tests"
 	@echo "  make lint        - Run all linters"
 	@echo "  make format      - Format all code"
@@ -128,6 +129,15 @@ node-e2e-recount-smoke:
 # =============================================================================
 ci: python-ci node-ci
 	@echo "✅ All CI checks passed!"
+
+agent-ci:
+	@./scripts/agent_ci.sh ci
+
+agent-python:
+	@./scripts/agent_ci.sh python
+
+agent-node:
+	@./scripts/agent_ci.sh node
 
 test: python-test node-test
 

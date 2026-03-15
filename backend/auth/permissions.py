@@ -8,6 +8,8 @@ from enum import Enum
 from fastapi import Depends, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from backend.auth.dependencies import get_current_user
+
 
 # Permission definitions
 class Permission(str, Enum):
@@ -131,18 +133,23 @@ def get_user_permissions(user: dict) -> list[str]:
     role = user.get("role", "staff")
 
     # Get base role permissions
-    base_permissions = get_role_permissions(role)
+    base_permissions = {p.value for p in get_role_permissions(role)}
 
     # Get custom permissions (if any)
-    custom_permissions = set(user.get("permissions", []))
+    custom_permissions = {
+        p.value if isinstance(p, Permission) else str(p) for p in user.get("permissions", [])
+    }
 
     # Get disabled permissions
-    disabled_permissions = set(user.get("disabled_permissions", []))
+    disabled_permissions = {
+        p.value if isinstance(p, Permission) else str(p)
+        for p in user.get("disabled_permissions", [])
+    }
 
     # Combine: base + custom - disabled
     all_permissions = (base_permissions | custom_permissions) - disabled_permissions
 
-    return sorted([p.value for p in all_permissions])
+    return sorted(all_permissions)
 
 
 def has_permission(user: dict, permission: Permission) -> bool:
@@ -171,7 +178,7 @@ class PermissionChecker:
     def __init__(self, required_permission: Permission):
         self.required_permission = required_permission
 
-    def __call__(self, current_user: dict = Depends(lambda: None)):
+    def __call__(self, current_user: dict = Depends(get_current_user)):
         """Check if current user has the required permission"""
         if current_user is None:
             raise HTTPException(

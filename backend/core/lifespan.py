@@ -30,7 +30,7 @@ from backend.api.enhanced_item_api import init_enhanced_api
 from backend.api.erp_api import init_erp_api
 from backend.api.item_verification_api import init_verification_api
 from backend.api.metrics_api import set_monitoring_service
-from backend.api.sync_management_api import set_change_detection_service
+from backend.api.sync_management_api import set_change_detection_service, set_erp_sync_service
 from backend.api.sync_status_api import set_auto_sync_manager
 from backend.auth.dependencies import init_auth_dependencies
 from backend.config import settings
@@ -280,6 +280,7 @@ if getattr(settings, "ERP_SYNC_ENABLED", True):
             sync_interval=getattr(settings, "ERP_SYNC_INTERVAL", 3600),
             enabled=True,
         )
+        set_erp_sync_service(erp_sync_service)
     except Exception as e:
         logger.warning(f"ERP sync service initialization failed: {str(e)}")
 

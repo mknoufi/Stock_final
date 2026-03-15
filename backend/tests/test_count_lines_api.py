@@ -14,6 +14,7 @@ from backend.api.count_lines_routes import (
     _require_supervisor,
     approve_count_line,
     calculate_financial_impact,
+    check_serial_uniqueness,
     create_count_line,
     detect_risk_flags,
     get_count_lines,
@@ -35,6 +36,48 @@ def reset_globals():
         patch("backend.api.count_lines_routes._variant_service", None),
     ):
         yield
+
+
+class TestCheckSerialUniqueness:
+    @pytest.fixture
+    def mock_db(self):
+        db = AsyncMock()
+        db.count_lines.find_one = AsyncMock(return_value=None)
+        return db
+
+    @pytest.mark.asyncio
+    async def test_returns_false_when_serial_not_found(self, mock_db):
+        with patch("backend.api.count_lines_routes.get_db", return_value=mock_db):
+            result = await check_serial_uniqueness(
+                session_id="sess_1",
+                serial_number="ABC123",
+                current_user={"username": "staff1", "role": "staff"},
+            )
+
+        assert result == {"exists": False}
+
+    @pytest.mark.asyncio
+    async def test_returns_details_when_serial_found(self, mock_db):
+        record = {
+            "item_code": "ITEM001",
+            "item_name": "Widget",
+            "counted_by": "staff1",
+            "floor_no": "1",
+            "rack_no": "A1",
+            "status": "pending",
+        }
+        mock_db.count_lines.find_one = AsyncMock(side_effect=[None, record])
+
+        with patch("backend.api.count_lines_routes.get_db", return_value=mock_db):
+            result = await check_serial_uniqueness(
+                session_id="sess_1",
+                serial_number="abc123",
+                current_user={"username": "staff1", "role": "staff"},
+            )
+
+        assert result["exists"] is True
+        for key, value in record.items():
+            assert result[key] == value
 
 
 class TestCountLinesAPIHelpers:

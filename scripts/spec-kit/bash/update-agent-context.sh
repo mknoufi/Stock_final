@@ -233,7 +233,9 @@ format_technology_stack() {
 get_project_structure() {
     local project_type="$1"
 
-    if [[ "$project_type" == *"web"* ]]; then
+    if [[ -d "$REPO_ROOT/backend" ]] && [[ -d "$REPO_ROOT/frontend" ]]; then
+        echo "backend/\\nfrontend/\\ndocs/\\nscripts/"
+    elif [[ "$project_type" == *"web"* ]]; then
         echo "backend/\\nfrontend/\\ntests/"
     else
         echo "src/\\ntests/"
@@ -242,6 +244,11 @@ get_project_structure() {
 
 get_commands_for_language() {
     local lang="$1"
+
+    if [[ -f "$REPO_ROOT/Makefile" ]]; then
+        echo "make agent-ci"
+        return
+    fi
 
     case "$lang" in
         *"Python"*)
@@ -262,6 +269,65 @@ get_commands_for_language() {
 get_language_conventions() {
     local lang="$1"
     echo "$lang: Follow standard conventions"
+}
+
+is_generated_agent_file() {
+    local target_file="$1"
+    grep -q "Auto-generated from all feature plans" "$target_file" 2>/dev/null
+}
+
+append_agent_safety_overlay_if_missing() {
+    local target_file="$1"
+
+    if grep -Eq "Human Checkpoint Rules|Human Checkpoints|Agent Safety Overlay" "$target_file" 2>/dev/null; then
+        return 0
+    fi
+
+    cat >> "$target_file" <<'EOF'
+
+## Agent Safety Overlay
+
+- Operate autonomously for inspection, code edits, and test execution.
+- Pause for explicit user confirmation before high-impact actions.
+
+### Human Checkpoint Triggers
+
+- Running scripts with mutating flags such as `--execute`, `--apply`, `--write`, or similar.
+- Database backfills, migrations, or bulk repair jobs that update MongoDB records.
+- Deployments, rollbacks, infrastructure changes, or commands that can affect live systems.
+- Destructive git actions such as force pushes, history rewrites, or mass deletes.
+- Security-sensitive changes touching auth, secrets, permissions, or production access.
+
+### Required Flow
+
+1. Inspect first.
+2. Prefer dry-run or read-only mode.
+3. Summarize expected impact.
+4. Log the request with `./scripts/python.sh scripts/agent_approval_log.py`.
+5. Ask for confirmation before the mutating step.
+EOF
+}
+
+append_agent_ui_overlay_if_missing() {
+    local target_file="$1"
+
+    if grep -Eq "UI/UX Overlay|UI/UX Rules|UI/UX Mode" "$target_file" 2>/dev/null; then
+        return 0
+    fi
+
+    cat >> "$target_file" <<'EOF'
+
+## UI/UX Overlay
+
+- For UI work, default to a functional mobile utility style with clear hierarchy and semantic status colors.
+- Avoid mixed visual languages, AI-purple or pink-heavy gradients, glass-heavy layering, and ornamental shadows on operational screens.
+- Require `44x44` minimum touch targets, safe-area aware layouts, visible labels, explicit states, and accessible contrast.
+- Respect reduced motion and text scaling before considering a screen complete.
+
+### UI/UX Reference
+
+- See `docs/AGENT_UI_UX_RULES.md` for the repo-specific screen design checklist and anti-patterns.
+EOF
 }
 
 create_new_agent_file() {
@@ -353,6 +419,9 @@ create_new_agent_file() {
     # Clean up backup files
     rm -f "$temp_file.bak" "$temp_file.bak2"
 
+    append_agent_safety_overlay_if_missing "$temp_file"
+    append_agent_ui_overlay_if_missing "$temp_file"
+
     return 0
 }
 
@@ -412,6 +481,11 @@ update_existing_agent_file() {
     local changes_entries_added=false
     local existing_changes_count=0
     local file_ended=false
+    local should_add_missing_sections=0
+
+    if is_generated_agent_file "$target_file"; then
+        should_add_missing_sections=1
+    fi
 
     while IFS= read -r line || [[ -n "$line" ]]; do
         # Handle Active Technologies section
@@ -476,14 +550,14 @@ update_existing_agent_file() {
     fi
 
     # If sections don't exist, add them at the end of the file
-    if [[ $has_active_technologies -eq 0 ]] && [[ ${#new_tech_entries[@]} -gt 0 ]]; then
+    if [[ $should_add_missing_sections -eq 1 ]] && [[ $has_active_technologies -eq 0 ]] && [[ ${#new_tech_entries[@]} -gt 0 ]]; then
         echo "" >> "$temp_file"
         echo "## Active Technologies" >> "$temp_file"
         printf '%s\n' "${new_tech_entries[@]}" >> "$temp_file"
         tech_entries_added=true
     fi
 
-    if [[ $has_recent_changes -eq 0 ]] && [[ -n "$new_change_entry" ]]; then
+    if [[ $should_add_missing_sections -eq 1 ]] && [[ $has_recent_changes -eq 0 ]] && [[ -n "$new_change_entry" ]]; then
         echo "" >> "$temp_file"
         echo "## Recent Changes" >> "$temp_file"
         echo "$new_change_entry" >> "$temp_file"
@@ -496,6 +570,9 @@ update_existing_agent_file() {
         rm -f "$temp_file"
         return 1
     fi
+
+    append_agent_safety_overlay_if_missing "$target_file"
+    append_agent_ui_overlay_if_missing "$target_file"
 
     return 0
 }

@@ -1,6 +1,6 @@
 /**
  * Forgot Password Screen
- * Initiates the password reset flow via WhatsApp OTP
+ * Initiates the password reset flow via phone OTP delivery
  */
 
 import React, { useState } from "react";
@@ -53,13 +53,16 @@ export default function ForgotPasswordScreen() {
       );
 
       if (response.data.success) {
-        // Navigate to OTP verification
         router.push({
           pathname: "/otp-verification",
-          params: { username: identifier.trim() }, // Pass identifier for verification context
+          params: { identifier: identifier.trim() },
         });
       } else {
-        setError(response.data.message || "Failed to send OTP");
+        setError(
+          response.data.message ||
+            response.data.error?.message ||
+            "Failed to send OTP",
+        );
       }
     } catch (err: any) {
       setError(
@@ -78,7 +81,7 @@ export default function ForgotPasswordScreen() {
 
       <ModernHeader
         title="Reset Password"
-        subtitle="Recovery via WhatsApp"
+        subtitle="Recovery via phone verification"
         showBackButton
         onBackPress={() => router.back()}
       />
@@ -105,8 +108,9 @@ export default function ForgotPasswordScreen() {
 
             <Text style={styles.title}>Forgot Password?</Text>
             <Text style={styles.subtitle}>
-              Enter your username or registered phone number. We'll send you a
-              verification code via WhatsApp.
+              Enter your username or registered phone number. We'll send a
+              verification code to the phone number associated with your
+              account.
             </Text>
 
             <ModernCard padding={spacing.lg} style={styles.card}>

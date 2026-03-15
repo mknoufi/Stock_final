@@ -55,3 +55,17 @@ export const markNotificationAsRead = async (notificationId: string): Promise<vo
 export const markAllNotificationsAsRead = async (): Promise<void> => {
   await api.post("/api/notifications/mark-all-read");
 };
+
+export const registerNotificationDevice = async (
+  token: string,
+  platform: string,
+): Promise<void> => {
+  await api.post("/api/notifications/devices", { token, platform });
+};
+
+export const unregisterNotificationDevice = async (
+  token: string,
+  platform: string,
+): Promise<void> => {
+  await api.post("/api/notifications/devices/unregister", { token, platform });
+};

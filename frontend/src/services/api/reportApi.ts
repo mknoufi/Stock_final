@@ -12,7 +12,7 @@ export type ReportType =
   | "session_history"
   | "audit_trail";
 
-export type ExportFormat = "csv" | "xlsx" | "pdf";
+export type ExportFormat = "json" | "csv" | "xlsx";
 
 export interface ReportFilters {
   date_from?: string;
@@ -20,16 +20,14 @@ export interface ReportFilters {
   warehouse?: string;
   user_id?: string;
   status?: string;
-  min_variance?: number;
-  include_zero_variance?: boolean;
+  floor?: string;
+  category?: string;
 }
 
 export interface ReportTypeInfo {
   id: ReportType;
   name: string;
   description: string;
-  available_filters: string[];
-  supported_formats: ExportFormat[];
 }
 
 export interface ReportPreviewData {
@@ -42,38 +40,37 @@ export interface ReportPreviewData {
 
 export interface GenerateReportParams {
   report_type: ReportType;
-  format: ExportFormat;
+  format?: ExportFormat;
   filters?: ReportFilters;
+  include_summary?: boolean;
 }
 
-export interface ScheduleReportParams {
-  name: string;
+export interface ReportFilterOptionsResponse {
   report_type: ReportType;
-  format: ExportFormat;
-  filters?: ReportFilters;
-  schedule: {
-    frequency: "daily" | "weekly" | "monthly";
-    time?: string;
-    day_of_week?: number;
-    day_of_month?: number;
+  filters: {
+    warehouses: string[];
+    floors: string[];
+    categories: string[];
+    statuses: string[];
+    users: Array<{
+      id: string;
+      username: string;
+      role: string;
+    }>;
   };
-  recipients?: string[];
-  enabled?: boolean;
 }
 
-export interface ScheduledReport {
-  id: string;
-  name: string;
+export interface ReportSummary {
+  total_records: number;
+  generated_at: string;
+  filters_applied: Record<string, unknown>;
   report_type: ReportType;
-  format: ExportFormat;
-  schedule: ScheduleReportParams["schedule"];
-  filters?: ReportFilters;
-  recipients: string[];
-  enabled: boolean;
-  last_run?: string;
-  next_run?: string;
-  created_at: string;
-  created_by: string;
+  report_name: string;
+}
+
+export interface ReportResponse {
+  summary: ReportSummary;
+  data: Array<Record<string, unknown>>;
 }
 
 // API Client
@@ -89,112 +86,131 @@ export const reportApi = {
   },
 
   /**
-   * Preview report data before exporting
+   * Get available filter options for a report type
+   */
+  getReportFilters: async (
+    reportType: ReportType,
+  ): Promise<ReportFilterOptionsResponse> => {
+    const response = await api.get<ReportFilterOptionsResponse>(
+      `/api/reports/filters/${encodeURIComponent(reportType)}`,
+    );
+    return response.data;
+  },
+
+  /**
+   * Preview report data before exporting.
+   *
+   * Note: The backend currently doesn't expose a dedicated preview endpoint for the
+   * "report generation" API, so we generate JSON and take the first N rows client-side.
    */
   previewReport: async (
     reportType: ReportType,
     filters?: ReportFilters,
+    previewRows: number = 50,
   ): Promise<ReportPreviewData> => {
-    const response = await api.post<ReportPreviewData>("/api/reports/preview", {
+    const report = await reportApi.generateReport({
       report_type: reportType,
+      format: "json",
       filters,
     });
-    return response.data;
+
+    const rows = report.data.slice(0, Math.max(0, previewRows));
+    const columns =
+      rows.length > 0
+        ? Array.from(
+            new Set(rows.flatMap((row) => Object.keys(row))),
+          )
+        : [];
+
+    return {
+      columns,
+      rows,
+      total_rows: report.summary.total_records,
+      preview_rows: rows.length,
+      generated_at: report.summary.generated_at,
+    };
   },
 
   /**
-   * Generate and download report
+   * Generate a report (JSON response).
    */
-  generateReport: async (params: GenerateReportParams): Promise<Blob> => {
-    const response = await api.post("/api/reports/generate", params, {
-      responseType: "blob",
+  generateReport: async (params: GenerateReportParams): Promise<ReportResponse> => {
+    const response = await api.post<ReportResponse>("/api/reports/generate", {
+      report_type: params.report_type,
+      filters: params.filters,
+      format: params.format ?? "json",
+      include_summary: params.include_summary ?? true,
     });
     return response.data;
   },
 
   /**
-   * Generate report and get download URL
+   * Export a report as a file (CSV/XLSX/JSON Blob).
    */
-  generateReportUrl: async (params: GenerateReportParams): Promise<string> => {
-    const response = await api.post<{
-      download_url: string;
-      expires_in: number;
-    }>("/api/reports/generate-url", params);
-    return response.data.download_url;
+  exportReport: async (params: GenerateReportParams): Promise<Blob> => {
+    const format = params.format ?? "json";
+
+    if (format === "csv" || format === "xlsx") {
+      const response = await api.post(
+        `/api/reports/export/${format}`,
+        {
+          report_type: params.report_type,
+          filters: params.filters,
+          format,
+          include_summary: params.include_summary ?? true,
+        },
+        { responseType: "blob" },
+      );
+      return response.data;
+    }
+
+    if (format === "json") {
+      const json = await reportApi.generateReport({ ...params, format: "json" });
+      return new Blob([JSON.stringify(json, null, 2)], {
+        type: "application/json",
+      });
+    }
+
+    // Exhaustiveness guard; should be unreachable due to ExportFormat typing.
+    throw new Error(`Unsupported export format: ${String(format)}`);
   },
 
-  /**
-   * Get list of scheduled reports
-   */
-  getScheduledReports: async (): Promise<ScheduledReport[]> => {
-    const response = await api.get<ScheduledReport[]>("/api/reports/schedules");
-    return response.data;
-  },
-
-  /**
-   * Create a scheduled report
-   */
-  createScheduledReport: async (
-    params: ScheduleReportParams,
-  ): Promise<ScheduledReport> => {
-    const response = await api.post<ScheduledReport>(
-      "/api/reports/schedules",
-      params,
+  // NOTE: Scheduled report management and "generate-url" endpoints are not
+  // implemented on the backend. We intentionally don't call non-existent routes.
+  generateReportUrl: async (): Promise<string> => {
+    throw new Error(
+      "Scheduled report URLs are not supported: backend does not provide /api/reports/generate-url",
     );
-    return response.data;
   },
-
-  /**
-   * Update a scheduled report
-   */
-  updateScheduledReport: async (
-    id: string,
-    params: Partial<ScheduleReportParams>,
-  ): Promise<ScheduledReport> => {
-    const response = await api.patch<ScheduledReport>(
-      `/api/reports/schedules/${id}`,
-      params,
+  getScheduledReports: async (): Promise<never> => {
+    throw new Error(
+      "Scheduled reports are not supported: backend does not provide /api/reports/schedules",
     );
-    return response.data;
   },
-
-  /**
-   * Delete a scheduled report
-   */
-  deleteScheduledReport: async (id: string): Promise<void> => {
-    await api.delete(`/api/reports/schedules/${id}`);
-  },
-
-  /**
-   * Run a scheduled report immediately
-   */
-  runScheduledReport: async (id: string): Promise<{ message: string }> => {
-    const response = await api.post<{ message: string }>(
-      `/api/reports/schedules/${id}/run`,
+  createScheduledReport: async (): Promise<never> => {
+    throw new Error(
+      "Scheduled reports are not supported: backend does not provide /api/reports/schedules",
     );
-    return response.data;
   },
-
-  /**
-   * Get report execution history
-   */
-  getReportHistory: async (params?: {
-    limit?: number;
-    report_type?: ReportType;
-  }): Promise<
-    {
-      id: string;
-      report_type: ReportType;
-      format: ExportFormat;
-      status: "completed" | "failed" | "pending";
-      created_at: string;
-      completed_at?: string;
-      file_size?: number;
-      error_message?: string;
-    }[]
-  > => {
-    const response = await api.get("/api/reports/history", { params });
-    return response.data;
+  updateScheduledReport: async (): Promise<never> => {
+    throw new Error(
+      "Scheduled reports are not supported: backend does not provide /api/reports/schedules",
+    );
+  },
+  deleteScheduledReport: async (): Promise<never> => {
+    throw new Error(
+      "Scheduled reports are not supported: backend does not provide /api/reports/schedules",
+    );
+  },
+  runScheduledReport: async (): Promise<never> => {
+    throw new Error(
+      "Scheduled reports are not supported: backend does not provide /api/reports/schedules",
+    );
+  },
+  getReportHistory: async (): Promise<never> => {
+    throw new Error(
+      "Report history is not supported: backend does not provide /api/reports/history",
+    );
   },
 };
 
@@ -203,9 +219,10 @@ export async function downloadReport(
   params: GenerateReportParams,
   filename?: string,
 ): Promise<void> {
-  const blob = await reportApi.generateReport(params);
+  const blob = await reportApi.exportReport(params);
 
-  const defaultFilename = `${params.report_type}_${new Date().toISOString().split("T")[0]}.${params.format}`;
+  const format = params.format ?? "json";
+  const defaultFilename = `${params.report_type}_${new Date().toISOString().split("T")[0]}.${format}`;
   const finalFilename = filename || defaultFilename;
 
   // Create download link

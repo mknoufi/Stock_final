@@ -329,7 +329,7 @@ export const analyticsApi = {
 
     try {
       const response = await api.get<{ success: boolean; data: ConflictStats }>(
-        "/api/sync-conflicts/stats/summary",
+        "/api/sync/conflicts/stats/summary",
       );
       return response.data.data;
     } catch (error) {

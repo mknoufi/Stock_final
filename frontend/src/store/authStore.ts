@@ -20,6 +20,71 @@ interface User {
   has_pin?: boolean;
 }
 
+const BASE64_ALPHABET =
+  "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BASE64_LOOKUP: number[] = (() => {
+  const table = new Array<number>(256).fill(-1);
+  for (let i = 0; i < BASE64_ALPHABET.length; i++) {
+    table[BASE64_ALPHABET.charCodeAt(i)] = i;
+  }
+  return table;
+})();
+
+const normalizeBase64Url = (value: string): string => {
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = base64.length % 4;
+  return padding === 0 ? base64 : base64 + "=".repeat(4 - padding);
+};
+
+const decodeBase64 = (value: string): string => {
+  const atobFn = (globalThis as any).atob as ((input: string) => string) | undefined;
+  if (typeof atobFn === "function") {
+    return atobFn(value);
+  }
+
+  const BufferCtor = (globalThis as any).Buffer as
+    | { from: (input: string, encoding: "base64") => { toString: (enc: "utf8") => string } }
+    | undefined;
+  if (BufferCtor && typeof BufferCtor.from === "function") {
+    return BufferCtor.from(value, "base64").toString("utf8");
+  }
+
+  // Minimal base64 decoder polyfill (sufficient for JWT JSON payloads).
+  const cleaned = value.replace(/[^A-Za-z0-9+/=]/g, "");
+  let output = "";
+
+  for (let i = 0; i < cleaned.length; i += 4) {
+    const c1 = cleaned.charCodeAt(i);
+    const c2 = cleaned.charCodeAt(i + 1);
+    const c3 = cleaned.charAt(i + 2);
+    const c4 = cleaned.charAt(i + 3);
+
+    const e1 = BASE64_LOOKUP[c1] ?? -1;
+    const e2 = BASE64_LOOKUP[c2] ?? -1;
+    const e3 = c3 === "=" ? 64 : (BASE64_LOOKUP[c3.charCodeAt(0)] ?? -1);
+    const e4 = c4 === "=" ? 64 : (BASE64_LOOKUP[c4.charCodeAt(0)] ?? -1);
+
+    if (e1 < 0 || e2 < 0 || e3 < 0 || e4 < 0) {
+      throw new Error("Invalid base64 payload");
+    }
+
+    const triple = (e1 << 18) | (e2 << 12) | ((e3 & 63) << 6) | (e4 & 63);
+    output += String.fromCharCode((triple >> 16) & 255);
+    if (c3 !== "=") output += String.fromCharCode((triple >> 8) & 255);
+    if (c4 !== "=") output += String.fromCharCode(triple & 255);
+  }
+
+  return output;
+};
+
+const decodeJwtPayload = (token: string): { exp?: number } | null => {
+  const parts = token.split(".");
+  if (parts.length !== 3 || !parts[1]) return null;
+
+  const payloadJson = decodeBase64(normalizeBase64Url(parts[1]));
+  return JSON.parse(payloadJson);
+};
+
 type AuthResult = {
   success: boolean;
   message?: string;
@@ -183,6 +248,32 @@ const syncOfflineQueueInBackground = async () => {
   });
 };
 
+const initializeNotificationsInBackground = async () => {
+  try {
+    const { NotificationService } = await import(
+      "../services/utils/notificationService"
+    );
+    await NotificationService.initialize();
+  } catch (error) {
+    log.warn("Notification initialization failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+const unregisterNotificationsInBackground = async () => {
+  try {
+    const { NotificationService } = await import(
+      "../services/utils/notificationService"
+    );
+    await NotificationService.unregisterCurrentDevice();
+  } catch (error) {
+    log.warn("Notification unregister failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
@@ -257,6 +348,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     get().startHeartbeat();
     await useSettingsStore.getState().syncFromBackend();
     await syncOfflineQueueInBackground();
+    await initializeNotificationsInBackground();
   },
 
   login: async (
@@ -401,6 +493,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     } catch (_) {}
 
+    await unregisterNotificationsInBackground();
+
     await secureStorage.removeItem(AUTH_STORAGE_KEY);
     await secureStorage.removeItem(TOKEN_STORAGE_KEY);
     await secureStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
@@ -416,9 +510,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     setUserPreferenceScope(null);
     await useSettingsStore.getState().loadSettings();
 
-    const { clearOfflineQueue } =
-      await import("../services/offline/offlineStorage");
-    await clearOfflineQueue();
+    try {
+      const { clearNotificationStore } = await import("./notificationStore");
+      await clearNotificationStore();
+    } catch {
+      // Best-effort; never block logout.
+    }
+
+    try {
+      const { queryClient } = await import("../services/queryClient");
+      await queryClient.cancelQueries();
+      queryClient.clear();
+    } catch {
+      // Best-effort; never block logout.
+    }
+
+    try {
+      const { clearScanSessionStore } = await import("./scanSessionStore");
+      await clearScanSessionStore();
+    } catch {
+      // Best-effort; never block logout.
+    }
+
+    try {
+      const { RecentItemsService } = await import("../services/enhancedFeatures");
+      await RecentItemsService.clearRecent();
+    } catch {
+      // Best-effort; never block logout.
+    }
+
+    const { clearAllCache } = await import("../services/offline/offlineStorage");
+    await clearAllCache();
   },
 
   logoutAll: async (
@@ -501,14 +623,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // Helper function to check if JWT token is expired
   checkTokenExpired: (token: string): boolean => {
     try {
-      const parts = token.split('.');
-      if (parts.length !== 3) return false; // Not a valid JWT
-      
-      const payload = parts[1] ? JSON.parse(atob(parts[1])) : null;
-      if (!payload || !payload.exp) return false;
-      
+      const payload = decodeJwtPayload(token);
+      if (!payload || typeof payload.exp !== "number") return false;
+
       const now = Math.floor(Date.now() / 1000);
-      
+
       // Remove aggressive 30-second buffer - let server handle expiration
       // Only consider expired if actually expired
       return payload.exp < now;
@@ -553,6 +672,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         await useSettingsStore.getState().loadSettings();
         get().startHeartbeat();
         await useSettingsStore.getState().syncFromBackend();
+        await initializeNotificationsInBackground();
       } else if (Platform.OS === "web") {
         try {
           const response = await apiClient.get("/api/auth/me");
@@ -573,6 +693,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             await useSettingsStore.getState().loadSettings();
             get().startHeartbeat();
             await useSettingsStore.getState().syncFromBackend();
+            await initializeNotificationsInBackground();
             return;
           }
         } catch (_cookieAuthError) {

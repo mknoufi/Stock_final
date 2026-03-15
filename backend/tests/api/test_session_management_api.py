@@ -10,8 +10,10 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+from backend.api.session_management_api import _collect_snapshot_items
 from backend.api.schemas import SessionCreate
 from backend.server import app
+from backend.tests.utils.in_memory_db import InMemoryDatabase
 
 
 @pytest.fixture
@@ -84,6 +86,26 @@ class TestSessionModels:
         """Test that warehouse is required"""
         with pytest.raises(Exception):
             SessionCreate()
+
+
+class TestSnapshotLocationMatching:
+    @pytest.mark.asyncio
+    async def test_collect_snapshot_items_uses_showroom_alias_for_plain_warehouse(self):
+        db = InMemoryDatabase()
+        await db.erp_items.insert_one(
+            {
+                "item_code": "ITEM-001",
+                "stock_qty": 8,
+                "warehouse": "Primary",
+                "barcode": "123456",
+            }
+        )
+
+        snapshot_items = await _collect_snapshot_items(db, "Showroom")
+
+        assert len(snapshot_items) == 1
+        assert snapshot_items[0].item_code == "ITEM-001"
+        assert snapshot_items[0].warehouse == "Primary"
 
 
 class TestCreateSessionEndpoint:

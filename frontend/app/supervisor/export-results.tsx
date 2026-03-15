@@ -24,6 +24,7 @@ import { usePermission } from "../../src/hooks/usePermission";
 import {
   getExportResults,
   downloadExportResult,
+  type ExportResultRecord,
 } from "../../src/services/api/api";
 import {
   ScreenContainer,
@@ -32,32 +33,21 @@ import {
 } from "../../src/components/ui";
 import { theme } from "../../src/styles/modernDesignSystem";
 
-interface ExportResult {
-  _id: string;
-  schedule_id: string;
-  schedule_name: string;
-  status: string;
-  format: string;
-  file_path?: string;
-  file_size?: number;
-  record_count?: number;
-  error_message?: string;
-  started_at: string;
-  completed_at?: string;
-}
+type ExportResult = ExportResultRecord & {
+  status: "completed";
+};
 
 export default function ExportResultsScreen() {
   const router = useRouter();
   const { hasPermission } = usePermission();
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState<ExportResult[]>([]);
-  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<"all" | "completed">("all");
   const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
     if (
-      !hasPermission("export.view_all") &&
-      !hasPermission("export.view_own")
+      !hasPermission("export.all")
     ) {
       Alert.alert(
         "Access Denied",
@@ -73,9 +63,16 @@ export default function ExportResultsScreen() {
   const loadResults = async () => {
     try {
       setLoading(true);
-      const status = filterStatus === "all" ? undefined : filterStatus;
-      const response = await getExportResults(undefined, status);
-      setResults(response.data?.results || []);
+      const response = await getExportResults(undefined, undefined, 1, 100);
+      const normalizedResults = response.map((result) => ({
+        ...result,
+        status: "completed" as const,
+      }));
+      setResults(
+        filterStatus === "all"
+          ? normalizedResults
+          : normalizedResults.filter((result) => result.status === filterStatus),
+      );
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to load export results");
     } finally {
@@ -154,7 +151,7 @@ export default function ExportResultsScreen() {
     const statusColor = getStatusColor(result.status);
     return (
       <Animated.View
-        key={result._id}
+        key={result.id}
         entering={FadeInDown.delay(index * 100).springify()}
       >
         <GlassCard
@@ -180,7 +177,7 @@ export default function ExportResultsScreen() {
               <View>
                 <Text style={styles.cardTitle}>{result.schedule_name}</Text>
                 <Text style={styles.cardSubtitle}>
-                  {new Date(result.started_at).toLocaleString()}
+                  {new Date(result.created_at).toLocaleString()}
                 </Text>
               </View>
             </View>
@@ -210,7 +207,7 @@ export default function ExportResultsScreen() {
                 Format: {result.format.toUpperCase()}
               </Text>
             </View>
-            {result.record_count !== undefined && (
+            {result.row_count !== undefined && (
               <View style={styles.detailRow}>
                 <Ionicons
                   name="list-outline"
@@ -218,11 +215,11 @@ export default function ExportResultsScreen() {
                   color={theme.colors.text.tertiary}
                 />
                 <Text style={styles.detailText}>
-                  Records: {result.record_count.toLocaleString()}
+                  Records: {result.row_count.toLocaleString()}
                 </Text>
               </View>
             )}
-            {result.file_size && (
+            {result.size_bytes && (
               <View style={styles.detailRow}>
                 <Ionicons
                   name="save-outline"
@@ -230,24 +227,13 @@ export default function ExportResultsScreen() {
                   color={theme.colors.text.tertiary}
                 />
                 <Text style={styles.detailText}>
-                  Size: {formatFileSize(result.file_size)}
+                  Size: {formatFileSize(result.size_bytes)}
                 </Text>
               </View>
             )}
           </View>
 
-          {result.error_message && (
-            <View style={styles.errorContainer}>
-              <Ionicons
-                name="warning-outline"
-                size={20}
-                color={theme.colors.error.main}
-              />
-              <Text style={styles.errorText}>{result.error_message}</Text>
-            </View>
-          )}
-
-          {result.status === "completed" && result.file_path && (
+          {result.status === "completed" && result.has_content && (
             <AnimatedPressable
               style={[
                 styles.downloadButton,
@@ -255,13 +241,16 @@ export default function ExportResultsScreen() {
               ]}
               onPress={() =>
                 handleDownload(
-                  result._id,
-                  `export_${result.schedule_name}_${new Date().getTime()}.${result.format}`,
+                  result.id,
+                  `export_${result.schedule_name}_${new Date().getTime()}.${
+                    result.file_extension ||
+                    (result.format === "excel" ? "xlsx" : result.format)
+                  }`,
                 )
               }
-              disabled={downloading === result._id}
+              disabled={downloading === result.id}
             >
-              {downloading === result._id ? (
+              {downloading === result.id ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
@@ -321,7 +310,7 @@ export default function ExportResultsScreen() {
             contentContainerStyle={styles.filterContent}
             keyboardShouldPersistTaps="handled"
           >
-            {["all", "completed", "failed", "pending"].map((status) => (
+            {(["all", "completed"] as const).map((status) => (
               <AnimatedPressable
                 key={status}
                 style={[

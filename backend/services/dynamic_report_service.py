@@ -554,12 +554,82 @@ class DynamicReportService:
         timestamp: str,
         fields: list[dict[str, Any]],
     ) -> tuple:
-        """Generate PDF file (basic implementation)"""
-        # For production, use reportlab or weasyprint
-        # This is a placeholder
+        """Generate PDF file."""
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet
+        from reportlab.lib.units import inch
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+        def stringify(value: Any) -> str:
+            if value is None:
+                return ""
+            if isinstance(value, ObjectId):
+                return str(value)
+            if isinstance(value, datetime):
+                return value.isoformat()
+            if isinstance(value, (dict, list)):
+                return json.dumps(value, default=str)
+            return str(value)
+
+        output = io.BytesIO()
+        doc = SimpleDocTemplate(
+            output,
+            pagesize=letter,
+            leftMargin=0.5 * inch,
+            rightMargin=0.5 * inch,
+            topMargin=0.5 * inch,
+            bottomMargin=0.5 * inch,
+        )
+        styles = getSampleStyleSheet()
+        elements = [
+            Paragraph(template_name or "Dynamic Report", styles["Title"]),
+            Spacer(1, 0.15 * inch),
+            Paragraph(f"Generated at: {datetime.now(timezone.utc).replace(tzinfo=None).isoformat()}", styles["Normal"]),
+            Paragraph(f"Rows: {len(data)}", styles["Normal"]),
+            Spacer(1, 0.2 * inch),
+        ]
+
+        ordered_fields = fields or [{"name": key, "label": key} for key in (data[0].keys() if data else [])]
+        header_row = [stringify(field.get("label") or field.get("name")) for field in ordered_fields]
+        table_rows = [header_row]
+
+        for row in data:
+            table_rows.append(
+                [stringify(row.get(field["name"])) for field in ordered_fields]
+            )
+
+        if len(table_rows) == 1:
+            table_rows.append(["No data available"] + [""] * max(len(header_row) - 1, 0))
+
+        column_count = max(len(header_row), 1)
+        total_width = 7.5 * inch
+        col_width = total_width / column_count
+        table = Table(table_rows, repeatRows=1, colWidths=[col_width] * column_count)
+        table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f2937")),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#d1d5db")),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+                    ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("LEADING", (0, 0), (-1, -1), 10),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]
+            )
+        )
+        elements.append(table)
+        doc.build(elements)
+
         file_name = f"{template_name}_{timestamp}.pdf"
         mime_type = "application/pdf"
-        file_data = b"PDF generation not yet implemented"
+        file_data = output.getvalue()
 
         return file_data, file_name, mime_type
 

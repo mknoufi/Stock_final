@@ -1,6 +1,6 @@
 /**
  * OTP Verification Screen
- * Verifies the 6-digit code sent via WhatsApp
+ * Verifies the 6-digit code sent to the user's phone
  */
 
 import React, { useState, useEffect } from "react";
@@ -27,7 +27,7 @@ import { colors, spacing, typography } from "../src/theme/modernDesign";
 
 export default function OtpVerificationScreen() {
   const router = useRouter();
-  const { username } = useLocalSearchParams<{ username: string }>();
+  const { identifier } = useLocalSearchParams<{ identifier: string }>();
 
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -57,8 +57,12 @@ export default function OtpVerificationScreen() {
     setError("");
 
     try {
+      const normalizedIdentifier = (identifier || "").trim();
+      const isPhone = /^\+?[0-9]{10,15}$/.test(normalizedIdentifier);
       const response = await apiClient.post("/api/auth/password-reset/verify", {
-        username,
+        ...(isPhone
+          ? { phone_number: normalizedIdentifier }
+          : { username: normalizedIdentifier }),
         otp,
       });
 
@@ -69,7 +73,9 @@ export default function OtpVerificationScreen() {
           params: { reset_token: response.data.data.reset_token },
         });
       } else {
-        setError(response.data.message || "Invalid OTP");
+        setError(
+          response.data.message || response.data.error?.message || "Invalid OTP",
+        );
       }
     } catch (err: any) {
       setError(
@@ -86,7 +92,7 @@ export default function OtpVerificationScreen() {
 
       <ModernHeader
         title="Verify OTP"
-        subtitle="Enter code from WhatsApp"
+        subtitle="Enter the code sent to your phone"
         showBackButton
         onBackPress={() => router.back()}
       />
@@ -113,8 +119,8 @@ export default function OtpVerificationScreen() {
 
             <Text style={styles.title}>Verification Code</Text>
             <Text style={styles.subtitle}>
-              We sent a 6-digit code to the WhatsApp number associated with{" "}
-              <Text style={{ fontWeight: "bold" }}>{username}</Text>.
+              Enter the 6-digit code sent to the phone number associated with{" "}
+              <Text style={{ fontWeight: "bold" }}>{identifier}</Text>.
             </Text>
 
             <ModernCard padding={spacing.lg} style={styles.card}>

@@ -244,9 +244,11 @@ export const checkSerialUniqueness = async (
   floor_no?: string;
   rack_no?: string;
   status?: string;
-}> => {
+  }> => {
   try {
-    const response = await api.get(`/api/v2/count-lines/check-serial/${sessionId}/${serialNumber}`);
+    const response = await api.get(
+      `/api/count-lines/check-serial/${sessionId}/${serialNumber}`,
+    );
     return response.data;
   } catch (error) {
     console.error("Error checking serial uniqueness:", error);

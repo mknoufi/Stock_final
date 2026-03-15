@@ -137,6 +137,7 @@ jest.mock("../../src/services/api/api", () => ({
   getWarehouses: jest.fn().mockResolvedValue([]),
   getSessions: jest.fn().mockResolvedValue([]),
   getZones: jest.fn().mockResolvedValue([]),
+  getUnreadNotificationCount: jest.fn().mockResolvedValue(0),
 }));
 
 describe("HomeScreen", () => {

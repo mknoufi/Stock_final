@@ -29,6 +29,10 @@ import {
   updateExportSchedule,
   deleteExportSchedule,
   triggerExportSchedule,
+  type ExportScheduleRecord,
+  type ExportScheduleType,
+  type ExportScheduleFrequency,
+  type ExportScheduleFormat,
 } from "../../src/services/api/api";
 import {
   ScreenContainer,
@@ -37,18 +41,30 @@ import {
 } from "../../src/components/ui";
 import { theme } from "../../src/styles/modernDesignSystem";
 
-interface ExportSchedule {
-  _id: string;
-  name: string;
-  description?: string;
-  frequency: string;
-  format: string;
-  filters?: any;
-  enabled: boolean;
-  created_by: string;
-  created_at: string;
-  next_run?: string;
-}
+const EXPORT_TYPES: Array<{ label: string; value: ExportScheduleType }> = [
+  { label: "Sessions", value: "sessions" },
+  { label: "Count Lines", value: "count_lines" },
+  { label: "Variance", value: "variance_report" },
+  { label: "Activity", value: "activity_logs" },
+];
+
+const EXPORT_FORMATS: ExportScheduleFormat[] = ["excel", "csv", "json"];
+const EXPORT_FREQUENCIES: ExportScheduleFrequency[] = [
+  "daily",
+  "weekly",
+  "monthly",
+];
+
+const getExportTypeLabel = (exportType: ExportScheduleType): string =>
+  EXPORT_TYPES.find((option) => option.value === exportType)?.label ?? exportType;
+
+type ExportSchedule = ExportScheduleRecord;
+
+const splitRecipients = (value: string): string[] =>
+  value
+    .split(",")
+    .map((recipient) => recipient.trim())
+    .filter(Boolean);
 
 export default function ExportSchedulesScreen() {
   const router = useRouter();
@@ -61,16 +77,17 @@ export default function ExportSchedulesScreen() {
   );
   const [formData, setFormData] = useState({
     name: "",
-    description: "",
-    frequency: "daily",
-    format: "excel",
+    exportType: "sessions" as ExportScheduleType,
+    frequency: "daily" as ExportScheduleFrequency,
+    format: "excel" as ExportScheduleFormat,
+    emailRecipients: "",
   });
 
   const loadSchedules = useCallback(async () => {
     try {
       setLoading(true);
       const response = await getExportSchedules();
-      setSchedules(response.data?.schedules || []);
+      setSchedules(response);
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to load export schedules");
     } finally {
@@ -94,14 +111,21 @@ export default function ExportSchedulesScreen() {
     try {
       if (Platform.OS !== "web")
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await createExportSchedule(formData);
+      await createExportSchedule({
+        name: formData.name.trim(),
+        export_type: formData.exportType,
+        frequency: formData.frequency,
+        format: formData.format,
+        email_recipients: splitRecipients(formData.emailRecipients),
+      });
       Alert.alert("Success", "Export schedule created successfully");
       setModalVisible(false);
       setFormData({
         name: "",
-        description: "",
+        exportType: "sessions",
         frequency: "daily",
         format: "excel",
+        emailRecipients: "",
       });
       loadSchedules();
     } catch (error: any) {
@@ -117,15 +141,22 @@ export default function ExportSchedulesScreen() {
     try {
       if (Platform.OS !== "web")
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await updateExportSchedule(editingSchedule._id, formData);
+      await updateExportSchedule(editingSchedule.id, {
+        name: formData.name.trim(),
+        frequency: formData.frequency,
+        format: formData.format,
+        email_recipients: splitRecipients(formData.emailRecipients),
+        enabled: editingSchedule.enabled,
+      });
       Alert.alert("Success", "Export schedule updated successfully");
       setModalVisible(false);
       setEditingSchedule(null);
       setFormData({
         name: "",
-        description: "",
+        exportType: "sessions",
         frequency: "daily",
         format: "excel",
+        emailRecipients: "",
       });
       loadSchedules();
     } catch (error: any) {
@@ -179,9 +210,10 @@ export default function ExportSchedulesScreen() {
     setEditingSchedule(null);
     setFormData({
       name: "",
-      description: "",
+      exportType: "sessions",
       frequency: "daily",
       format: "excel",
+      emailRecipients: "",
     });
     setModalVisible(true);
   };
@@ -191,16 +223,17 @@ export default function ExportSchedulesScreen() {
     setEditingSchedule(schedule);
     setFormData({
       name: schedule.name,
-      description: schedule.description || "",
+      exportType: schedule.export_type,
       frequency: schedule.frequency,
       format: schedule.format,
+      emailRecipients: schedule.email_recipients.join(", "),
     });
     setModalVisible(true);
   };
 
   const renderScheduleCard = (schedule: ExportSchedule, index: number) => (
     <Animated.View
-      key={schedule._id}
+      key={schedule.id}
       entering={FadeInDown.delay(index * 100).springify()}
     >
       <GlassCard
@@ -256,11 +289,25 @@ export default function ExportSchedulesScreen() {
           </View>
         </View>
 
-        {schedule.description && (
-          <Text style={styles.cardDescription}>{schedule.description}</Text>
-        )}
-
         <View style={styles.cardDetails}>
+          <View style={styles.detailRow}>
+            <Ionicons
+              name="albums-outline"
+              size={16}
+              color={theme.colors.text.tertiary}
+            />
+            <Text style={styles.cardDetailText}>
+              Type:{" "}
+              <Text
+                style={{
+                  color: theme.colors.text.primary,
+                  fontWeight: "600",
+                }}
+              >
+                {getExportTypeLabel(schedule.export_type)}
+              </Text>
+            </Text>
+          </View>
           <View style={styles.detailRow}>
             <Ionicons
               name="time-outline"
@@ -312,6 +359,21 @@ export default function ExportSchedulesScreen() {
               </Text>
             </View>
           )}
+          {schedule.last_run && (
+            <View style={styles.detailRow}>
+              <Ionicons
+                name="checkmark-done-outline"
+                size={16}
+                color={theme.colors.text.tertiary}
+              />
+              <Text style={styles.cardDetailText}>
+                Last Run:{" "}
+                <Text style={{ color: theme.colors.text.primary }}>
+                  {new Date(schedule.last_run).toLocaleString()}
+                </Text>
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.cardActions}>
@@ -320,7 +382,7 @@ export default function ExportSchedulesScreen() {
               styles.actionButton,
               { backgroundColor: theme.colors.primary[500] },
             ]}
-            onPress={() => handleTriggerSchedule(schedule._id)}
+            onPress={() => handleTriggerSchedule(schedule.id)}
           >
             <Ionicons name="play" size={16} color="#fff" />
             <Text style={styles.actionButtonText}>Run Now</Text>
@@ -342,7 +404,7 @@ export default function ExportSchedulesScreen() {
               styles.actionButton,
               { backgroundColor: theme.colors.error.main },
             ]}
-            onPress={() => handleDeleteSchedule(schedule._id)}
+            onPress={() => handleDeleteSchedule(schedule.id)}
           >
             <Ionicons name="trash-outline" size={16} color="#fff" />
             <Text style={styles.actionButtonText}>Delete</Text>
@@ -462,21 +524,42 @@ export default function ExportSchedulesScreen() {
                 }
               />
 
-              <Text style={styles.inputLabel}>Description</Text>
-              <TextInput
-                style={[styles.modalInput, styles.modalTextArea]}
-                placeholder="Description (optional)"
-                placeholderTextColor={theme.colors.text.tertiary}
-                value={formData.description}
-                onChangeText={(text) =>
-                  setFormData({ ...formData, description: text })
-                }
-                multiline
-              />
+              <Text style={styles.inputLabel}>Export Type</Text>
+              <View style={styles.optionGroup}>
+                {EXPORT_TYPES.map((option) => (
+                  <AnimatedPressable
+                    key={option.value}
+                    style={[
+                      styles.optionButton,
+                      formData.exportType === option.value && {
+                        backgroundColor: theme.colors.primary[500],
+                        borderColor: theme.colors.primary[500],
+                      },
+                      editingSchedule && styles.optionButtonDisabled,
+                    ]}
+                    onPress={() =>
+                      !editingSchedule &&
+                      setFormData({ ...formData, exportType: option.value })
+                    }
+                  >
+                    <Text
+                      style={[
+                        styles.optionButtonText,
+                        formData.exportType === option.value && {
+                          color: "#fff",
+                          fontWeight: "700",
+                        },
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </AnimatedPressable>
+                ))}
+              </View>
 
               <Text style={styles.inputLabel}>Frequency</Text>
               <View style={styles.optionGroup}>
-                {["daily", "weekly", "monthly"].map((freq) => (
+                {EXPORT_FREQUENCIES.map((freq) => (
                   <AnimatedPressable
                     key={freq}
                     style={[
@@ -507,7 +590,7 @@ export default function ExportSchedulesScreen() {
 
               <Text style={styles.inputLabel}>Format</Text>
               <View style={styles.optionGroup}>
-                {["excel", "csv", "json"].map((fmt) => (
+                {EXPORT_FORMATS.map((fmt) => (
                   <AnimatedPressable
                     key={fmt}
                     style={[
@@ -533,6 +616,19 @@ export default function ExportSchedulesScreen() {
                   </AnimatedPressable>
                 ))}
               </View>
+
+              <Text style={styles.inputLabel}>Email Recipients</Text>
+              <TextInput
+                style={styles.modalInput}
+                placeholder="Comma-separated emails (optional)"
+                placeholderTextColor={theme.colors.text.tertiary}
+                value={formData.emailRecipients}
+                onChangeText={(text) =>
+                  setFormData({ ...formData, emailRecipients: text })
+                }
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
 
               <View style={styles.modalActions}>
                 <AnimatedPressable
@@ -789,6 +885,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255,255,255,0.05)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.1)",
+  },
+  optionButtonDisabled: {
+    opacity: 0.5,
   },
   optionButtonText: {
     color: theme.colors.text.secondary,

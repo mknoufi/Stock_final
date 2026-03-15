@@ -163,8 +163,9 @@ export default function SecuritySettingsScreen() {
             color={colors.gray[500]}
           />
           <Text style={styles.infoText}>
-            Your PIN is securely hashed using Argon2 and stored only on this
-            device's secure enclave if biometrics are enabled.
+            Your PIN is hashed using Argon2 and stored on the server. If you
+            enable biometric login, your PIN is stored securely on this device
+            (Keychain/Keystore) so biometrics can unlock without retyping it.
           </Text>
         </View>
       </ScrollView>

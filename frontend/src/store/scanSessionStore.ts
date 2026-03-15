@@ -67,6 +67,8 @@ export const useScanSessionStore = create<ScanSessionState>()(
           currentFloor: null,
           currentRack: null,
           isSectionActive: false,
+          activeSessionId: null,
+          sessionType: "STANDARD",
         });
       },
     }),
@@ -76,3 +78,12 @@ export const useScanSessionStore = create<ScanSessionState>()(
     },
   ),
 );
+
+export const clearScanSessionStore = async () => {
+  useScanSessionStore.getState().resetSession();
+  try {
+    await useScanSessionStore.persist.clearStorage();
+  } catch {
+    // Best-effort; ignore storage errors.
+  }
+};

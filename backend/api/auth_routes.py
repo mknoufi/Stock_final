@@ -17,6 +17,7 @@ from backend.api.schemas import (
     UserRegister,
 )
 from backend.auth.dependencies import auth_deps, get_current_user
+from backend.auth.permissions import get_user_permissions
 from backend.auth.cookies import set_auth_cookies
 from backend.config import settings
 from backend.db.runtime import get_db
@@ -31,7 +32,7 @@ from backend.exceptions import (
 from backend.models.audit import AuditEventType, AuditLogStatus
 from backend.services.otp_service import OTPService
 from backend.services.runtime import get_cache_service, get_refresh_token_service
-from backend.services.whatsapp_service import WhatsAppService
+from backend.services.whatsapp_service import WhatsAppDeliveryError, WhatsAppService
 from backend.utils.api_utils import result_to_response, sanitize_for_logging
 from backend.utils.auth_utils import create_access_token, get_password_hash, verify_password
 from backend.utils.crypto_utils import get_pin_lookup_hash
@@ -120,6 +121,16 @@ async def find_user_by_username(username: str) -> Result[dict[str, Any], Excepti
     except Exception as e:
         logger.error(f"Error finding user {sanitize_for_logging(username)}: {str(e)}")
         return Fail(DatabaseConnectionError("Error accessing user data"))
+
+
+def _build_password_reset_query(
+    username: Optional[str] = None, phone_number: Optional[str] = None
+) -> dict[str, Any]:
+    if username:
+        return {"username": username}
+    if phone_number:
+        return {"phone_number": phone_number}
+    return {}
 
 
 async def generate_auth_tokens(
@@ -867,7 +878,7 @@ def _build_login_response(tokens: dict[str, Any], user: dict[str, Any]) -> dict[
             "role": user.get("role", "staff"),
             "email": user.get("email"),
             "is_active": user.get("is_active", True),
-            "permissions": user.get("permissions", []),
+            "permissions": get_user_permissions(user),
             "has_pin": bool(user.get("pin_hash")),
         },
     }
@@ -880,11 +891,11 @@ async def get_me(
     return {
         "id": str(current_user["_id"]),
         "username": current_user["username"],
-        "full_name": current_user["full_name"],
+        "full_name": current_user.get("full_name", ""),
         "role": current_user["role"],
         "email": current_user.get("email"),
         "is_active": current_user.get("is_active", True),
-        "permissions": current_user.get("permissions", []),
+        "permissions": get_user_permissions(current_user),
         "has_pin": bool(current_user.get("pin_hash")),
     }
 
@@ -1152,13 +1163,21 @@ async def password_reset_request(request: PasswordResetRequest):
 
     await otp_service.initialize()
 
-    # Find user
-    query = {}
-    if request.username:
-        query["username"] = request.username
-    elif request.phone_number:
-        query["phone_number"] = request.phone_number
+    if not whatsapp_service.is_delivery_configured():
+        logger.error("Password reset requested while WhatsApp delivery is unavailable")
+        return ApiResponse.error_response(
+            {
+                "message": (
+                    "Password reset is temporarily unavailable because phone delivery is not configured."
+                )
+            }
+        )
 
+    # Find user
+    query = _build_password_reset_query(
+        username=request.username,
+        phone_number=request.phone_number,
+    )
     user = await db.users.find_one(query)
 
     if not user:
@@ -1201,7 +1220,14 @@ async def password_reset_request(request: PasswordResetRequest):
         return ApiResponse.success_response(
             {"message": "If an account exists, an OTP has been sent."}
         )
+    except WhatsAppDeliveryError as e:
+        await otp_service.otp_collection.delete_many({"user_id": str(user["_id"])})
+        logger.error(f"Password reset request delivery failed: {e}")
+        return ApiResponse.error_response(
+            {"message": "Password reset is temporarily unavailable. Please try again later."}
+        )
     except Exception as e:
+        await otp_service.otp_collection.delete_many({"user_id": str(user["_id"])})
         logger.error(f"Password reset request failed: {e}")
         return ApiResponse.error_response({"message": "Failed to process request"})
 
@@ -1216,8 +1242,11 @@ async def password_reset_verify(data: PasswordResetVerify):
     otp_service = OTPService(db)
     await otp_service.initialize()
 
-    # We need user_id to verify. Find user by username first.
-    user = await db.users.find_one({"username": data.username})
+    query = _build_password_reset_query(
+        username=data.username,
+        phone_number=data.phone_number,
+    )
+    user = await db.users.find_one(query)
     if not user:
         return ApiResponse.error_response({"message": "Invalid request"})
 
@@ -1272,10 +1301,14 @@ async def password_reset_confirm(data: PasswordResetConfirm):
             {"$set": {"hashed_password": hashed_password, "updated_at": datetime.now(timezone.utc)}},
         )
 
-        # Optional: Send confirmation
+        # Optional: confirmation should not block a successful password reset
         user = await db.users.find_one({"_id": ObjectId(user_id)})
         if user and user.get("phone_number"):
-            await whatsapp_service.send_password_reset_confirmation(user["phone_number"])
+            try:
+                if whatsapp_service.is_delivery_configured():
+                    await whatsapp_service.send_password_reset_confirmation(user["phone_number"])
+            except WhatsAppDeliveryError as delivery_error:
+                logger.warning(f"Password reset confirmation delivery skipped: {delivery_error}")
 
         # Audit Log
         try:

@@ -69,6 +69,7 @@ app.log
 .aider*
 .autogpt.yml
 .autopilot.json
+.agent/approval-log.jsonl
 .clinerules
 .cursorrules
 .devon.yml

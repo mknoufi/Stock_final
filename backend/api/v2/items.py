@@ -3,7 +3,8 @@ API v2 Items Endpoints
 Upgraded item endpoints with standardized responses
 """
 
-import asyncio
+import io
+import re
 import sys
 from pathlib import Path
 from typing import Any, Optional
@@ -16,6 +17,7 @@ from backend.auth.dependencies import get_current_user_async as get_current_user
 from backend.db.runtime import get_db
 from backend.services.ai_search import ai_search_service
 from backend.services.sql_verification_service import sql_verification_service
+from backend.utils.erp_utils import _get_barcode_variations
 
 # Add project root to path for direct execution (debugging)
 # This allows the file to be run directly for testing/debugging
@@ -47,6 +49,99 @@ class ItemResponse(BaseModel):
     mongo_cached_qty_previous: Optional[float] = None
     sql_qty_mismatch_flag: Optional[bool] = None
     sql_verification_status: Optional[str] = None
+
+
+def _dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for value in values:
+        normalized = value.strip()
+        key = normalized.lower()
+        if not normalized or key in seen:
+            continue
+        seen.add(key)
+        result.append(normalized)
+    return result
+
+
+def _extract_identifiers_from_text(raw_text: str) -> list[str]:
+    candidates = re.findall(r"[A-Za-z0-9][A-Za-z0-9\\-/]{2,}", raw_text or "")
+    return _dedupe_preserve_order(candidates)
+
+
+def _extract_image_identifiers(file_bytes: bytes) -> list[str]:
+    identifiers: list[str] = []
+
+    try:
+        from PIL import Image
+
+        image = Image.open(io.BytesIO(file_bytes))
+        image.load()
+    except Exception:
+        return []
+
+    try:
+        from pyzbar.pyzbar import decode as decode_barcodes
+
+        for decoded in decode_barcodes(image):
+            if decoded.data:
+                identifiers.append(decoded.data.decode("utf-8", errors="ignore"))
+    except Exception:
+        pass
+
+    try:
+        import pytesseract
+
+        ocr_text = pytesseract.image_to_string(image)
+        identifiers.extend(_extract_identifiers_from_text(ocr_text))
+    except Exception:
+        pass
+
+    return _dedupe_preserve_order(identifiers)
+
+
+async def _lookup_identified_items(
+    db: Any, identifiers: list[str], limit: int = 5
+) -> tuple[list[dict[str, Any]], list[str]]:
+    matched_terms = _dedupe_preserve_order(identifiers)
+    if not matched_terms:
+        return [], []
+
+    exact_terms: list[str] = []
+    for term in matched_terms:
+        exact_terms.extend(_get_barcode_variations(term))
+    exact_terms = _dedupe_preserve_order(exact_terms)
+
+    exact_matches = await db.erp_items.find(
+        {
+            "$or": [
+                {"barcode": {"$in": exact_terms}},
+                {"manual_barcode": {"$in": exact_terms}},
+                {"item_code": {"$in": exact_terms}},
+            ]
+        }
+    ).limit(limit).to_list(length=limit)
+    if exact_matches:
+        return exact_matches, exact_terms
+
+    primary_query = " ".join(matched_terms[:3])
+    regex_clauses = []
+    for term in matched_terms[:5]:
+        regex_clauses.extend(
+            [
+                {"item_name": {"$regex": re.escape(term), "$options": "i"}},
+                {"item_code": {"$regex": re.escape(term), "$options": "i"}},
+                {"barcode": {"$regex": re.escape(term), "$options": "i"}},
+                {"category": {"$regex": re.escape(term), "$options": "i"}},
+            ]
+        )
+
+    candidates = await db.erp_items.find({"$or": regex_clauses}).limit(250).to_list(length=250)
+    if not candidates:
+        return [], matched_terms
+
+    reranked = ai_search_service.search_rerank(primary_query, candidates, top_k=limit)
+    return reranked, matched_terms
 
 
 @router.get("/", response_model=ApiResponse[PaginatedResponse[ItemResponse]])
@@ -277,42 +372,31 @@ async def identify_item(
 ) -> ApiResponse[PaginatedResponse[ItemResponse]]:
     """
     Visual Search / Identify Item
-    Accepts an image and returns matching items.
-    Currently a mock/placeholder for the VLM integration.
+    Accepts an image, extracts machine-readable identifiers, and returns matching items.
     """
     try:
         db = get_db()
-        # Mock Processing Delay
-        await asyncio.sleep(1.0)
+        file_bytes = await file.read()
+        if not file_bytes:
+            return ApiResponse.error_response(
+                error_code="IDENTIFY_EMPTY_FILE",
+                error_message="Uploaded image is empty",
+            )
 
-        # In a real implementation:
-        # 1. Read file content
-        #    content = await file.read()
-        # 2. Extract features (CLIP/BLIP) or read barcode (pyzbar)
-        # 3. Query vector DB + Barcode DB
+        identifiers = _extract_image_identifiers(file_bytes)
+        if not identifiers:
+            return ApiResponse.error_response(
+                error_code="IDENTIFY_NO_SIGNAL",
+                error_message="Could not detect a barcode or readable label in the image",
+            )
 
-        # Placeholder Logic:
-        # For demo purposes, we will return a few random items
-        # pretending we "recognized" something.
-
-        # Determine strictness based on filename (Easter egg for manual testing)
-        # If filename contains "coke", search for coke.
-        filename = file.filename.lower() if file.filename else ""
-        mock_query = ""
-
-        if "coke" in filename or "cola" in filename:
-            mock_query = "Cola"
-        elif "chip" in filename or "lays" in filename:
-            mock_query = "Chips"
-        else:
-            # Random fallback
-            mock_query = "Biscuit"
-
-        # Use Semantic Search to find matches for the "Recognized" term
-        items_cursor = db.erp_items.find({}).limit(200)
-        candidates = await items_cursor.to_list(length=200)
-
-        results = ai_search_service.search_rerank(mock_query, candidates, top_k=5)
+        results, matched_terms = await _lookup_identified_items(db, identifiers, limit=5)
+        if not results:
+            return ApiResponse.error_response(
+                error_code="IDENTIFY_NO_MATCH",
+                error_message="No inventory item matched the detected identifiers",
+                details={"matched_terms": matched_terms},
+            )
 
         # Convert to response
         item_responses = [
@@ -333,7 +417,7 @@ async def identify_item(
 
         return ApiResponse.success_response(
             data=PaginatedResponse.create(item_responses, len(item_responses), 1, 5),
-            message=f"Identified terms: '{mock_query}'",
+            message=f"Matched using: {', '.join(matched_terms[:3])}",
         )
 
     except Exception as e:

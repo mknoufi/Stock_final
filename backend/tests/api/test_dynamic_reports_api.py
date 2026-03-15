@@ -341,6 +341,52 @@ class TestGenerateReportEndpoint:
             app.dependency_overrides.clear()
 
     @pytest.mark.asyncio
+    async def test_generate_report_returns_dynamic_reports_download_url(
+        self, mock_user_supervisor, sample_report_template
+    ):
+        mock_service = MagicMock()
+        mock_service.generate_report = AsyncMock(
+            return_value={
+                "_id": "rpt_123",
+                "file_name": "variance_report.pdf",
+                "file_size": 2048,
+                "record_count": 12,
+                "format": "pdf",
+                "generated_at": "2026-03-15T10:00:00Z",
+            }
+        )
+
+        async def override_get_current_user():
+            return mock_user_supervisor
+
+        def override_get_service():
+            return mock_service
+
+        from backend.api.dynamic_reports_api import get_dynamic_report_service
+        from backend.auth import get_current_user
+
+        app.dependency_overrides[get_current_user] = override_get_current_user
+        app.dependency_overrides[get_dynamic_report_service] = override_get_service
+
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+            ) as client:
+                response = await client.post(
+                    "/api/dynamic-reports/generate",
+                    json={"template_data": sample_report_template},
+                )
+                assert response.status_code == 200
+                payload = response.json()
+                assert (
+                    payload["report"]["download_url"]
+                    == "/api/dynamic-reports/rpt_123/download"
+                )
+        finally:
+            app.dependency_overrides.clear()
+
+    @pytest.mark.asyncio
     async def test_generate_report_no_template(self, mock_user_supervisor):
         """Test generating report without template raises ValueError which becomes 400"""
         mock_service = MagicMock()

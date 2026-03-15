@@ -501,7 +501,6 @@ class AutoDiagnosisService:
         self, error: Exception, category: ErrorCategory
     ) -> tuple[bool, Optional[Callable]]:
         """Check if error can be auto-fixed"""
-        error_str = str(error).lower()
         error_type = type(error).__name__
 
         # Check auto-fix registry
@@ -509,27 +508,11 @@ class AutoDiagnosisService:
         if fix_key in self._auto_fix_registry:
             return True, self._auto_fix_registry[fix_key]
 
-        # Pattern-based auto-fix detection
-        auto_fixable_patterns = {
-            "token expired": self._auto_fix_token_refresh,
-            "connection timeout": self._auto_fix_connection_retry,
-            "missing index": self._auto_fix_missing_index,
-        }
-
-        for pattern, fix_func in auto_fixable_patterns.items():
-            if pattern in error_str:
-                return True, fix_func
-
         return False, None
 
     def _register_auto_fixes(self) -> dict[str, Callable]:
-        """Register auto-fix functions"""
-        return {
-            "ExpiredSignatureError:authentication": self._auto_fix_token_refresh,
-            "TokenExpiredError:authentication": self._auto_fix_token_refresh,
-            "ConnectionError:database": self._auto_fix_connection_retry,
-            "TimeoutError:network": self._auto_fix_connection_retry,
-        }
+        """Register concrete auto-fix functions that are safe to execute."""
+        return {}
 
     def _auto_fix_token_refresh(
         self, error: Exception, context: dict[str, Any]

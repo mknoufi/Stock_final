@@ -27,6 +27,7 @@ interface NotificationState {
   markAllAsRead: () => Promise<void>;
   addLocalNotification: (notification: Notification) => void;
   clearError: () => void;
+  reset: () => void;
 }
 
 export const useNotificationStore = create<NotificationState>()(
@@ -107,6 +108,15 @@ export const useNotificationStore = create<NotificationState>()(
       },
 
       clearError: () => set({ error: null }),
+
+      reset: () =>
+        set({
+          notifications: [],
+          unreadCount: 0,
+          isLoading: false,
+          error: null,
+          lastFetched: null,
+        }),
     }),
     {
       name: "notification-store",
@@ -136,5 +146,15 @@ export const stopNotificationPolling = () => {
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
+  }
+};
+
+export const clearNotificationStore = async () => {
+  stopNotificationPolling();
+  useNotificationStore.getState().reset();
+  try {
+    await useNotificationStore.persist.clearStorage();
+  } catch {
+    // Best-effort; ignore storage errors.
   }
 };

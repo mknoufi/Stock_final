@@ -51,6 +51,11 @@ class NotificationListResponse(BaseModel):
     unread_count: int
 
 
+class NotificationDeviceRequest(BaseModel):
+    token: str
+    platform: Optional[str] = None
+
+
 # API Endpoints
 
 
@@ -179,4 +184,42 @@ async def delete_notification(
         raise
     except Exception as e:
         logger.error(f"Error deleting notification: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/devices")
+async def register_notification_device(
+    payload: NotificationDeviceRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Register a push token for the current user."""
+    try:
+        notification_service = NotificationService(db)
+        user_id = _get_user_id(current_user)
+        await notification_service.register_device(
+            user_id=user_id,
+            token=payload.token,
+            platform=payload.platform,
+        )
+        return {"success": True, "message": "Notification device registered"}
+    except Exception as e:
+        logger.error(f"Error registering notification device: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/devices/unregister")
+async def unregister_notification_device(
+    payload: NotificationDeviceRequest,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncIOMotorDatabase = Depends(get_db),
+):
+    """Disable a push token for the current user."""
+    try:
+        notification_service = NotificationService(db)
+        user_id = _get_user_id(current_user)
+        await notification_service.unregister_device(user_id=user_id, token=payload.token)
+        return {"success": True, "message": "Notification device unregistered"}
+    except Exception as e:
+        logger.error(f"Error unregistering notification device: {e}")
         raise HTTPException(status_code=500, detail=str(e))

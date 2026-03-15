@@ -66,7 +66,11 @@ export default function ResetPasswordScreen() {
           [{ text: "Login", onPress: () => router.replace("/login") }],
         );
       } else {
-        setError(response.data.message || "Failed to reset password");
+        setError(
+          response.data.message ||
+            response.data.error?.message ||
+            "Failed to reset password",
+        );
       }
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || "Reset failed");
