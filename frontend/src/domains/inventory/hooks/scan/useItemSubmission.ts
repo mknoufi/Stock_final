@@ -93,19 +93,27 @@ export const useItemSubmission = ({
 
         if (userChoice === "CANCEL") return;
 
-        if (userChoice === "ADD") {
-          setLoading(true);
-          try {
-            await addQuantityToCountLine(
-              existingLine.line_id,
-              finalQty,
-              form.isBatchMode ? form.batches : undefined
-            );
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert("Success", "Quantity added successfully", [
-              { text: "OK", onPress: () => router.back() },
-            ]);
-            return;
+	        if (userChoice === "ADD") {
+	          setLoading(true);
+	          try {
+	            const lineId =
+	              (existingLine as any)?.id ||
+	              (existingLine as any)?.line_id ||
+	              (existingLine as any)?._id;
+	            if (!lineId) {
+	              throw new Error("Missing count line id for add-quantity");
+	            }
+	            await addQuantityToCountLine(
+	              String(lineId),
+	              finalQty,
+	              form.isBatchMode ? form.batches : undefined
+	            );
+	            setLoading(false);
+	            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+	            Alert.alert("Success", "Quantity added successfully", [
+	              { text: "OK", onPress: () => router.back() },
+	            ]);
+	            return;
           } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : "Failed to add quantity";
             Alert.alert("Error", errorMessage);

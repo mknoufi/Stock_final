@@ -52,13 +52,23 @@ async def list_notes(
 ):
     try:
         coll = get_db()["notes"]
-        query: dict[str, Any] = {}
+        created_by = current_user.get("username") or current_user.get("id")
+        if not created_by:
+            raise HTTPException(status_code=401, detail="Unauthenticated")
+
+        base_query: dict[str, Any] = {"created_by": created_by}
+        query: dict[str, Any] = base_query
         if q:
             safe_q = sanitize_for_logging(q)
             query = {
-                "$or": [
-                    {"title": {"$regex": safe_q, "$options": "i"}},
-                    {"content": {"$regex": safe_q, "$options": "i"}},
+                "$and": [
+                    base_query,
+                    {
+                        "$or": [
+                            {"title": {"$regex": safe_q, "$options": "i"}},
+                            {"content": {"$regex": safe_q, "$options": "i"}},
+                        ]
+                    },
                 ]
             }
 
@@ -115,6 +125,9 @@ async def delete_note(
 ):
     try:
         coll = get_db()["notes"]
+        created_by = current_user.get("username") or current_user.get("id")
+        if not created_by:
+            raise HTTPException(status_code=401, detail="Unauthenticated")
         try:
             oid = ObjectId(note_id)
         except Exception:
@@ -125,7 +138,12 @@ async def delete_note(
                     "error": {"message": "Invalid note id", "code": "INVALID_NOTE_ID"},
                 },
             )
-        res = await coll.delete_one({"_id": oid})
+
+        delete_filter: dict[str, Any] = {"_id": oid}
+        if current_user.get("role") != "admin":
+            delete_filter["created_by"] = created_by
+
+        res = await coll.delete_one(delete_filter)
         if res.deleted_count == 0:
             raise HTTPException(
                 status_code=404,

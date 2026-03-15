@@ -180,6 +180,7 @@ export const useItemDetailData = ({
     barcode,
     currentFloor,
     currentRack,
+    offlineMode,
     onBackPress,
     onQuantityChange,
     sessionId,

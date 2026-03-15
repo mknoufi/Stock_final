@@ -20,6 +20,10 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  getScopedStorageKey,
+  getUserPreferenceScope,
+} from "../services/userPreferenceScope";
 
 /** Date range filter type */
 export interface DateRange {
@@ -127,8 +131,11 @@ export interface FilterActions {
   hasActiveFilters: () => boolean;
 }
 
+const FILTER_STORE_KEY = "filter-store";
+const ANONYMOUS_FILTER_SCOPE = "anonymous";
+
 /** Default filter state */
-const DEFAULT_FILTER_STATE: FilterState = {
+const createDefaultFilterState = (): FilterState => ({
   status: [],
   type: [],
   dateRange: { start: null, end: null },
@@ -139,6 +146,58 @@ const DEFAULT_FILTER_STATE: FilterState = {
   userFilters: {},
   presets: [],
   activePresetId: null,
+});
+
+const getActiveFilterStorageKey = (): string =>
+  getScopedStorageKey(
+    FILTER_STORE_KEY,
+    getUserPreferenceScope() ?? ANONYMOUS_FILTER_SCOPE,
+  );
+
+const clearLegacySharedFilterStorage = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(FILTER_STORE_KEY);
+  } catch {
+    // Best-effort; ignore storage errors during cleanup.
+  }
+};
+
+const filterStoreStorage = createJSONStorage(() => ({
+  getItem: async (_name: string) => {
+    return await AsyncStorage.getItem(getActiveFilterStorageKey());
+  },
+  setItem: async (_name: string, value: string) => {
+    await AsyncStorage.setItem(getActiveFilterStorageKey(), value);
+  },
+  removeItem: async (_name: string) => {
+    await AsyncStorage.removeItem(getActiveFilterStorageKey());
+  },
+}));
+
+const readPersistedFilterPresets = async (): Promise<FilterPreset[]> => {
+  try {
+    const rawValue = await AsyncStorage.getItem(getActiveFilterStorageKey());
+    if (!rawValue) {
+      return [];
+    }
+
+    const parsed = JSON.parse(rawValue) as {
+      state?: { presets?: unknown };
+    };
+
+    return Array.isArray(parsed.state?.presets)
+      ? (parsed.state?.presets as FilterPreset[])
+      : [];
+  } catch {
+    return [];
+  }
+};
+
+const resetFilterStoreState = (presets: FilterPreset[] = []) => {
+  useFilterStore.setState({
+    ...createDefaultFilterState(),
+    presets,
+  });
 };
 
 /**
@@ -147,7 +206,7 @@ const DEFAULT_FILTER_STATE: FilterState = {
 export const useFilterStore = create<FilterState & FilterActions>()(
   persist(
     (set, get) => ({
-      ...DEFAULT_FILTER_STATE,
+      ...createDefaultFilterState(),
 
       // Single filter setters
       setStatus: (values) => set({ status: values, activePresetId: null }),
@@ -280,8 +339,8 @@ export const useFilterStore = create<FilterState & FilterActions>()(
       hasActiveFilters: () => get().getActiveFilterCount() > 0,
     }),
     {
-      name: "filter-store",
-      storage: createJSONStorage(() => AsyncStorage),
+      name: FILTER_STORE_KEY,
+      storage: filterStoreStorage,
       partialize: (state) => ({
         presets: state.presets,
         // Don't persist active filters, only presets
@@ -310,5 +369,23 @@ export const useFilters = () =>
  */
 export const useActiveFilterCount = () =>
   useFilterStore((state) => state.getActiveFilterCount());
+
+export const rehydrateFilterStore = async () => {
+  await clearLegacySharedFilterStorage();
+  const presets = await readPersistedFilterPresets();
+  resetFilterStoreState(presets);
+};
+
+export const resetFilterStore = async () => {
+  resetFilterStoreState();
+
+  try {
+    await AsyncStorage.removeItem(getActiveFilterStorageKey());
+  } catch {
+    // Best-effort; ignore storage errors.
+  }
+
+  await clearLegacySharedFilterStorage();
+};
 
 export default useFilterStore;

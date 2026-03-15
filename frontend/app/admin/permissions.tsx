@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -46,14 +46,7 @@ export default function PermissionsScreen() {
     }
   }, [hasRole, router]);
 
-  // Load available permissions
-  useEffect(() => {
-    if (hasRole("admin")) {
-      loadAvailablePermissions();
-    }
-  }, [hasRole, offlineMode]);
-
-  const loadAvailablePermissions = async () => {
+  const loadAvailablePermissions = useCallback(async () => {
     if (offlineMode) {
       setAvailablePermissions(null);
       setUserPermissions([]);
@@ -70,7 +63,14 @@ export default function PermissionsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [offlineMode]);
+
+  // Load available permissions
+  useEffect(() => {
+    if (hasRole("admin")) {
+      void loadAvailablePermissions();
+    }
+  }, [hasRole, loadAvailablePermissions]);
 
   const loadUserPermissions = async (username: string) => {
     if (offlineMode) {

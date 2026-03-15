@@ -274,6 +274,28 @@ const unregisterNotificationsInBackground = async () => {
   }
 };
 
+const rehydrateFilterStoreForCurrentScope = async () => {
+  try {
+    const { rehydrateFilterStore } = await import("./filterStore");
+    await rehydrateFilterStore();
+  } catch (error) {
+    log.warn("Filter store rehydration failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+const resetFilterStoreForLoggedOutUser = async () => {
+  try {
+    const { resetFilterStore } = await import("./filterStore");
+    await resetFilterStore();
+  } catch (error) {
+    log.warn("Filter store reset failed", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
@@ -344,6 +366,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
 
     setUserPreferenceScope(authenticatedUser.id);
+    await rehydrateFilterStoreForCurrentScope();
     await useSettingsStore.getState().loadSettings();
     get().startHeartbeat();
     await useSettingsStore.getState().syncFromBackend();
@@ -478,6 +501,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   setUser: (user: User) => {
     secureStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(user));
     setUserPreferenceScope(user.id);
+    void rehydrateFilterStoreForCurrentScope();
     void useSettingsStore.getState().loadSettings();
     set({ user, isAuthenticated: true, isLoading: false });
   },
@@ -508,6 +532,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
 
     setUserPreferenceScope(null);
+    await resetFilterStoreForLoggedOutUser();
     await useSettingsStore.getState().loadSettings();
 
     try {
@@ -624,15 +649,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   checkTokenExpired: (token: string): boolean => {
     try {
       const payload = decodeJwtPayload(token);
-      if (!payload || typeof payload.exp !== "number") return false;
+      // If we can't decode/parse, treat it as expired so we don't keep a broken
+      // auth session alive and end up in refresh/401 loops.
+      if (!payload || typeof payload.exp !== "number") return true;
 
       const now = Math.floor(Date.now() / 1000);
 
-      // Remove aggressive 30-second buffer - let server handle expiration
-      // Only consider expired if actually expired
-      return payload.exp < now;
+      return payload.exp <= now;
     } catch {
-      return false; // If we can't parse, assume it's valid
+      return true;
     }
   },
 
@@ -669,6 +694,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isInitialized: true,
         });
         setUserPreferenceScope(user.id);
+        await rehydrateFilterStoreForCurrentScope();
         await useSettingsStore.getState().loadSettings();
         get().startHeartbeat();
         await useSettingsStore.getState().syncFromBackend();
@@ -690,6 +716,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               isInitialized: true,
             });
             setUserPreferenceScope(payload.id);
+            await rehydrateFilterStoreForCurrentScope();
             await useSettingsStore.getState().loadSettings();
             get().startHeartbeat();
             await useSettingsStore.getState().syncFromBackend();

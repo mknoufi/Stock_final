@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -35,19 +35,7 @@ export default function MasterSettingsScreen() {
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<any>(null);
 
-  useEffect(() => {
-    if (!hasRole("admin")) {
-      Alert.alert(
-        "Access Denied",
-        "You do not have permission to view master settings.",
-        [{ text: "OK", onPress: () => router.back() }],
-      );
-      return;
-    }
-    loadSettings();
-  }, [hasRole, offlineMode, router]);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     if (offlineMode) {
       setSettings(null);
       setLoading(false);
@@ -67,7 +55,19 @@ export default function MasterSettingsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [offlineMode]);
+
+  useEffect(() => {
+    if (!hasRole("admin")) {
+      Alert.alert(
+        "Access Denied",
+        "You do not have permission to view master settings.",
+        [{ text: "OK", onPress: () => router.back() }],
+      );
+      return;
+    }
+    void loadSettings();
+  }, [hasRole, loadSettings, router]);
 
   const handleSave = async () => {
     if (offlineMode) {

@@ -14,10 +14,13 @@ const mockUseWindowDimensions = jest.spyOn(
 );
 
 jest.mock("expo-router", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text } = require("react-native");
 
   const Stack = () => React.createElement(Text, { testID: "stack" }, "stack");
+  // eslint-disable-next-line react/display-name
   Stack.Screen = () => null;
 
   return {
@@ -39,7 +42,9 @@ jest.mock("@/components/navigation", () => ({
 }));
 
 jest.mock("@/components/ui", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text, TouchableOpacity, View } = require("react-native");
 
   return {

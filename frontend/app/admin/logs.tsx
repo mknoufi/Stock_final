@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, TextInput } from "react-native";
 import { AnimatedPressable, ScreenContainer } from "@/components/ui";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -21,22 +21,7 @@ export default function LogsScreen() {
   const [filterLevel, setFilterLevel] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    if (!hasRole("admin")) {
-      router.back();
-      return;
-    }
-    loadLogs();
-
-    if (offlineMode) {
-      return;
-    }
-
-    const interval = setInterval(loadLogs, 5000);
-    return () => clearInterval(interval);
-  }, [filterLevel, hasRole, offlineMode, router, service]);
-
-  const loadLogs = async () => {
+  const loadLogs = useCallback(async () => {
     if (offlineMode) {
       setLogs([]);
       setLoading(false);
@@ -60,7 +45,24 @@ export default function LogsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [filterLevel, offlineMode, service]);
+
+  useEffect(() => {
+    if (!hasRole("admin")) {
+      router.back();
+      return;
+    }
+    void loadLogs();
+
+    if (offlineMode) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      void loadLogs();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [hasRole, loadLogs, offlineMode, router]);
 
   const getLevelColor = (level: string) => {
     switch (level?.toUpperCase()) {

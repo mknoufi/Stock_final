@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -40,16 +40,7 @@ export default function UnknownItemsScreen() {
     const [targetSku, setTargetSku] = useState("");
     const [notes, setNotes] = useState("");
 
-    useEffect(() => {
-        if (!hasRole("admin")) {
-            Alert.alert("Access Denied", "Admin permissions required.");
-            router.back();
-            return;
-        }
-        loadItems();
-    }, [hasRole, offlineMode, router]);
-
-    const loadItems = async () => {
+    const loadItems = useCallback(async () => {
         setLoading(true);
         try {
             if (offlineMode) {
@@ -66,7 +57,16 @@ export default function UnknownItemsScreen() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [offlineMode]);
+
+    useEffect(() => {
+        if (!hasRole("admin")) {
+            Alert.alert("Access Denied", "Admin permissions required.");
+            router.back();
+            return;
+        }
+        void loadItems();
+    }, [hasRole, loadItems, router]);
 
     const handleMap = async () => {
         if (offlineMode) {
@@ -87,7 +87,7 @@ export default function UnknownItemsScreen() {
                 setMappingModalVisible(false);
                 setTargetSku("");
                 setNotes("");
-                loadItems();
+                void loadItems();
             }
         } catch (error: any) {
             Alert.alert("Error", error.message || "Mapping failed");
@@ -113,7 +113,7 @@ export default function UnknownItemsScreen() {
                     onPress: async () => {
                         try {
                             await deleteUnknownItem(item.id || item._id);
-                            loadItems();
+                            void loadItems();
                         } catch (error: any) {
                             Alert.alert("Error", error.message);
                         }

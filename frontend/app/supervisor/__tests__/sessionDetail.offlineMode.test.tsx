@@ -21,7 +21,9 @@ jest.mock("expo-router", () => ({
 }));
 
 jest.mock("@shopify/flash-list", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require("react-native");
 
   return {
@@ -62,7 +64,9 @@ jest.mock("../../../src/components/ui/AuroraBackground", () => ({
 }));
 
 jest.mock("../../../src/components/ui/GlassCard", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { View } = require("react-native");
 
   return {
@@ -72,7 +76,9 @@ jest.mock("../../../src/components/ui/GlassCard", () => {
 });
 
 jest.mock("../../../src/components/ui/AnimatedPressable", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { TouchableOpacity } = require("react-native");
 
   return {

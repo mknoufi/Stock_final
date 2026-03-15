@@ -2,8 +2,8 @@ import {
   createNote,
   deleteNote as deleteNoteById,
   listNotes,
-  updateNote as updateNoteById,
   type Note as ApiNote,
+  type NoteCreateRequest,
 } from "./api/notesApi";
 
 /** Legacy note type kept for compatibility with existing callers. */
@@ -26,31 +26,29 @@ interface ApiResult {
   message?: string;
 }
 
-const toApiNote = (sessionId: string, note: Omit<Note, "id">): ApiNote => ({
-  body: note.content,
-  tags: sessionId ? ["session", sessionId] : ["session"],
-});
+const buildTitle = (content: string) => {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  return (normalized.slice(0, 80) || "Note").slice(0, 200);
+};
 
-const fromApiNote = (note: any): Note => ({
-  id: note?.id,
-  content: note?.body ?? "",
-  created_at: note?.createdAt,
-  updated_at: note?.updatedAt,
-  created_by: note?.userId,
+const toApiNote = (sessionId: string, note: Omit<Note, "id">): NoteCreateRequest => {
+  const content = sessionId ? `[${sessionId}] ${note.content}` : note.content;
+  return { title: buildTitle(content), content };
+};
+
+const fromApiNote = (note: ApiNote): Note => ({
+  id: note.id,
+  content: note.content,
+  created_at: note.created_at,
+  updated_at: note.updated_at ?? undefined,
+  created_by: note.created_by,
 });
 
 // Notes API service
 export const NotesAPI = {
   getNotes: async (sessionId: string): Promise<NotesResponse> => {
     const data = await listNotes({ q: sessionId, page: 1, pageSize: 200 });
-    const source = Array.isArray(data?.items)
-      ? data.items
-      : Array.isArray(data?.notes)
-        ? data.notes
-        : Array.isArray(data)
-          ? data
-          : [];
-
+    const source = Array.isArray(data?.data) ? data.data : [];
     return { notes: source.map(fromApiNote) };
   },
 
@@ -63,11 +61,10 @@ export const NotesAPI = {
   },
 
   updateNote: async (
-    noteId: string,
-    note: Partial<Note>,
+    _noteId: string,
+    _note: Partial<Note>,
   ): Promise<ApiResult> => {
-    await updateNoteById(noteId, { body: note.content });
-    return { success: true };
+    return { success: false, message: "Notes update is not supported" };
   },
 
   deleteNote: async (noteId: string): Promise<ApiResult> => {

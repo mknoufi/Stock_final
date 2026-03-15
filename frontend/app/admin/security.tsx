@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -43,26 +43,7 @@ export default function SecurityScreen() {
   >("summary");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
-  useEffect(() => {
-    if (!hasRole("admin")) {
-      Alert.alert(
-        "Access Denied",
-        "You do not have permission to view the security dashboard.",
-        [{ text: "OK", onPress: () => router.back() }],
-      );
-      return;
-    }
-    loadData();
-
-    if (offlineMode) {
-      return;
-    }
-
-    const interval = setInterval(loadData, 60000);
-    return () => clearInterval(interval);
-  }, [hasRole, offlineMode, router]);
-
-  const loadData = async (isRefresh = false) => {
+  const loadData = useCallback(async (isRefresh = false) => {
     if (offlineMode) {
       if (isRefresh) {
         setRefreshing(true);
@@ -118,7 +99,28 @@ export default function SecurityScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [offlineMode]);
+
+  useEffect(() => {
+    if (!hasRole("admin")) {
+      Alert.alert(
+        "Access Denied",
+        "You do not have permission to view the security dashboard.",
+        [{ text: "OK", onPress: () => router.back() }],
+      );
+      return;
+    }
+    void loadData();
+
+    if (offlineMode) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      void loadData();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [hasRole, loadData, offlineMode, router]);
 
   const renderSummary = () => {
     if (!summary) return <LoadingSpinner />;

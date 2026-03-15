@@ -97,7 +97,7 @@ export default function VarianceDetailsScreen() {
     } finally {
       setStaffLoading(false);
     }
-  }, [assignableStaff, show]);
+  }, [assignableStaff, offlineMode, show]);
 
   const handleApprove = async () => {
     if (offlineMode) {

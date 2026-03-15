@@ -140,3 +140,88 @@ class TestSyncEndpoints:
         stored_session = fake_environment.sessions._documents[0]
         stored_line = fake_environment.count_lines._documents[0]
         assert stored_line["session_id"] == stored_session["id"]
+
+    def test_legacy_batch_sync_session_bulk_operations(
+        self,
+        client,
+        supervisor_token,
+        fake_environment,
+    ) -> None:
+        """Legacy offline queue session operations (bulk_close/bulk_reconcile) should apply."""
+
+        if not supervisor_token:
+            pytest.skip("Supervisor token not available")
+
+        offline_close_session_id = "offline_bulk_close_session"
+        offline_reconcile_session_id = "offline_bulk_reconcile_session"
+        payload = {
+            "operations": [
+                {
+                    "id": "op_session_close",
+                    "type": "session",
+                    "timestamp": "2024-01-01T00:00:00Z",
+                    "data": {
+                        "session_id": offline_close_session_id,
+                        "warehouse": "Main Warehouse",
+                        "status": "OPEN",
+                        "type": "general",
+                    },
+                },
+                {
+                    "id": "op_bulk_close",
+                    "type": "session",
+                    "timestamp": "2024-01-01T00:00:01Z",
+                    "data": {
+                        "operation": "bulk_close",
+                        "sessionIds": [offline_close_session_id],
+                    },
+                },
+                {
+                    "id": "op_session_reconcile",
+                    "type": "session",
+                    "timestamp": "2024-01-01T00:00:02Z",
+                    "data": {
+                        "session_id": offline_reconcile_session_id,
+                        "warehouse": "Main Warehouse - R2",
+                        "status": "OPEN",
+                        "type": "general",
+                    },
+                },
+                {
+                    "id": "op_bulk_reconcile",
+                    "type": "session",
+                    "timestamp": "2024-01-01T00:00:03Z",
+                    "data": {
+                        "operation": "bulk_reconcile",
+                        "sessionIds": [offline_reconcile_session_id],
+                    },
+                },
+            ]
+        }
+
+        response = client.post(
+            "/api/sync/batch",
+            json=payload,
+            headers={"Authorization": f"Bearer {supervisor_token}"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get("processed_count") == 4
+        assert data.get("success_count") == 4
+
+        assert len(fake_environment.sessions._documents) == 2
+
+        by_offline_id = {
+            session.get("offline_id"): session for session in fake_environment.sessions._documents
+        }
+
+        closed = by_offline_id.get(offline_close_session_id)
+        assert closed is not None
+        assert closed.get("status") == "CLOSED"
+        assert closed.get("closed_at") is not None
+
+        reconciled = by_offline_id.get(offline_reconcile_session_id)
+        assert reconciled is not None
+        assert reconciled.get("status") == "ACTIVE"
+        assert reconciled.get("reconciled_at") is not None

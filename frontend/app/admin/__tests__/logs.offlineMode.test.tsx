@@ -41,7 +41,9 @@ jest.mock("../../../src/store/settingsStore", () => ({
 }));
 
 jest.mock("@/components/ui", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const React = require("react");
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Text, TouchableOpacity, View } = require("react-native");
 
   return {

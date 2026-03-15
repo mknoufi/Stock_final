@@ -464,6 +464,89 @@ async def _process_session_op(
     db: Any,
 ) -> str:
     """Process a session sync operation."""
+    operation_raw = session_data.get("operation")
+    operation = operation_raw.strip().lower() if isinstance(operation_raw, str) else None
+
+    def _resolve_session_id(value: Any) -> Optional[str]:
+        if value is None:
+            return None
+        key = str(value)
+        return id_mapping.get(key, key)
+
+    # Offline queue can contain session mutations (close/reconcile) besides session creation.
+    # Those payloads will not include warehouse and should be handled explicitly here.
+    if operation:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+
+        if operation in {"bulk_close", "bulk_reconcile"}:
+            if current_user.get("role") not in {"supervisor", "admin"}:
+                raise ValueError("Insufficient permissions for bulk session operation")
+
+            raw_ids = (
+                session_data.get("sessionIds")
+                or session_data.get("session_ids")
+                or session_data.get("session_ids".upper())  # defensive
+            )
+            if not isinstance(raw_ids, list) or not raw_ids:
+                raise ValueError("Missing sessionIds for bulk session operation")
+
+            resolved_ids = [
+                resolved
+                for value in raw_ids
+                for resolved in [_resolve_session_id(value)]
+                if resolved
+            ]
+
+            updated = 0
+            for session_id in resolved_ids:
+                if operation == "bulk_close":
+                    result = await db.sessions.update_one(
+                        {"id": session_id},
+                        {"$set": {"status": "CLOSED", "closed_at": now, "ended_at": now}},
+                    )
+                else:
+                    result = await db.sessions.update_one(
+                        {"id": session_id},
+                        {"$set": {"status": "ACTIVE", "reconciled_at": now}},
+                    )
+                if getattr(result, "modified_count", 0) > 0:
+                    updated += 1
+
+            return f"Bulk session operation '{operation}' applied (updated={updated})"
+
+        if operation in {"close", "reconcile"}:
+            raw_session_id = (
+                session_data.get("sessionId")
+                or session_data.get("session_id")
+                or session_data.get("id")
+            )
+            session_id = _resolve_session_id(raw_session_id)
+            if not session_id:
+                raise ValueError("Missing sessionId for session operation")
+
+            session = await db.sessions.find_one({"id": session_id})
+            if not session:
+                raise ValueError("Session not found")
+
+            # Staff can only mutate their own session; supervisors/admin can mutate any.
+            if current_user.get("role") not in {"supervisor", "admin"} and session.get(
+                "staff_user"
+            ) != current_user.get("username"):
+                raise ValueError("Not authorized to modify this session")
+
+            if operation == "close":
+                await db.sessions.update_one(
+                    {"id": session_id},
+                    {"$set": {"status": "CLOSED", "closed_at": now, "ended_at": now}},
+                )
+            else:
+                await db.sessions.update_one(
+                    {"id": session_id},
+                    {"$set": {"status": "ACTIVE", "reconciled_at": now}},
+                )
+
+            return f"Session operation '{operation}' applied"
+
     warehouse = (session_data.get("warehouse") or "").strip()
     if not warehouse:
         raise ValueError("Missing warehouse for session operation")

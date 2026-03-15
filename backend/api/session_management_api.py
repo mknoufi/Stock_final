@@ -1352,18 +1352,44 @@ async def update_session_status(
     if current_user["role"] != "supervisor" and session["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Not your session")
 
-    if not SessionStateMachine.can_transition(session.get("status", ""), status):
+    normalized_status = status.upper()
+
+    if not SessionStateMachine.can_transition(session.get("status", ""), normalized_status):
         raise HTTPException(
             status_code=409,
-            detail=f"Invalid session transition: {session.get('status')} -> {status}",
+            detail=f"Invalid session transition: {session.get('status')} -> {normalized_status}",
         )
-
-    normalized_status = status.upper()
 
     # Update status
     await db.verification_sessions.update_one(
         {"session_id": session_id}, {"$set": {"status": normalized_status}}
     )
+
+    # Keep canonical sessions collection in sync for business rules (counting gates, session lists, etc).
+    # We normalize DB state to ACTIVE and use `reconciled_at` as the reconciliation marker.
+    try:
+        now_dt = datetime.now(timezone.utc).replace(tzinfo=None)
+        if normalized_status == "CLOSED":
+            await db.sessions.update_one(
+                {"id": session_id},
+                {
+                    "$set": {
+                        "status": "CLOSED",
+                        "closed_at": now_dt,
+                        # Legacy/compat fields used elsewhere in the codebase.
+                        "completed_at": now_dt,
+                    }
+                },
+            )
+        elif normalized_status == "RECONCILE":
+            await db.sessions.update_one(
+                {"id": session_id},
+                {"$set": {"status": "ACTIVE", "reconciled_at": now_dt}},
+            )
+        else:
+            await db.sessions.update_one({"id": session_id}, {"$set": {"status": normalized_status}})
+    except Exception as exc:
+        logger.warning(f"Failed to sync sessions.status for {session_id}: {exc}")
 
     # Broadcast update
     await manager.broadcast_to_session(
@@ -1451,6 +1477,23 @@ async def complete_session(
             }
         },
     )
+
+    # Mirror status to the canonical sessions collection so counting gates reflect completion.
+    try:
+        now_dt = datetime.now(timezone.utc).replace(tzinfo=None)
+        await db.sessions.update_one(
+            {"id": session_id},
+            {
+                "$set": {
+                    "status": "CLOSED",
+                    "closed_at": now_dt,
+                    # Legacy/compat field name used in other parts of the backend.
+                    "completed_at": now_dt,
+                }
+            },
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to sync sessions completion for {session_id}: {exc}")
 
     # Delete session lock from Redis
     await lock_manager.delete_session(session_id)

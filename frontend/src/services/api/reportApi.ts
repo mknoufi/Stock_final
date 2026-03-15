@@ -52,11 +52,11 @@ export interface ReportFilterOptionsResponse {
     floors: string[];
     categories: string[];
     statuses: string[];
-    users: Array<{
+    users: {
       id: string;
       username: string;
       role: string;
-    }>;
+    }[];
   };
 }
 
@@ -70,7 +70,7 @@ export interface ReportSummary {
 
 export interface ReportResponse {
   summary: ReportSummary;
-  data: Array<Record<string, unknown>>;
+  data: Record<string, unknown>[];
 }
 
 // API Client

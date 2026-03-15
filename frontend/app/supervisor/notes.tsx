@@ -47,10 +47,16 @@ export default function NotesScreen() {
   const [newNote, setNewNote] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const buildNoteTitle = (content: string) => {
+    const normalized = content.replace(/\s+/g, " ").trim();
+    return (normalized.slice(0, 80) || "Note").slice(0, 200);
+  };
+
   const loadNotes = useCallback(async () => {
     try {
-      const data = await listNotes(query ? { q: query } : undefined);
-      setNotes(data.items || data || []);
+      const response = await listNotes(query ? { q: query } : undefined);
+      const items = Array.isArray(response?.data) ? response.data : [];
+      setNotes(items);
     } catch (error) {
       console.error("Failed to load notes", error);
       show("Failed to load notes", "error");
@@ -82,7 +88,8 @@ export default function NotesScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setIsSubmitting(true);
     try {
-      await createNote({ body: newNote.trim() });
+      const content = newNote.trim();
+      await createNote({ title: buildNoteTitle(content), content });
       setNewNote("");
       await loadNotes();
       show("Note added successfully", "success");
@@ -131,7 +138,7 @@ export default function NotesScreen() {
           padding={auroraTheme.spacing.md}
           borderRadius={auroraTheme.borderRadius.lg}
         >
-          <Text style={styles.cardBody}>{item.body}</Text>
+          <Text style={styles.cardBody}>{item.content}</Text>
           <View style={styles.cardRow}>
             <View style={styles.metaContainer}>
               <Ionicons
@@ -140,8 +147,8 @@ export default function NotesScreen() {
                 color={auroraTheme.colors.text.tertiary}
               />
               <Text style={styles.cardMeta}>
-                {item.createdAt
-                  ? new Date(item.createdAt).toLocaleString()
+                {item.created_at
+                  ? new Date(item.created_at).toLocaleString()
                   : ""}
               </Text>
             </View>

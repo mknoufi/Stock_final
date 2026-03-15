@@ -42,6 +42,20 @@ class CountLineRejectRequest(BaseModel):
     assign_to: Optional[str] = None
 
 
+class AddQuantityRequest(BaseModel):
+    """Payload for incrementing quantity on an existing count line."""
+
+    additional_qty: float
+    batches: Optional[list[dict[str, Any]]] = None
+
+
+class CountLineUpdateRequest(BaseModel):
+    """Minimal update payload for a count line (used by bulk update tooling)."""
+
+    counted_qty: Optional[float] = None
+    batches: Optional[list[dict[str, Any]]] = None
+
+
 def init_count_lines_api(
     activity_log_service: ActivityLogService,
     lock_service: Optional[LockService] = None,
@@ -673,6 +687,26 @@ async def unverify_stock(
     return {"message": "Stock verification removed", "verified": False}
 
 
+@router.put("/count-lines/{line_id}/verify")
+async def verify_stock_route(
+    line_id: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    """HTTP route wrapper for verify_stock (UI expects this endpoint)."""
+    return await verify_stock(line_id, current_user, request=request)
+
+
+@router.put("/count-lines/{line_id}/unverify")
+async def unverify_stock_route(
+    line_id: str,
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    """HTTP route wrapper for unverify_stock (UI expects this endpoint)."""
+    return await unverify_stock(line_id, current_user, request=request)
+
+
 async def get_count_lines(
     session_id: str,
     current_user: dict,
@@ -956,6 +990,8 @@ async def check_item_counted(
         # Convert ObjectId to string
         for line in count_lines:
             line["_id"] = str(line["_id"])
+            # Frontend expects a stable `line_id` field for follow-up actions (add qty, etc).
+            line.setdefault("line_id", line.get("id") or line["_id"])
 
         return {"already_counted": len(count_lines) > 0, "count_lines": count_lines}
     except Exception as e:
@@ -1038,6 +1074,142 @@ async def _find_count_line(db, line_id: str) -> Optional[dict]:
 
 def _current_timestamp() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+@router.patch("/count-lines/{line_id}/add-quantity")
+async def add_quantity_to_count_line(
+    line_id: str,
+    payload: AddQuantityRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Increment the counted quantity on an existing count line.
+
+    Used by the UI when the same item_code is scanned again and the user chooses
+    "Add to Existing" instead of creating a new count line.
+    """
+    db = _get_db_client()
+
+    count_line = await _find_count_line(db, line_id)
+    if not count_line:
+        raise HTTPException(status_code=404, detail="Count line not found")
+
+    if payload.additional_qty == 0:
+        raise HTTPException(status_code=400, detail="additional_qty must be non-zero")
+
+    # Staff can only mutate their own count lines; supervisors/admin can mutate any.
+    if current_user.get("role") not in {"supervisor", "admin"} and count_line.get(
+        "counted_by"
+    ) != current_user.get("username"):
+        raise HTTPException(status_code=403, detail="Not authorized to modify this count line")
+
+    old_counted_qty = float(count_line.get("counted_qty") or 0)
+    new_counted_qty = old_counted_qty + float(payload.additional_qty)
+
+    erp_qty = float(count_line.get("erp_qty") or 0)
+    old_variance = float(count_line.get("variance") or (old_counted_qty - erp_qty))
+    new_variance = new_counted_qty - erp_qty
+
+    mrp_erp = float(count_line.get("mrp_erp") or 0)
+    mrp_counted = float(count_line.get("mrp_counted") or mrp_erp)
+    financial_impact = (mrp_counted * new_counted_qty) - (mrp_erp * new_counted_qty)
+
+    update_data: dict[str, Any] = {
+        "counted_qty": new_counted_qty,
+        "variance": new_variance,
+        "financial_impact": financial_impact,
+        "updated_at": _current_timestamp(),
+        "updated_by": current_user.get("username"),
+    }
+    if payload.batches is not None:
+        update_data["batches"] = payload.batches
+
+    update_result = await db.count_lines.update_one({"_id": count_line["_id"]}, {"$set": update_data})
+    if update_result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Count line not found")
+
+    # Best-effort: keep session totals consistent (variance is additive).
+    try:
+        delta = new_variance - old_variance
+        session_id = count_line.get("session_id")
+        if session_id and delta != 0:
+            await db.sessions.update_one({"id": session_id}, {"$inc": {"total_variance": delta}})
+    except Exception as exc:
+        logger.warning(f"Failed to update session variance totals after add-quantity: {exc}")
+
+    return {"success": True, "message": "Quantity added successfully", "data": update_data}
+
+
+@router.put("/count-lines/{line_id}")
+async def update_count_line(
+    line_id: str,
+    payload: CountLineUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Update an existing count line.
+
+    Currently used by bulk tooling to patch counted_qty. We keep the payload minimal
+    to avoid accidental overwrites of governance fields.
+    """
+    db = _get_db_client()
+
+    count_line = await _find_count_line(db, line_id)
+    if not count_line:
+        raise HTTPException(status_code=404, detail="Count line not found")
+
+    if payload.counted_qty is None and payload.batches is None:
+        raise HTTPException(status_code=400, detail="No updatable fields provided")
+
+    # Staff can only mutate their own count lines; supervisors/admin can mutate any.
+    if current_user.get("role") not in {"supervisor", "admin"} and count_line.get(
+        "counted_by"
+    ) != current_user.get("username"):
+        raise HTTPException(status_code=403, detail="Not authorized to modify this count line")
+
+    old_variance = float(count_line.get("variance") or 0)
+
+    update_data: dict[str, Any] = {
+        "updated_at": _current_timestamp(),
+        "updated_by": current_user.get("username"),
+    }
+
+    if payload.counted_qty is not None:
+        new_counted_qty = float(payload.counted_qty)
+        erp_qty = float(count_line.get("erp_qty") or 0)
+        new_variance = new_counted_qty - erp_qty
+
+        mrp_erp = float(count_line.get("mrp_erp") or 0)
+        mrp_counted = float(count_line.get("mrp_counted") or mrp_erp)
+        financial_impact = (mrp_counted * new_counted_qty) - (mrp_erp * new_counted_qty)
+
+        update_data.update(
+            {
+                "counted_qty": new_counted_qty,
+                "variance": new_variance,
+                "financial_impact": financial_impact,
+            }
+        )
+
+    if payload.batches is not None:
+        update_data["batches"] = payload.batches
+
+    update_result = await db.count_lines.update_one({"_id": count_line["_id"]}, {"$set": update_data})
+    if update_result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Count line not found")
+
+    # Best-effort: keep session totals consistent if qty was updated.
+    try:
+        if payload.counted_qty is not None:
+            new_variance = float(update_data["variance"]) if "variance" in update_data else old_variance
+            delta = new_variance - old_variance
+            session_id = count_line.get("session_id")
+            if session_id and delta != 0:
+                await db.sessions.update_one({"id": session_id}, {"$inc": {"total_variance": delta}})
+    except Exception as exc:
+        logger.warning(f"Failed to update session variance totals after count-line update: {exc}")
+
+    return {"success": True, "message": "Count line updated successfully", "data": update_data}
 
 
 async def _recalculate_session_stats(db, session_id: str) -> None:

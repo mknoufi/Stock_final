@@ -672,7 +672,10 @@ async def bulk_close_sessions(
                     {"id": session_id},
                     {
                         "$set": {
-                            "status": "closed",
+                            # Keep canonical session fields to match Session schema + UI expectations.
+                            "status": "CLOSED",
+                            "closed_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                            # Backwards compatible alias for older data readers (if any).
                             "ended_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         }
                     },
@@ -722,7 +725,9 @@ async def bulk_reconcile_sessions(
                     {"id": session_id},
                     {
                         "$set": {
-                            "status": "reconciled",
+                            # Store as ACTIVE + reconciled_at so the Session schema can present it
+                            # back to clients as RECONCILE while keeping DB normalized.
+                            "status": "ACTIVE",
                             "reconciled_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         }
                     },

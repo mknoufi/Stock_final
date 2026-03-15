@@ -89,7 +89,6 @@ frontend/playwright-report/
 frontend/test-results/
 
 # Docker
-.dockerignore
 
 # Expo
 .expo/

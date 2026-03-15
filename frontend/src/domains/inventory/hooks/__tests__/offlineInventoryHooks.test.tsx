@@ -63,6 +63,7 @@ describe("offline inventory hooks", () => {
     const { Wrapper, queryClient } = createWrapper();
     const { result, unmount } = renderHook(
       () =>
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("../useItemByBarcodeQuery").useItemByBarcodeQuery({
           barcode: "ABC123",
         }),
@@ -87,6 +88,7 @@ describe("offline inventory hooks", () => {
     const { Wrapper, queryClient } = createWrapper();
     const { result, unmount } = renderHook(
       () =>
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         require("../useSearchItemsQuery").useSearchItemsQuery({
           query: "ABC",
         }),

@@ -41,7 +41,7 @@ import {
 } from "../../src/components/ui";
 import { theme } from "../../src/styles/modernDesignSystem";
 
-const EXPORT_TYPES: Array<{ label: string; value: ExportScheduleType }> = [
+const EXPORT_TYPES: { label: string; value: ExportScheduleType }[] = [
   { label: "Sessions", value: "sessions" },
   { label: "Count Lines", value: "count_lines" },
   { label: "Variance", value: "variance_report" },

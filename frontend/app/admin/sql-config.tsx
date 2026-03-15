@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -41,17 +41,7 @@ export default function SqlConfigScreen() {
   });
   const [testResult, setTestResult] = useState<any>(null);
 
-  useEffect(() => {
-    if (!hasRole("admin")) {
-      Alert.alert("Access Denied", "Admin access required", [
-        { text: "OK", onPress: () => router.back() },
-      ]);
-      return;
-    }
-    loadConfig();
-  }, [hasRole, offlineMode, router]);
-
-  const loadConfig = async () => {
+  const loadConfig = useCallback(async () => {
     if (offlineMode) {
       setConfig({
         host: "",
@@ -82,7 +72,17 @@ export default function SqlConfigScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [offlineMode]);
+
+  useEffect(() => {
+    if (!hasRole("admin")) {
+      Alert.alert("Access Denied", "Admin access required", [
+        { text: "OK", onPress: () => router.back() },
+      ]);
+      return;
+    }
+    void loadConfig();
+  }, [hasRole, loadConfig, router]);
 
   const handleTest = async () => {
     if (offlineMode) {

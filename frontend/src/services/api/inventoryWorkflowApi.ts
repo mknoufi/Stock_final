@@ -849,12 +849,15 @@ export const rejectCountLine = async (
 };
 
 export const updateSessionStatus = async (sessionId: string, status: string) => {
-  if (status === "CLOSED") {
+  const normalizedStatus = (status || "").toUpperCase();
+  if (normalizedStatus === "CLOSED") {
     const response = await api.post(`/api/sessions/${sessionId}/complete`);
     return response.data;
   }
 
-  const response = await api.put(`/api/sessions/${sessionId}/status?status=${status}`);
+  const response = await api.put(
+    `/api/sessions/${sessionId}/status?status=${encodeURIComponent(normalizedStatus)}`
+  );
   return response.data;
 };
 

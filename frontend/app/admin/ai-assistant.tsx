@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -43,15 +43,7 @@ export default function AIAssistantScreen() {
     const [status, setStatus] = useState<"online" | "offline" | "checking">("checking");
     const scrollViewRef = useRef<ScrollView>(null);
 
-    useEffect(() => {
-        if (offlineMode) {
-            setStatus("offline");
-            return;
-        }
-        checkStatus();
-    }, [offlineMode]);
-
-    const checkStatus = async () => {
+    const checkStatus = useCallback(async () => {
         if (offlineMode) {
             setStatus("offline");
             return;
@@ -63,7 +55,15 @@ export default function AIAssistantScreen() {
         } catch (_error) {
             setStatus("offline");
         }
-    };
+    }, [offlineMode]);
+
+    useEffect(() => {
+        if (offlineMode) {
+            setStatus("offline");
+            return;
+        }
+        void checkStatus();
+    }, [checkStatus, offlineMode]);
 
     const handleSend = async () => {
         if (!inputText.trim() || isLoading || offlineMode) return;

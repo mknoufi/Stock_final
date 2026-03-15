@@ -132,6 +132,20 @@ def _apply_update(document: dict[str, Any], update: dict[str, Any]) -> bool:
             document[key] = value
             modified = True
 
+    inc_values = update.get("$inc", {})
+    for key, delta in inc_values.items():
+        current = document.get(key, 0)
+        if current is None:
+            current = 0
+        try:
+            next_value = current + delta
+        except Exception as exc:
+            raise ValueError(f"Unsupported $inc for field '{key}': {exc}") from exc
+
+        if document.get(key) != next_value:
+            document[key] = next_value
+            modified = True
+
     return modified
 
 

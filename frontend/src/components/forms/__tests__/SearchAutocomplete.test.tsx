@@ -42,6 +42,7 @@ jest.mock("../../../store/settingsStore", () => ({
 
 jest.mock("../../../hooks/useDebouncedCallback", () => ({
   useStableDebouncedCallback: (callback: (...args: unknown[]) => void) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const React = require("react");
     return React.useCallback(
       (...args: unknown[]) => callback(...args),
