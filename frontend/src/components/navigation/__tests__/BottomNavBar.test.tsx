@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, jest, beforeEach } from "@jest/globals";
+import { getDefaultInventoryTabs } from "../bottomNavShared";
 
 describe("BottomNavBar Component", () => {
   beforeEach(() => {
@@ -48,36 +49,33 @@ describe("BottomNavBar Component", () => {
   describe("getDefaultInventoryTabs function", () => {
     it("should create home tab with correct navigation", () => {
       const mockPush = jest.fn();
-      const mockRouter = { push: mockPush };
+      const homeTab = getDefaultInventoryTabs(
+        { push: mockPush },
+        "session-123",
+        jest.fn(),
+      )[0];
 
-      // Simulate home tab behavior
-      const homeTab = {
-        id: "home",
-        label: "Home",
-        icon: "home-outline",
-        iconFilled: "home",
-        onPress: () => mockRouter.push("/staff/dashboard"),
-      };
-
+      if (!homeTab) {
+        throw new Error("Expected home tab to be defined");
+      }
       homeTab.onPress();
-      expect(mockPush).toHaveBeenCalledWith("/staff/dashboard");
+      expect(mockPush).toHaveBeenCalledWith("/staff/home");
     });
 
     it("should create review tab with sessionId in URL", () => {
       const mockPush = jest.fn();
-      const sessionId = "session-123";
+      const reviewTab = getDefaultInventoryTabs(
+        { push: mockPush },
+        "session-123",
+        jest.fn(),
+      )[2];
 
-      const reviewTab = {
-        id: "review",
-        label: "Review",
-        icon: "clipboard-outline",
-        iconFilled: "clipboard",
-        onPress: () => mockPush(`/staff/review?sessionId=${sessionId}`),
-      };
-
+      if (!reviewTab) {
+        throw new Error("Expected review tab to be defined");
+      }
       reviewTab.onPress();
       expect(mockPush).toHaveBeenCalledWith(
-        "/staff/review?sessionId=session-123",
+        "/staff/history?sessionId=session-123",
       );
     });
 
@@ -187,10 +185,18 @@ describe("BottomNavBar Component", () => {
 
   describe("Edge cases", () => {
     it("should handle empty sessionId gracefully", () => {
-      const sessionId: string | null = null;
-      const url = `/staff/review?sessionId=${sessionId}`;
+      const mockPush = jest.fn();
+      const reviewTab = getDefaultInventoryTabs(
+        { push: mockPush },
+        null,
+        jest.fn(),
+      )[2];
 
-      expect(url).toContain("sessionId=null");
+      if (!reviewTab) {
+        throw new Error("Expected review tab to be defined");
+      }
+      reviewTab.onPress();
+      expect(mockPush).toHaveBeenCalledWith("/staff/history");
     });
 
     it("should handle undefined onTabChange callback", () => {

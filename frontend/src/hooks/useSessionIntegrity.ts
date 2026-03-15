@@ -3,6 +3,7 @@
  * Tracks master data versions and warns if data changed during session
  */
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Platform } from "react-native";
 
 interface ItemVersion {
   item_code: string;
@@ -27,11 +28,42 @@ interface SessionWarning {
 }
 
 const DEFAULT_IDLE_TIMEOUT = 15 * 60 * 1000; // 15 minutes in ms
+const sessionSnapshotMemoryStore = new Map<string, string>();
+
+const getSnapshotStorageKey = (sessionId: string | null) =>
+  `session_${sessionId ?? "unknown"}_snapshot`;
+
+const setStoredSnapshot = (key: string, value: string) => {
+  if (Platform.OS === "web") {
+    localStorage.setItem(key, value);
+    return;
+  }
+
+  sessionSnapshotMemoryStore.set(key, value);
+};
+
+const getStoredSnapshot = (key: string) => {
+  if (Platform.OS === "web") {
+    return localStorage.getItem(key);
+  }
+
+  return sessionSnapshotMemoryStore.get(key) ?? null;
+};
+
+const removeStoredSnapshot = (key: string) => {
+  if (Platform.OS === "web") {
+    localStorage.removeItem(key);
+    return;
+  }
+
+  sessionSnapshotMemoryStore.delete(key);
+};
 
 export const useSessionIntegrity = (
   sessionId: string | null,
   initialItemVersions: ItemVersion[] = [],
 ) => {
+  const snapshotStorageKey = getSnapshotStorageKey(sessionId);
   const [integrityState, setIntegrityState] = useState<SessionIntegrityState>({
     snapshotTaken: false,
     snapshotTime: null,
@@ -54,10 +86,10 @@ export const useSessionIntegrity = (
       warnings: [],
     });
 
-    // Store snapshot in localStorage for persistence
+    // Persist on web and fall back to in-memory storage on native.
     try {
-      localStorage.setItem(
-        `session_${sessionId}_snapshot`,
+      setStoredSnapshot(
+        snapshotStorageKey,
         JSON.stringify({
           snapshot,
           timestamp: new Date().toISOString(),
@@ -68,7 +100,7 @@ export const useSessionIntegrity = (
     }
 
     return snapshot;
-  }, [sessionId, initialItemVersions]);
+  }, [initialItemVersions, snapshotStorageKey]);
 
   // Check for master data changes since snapshot
   const checkIntegrity = useCallback(
@@ -78,7 +110,7 @@ export const useSessionIntegrity = (
       }
 
       try {
-        const stored = localStorage.getItem(`session_${sessionId}_snapshot`);
+        const stored = getStoredSnapshot(snapshotStorageKey);
         if (!stored) return null;
 
         const { snapshot } = JSON.parse(stored);
@@ -116,7 +148,7 @@ export const useSessionIntegrity = (
         return null;
       }
     },
-    [sessionId, integrityState.snapshotTaken],
+    [integrityState.snapshotTaken, snapshotStorageKey],
   );
 
   // Get session integrity status for display
@@ -147,7 +179,7 @@ export const useSessionIntegrity = (
   // Clear snapshot when session ends
   const clearSnapshot = useCallback(() => {
     try {
-      localStorage.removeItem(`session_${sessionId}_snapshot`);
+      removeStoredSnapshot(snapshotStorageKey);
     } catch (e) {
       console.warn("Failed to clear session snapshot:", e);
     }
@@ -158,7 +190,7 @@ export const useSessionIntegrity = (
       itemsWithChanges: 0,
       warnings: [],
     });
-  }, [sessionId]);
+  }, [snapshotStorageKey]);
 
   return {
     integrityState,

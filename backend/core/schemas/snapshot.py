@@ -9,7 +9,7 @@ class SnapshotItem(BaseModel):
     item_code: str
     stock_qty: float
     warehouse: str
-    source_data: Dict[str, Any]  # The full original item payload at time of capture
+    source_data: Dict[str, Any]  # Minimal ERP fields needed to reconstruct the frozen baseline
 
 
 class SessionSnapshot(BaseModel):

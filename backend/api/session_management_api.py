@@ -185,6 +185,173 @@ RECOUNT_SLA_MINUTES = 30
 INACTIVE_SESSION_SLA_MINUTES = 10
 
 
+def _normalize_location_value(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    return normalized or None
+
+
+def _parse_session_location_parts(
+    warehouse: str,
+    location_type: Optional[str] = None,
+    location_name: Optional[str] = None,
+    rack_no: Optional[str] = None,
+) -> tuple[Optional[str], Optional[str], Optional[str]]:
+    parsed_type = _normalize_location_value(location_type)
+    parsed_name = _normalize_location_value(location_name)
+    parsed_rack = _normalize_location_value(rack_no)
+
+    if parsed_type and parsed_name and parsed_rack:
+        return parsed_type, parsed_name, parsed_rack
+
+    parts = [part.strip() for part in warehouse.split(" - ") if part.strip()]
+    if len(parts) >= 3:
+        parsed_type = parsed_type or parts[0]
+        parsed_name = parsed_name or parts[1]
+        parsed_rack = parsed_rack or parts[2]
+
+    return parsed_type, parsed_name, parsed_rack
+
+
+def _exact_match_filter(value: str) -> dict[str, str]:
+    return {"$regex": f"^{re.escape(value)}$", "$options": "i"}
+
+
+def _infer_snapshot_warehouse_aliases(
+    location_type: Optional[str], location_name: Optional[str]
+) -> list[str]:
+    hints = " ".join(
+        part.lower()
+        for part in (location_type, location_name)
+        if isinstance(part, str) and part.strip()
+    )
+
+    if "showroom" in hints or "floor" in hints:
+        return ["Primary"]
+    if "godown" in hints or "damage" in hints:
+        return ["Main"]
+    return []
+
+
+def _build_snapshot_queries(
+    warehouse: str,
+    location_type: Optional[str] = None,
+    location_name: Optional[str] = None,
+    rack_no: Optional[str] = None,
+) -> list[dict[str, Any]]:
+    queries: list[dict[str, Any]] = [{"warehouse": _exact_match_filter(warehouse)}]
+
+    parsed_type, parsed_name, parsed_rack = _parse_session_location_parts(
+        warehouse,
+        location_type=location_type,
+        location_name=location_name,
+        rack_no=rack_no,
+    )
+
+    if parsed_name and parsed_rack:
+        queries.append(
+            {
+                "$and": [
+                    {
+                        "$or": [
+                            {"floor": _exact_match_filter(parsed_name)},
+                            {"floor_no": _exact_match_filter(parsed_name)},
+                            {"warehouse": _exact_match_filter(parsed_name)},
+                        ]
+                    },
+                    {
+                        "$or": [
+                            {"rack": _exact_match_filter(parsed_rack)},
+                            {"rack_no": _exact_match_filter(parsed_rack)},
+                        ]
+                    },
+                ]
+            }
+        )
+
+    if parsed_name:
+        queries.append(
+            {
+                "$or": [
+                    {"floor": _exact_match_filter(parsed_name)},
+                    {"floor_no": _exact_match_filter(parsed_name)},
+                    {"warehouse": _exact_match_filter(parsed_name)},
+                ]
+            }
+        )
+
+    for alias in _infer_snapshot_warehouse_aliases(parsed_type, parsed_name):
+        queries.append({"warehouse": _exact_match_filter(alias)})
+
+    unique_queries: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for query in queries:
+        key = repr(query)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_queries.append(query)
+
+    return unique_queries
+
+
+def _build_snapshot_source_data(item: dict[str, Any]) -> dict[str, Any]:
+    # Keep only the fields needed to reconstruct a baseline without storing the full ERP document.
+    fields = (
+        "item_name",
+        "barcode",
+        "mrp",
+        "category",
+        "subcategory",
+        "warehouse",
+        "floor",
+        "rack",
+        "floor_no",
+        "rack_no",
+        "uom_code",
+    )
+    return {
+        field: item[field]
+        for field in fields
+        if field in item and item[field] not in (None, "")
+    }
+
+
+async def _collect_snapshot_items(
+    db: AsyncIOMotorDatabase,
+    warehouse: str,
+    location_type: Optional[str] = None,
+    location_name: Optional[str] = None,
+    rack_no: Optional[str] = None,
+) -> list[Any]:
+    from backend.core.schemas.snapshot import SnapshotItem
+
+    for query in _build_snapshot_queries(
+        warehouse,
+        location_type=location_type,
+        location_name=location_name,
+        rack_no=rack_no,
+    ):
+        snapshot_items: list[SnapshotItem] = []
+        items_cursor = db.erp_items.find(query)
+
+        async for item in items_cursor:
+            snapshot_items.append(
+                SnapshotItem(
+                    item_code=item.get("item_code", ""),
+                    stock_qty=float(item.get("stock_qty", 0.0)),
+                    warehouse=item.get("warehouse") or warehouse,
+                    source_data=_build_snapshot_source_data(item),
+                )
+            )
+
+        if snapshot_items:
+            return snapshot_items
+
+    return []
+
+
 def _coerce_datetime(value: Any) -> Optional[datetime]:
     """Best-effort conversion for datetimes stored as epoch, ISO string, or datetime."""
     if value is None:
@@ -522,6 +689,12 @@ async def create_session(
     warehouse = session_data.warehouse.strip()
     if not warehouse:
         raise HTTPException(status_code=400, detail="Warehouse name cannot be empty")
+    location_type, location_name, rack_no = _parse_session_location_parts(
+        warehouse,
+        location_type=session_data.location_type,
+        location_name=session_data.location_name,
+        rack_no=session_data.rack_no,
+    )
 
     existing_session = await db.sessions.find_one(
         {
@@ -587,6 +760,9 @@ async def create_session(
     session = Session(
         id=str(uuid.uuid4()),
         warehouse=warehouse,
+        location_type=location_type,
+        location_name=location_name,
+        rack_no=rack_no,
         staff_user=current_user["username"],
         staff_name=current_user.get("full_name", current_user["username"]),
         type=session_data.type or "STANDARD",
@@ -597,33 +773,22 @@ async def create_session(
     # GOVERNANCE: Snapshot & Config Enforcement
     import hashlib
     import json
-    from backend.core.schemas.snapshot import SessionSnapshot, SnapshotItem
+    from backend.core.schemas.snapshot import SessionSnapshot
 
     # 1. Get latest config version
     latest_config = await db.config_versions.find_one(sort=[("created_at", -1)])
     config_version_id = latest_config["id"] if latest_config else "LEGACY_NO_VERSION"
     session.config_version_id = config_version_id
 
-    # 2. Fetch items for snapshot
-    # Find items in this warehouse
-    items_cursor = db.erp_items.find(
-        {"warehouse": {"$regex": f"^{re.escape(warehouse)}$", "$options": "i"}}
+    # 2. Fetch items for snapshot.
+    # Prefer exact warehouse match, then structured location, then controlled aliases.
+    snapshot_items = await _collect_snapshot_items(
+        db,
+        warehouse,
+        location_type=location_type,
+        location_name=location_name,
+        rack_no=rack_no,
     )
-    snapshot_items = []
-
-    async for item in items_cursor:
-        # Convert ObjectId to string for serialization
-        if "_id" in item:
-            item["_id"] = str(item["_id"])
-
-        snapshot_items.append(
-            SnapshotItem(
-                item_code=item.get("item_code", ""),
-                stock_qty=float(item.get("stock_qty", 0.0)),
-                warehouse=item.get("warehouse", ""),
-                source_data=item,
-            )
-        )
 
     # 3. Create Hash
     # Sort by item code to ensure deterministic hash

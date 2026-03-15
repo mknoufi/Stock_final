@@ -16,18 +16,11 @@ import {
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { colors as unifiedColors, radius, spacing } from "@/theme/unified";
 import { useThemeContext } from "@/context/ThemeContext";
-
-export type NavTabId = "home" | "inventory" | "review" | "finish" | string;
-
-export interface NavTab {
-  id: NavTabId;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  iconFilled: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-  /** Optional custom active color (defaults to primary) */
-  activeColor?: string;
-}
+import {
+  getDefaultInventoryTabs,
+  NavTab,
+  NavTabId,
+} from "./bottomNavShared";
 
 interface BottomNavBarProps {
   tabs: NavTab[];
@@ -103,44 +96,8 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({
   );
 };
 
-/**
- * Default navigation tabs for inventory workflow screens
- */
-export const getDefaultInventoryTabs = (
-  router: { push: (path: string) => void },
-  sessionId: string | null,
-  onFinish: () => void,
-): NavTab[] => [
-  {
-    id: "home",
-    label: "Home",
-    icon: "home-outline",
-    iconFilled: "home",
-    onPress: () => router.push("/staff/dashboard"),
-  },
-  {
-    id: "inventory",
-    label: "Inventory",
-    icon: "barcode-outline",
-    iconFilled: "barcode",
-    onPress: () => {}, // Current screen, no navigation
-  },
-  {
-    id: "review",
-    label: "Review",
-    icon: "clipboard-outline",
-    iconFilled: "clipboard",
-    onPress: () => router.push(`/staff/review?sessionId=${sessionId}`),
-  },
-  {
-    id: "finish",
-    label: "Finish",
-    icon: "checkmark-circle-outline",
-    iconFilled: "checkmark-circle",
-    onPress: onFinish,
-    activeColor: unifiedColors.success[500],
-  },
-];
+export { getDefaultInventoryTabs };
+export type { NavTab, NavTabId };
 
 const styles = StyleSheet.create({
   bottomNavigation: {

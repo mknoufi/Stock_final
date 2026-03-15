@@ -127,7 +127,7 @@ def setup_logging(
     log_level: str = "INFO",
     log_format: str = "text",
     log_file: str = None,
-    app_name: str = "stock_count",
+    app_name: str = "stock_verify",
 ) -> logging.Logger:
     """
     Setup application logging

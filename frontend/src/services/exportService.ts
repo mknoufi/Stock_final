@@ -9,6 +9,7 @@ import { Alert } from "react-native";
 import type { Session } from "../types/session";
 import type { CountLine } from "../types/item";
 import type { Item } from "../types/scan";
+import { useSettingsStore } from "../store/settingsStore";
 
 export interface ExportOptions {
   filename?: string;
@@ -20,6 +21,10 @@ export interface ExportOptions {
 type ExportRecord = Record<string, unknown>;
 
 export class ExportService {
+  private static prefersJson(): boolean {
+    return useSettingsStore.getState().settings.exportFormat === "json";
+  }
+
   /**
    * Export data to CSV format
    */
@@ -140,6 +145,13 @@ export class ExportService {
    * Export sessions to CSV
    */
   static async exportSessions(sessions: Session[]): Promise<void> {
+    if (this.prefersJson()) {
+      await this.exportToJSON(sessions as unknown as ExportRecord[], {
+        filename: `sessions_${Date.now()}.json`,
+      });
+      return;
+    }
+
     const headers = [
       "id",
       "warehouse",
@@ -182,23 +194,29 @@ export class ExportService {
         });
       });
 
-      const headers = [
-        "session_id",
-        "warehouse",
-        "staff_name",
-        "status",
-        "started_at",
-        "closed_at",
-        "total_items",
-        "total_variance",
-        "counted_items",
-        "pending_items",
-      ];
+      if (this.prefersJson()) {
+        await this.exportToJSON(detailedData, {
+          filename: `session_details_${Date.now()}.json`,
+        });
+      } else {
+        const headers = [
+          "session_id",
+          "warehouse",
+          "staff_name",
+          "status",
+          "started_at",
+          "closed_at",
+          "total_items",
+          "total_variance",
+          "counted_items",
+          "pending_items",
+        ];
 
-      await this.exportToCSV(detailedData, {
-        filename: `session_details_${Date.now()}.csv`,
-        headers,
-      });
+        await this.exportToCSV(detailedData, {
+          filename: `session_details_${Date.now()}.csv`,
+          headers,
+        });
+      }
 
       __DEV__ &&
         console.log("✅ [Export] Sessions with details exported successfully");
@@ -237,22 +255,28 @@ export class ExportService {
             : "0",
       }));
 
-      const headers = [
-        "session_id",
-        "warehouse",
-        "staff_name",
-        "status",
-        "started_at",
-        "total_items",
-        "counted_items",
-        "total_variance",
-        "variance_percentage",
-      ];
+      if (this.prefersJson()) {
+        await this.exportToJSON(varianceData, {
+          filename: `variance_report_${Date.now()}.json`,
+        });
+      } else {
+        const headers = [
+          "session_id",
+          "warehouse",
+          "staff_name",
+          "status",
+          "started_at",
+          "total_items",
+          "counted_items",
+          "total_variance",
+          "variance_percentage",
+        ];
 
-      await this.exportToCSV(varianceData, {
-        filename: `variance_report_${Date.now()}.csv`,
-        headers,
-      });
+        await this.exportToCSV(varianceData, {
+          filename: `variance_report_${Date.now()}.csv`,
+          headers,
+        });
+      }
 
       __DEV__ &&
         console.log("✅ [Export] Variance report exported successfully");

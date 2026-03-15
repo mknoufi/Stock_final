@@ -370,6 +370,7 @@ class InMemoryDatabase:
         self.error_logs = InMemoryCollection()
         self.sessions = InMemoryCollection()
         self.count_lines = InMemoryCollection()
+        self.count_line_drafts = InMemoryCollection()
         self.unknown_items = InMemoryCollection()
         self.erp_items = InMemoryCollection()
         self.erp_sync_metadata = InMemoryCollection()
@@ -391,6 +392,7 @@ class InMemoryDatabase:
         self.system_settings = InMemoryCollection()
         self.config_versions = InMemoryCollection()
         self.session_snapshots = InMemoryCollection()
+        self.stock_snapshots = InMemoryCollection()
         self.conflict_forks = InMemoryCollection()
         self.governance_events = InMemoryCollection()
 

@@ -1,7 +1,7 @@
 /**
  * Appearance Settings Screen for Staff
  *
- * Allows staff users to customize theme, patterns, and layout arrangements
+ * Allows staff users to customize theme and typography preferences.
  */
 
 import React from "react";

@@ -22,11 +22,13 @@ import * as Haptics from "expo-haptics";
 import * as FileSystem from "expo-file-system";
 import * as Sharing from "expo-sharing";
 
+import { getLocalItems } from "../../src/db/localDb";
 import { ItemVerificationAPI } from "../../src/domains/inventory/services/itemVerificationApi";
 import {
   ItemFilters,
   FilterValues,
 } from "../../src/domains/inventory/components/ItemFilters";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { exportItemsToCSV, downloadCSV } from "../../src/utils/csvExport";
 import {
   ScreenContainer,
@@ -42,8 +44,37 @@ const getLocalFileUri = (filename: string) => {
   return `${baseDir}${filename}`;
 };
 
+const filterCachedItems = (items: any[], filters: FilterValues) => {
+  const search = filters.search?.trim().toLowerCase();
+
+  return items.filter((item) => {
+    if (typeof filters.verified === "boolean" && item.verified !== filters.verified) {
+      return false;
+    }
+
+    if (search) {
+      const haystack = [
+        item.item_name,
+        item.item_code,
+        item.barcode,
+        item.category,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      if (!haystack.includes(search)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+};
+
 export default function ItemsScreen() {
   const router = useRouter();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,6 +99,36 @@ export default function ItemsScreen() {
           setPagination((prev) => ({ ...prev, skip: 0 }));
         }
 
+        if (offlineMode) {
+          const localItems = await getLocalItems();
+          const mappedItems = localItems.map((item) => ({
+            id: item.barcode,
+            item_code: item.barcode,
+            item_name: item.name,
+            barcode: item.barcode,
+            category: item.category,
+            verified: Boolean(item.verified),
+            stock_qty: 0,
+            mrp: 0,
+            last_sync: item.last_sync,
+          }));
+          const filteredItems = filterCachedItems(mappedItems, filters);
+
+          setItems(filteredItems);
+          setPagination({
+            total: filteredItems.length,
+            limit: filteredItems.length || 100,
+            skip: 0,
+          });
+          setStatistics({
+            total_items: filteredItems.length,
+            verified_items: filteredItems.filter((item) => item.verified).length,
+            unverified_items: filteredItems.filter((item) => !item.verified).length,
+            total_qty: 0,
+          });
+          return;
+        }
+
         const skip = reset ? 0 : pagination.skip;
         const response = await ItemVerificationAPI.getFilteredItems({
           ...filters,
@@ -90,7 +151,7 @@ export default function ItemsScreen() {
         setRefreshing(false);
       }
     },
-    [filters, pagination.limit, pagination.skip],
+    [filters, offlineMode, pagination.limit, pagination.skip],
   );
 
   useEffect(() => {
@@ -105,6 +166,10 @@ export default function ItemsScreen() {
   };
 
   const handleLoadMore = () => {
+    if (offlineMode) {
+      return;
+    }
+
     if (!loading && pagination.skip + pagination.limit < pagination.total) {
       setPagination((prev) => ({
         ...prev,
@@ -125,7 +190,7 @@ export default function ItemsScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       let allItems = items;
-      if (pagination.total > items.length) {
+      if (!offlineMode && pagination.total > items.length) {
         const response = await ItemVerificationAPI.getFilteredItems({
           ...filters,
           limit: pagination.total,
@@ -320,6 +385,20 @@ export default function ItemsScreen() {
             style={{ flex: 1 }}
           />
         </Animated.View>
+
+        {offlineMode && (
+          <GlassCard
+            intensity={10}
+            padding={theme.spacing.sm}
+            style={{ marginBottom: theme.spacing.md }}
+          >
+            <Text style={styles.offlineNoticeTitle}>Offline mode enabled</Text>
+            <Text style={styles.offlineNoticeBody}>
+              This screen is showing cached items only. Stock, MRP, and location
+              fields may be incomplete until you reconnect.
+            </Text>
+          </GlassCard>
+        )}
 
         {/* Filters */}
         <Animated.View entering={FadeInDown.delay(300).springify()}>
@@ -520,5 +599,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: theme.colors.text.tertiary,
     marginTop: theme.spacing.xs,
+  },
+  offlineNoticeTitle: {
+    color: theme.colors.text.primary,
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  offlineNoticeBody: {
+    color: theme.colors.text.secondary,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

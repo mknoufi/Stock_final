@@ -31,6 +31,7 @@ import RecountAssignmentModal, {
   type AssignableStaffUser,
 } from "../../../src/components/supervisor/RecountAssignmentModal";
 import { useToast } from "../../../src/components/feedback/ToastProvider";
+import { useSettingsStore } from "../../../src/store/settingsStore";
 
 export default function SessionDetail() {
   // Support both "id" (from route) and "sessionId" (legacy or explicit) parameter
@@ -39,6 +40,7 @@ export default function SessionDetail() {
 
   const router = useRouter();
   const { show } = useToast();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [session, setSession] = React.useState<any>(null);
   const [toVerifyLines, setToVerifyLines] = React.useState<any[]>([]);
   const [verifiedLines, setVerifiedLines] = React.useState<any[]>([]);
@@ -93,6 +95,10 @@ export default function SessionDetail() {
   }, [loadData]);
 
   const loadAssignableStaff = React.useCallback(async () => {
+    if (offlineMode) {
+      throw new Error("Recount assignment requires a live connection.");
+    }
+
     if (assignableStaff.length > 0) {
       return assignableStaff;
     }
@@ -108,7 +114,7 @@ export default function SessionDetail() {
     } finally {
       setStaffLoading(false);
     }
-  }, [assignableStaff, show]);
+  }, [assignableStaff, offlineMode, show]);
 
   if (!loading && sessionMissing) {
     return (
@@ -135,6 +141,11 @@ export default function SessionDetail() {
             color={auroraTheme.colors.warning[500]}
           />
           <Text style={styles.loadingText}>This session is no longer available.</Text>
+          {offlineMode && (
+            <Text style={styles.offlineMissingText}>
+              It is not available in the local session cache.
+            </Text>
+          )}
           <AnimatedPressable
             onPress={() => router.replace("/supervisor/sessions")}
             style={styles.closeButton}
@@ -147,6 +158,11 @@ export default function SessionDetail() {
   }
 
   const handleApproveLine = async (lineId: string) => {
+    if (offlineMode) {
+      show("Approvals require a live connection", "warning");
+      return;
+    }
+
     try {
       if (Platform.OS !== "web")
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -161,6 +177,11 @@ export default function SessionDetail() {
   };
 
   const handleRejectLine = async (line: any) => {
+    if (offlineMode) {
+      show("Recount requests require a live connection", "warning");
+      return;
+    }
+
     try {
       if (Platform.OS !== "web")
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -180,6 +201,11 @@ export default function SessionDetail() {
     notes: string;
     assignTo?: string;
   }) => {
+    if (offlineMode) {
+      show("Recount requests require a live connection", "warning");
+      return;
+    }
+
     if (!pendingRejectLine?.id) {
       show("Count line not found", "error");
       return;
@@ -210,6 +236,11 @@ export default function SessionDetail() {
   };
 
   const handleVerifyStock = async (lineId: string) => {
+    if (offlineMode) {
+      show("Stock verification requires a live connection", "warning");
+      return;
+    }
+
     try {
       if (Platform.OS !== "web")
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -227,6 +258,11 @@ export default function SessionDetail() {
   };
 
   const handleUnverifyStock = async (lineId: string) => {
+    if (offlineMode) {
+      show("Verification changes require a live connection", "warning");
+      return;
+    }
+
     try {
       if (Platform.OS !== "web")
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -244,6 +280,11 @@ export default function SessionDetail() {
   };
 
   const handleUpdateStatus = async (newStatus: string) => {
+    if (offlineMode) {
+      show("Session status changes require a live connection", "warning");
+      return;
+    }
+
     try {
       if (Platform.OS !== "web")
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -336,7 +377,7 @@ export default function SessionDetail() {
         </GlassCard>
       </Animated.View>
 
-      {session.status === "OPEN" && (
+      {session.status === "OPEN" && !offlineMode && (
         <Animated.View
           entering={FadeInDown.delay(200).springify()}
           style={styles.actionButtons}
@@ -350,7 +391,7 @@ export default function SessionDetail() {
         </Animated.View>
       )}
 
-      {session.status === "RECONCILE" && (
+      {session.status === "RECONCILE" && !offlineMode && (
         <Animated.View
           entering={FadeInDown.delay(200).springify()}
           style={styles.actionButtons}
@@ -361,6 +402,30 @@ export default function SessionDetail() {
           >
             <Text style={styles.buttonText}>Close Session</Text>
           </AnimatedPressable>
+        </Animated.View>
+      )}
+
+      {offlineMode && (
+        <Animated.View entering={FadeInDown.delay(220).springify()}>
+          <GlassCard variant="medium" style={styles.offlineNotice}>
+            <View style={styles.offlineNoticeRow}>
+              <Ionicons
+                name="cloud-offline-outline"
+                size={18}
+                color={auroraTheme.colors.warning[500]}
+              />
+              <View style={styles.offlineNoticeCopy}>
+                <Text style={styles.offlineNoticeTitle}>
+                  Viewing cached session data
+                </Text>
+                <Text style={styles.offlineNoticeBody}>
+                  Count lines and session details can be reviewed offline, but
+                  approvals, recounts, verification changes, and status updates
+                  require a live connection.
+                </Text>
+              </View>
+            </View>
+          </GlassCard>
         </Animated.View>
       )}
 
@@ -532,88 +597,90 @@ export default function SessionDetail() {
           </View>
         )}
 
-        <View style={styles.lineActions}>
-          {normalizedStatus === "pending" && (
-            <>
-              <AnimatedPressable
-                style={styles.approveButton}
-                onPress={() => handleApproveLine(item.id)}
-              >
-                <Ionicons
-                  name="checkmark"
-                  size={20}
-                  color={auroraTheme.colors.text.primary}
-                />
-                <Text style={styles.actionButtonText}>Approve</Text>
-              </AnimatedPressable>
-              <AnimatedPressable
-                style={styles.rejectButton}
-                onPress={() => void handleRejectLine(item)}
-              >
-                <Ionicons
-                  name="close"
-                  size={20}
-                  color={auroraTheme.colors.text.primary}
-                />
-                <Text style={styles.actionButtonText}>Reject</Text>
-              </AnimatedPressable>
-            </>
-          )}
-
-          {activeTab === "toVerify" && !item.verified && (
-            <AnimatedPressable
-              style={[
-                styles.verifyButton,
-                verifying === item.id && styles.buttonDisabled,
-              ]}
-              onPress={() => handleVerifyStock(item.id)}
-              disabled={verifying === item.id}
-            >
-              {verifying === item.id ? (
-                <ActivityIndicator
-                  size="small"
-                  color={auroraTheme.colors.text.primary}
-                />
-              ) : (
-                <>
+        {!offlineMode && (
+          <View style={styles.lineActions}>
+            {normalizedStatus === "pending" && (
+              <>
+                <AnimatedPressable
+                  style={styles.approveButton}
+                  onPress={() => handleApproveLine(item.id)}
+                >
                   <Ionicons
-                    name="checkmark-circle-outline"
+                    name="checkmark"
                     size={20}
                     color={auroraTheme.colors.text.primary}
                   />
-                  <Text style={styles.actionButtonText}>Verify Stock</Text>
-                </>
-              )}
-            </AnimatedPressable>
-          )}
-
-          {activeTab === "verified" && item.verified && (
-            <AnimatedPressable
-              style={[
-                styles.unverifyButton,
-                verifying === item.id && styles.buttonDisabled,
-              ]}
-              onPress={() => handleUnverifyStock(item.id)}
-              disabled={verifying === item.id}
-            >
-              {verifying === item.id ? (
-                <ActivityIndicator
-                  size="small"
-                  color={auroraTheme.colors.text.primary}
-                />
-              ) : (
-                <>
+                  <Text style={styles.actionButtonText}>Approve</Text>
+                </AnimatedPressable>
+                <AnimatedPressable
+                  style={styles.rejectButton}
+                  onPress={() => void handleRejectLine(item)}
+                >
                   <Ionicons
-                    name="close-circle-outline"
+                    name="close"
                     size={20}
                     color={auroraTheme.colors.text.primary}
                   />
-                  <Text style={styles.actionButtonText}>Unverify</Text>
-                </>
-              )}
-            </AnimatedPressable>
-          )}
-        </View>
+                  <Text style={styles.actionButtonText}>Reject</Text>
+                </AnimatedPressable>
+              </>
+            )}
+
+            {activeTab === "toVerify" && !item.verified && (
+              <AnimatedPressable
+                style={[
+                  styles.verifyButton,
+                  verifying === item.id && styles.buttonDisabled,
+                ]}
+                onPress={() => handleVerifyStock(item.id)}
+                disabled={verifying === item.id}
+              >
+                {verifying === item.id ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={auroraTheme.colors.text.primary}
+                  />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="checkmark-circle-outline"
+                      size={20}
+                      color={auroraTheme.colors.text.primary}
+                    />
+                    <Text style={styles.actionButtonText}>Verify Stock</Text>
+                  </>
+                )}
+              </AnimatedPressable>
+            )}
+
+            {activeTab === "verified" && item.verified && (
+              <AnimatedPressable
+                style={[
+                  styles.unverifyButton,
+                  verifying === item.id && styles.buttonDisabled,
+                ]}
+                onPress={() => handleUnverifyStock(item.id)}
+                disabled={verifying === item.id}
+              >
+                {verifying === item.id ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={auroraTheme.colors.text.primary}
+                  />
+                ) : (
+                  <>
+                    <Ionicons
+                      name="close-circle-outline"
+                      size={20}
+                      color={auroraTheme.colors.text.primary}
+                    />
+                    <Text style={styles.actionButtonText}>Unverify</Text>
+                  </>
+                )}
+              </AnimatedPressable>
+            )}
+          </View>
+        )}
       </GlassCard>
     );
 
@@ -719,6 +786,12 @@ const styles = StyleSheet.create({
     marginTop: auroraTheme.spacing.md,
     color: auroraTheme.colors.text.secondary,
   },
+  offlineMissingText: {
+    fontSize: auroraTheme.typography.fontSize.sm,
+    color: auroraTheme.colors.text.tertiary,
+    marginTop: auroraTheme.spacing.sm,
+    marginBottom: auroraTheme.spacing.md,
+  },
   listContainer: {
     flex: 1,
     paddingHorizontal: auroraTheme.spacing.md,
@@ -752,6 +825,29 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     marginBottom: auroraTheme.spacing.lg,
+  },
+  offlineNotice: {
+    marginBottom: auroraTheme.spacing.lg,
+    padding: auroraTheme.spacing.md,
+  },
+  offlineNoticeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: auroraTheme.spacing.sm,
+  },
+  offlineNoticeCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  offlineNoticeTitle: {
+    fontSize: auroraTheme.typography.fontSize.sm,
+    fontWeight: auroraTheme.typography.fontWeight.bold,
+    color: auroraTheme.colors.text.primary,
+  },
+  offlineNoticeBody: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: auroraTheme.colors.text.secondary,
   },
   reconcileButton: {
     backgroundColor: auroraTheme.colors.warning[500],

@@ -5,12 +5,14 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
 import { getServiceLogs } from "../../src/services/api";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 
 export default function LogsScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const { hasRole } = usePermission();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const service = (params.service as string) || "backend";
 
   const [loading, setLoading] = useState(true);
@@ -26,13 +28,22 @@ export default function LogsScreen() {
     }
     loadLogs();
 
-    // Auto-refresh every 5 seconds
+    if (offlineMode) {
+      return;
+    }
+
     const interval = setInterval(loadLogs, 5000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [service, filterLevel]);
+  }, [filterLevel, hasRole, offlineMode, router, service]);
 
   const loadLogs = async () => {
+    if (offlineMode) {
+      setLogs([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
       setRefreshing(true);
       const response = await getServiceLogs(
@@ -79,10 +90,15 @@ export default function LogsScreen() {
     <ScreenContainer
       header={{
         title: `${service.toUpperCase()} Logs`,
-        subtitle: "Real-time Log Viewer",
+        subtitle: offlineMode
+          ? "Live logs unavailable offline"
+          : "Real-time Log Viewer",
         showBackButton: true,
         customRightContent: (
-          <AnimatedPressable style={styles.refreshButton} onPress={loadLogs}>
+          <AnimatedPressable
+            style={[styles.refreshButton, offlineMode && styles.disabledButton]}
+            onPress={loadLogs}
+          >
             <Ionicons
               name="refresh"
               size={24}
@@ -95,6 +111,23 @@ export default function LogsScreen() {
       refreshing={refreshing}
       onRefresh={loadLogs}
     >
+      {offlineMode && (
+        <View style={styles.noticeCard}>
+          <Ionicons
+            name="cloud-offline-outline"
+            size={20}
+            color={auroraTheme.colors.warning[500]}
+          />
+          <View style={styles.noticeCopy}>
+            <Text style={styles.noticeTitle}>Live logs unavailable offline</Text>
+            <Text style={styles.noticeBody}>
+              Service logs are fetched from the backend and are not cached on this
+              device. Reconnect to inspect live log output.
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Filters */}
       <View style={styles.filtersContainer}>
         <View style={styles.searchContainer}>
@@ -197,6 +230,34 @@ const styles = StyleSheet.create({
   refreshButton: {
     padding: 8,
     borderRadius: auroraTheme.borderRadius.md,
+  },
+  disabledButton: {
+    opacity: 0.45,
+  },
+  noticeCard: {
+    flexDirection: "row",
+    gap: auroraTheme.spacing.sm,
+    margin: auroraTheme.spacing.lg,
+    marginBottom: 0,
+    padding: auroraTheme.spacing.md,
+    backgroundColor: auroraTheme.colors.surface.base,
+    borderRadius: auroraTheme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: auroraTheme.colors.border.subtle,
+  },
+  noticeCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  noticeTitle: {
+    color: auroraTheme.colors.text.primary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  noticeBody: {
+    color: auroraTheme.colors.text.secondary,
+    fontSize: 12,
+    lineHeight: 18,
   },
   filtersContainer: {
     backgroundColor: auroraTheme.colors.surface.base,

@@ -26,12 +26,14 @@ import {
   AnimatedPressable,
   ScreenContainer,
 } from "../../src/components/ui";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { theme } from "../../src/styles/modernDesignSystem";
 import { useToast } from "../../src/components/feedback/ToastProvider";
 
 export default function SessionsList() {
   const router = useRouter();
   const { show } = useToast();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -217,12 +219,16 @@ export default function SessionsList() {
         intensity={15}
       >
         <Ionicons
-          name="cube-outline"
+          name={offlineMode ? "cloud-offline-outline" : "cube-outline"}
           size={64}
-          color={theme.colors.text.secondary}
+          color={
+            offlineMode ? theme.colors.warning.main : theme.colors.text.secondary
+          }
           style={{ opacity: 0.5 }}
         />
-        <Text style={styles.emptyText}>No sessions found</Text>
+        <Text style={styles.emptyText}>
+          {offlineMode ? "No cached sessions available" : "No sessions found"}
+        </Text>
       </GlassCard>
     </View>
   );
@@ -259,7 +265,9 @@ export default function SessionsList() {
             <View>
               <Text style={styles.pageTitle}>All Sessions</Text>
               <Text style={styles.pageSubtitle}>
-                Stock Verification History
+                {offlineMode
+                  ? "Cached session history"
+                  : "Stock Verification History"}
               </Text>
             </View>
           </View>
@@ -274,6 +282,38 @@ export default function SessionsList() {
             />
           </AnimatedPressable>
         </Animated.View>
+
+        {offlineMode && (
+          <Animated.View
+            entering={FadeInDown.delay(140).springify()}
+            style={styles.noticeWrap}
+          >
+            <GlassCard
+              variant="medium"
+              padding={theme.spacing.md}
+              borderRadius={theme.borderRadius.lg}
+              intensity={15}
+            >
+              <View style={styles.noticeRow}>
+                <Ionicons
+                  name="cloud-offline-outline"
+                  size={18}
+                  color={theme.colors.warning.main}
+                />
+                <View style={styles.noticeCopy}>
+                  <Text style={styles.noticeTitle}>
+                    Showing cached sessions only
+                  </Text>
+                  <Text style={styles.noticeText}>
+                    You can review locally cached session data offline. Live
+                    status changes and server refresh still require a
+                    connection.
+                  </Text>
+                </View>
+              </View>
+            </GlassCard>
+          </Animated.View>
+        )}
 
         {loading && !refreshing ? (
           <View style={styles.centerContainer}>
@@ -317,6 +357,29 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: theme.spacing.md,
     marginBottom: theme.spacing.md,
+  },
+  noticeWrap: {
+    paddingHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+  },
+  noticeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: theme.spacing.sm,
+  },
+  noticeCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  noticeTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: theme.colors.text.primary,
+  },
+  noticeText: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: theme.colors.text.secondary,
   },
   headerLeft: {
     flexDirection: "row",

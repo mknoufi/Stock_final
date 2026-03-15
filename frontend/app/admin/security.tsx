@@ -21,6 +21,7 @@ import {
   getSuspiciousActivity,
   getSecuritySessions,
 } from "../../src/services/api";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 
 const { width } = Dimensions.get("window");
@@ -30,6 +31,7 @@ const isTablet = width > 768;
 export default function SecurityScreen() {
   const router = useRouter();
   const { hasRole } = usePermission();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [summary, setSummary] = useState<any>(null);
@@ -37,7 +39,7 @@ export default function SecurityScreen() {
   const [suspiciousActivity, setSuspiciousActivity] = useState<any>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<
-    "summary" | "failed" | "suspicious" | "sessions" | "audit" | "ips"
+    "summary" | "failed" | "suspicious" | "sessions"
   >("summary");
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
@@ -52,12 +54,28 @@ export default function SecurityScreen() {
     }
     loadData();
 
-    // Auto-refresh every 60 seconds (optimized)
+    if (offlineMode) {
+      return;
+    }
+
     const interval = setInterval(loadData, 60000);
     return () => clearInterval(interval);
-  }, [hasRole, router]);
+  }, [hasRole, offlineMode, router]);
 
   const loadData = async (isRefresh = false) => {
+    if (offlineMode) {
+      if (isRefresh) {
+        setRefreshing(true);
+      }
+      setSummary(null);
+      setFailedLogins([]);
+      setSuspiciousActivity(null);
+      setSessions([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -345,11 +363,13 @@ export default function SecurityScreen() {
       loading={loading}
       header={{
         title: "Security Monitoring",
-        subtitle: `Vault Status: SECURE • Last Audit: ${lastUpdate.toLocaleTimeString()}`,
+        subtitle: offlineMode
+          ? "Security monitoring unavailable offline"
+          : `Vault Status: SECURE • Last Audit: ${lastUpdate.toLocaleTimeString()}`,
         showBackButton: true,
         customRightContent: (
           <AnimatedPressable
-            style={styles.refreshButton}
+            style={[styles.refreshButton, offlineMode && styles.disabledButton]}
             onPress={() => loadData(true)}
           >
             <Ionicons
@@ -373,10 +393,8 @@ export default function SecurityScreen() {
           {[
             { id: "summary", label: "Global", icon: "shield" },
             { id: "failed", label: "Attempts", icon: "close-circle" },
-            { id: "suspicious", label: "Analytic", icon: "pulse" },
+            { id: "suspicious", label: "Risk Signals", icon: "pulse" },
             { id: "sessions", label: "Sessions", icon: "people" },
-            { id: "audit", label: "Audit", icon: "list" },
-            { id: "ips", label: "IP Map", icon: "map" },
           ].map((tab) => (
             <AnimatedPressable
               key={tab.id}
@@ -417,17 +435,23 @@ export default function SecurityScreen() {
           />
         }
       >
-        {activeTab === "summary" && renderSummary()}
-        {activeTab === "failed" && renderFailedLogins()}
-        {activeTab === "suspicious" && renderSuspiciousActivity()}
-        {activeTab === "sessions" && renderSessions()}
-
-        {/* Partial implementation for Audit and IPs to keep code manageable */}
-        {(activeTab === "audit" || activeTab === "ips") && (
-          <EmptyState
-            message={`${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} view coming in v2.1`}
-            icon="construct-outline"
-          />
+        {offlineMode ? (
+          <GlassCard variant="medium" style={styles.offlineNotice}>
+            <Text style={styles.offlineNoticeTitle}>
+              Security monitoring requires a live connection
+            </Text>
+            <Text style={styles.offlineNoticeBody}>
+              Failed logins, suspicious activity, and active session telemetry
+              are loaded from backend services and are not available offline.
+            </Text>
+          </GlassCard>
+        ) : (
+          <>
+            {activeTab === "summary" && renderSummary()}
+            {activeTab === "failed" && renderFailedLogins()}
+            {activeTab === "suspicious" && renderSuspiciousActivity()}
+            {activeTab === "sessions" && renderSessions()}
+          </>
         )}
 
         <View style={styles.footer}>
@@ -478,6 +502,9 @@ const styles = StyleSheet.create({
   activeTabText: {
     color: "#fff",
   },
+  disabledButton: {
+    opacity: 0.45,
+  },
   scrollView: {
     flex: 1,
   },
@@ -492,6 +519,20 @@ const styles = StyleSheet.create({
   },
   tabContent: {
     gap: 16,
+  },
+  offlineNotice: {
+    padding: auroraTheme.spacing.lg,
+  },
+  offlineNoticeTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: auroraTheme.colors.text.primary,
+    marginBottom: 6,
+  },
+  offlineNoticeBody: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: auroraTheme.colors.text.secondary,
   },
   metricsGrid: {
     flexDirection: "row",

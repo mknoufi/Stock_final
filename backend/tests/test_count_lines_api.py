@@ -18,6 +18,7 @@ from backend.api.count_lines_routes import (
     detect_risk_flags,
     get_count_lines,
     reject_count_line,
+    save_count_line_draft,
     unverify_stock,
     verify_stock,
 )
@@ -218,6 +219,9 @@ class TestCreateCountLine:
         db.count_lines.update_one = AsyncMock()
         db.count_lines.find = AsyncMock(return_value=AsyncMock(to_list=AsyncMock(return_value=[])))
         db.count_lines.delete_one = AsyncMock()
+        db.count_line_drafts.find_one = AsyncMock(return_value=None)
+        db.count_line_drafts.insert_one = AsyncMock(return_value=Mock(inserted_id="draft123"))
+        db.count_line_drafts.update_one = AsyncMock()
         return db
 
     @pytest.fixture
@@ -265,6 +269,7 @@ class TestCreateCountLine:
         assert result["variance"] == 10
         assert result["counted_by"] == "testuser"
         assert result["approval_status"] == "PENDING"
+        mock_db.count_line_drafts.update_one.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_create_count_line_session_not_found(self, mock_db, line_data):
@@ -356,6 +361,19 @@ class TestCreateCountLine:
 
         assert result["approval_status"] == "NEEDS_REVIEW"
         assert len(result["risk_flags"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_save_count_line_draft_persists(self, mock_db, line_data):
+        with patch("backend.api.count_lines_routes.get_db", return_value=mock_db):
+            result = await save_count_line_draft(
+                request=AsyncMock(),
+                line_data=line_data,
+                current_user={"username": "testuser"},
+            )
+
+        assert result["success"] is True
+        assert result["data"]["status"] == "draft"
+        mock_db.count_line_drafts.insert_one.assert_awaited_once()
 
 
 class TestVerifyStock:

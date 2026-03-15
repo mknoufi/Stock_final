@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Alert } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useScanSessionStore } from "@/store/scanSessionStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { getItemByBarcode, refreshItemStock } from "@/services/api";
+import { localDb } from "@/db/localDb";
+import { toastService } from "@/services/utils/toastService";
 import { CountLineBatch, Item } from "@/types/scan";
 import { useItemForm } from "./useItemForm";
 import { useItemSubmission } from "./useItemSubmission";
@@ -12,6 +15,7 @@ export const useItemDetailLogic = () => {
   const params = useLocalSearchParams<{ barcode: string; sessionId: string }>();
   const { barcode, sessionId } = params;
   const { sessionType } = useScanSessionStore();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
 
   const [loading, setLoading] = useState(false);
   const [refreshingStock, setRefreshingStock] = useState(false);
@@ -47,9 +51,11 @@ export const useItemDetailLogic = () => {
       }
       setLoading(true);
       try {
-        const itemData = await getItemByBarcode(barcode as string);
+        const itemData = offlineMode
+          ? await localDb.getItemByBarcode(barcode as string)
+          : await getItemByBarcode(barcode as string);
         if (itemData) {
-          setItem(itemData);
+          setItem(itemData as Item);
           setMrp(itemData.mrp ? String(itemData.mrp) : "");
           setCategory(itemData.category || "");
           setSubCategory(itemData.subcategory || "");
@@ -70,8 +76,19 @@ export const useItemDetailLogic = () => {
             );
             setBatches(mappedBatches);
           }
+
+          if (offlineMode) {
+            toastService.show("Offline mode enabled: showing cached item data", {
+              type: "info",
+            });
+          }
         } else {
-          Alert.alert("Error", "Item not found");
+          Alert.alert(
+            "Error",
+            offlineMode
+              ? "Offline mode is enabled, and this item is not available in local cache."
+              : "Item not found",
+          );
           router.back();
         }
       } catch (error: unknown) {
@@ -94,6 +111,7 @@ export const useItemDetailLogic = () => {
     setSubCategory,
     setIsBatchMode,
     setBatches,
+    offlineMode,
   ]);
 
   // Auto-focus quantity input when item loads
@@ -112,6 +130,12 @@ export const useItemDetailLogic = () => {
       if (!item || !item.item_code) return;
 
       if (silent && refreshErrorCountRef.current >= MAX_REFRESH_ERRORS) return;
+      if (offlineMode) {
+        if (!silent) {
+          toastService.show("Offline mode is enabled", { type: "warning" });
+        }
+        return;
+      }
 
       setRefreshingStock(true);
       try {
@@ -134,7 +158,7 @@ export const useItemDetailLogic = () => {
         setRefreshingStock(false);
       }
     },
-    [item, mrpEditable, setMrp],
+    [item, mrpEditable, offlineMode, setMrp],
   );
 
   const { loading: submitting, handleSubmit } = submission;

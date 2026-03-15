@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { mmkvStorage } from "../services/mmkvStorage";
+import { syncBackupReminderPreference } from "../services/backupReminderService";
 import { ThemeService, Theme } from "../services/themeService";
 import { authApi } from "../services/api/authApi";
 import type {
@@ -83,8 +84,6 @@ export interface Settings {
   fontSize: "small" | "medium" | "large";
   fontSizeValue: number;
   fontStyle: FontStylePreference;
-  primaryColor: string;
-  primaryColorId: string;
   showItemImages: boolean;
   showItemPrices: boolean;
   showItemStock: boolean;
@@ -139,8 +138,6 @@ const DEFAULT_SETTINGS: Settings = {
   fontSize: "medium",
   fontSizeValue: 16,
   fontStyle: "system",
-  primaryColor: "#0EA5E9",
-  primaryColorId: "aurora",
   showItemImages: true,
   showItemPrices: true,
   showItemStock: true,
@@ -163,6 +160,11 @@ const createDefaultSettings = (): Settings => ({
 
 const persistSettings = (settings: Settings) => {
   mmkvStorage.setItem(getScopedStorageKey(APP_SETTINGS_KEY), JSON.stringify(settings));
+};
+
+const applySettingsSideEffects = (settings: Settings) => {
+  ThemeService.setTheme(settings.theme as Theme);
+  void syncBackupReminderPreference(settings);
 };
 
 const deriveFontSizeLabel = (value: number): Settings["fontSize"] => {
@@ -293,14 +295,6 @@ const normalizeSettings = (settings: Settings): Settings => {
     fontSizeValue,
     fontSize: deriveFontSizeLabel(fontSizeValue),
     fontStyle: normalizeFontStylePreference(settings.fontStyle),
-    primaryColor:
-      typeof settings.primaryColor === "string" && settings.primaryColor.trim()
-        ? settings.primaryColor
-        : defaults.primaryColor,
-    primaryColorId:
-      typeof settings.primaryColorId === "string" && settings.primaryColorId.trim()
-        ? settings.primaryColorId
-        : defaults.primaryColorId,
     showItemImages: normalizeBoolean(
       settings.showItemImages,
       defaults.showItemImages,
@@ -525,6 +519,9 @@ const toBackendPayload = (settings: Settings): Partial<UserSettings> => ({
 interface SettingsState {
   settings: Settings;
   isSyncing: boolean;
+  hasPendingSync: boolean;
+  lastSyncedAt: string | null;
+  lastSyncError: string | null;
   setSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
   resetSettings: () => Promise<void>;
   loadSettings: () => Promise<void>;
@@ -535,6 +532,9 @@ interface SettingsState {
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: createDefaultSettings(),
   isSyncing: false,
+  hasPendingSync: false,
+  lastSyncedAt: null,
+  lastSyncError: null,
 
   setSetting: (key, value) => {
     const newSettings = normalizeSettings({
@@ -543,12 +543,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     } as Settings);
     set({ settings: newSettings });
     persistSettings(newSettings);
-
-    if (key === "theme") {
-      ThemeService.setTheme(value as Theme);
-    }
+    applySettingsSideEffects(newSettings);
 
     if (REMOTE_USER_SETTING_KEYS.has(key)) {
+      set({ hasPendingSync: true, lastSyncError: null });
       if (syncTimeout) {
         clearTimeout(syncTimeout);
       }
@@ -560,9 +558,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 
   resetSettings: async () => {
     const resetSettings = normalizeSettings(createDefaultSettings());
-    set({ settings: resetSettings });
+    set({
+      settings: resetSettings,
+      hasPendingSync: true,
+      lastSyncError: null,
+    });
     persistSettings(resetSettings);
-    ThemeService.setTheme(resetSettings.theme as Theme);
+    applySettingsSideEffects(resetSettings);
     void get().syncToBackend();
   },
 
@@ -589,15 +591,22 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         break;
       }
 
-      set({ settings: mergedSettings });
-      ThemeService.setTheme(mergedSettings.theme as Theme);
+      set({
+        settings: mergedSettings,
+        hasPendingSync: false,
+        lastSyncError: null,
+      });
+      applySettingsSideEffects(mergedSettings);
     } catch (error) {
       log.warn("Failed to load settings", {
         error: (error as { message?: string } | null)?.message || String(error),
       });
       const fallbackSettings = createDefaultSettings();
-      set({ settings: fallbackSettings });
-      ThemeService.setTheme(fallbackSettings.theme as Theme);
+      set({
+        settings: fallbackSettings,
+        hasPendingSync: false,
+      });
+      applySettingsSideEffects(fallbackSettings);
     }
   },
 
@@ -613,14 +622,22 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
         ...mapBackendSettings(backendSettings),
       } as Settings);
 
-      set({ settings: mergedSettings });
+      set({
+        settings: mergedSettings,
+        hasPendingSync: false,
+        lastSyncError: null,
+        lastSyncedAt: new Date().toISOString(),
+      });
       persistSettings(mergedSettings);
-      ThemeService.setTheme(mergedSettings.theme as Theme);
+      applySettingsSideEffects(mergedSettings);
       log.debug("Synced settings from backend");
     } catch (error) {
+      const message =
+        (error as { message?: string } | null)?.message || String(error);
       log.warn("Failed to sync from backend", {
-        error: (error as { message?: string } | null)?.message || String(error),
+        error: message,
       });
+      set({ lastSyncError: message });
     } finally {
       set({ isSyncing: false });
     }
@@ -633,10 +650,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     try {
       const currentSettings = normalizeSettings(get().settings);
       await authApi.updateUserSettings(toBackendPayload(currentSettings));
+      set({
+        hasPendingSync: false,
+        lastSyncError: null,
+        lastSyncedAt: new Date().toISOString(),
+      });
       log.debug("Synced settings to backend");
     } catch (error) {
+      const message =
+        (error as { message?: string } | null)?.message || String(error);
       log.warn("Failed to sync to backend", {
-        error: (error as { message?: string } | null)?.message || String(error),
+        error: message,
+      });
+      set({
+        hasPendingSync: true,
+        lastSyncError: message,
       });
     } finally {
       set({ isSyncing: false });

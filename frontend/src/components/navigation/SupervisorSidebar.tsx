@@ -23,6 +23,7 @@ import {
   typography,
   breakpoints,
 } from "../../styles/globalStyles";
+import { flags } from "../../constants/flags";
 
 interface SidebarItem {
   key: string;
@@ -70,6 +71,16 @@ const SUPERVISOR_GROUPS: SidebarGroup[] = [
         icon: "list",
         route: "/supervisor/activity-logs",
       },
+      ...(flags.enableNotes
+        ? [
+            {
+              key: "notes",
+              label: "Notes",
+              icon: "document-text",
+              route: "/supervisor/notes",
+            } satisfies SidebarItem,
+          ]
+        : []),
       {
         key: "error-logs",
         label: "Error Logs",

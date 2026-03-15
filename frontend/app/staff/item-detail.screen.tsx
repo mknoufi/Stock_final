@@ -312,6 +312,7 @@ export default function ItemDetailScreen() {
           nestedScrollEnabled
           bounces
           alwaysBounceVertical
+          removeClippedSubviews={settings.lazyLoading}
         >
           <ItemSummarySection
             barcode={Array.isArray(barcode) ? barcode[0] : barcode}

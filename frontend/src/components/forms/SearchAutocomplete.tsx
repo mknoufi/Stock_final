@@ -16,11 +16,13 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "../../hooks/useTheme";
+import { useSettingsStore } from "../../store/settingsStore";
 import {
   searchItems,
   SearchResult,
 } from "../../services/enhancedSearchService";
 import { useStableDebouncedCallback } from "../../hooks/useDebouncedCallback";
+import { localDb } from "../../db/localDb";
 
 interface SearchAutocompleteProps {
   onSelectItem: (item: SearchResult) => void;
@@ -40,6 +42,8 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   autoFocus = false,
 }) => {
   const theme = useTheme();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
+  const debounceDelay = useSettingsStore((state) => state.settings.debounceDelay);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -62,7 +66,27 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
       setShowDropdown(true);
 
       try {
-        const response = await searchItems({ query: searchQuery });
+        const response = offlineMode
+          ? {
+              items: (await localDb.searchItems(searchQuery)).map(
+                (item): SearchResult => ({
+                  id: String(item.id || item.item_code || item.barcode || ""),
+                  item_code: String(item.item_code || item.barcode || ""),
+                  name: String(item.item_name || item.name || ""),
+                  item_name:
+                    typeof item.item_name === "string" ? item.item_name : item.name,
+                  barcode:
+                    typeof item.barcode === "string" ? item.barcode : undefined,
+                  category:
+                    typeof item.category === "string" ? item.category : undefined,
+                  stock_qty:
+                    typeof item.stock_qty === "number" ? item.stock_qty : 0,
+                  mrp: typeof item.mrp === "number" ? item.mrp : undefined,
+                  matchType: "partial",
+                }),
+              ),
+            }
+          : await searchItems({ query: searchQuery });
         setResults(response.items);
         setSelectedIndex(-1);
       } catch (error) {
@@ -72,11 +96,14 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
         setIsSearching(false);
       }
     },
-    [minChars],
+    [minChars, offlineMode],
   );
 
   // Debounced search using stable hook
-  const debouncedSearch = useStableDebouncedCallback(performSearch, 300);
+  const debouncedSearch = useStableDebouncedCallback(
+    performSearch,
+    debounceDelay,
+  );
 
   useEffect(() => {
     debouncedSearch(query);

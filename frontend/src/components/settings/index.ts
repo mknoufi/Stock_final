@@ -1,13 +1,13 @@
 /**
  * Settings Components Index
  *
- * Exports all settings-related components including PIN change,
- * password change, font size slider, and color picker.
+ * Exports all settings-related components including security,
+ * appearance, and sync status controls.
  */
 
 export { ChangePinModal } from "./ChangePinModal";
 export { ChangePasswordModal } from "./ChangePasswordModal";
 export { FontSizeSlider } from "./FontSizeSlider";
 export { FontStylePicker } from "./FontStylePicker";
+export { SettingsSyncStatus } from "./SettingsSyncStatus";
 export { UserSettingsSections } from "./UserSettingsSections";
-export { ColorPicker, COLOR_PALETTE, type ColorId } from "./ColorPicker";

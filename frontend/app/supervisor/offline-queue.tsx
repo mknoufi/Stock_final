@@ -33,10 +33,12 @@ import {
   AnimatedPressable,
   StatsCard,
 } from "../../src/components/ui";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 
 export default function OfflineQueueScreen() {
   const router = useRouter();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [loading, setLoading] = React.useState(false);
   const [queue, setQueue] = React.useState<any[]>([]);
   const [conflicts, setConflicts] = React.useState<any[]>([]);
@@ -58,6 +60,14 @@ export default function OfflineQueueScreen() {
   }, [load]);
 
   const handleFlush = async () => {
+    if (offlineMode) {
+      Alert.alert(
+        "Offline Mode",
+        "Queue sync is disabled while offline mode is enabled. Turn it off before syncing.",
+      );
+      return;
+    }
+
     if (Platform.OS !== "web")
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -241,11 +251,28 @@ export default function OfflineQueueScreen() {
               </Text>
             </View>
           </View>
-          <AnimatedPressable onPress={handleFlush} style={styles.flushButton}>
+          <AnimatedPressable
+            onPress={handleFlush}
+            style={[styles.flushButton, offlineMode && styles.flushButtonDisabled]}
+          >
             <Ionicons name="sync" size={20} color="white" />
             <Text style={styles.flushText}>Flush Queue</Text>
           </AnimatedPressable>
         </Animated.View>
+
+        {offlineMode && (
+          <Animated.View entering={FadeInDown.delay(140).springify()}>
+            <GlassCard style={styles.offlineNotice} padding={auroraTheme.spacing.md}>
+              <Text style={styles.offlineNoticeTitle}>
+                Queue review is available, sync is paused
+              </Text>
+              <Text style={styles.offlineNoticeBody}>
+                You can inspect queued actions and conflicts in offline mode, but
+                syncing them requires turning offline mode off and reconnecting.
+              </Text>
+            </GlassCard>
+          </Animated.View>
+        )}
 
         <Animated.View
           entering={FadeInDown.delay(200).springify()}
@@ -341,6 +368,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: auroraTheme.spacing.md,
   },
+  offlineNotice: {
+    marginBottom: auroraTheme.spacing.lg,
+  },
+  offlineNoticeTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: auroraTheme.colors.text.primary,
+    marginBottom: 4,
+  },
+  offlineNoticeBody: {
+    fontSize: 12,
+    lineHeight: 18,
+    color: auroraTheme.colors.text.secondary,
+  },
   headerLeft: {
     flexDirection: "row",
     alignItems: "center",
@@ -371,6 +412,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: auroraTheme.spacing.md,
     paddingVertical: 8,
     borderRadius: auroraTheme.borderRadius.full,
+  },
+  flushButtonDisabled: {
+    opacity: 0.55,
   },
   flushText: {
     color: "white",

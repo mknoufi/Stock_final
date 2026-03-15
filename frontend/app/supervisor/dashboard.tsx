@@ -1,97 +1,72 @@
 /**
  * Supervisor Dashboard v2.0 - Aurora Design
  *
- * Features:
- * - Aurora animated background
- * - Glassmorphic stats cards with gradients
- * - Live activity feed with animations
- * - Speed dial menu for quick actions
- * - Real-time session monitoring
- * - Enhanced analytics view
- * - Smooth transitions and haptic feedback
+ * Orchestrates dashboard data, navigation, haptics, and session creation.
+ * Presentational sections live in focused supervisor dashboard components.
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  RefreshControl,
   Alert,
   Platform,
-  TouchableOpacity,
-  ActivityIndicator,
-  Modal as RNModal,
-  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
-import Animated, { FadeInDown } from "react-native-reanimated";
-import { useAutoLogout } from "../../src/hooks/useAutoLogout";
-import {
-  getSessions,
-  createSession,
-  getZones,
-  getWarehouses,
-} from "../../src/services/api/api";
-import {
-  GlassCard,
-  StatsCard,
-  SpeedDialMenu,
-  LiveIndicator,
-  ActivityFeedItem,
-  ProgressRing,
-  AnimatedPressable,
-  ScreenContainer,
-} from "../../src/components/ui";
-import { PremiumInput } from "../../src/components/premium/PremiumInput";
+
 import { useToast } from "../../src/components/feedback/ToastProvider";
-import { SpeedDialAction, ActivityType } from "../../src/components/ui";
+import { CreateSessionModal } from "../../src/components/supervisor/dashboard/CreateSessionModal";
+import {
+  OverviewAction,
+  SupervisorOverviewCard,
+} from "../../src/components/supervisor/dashboard/SupervisorOverviewCard";
+import { SupervisorStatsSection } from "../../src/components/supervisor/dashboard/SupervisorStatsSection";
+import { SupervisorActivitySection } from "../../src/components/supervisor/dashboard/SupervisorActivitySection";
+import { SupervisorRecentSessionsSection } from "../../src/components/supervisor/dashboard/SupervisorRecentSessionsSection";
+import {
+  ActivityItem,
+  DashboardStats,
+  DEFAULT_ZONES,
+  getFallbackWarehouses,
+  WarehouseOption,
+  ZoneOption,
+} from "../../src/components/supervisor/dashboard/supervisorDashboardShared";
+import {
+  ActivityType,
+  ScreenContainer,
+  SpeedDialAction,
+  SpeedDialMenu,
+} from "../../src/components/ui";
+import {
+  createSession,
+  getSessions,
+  getWarehouses,
+  getZones,
+} from "../../src/services/api/api";
+import { flags } from "../../src/constants/flags";
 import { theme } from "../../src/styles/modernDesignSystem";
 import { Session } from "../../src/types";
-import { colors as unifiedColors } from "../../src/theme/unified";
-
-interface DashboardStats {
-  totalSessions: number;
-  openSessions: number;
-  closedSessions: number;
-  reconciledSessions: number;
-  totalItems: number;
-  totalVariance: number;
-  positiveVariance: number;
-  negativeVariance: number;
-  avgVariancePerSession: number;
-  highRiskSessions: number;
-}
-
-interface ActivityItem {
-  id: string;
-  type: ActivityType;
-  title: string;
-  description: string;
-  timestamp: Date;
-  status?: "success" | "warning" | "error" | "info";
-}
 
 export default function SupervisorDashboard() {
   const router = useRouter();
   const { show } = useToast();
-  useAutoLogout();
 
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Session Creation State
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
   const [locationType, setLocationType] = useState<string | null>(null);
   const [selectedFloor, setSelectedFloor] = useState<string | null>(null);
   const [rackName, setRackName] = useState("");
   const [isCreatingSession, setIsCreatingSession] = useState(false);
-  const [zones, setZones] = useState<any[]>([]);
-  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [zones, setZones] = useState<ZoneOption[]>([]);
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([]);
   const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false);
 
   const [stats, setStats] = useState<DashboardStats>({
@@ -108,33 +83,27 @@ export default function SupervisorDashboard() {
   });
   const [activities, setActivities] = useState<ActivityItem[]>([]);
 
-  // Fetch Zones on mount
   useEffect(() => {
     const fetchZones = async () => {
       try {
         const data = await getZones();
         if (Array.isArray(data) && data.length > 0) {
-          setZones(data);
+          setZones(data as ZoneOption[]);
         } else {
-          // Fallback
-          setZones([
-            { zone_name: "Showroom", id: "zone_showroom" },
-            { zone_name: "Godown", id: "zone_godown" },
-          ]);
+          setZones(DEFAULT_ZONES);
         }
       } catch (error) {
         console.error("Failed to fetch zones:", error);
-        setZones([
-          { zone_name: "Showroom", id: "zone_showroom" },
-          { zone_name: "Godown", id: "zone_godown" },
-        ]);
+        setZones(DEFAULT_ZONES);
       }
     };
+
     fetchZones();
   }, []);
 
   const handleLocationTypeChange = async (type: string) => {
     if (Platform.OS !== "web") Haptics.selectionAsync();
+
     setLocationType(type);
     setSelectedFloor(null);
 
@@ -142,91 +111,26 @@ export default function SupervisorDashboard() {
       setIsLoadingWarehouses(true);
       const data = await getWarehouses(type);
       if (Array.isArray(data) && data.length > 0) {
-        setWarehouses(data);
+        setWarehouses(data as WarehouseOption[]);
       } else {
-        // Fallback based on type
-        if (type.toLowerCase().includes("showroom")) {
-          setWarehouses([
-            { warehouse_name: "Ground Floor", id: "fl_ground" },
-            { warehouse_name: "First Floor", id: "fl_first" },
-            { warehouse_name: "Second Floor", id: "fl_second" },
-          ]);
-        } else {
-          setWarehouses([
-            { warehouse_name: "Main Godown", id: "wh_main" },
-            { warehouse_name: "Top Godown", id: "wh_top" },
-            { warehouse_name: "Damage Area", id: "wh_damage" },
-          ]);
-        }
+        setWarehouses(getFallbackWarehouses(type));
       }
     } catch (error) {
       console.error("Failed to fetch warehouses:", error);
-      // Fallback
-      if (type.toLowerCase().includes("showroom")) {
-        setWarehouses([
-          { warehouse_name: "Ground Floor", id: "fl_ground" },
-          { warehouse_name: "First Floor", id: "fl_first" },
-          { warehouse_name: "Second Floor", id: "fl_second" },
-        ]);
-      } else {
-        setWarehouses([
-          { warehouse_name: "Main Godown", id: "wh_main" },
-          { warehouse_name: "Top Godown", id: "wh_top" },
-          { warehouse_name: "Damage Area", id: "wh_damage" },
-        ]);
-      }
+      setWarehouses(getFallbackWarehouses(type));
     } finally {
       setIsLoadingWarehouses(false);
-    }
-  };
-
-  const handleCreateSession = async () => {
-    if (!locationType || !selectedFloor || !rackName.trim()) {
-      show("Please fill in all fields", "warning");
-      return;
-    }
-
-    try {
-      setIsCreatingSession(true);
-      const warehouseName = `${locationType} - ${selectedFloor} - ${rackName.trim().toUpperCase()}`;
-
-      const session = await createSession({
-        warehouse: warehouseName,
-        type: "STANDARD",
-      });
-
-      show("Session created successfully", "success");
-      setShowCreateSessionModal(false);
-
-      // Reset form
-      setLocationType(null);
-      setSelectedFloor(null);
-      setRackName("");
-
-      // Refresh data
-      loadData();
-
-      // Navigate to session
-      router.push(`/supervisor/session/${session.id}` as any);
-    } catch (error) {
-      console.error("Failed to create session:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to create session";
-      show(errorMessage, "error");
-    } finally {
-      setIsCreatingSession(false);
     }
   };
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const sessionsRes = await getSessions(1, 100); // Get first 100 sessions
+      const sessionsRes = await getSessions(1, 100);
       const sessionData = sessionsRes.items || [];
       setSessions(sessionData);
 
-      // Calculate stats
-      const newStats = sessionData.reduce(
+      const nextStats = sessionData.reduce(
         (acc: DashboardStats, session: Session) => {
           acc.totalSessions++;
           if (session.status === "OPEN") acc.openSessions++;
@@ -236,13 +140,15 @@ export default function SupervisorDashboard() {
           acc.totalItems += session.total_items || 0;
           acc.totalVariance += session.total_variance || 0;
 
-          if ((session.total_variance || 0) > 0)
+          if ((session.total_variance || 0) > 0) {
             acc.positiveVariance += session.total_variance;
-          if ((session.total_variance || 0) < 0)
+          }
+          if ((session.total_variance || 0) < 0) {
             acc.negativeVariance += session.total_variance;
-
-          if (Math.abs(session.total_variance ?? 0) > 1000)
+          }
+          if (Math.abs(session.total_variance ?? 0) > 1000) {
             acc.highRiskSessions++;
+          }
 
           return acc;
         },
@@ -260,17 +166,16 @@ export default function SupervisorDashboard() {
         },
       );
 
-      newStats.avgVariancePerSession =
-        newStats.totalSessions > 0
-          ? newStats.totalVariance / newStats.totalSessions
+      nextStats.avgVariancePerSession =
+        nextStats.totalSessions > 0
+          ? nextStats.totalVariance / nextStats.totalSessions
           : 0;
 
-      setStats(newStats);
+      setStats(nextStats);
 
-      // Generate activity feed from recent sessions
       const recentActivities: ActivityItem[] = sessionData
         .slice(0, 10)
-        .map((session: Session, _index: number) => ({
+        .map((session: Session) => ({
           id: session.id,
           type: "session" as ActivityType,
           title: `Session ${session.status.toLowerCase()}`,
@@ -298,6 +203,43 @@ export default function SupervisorDashboard() {
     loadData();
   }, [loadData]);
 
+  const handleCreateSession = async () => {
+    if (!locationType || !selectedFloor || !rackName.trim()) {
+      show("Please fill in all fields", "warning");
+      return;
+    }
+
+    try {
+      setIsCreatingSession(true);
+      const normalizedRack = rackName.trim().toUpperCase();
+      const warehouseName = `${locationType} - ${selectedFloor} - ${normalizedRack}`;
+
+      const session = await createSession({
+        warehouse: warehouseName,
+        type: "STANDARD",
+        location_type: locationType,
+        location_name: selectedFloor,
+        rack_no: normalizedRack,
+      });
+
+      show("Session created successfully", "success");
+      setShowCreateSessionModal(false);
+      setLocationType(null);
+      setSelectedFloor(null);
+      setRackName("");
+
+      loadData();
+      router.push(`/supervisor/session/${session.id}` as any);
+    } catch (error) {
+      console.error("Failed to create session:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create session";
+      show(errorMessage, "error");
+    } finally {
+      setIsCreatingSession(false);
+    }
+  };
+
   const onRefresh = () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -306,7 +248,7 @@ export default function SupervisorDashboard() {
     loadData();
   };
 
-  const handleStatPress = (statType: string) => {
+  const handleStatPress = (statType: "total" | "open" | "items" | "risk") => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -322,8 +264,6 @@ export default function SupervisorDashboard() {
       case "risk":
         router.push("/supervisor/variances" as any);
         break;
-      default:
-        __DEV__ && console.log("Stat pressed:", statType);
     }
   };
 
@@ -353,6 +293,15 @@ export default function SupervisorDashboard() {
       label: "User Workflows",
       onPress: () => router.push("/supervisor/user-workflows" as any),
     },
+    ...(flags.enableNotes
+      ? [
+          {
+            icon: "document-text-outline",
+            label: "Notes",
+            onPress: () => router.push("/supervisor/notes" as any),
+          } satisfies SpeedDialAction,
+        ]
+      : []),
     {
       icon: "cloud-offline-outline",
       label: "Offline Queue",
@@ -370,17 +319,17 @@ export default function SupervisorDashboard() {
     },
   ];
 
-  const overviewActions = [
+  const overviewActions: OverviewAction[] = [
     {
       key: "new-session",
-      icon: "add-circle-outline" as const,
+      icon: "add-circle-outline",
       label: "Create session",
       onPress: () => setShowCreateSessionModal(true),
       primary: true,
     },
     {
       key: "review-variances",
-      icon: "alert-circle-outline" as const,
+      icon: "alert-circle-outline",
       label: "Review variances",
       onPress: () => router.push("/supervisor/variances" as any),
       primary: false,
@@ -412,18 +361,14 @@ export default function SupervisorDashboard() {
       noPadding
     >
       {loading && !refreshing ? (
-        <View
-          style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
-        >
+        <View style={styles.loadingState}>
           <Ionicons
             name="cube-outline"
             size={48}
             color={theme.colors.primary[500]}
-            style={{ marginBottom: 16 }}
+            style={styles.loadingIcon}
           />
-          <Text style={{ color: theme.colors.text.secondary }}>
-            Loading Dashboard...
-          </Text>
+          <Text style={styles.loadingText}>Loading Dashboard...</Text>
         </View>
       ) : (
         <ScrollView
@@ -442,894 +387,82 @@ export default function SupervisorDashboard() {
           }
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View
-            entering={FadeInDown.delay(0).springify()}
-            style={styles.overviewSection}
-          >
-            <GlassCard
-              variant="medium"
-              intensity={24}
-              borderRadius={theme.borderRadius.xl}
-              padding={theme.spacing.lg}
-              withGradientBorder={true}
-              elevation="lg"
-            >
-              <View style={styles.overviewTopRow}>
-                <View style={styles.overviewCopy}>
-                  <Text style={styles.overviewEyebrow}>Supervisor overview</Text>
-                  <Text style={styles.overviewTitle}>
-                    Keep sessions moving and catch issues early.
-                  </Text>
-                  <Text style={styles.overviewSubtitle}>
-                    Monitor progress, jump into live workflows, and resolve
-                    variances from one place.
-                  </Text>
-                </View>
-                <View style={styles.overviewIndicator}>
-                  <LiveIndicator label="Real-time monitoring" size="small" />
-                </View>
-              </View>
+          <SupervisorOverviewCard
+            completionPercentage={completionPercentage}
+            highRiskSessions={stats.highRiskSessions}
+            openSessions={stats.openSessions}
+            overviewActions={overviewActions}
+          />
 
-              <View style={styles.overviewMetrics}>
-                <View style={styles.overviewMetricCard}>
-                  <Text style={styles.overviewMetricValue}>
-                    {stats.openSessions}
-                  </Text>
-                  <Text style={styles.overviewMetricLabel}>Open sessions</Text>
-                </View>
-                <View style={styles.overviewMetricCard}>
-                  <Text style={styles.overviewMetricValue}>
-                    {stats.highRiskSessions}
-                  </Text>
-                  <Text style={styles.overviewMetricLabel}>High risk</Text>
-                </View>
-                <View style={styles.overviewMetricCard}>
-                  <Text style={styles.overviewMetricValue}>
-                    {Math.round(completionPercentage)}%
-                  </Text>
-                  <Text style={styles.overviewMetricLabel}>Completion</Text>
-                </View>
-              </View>
+          <SupervisorStatsSection
+            completionPercentage={completionPercentage}
+            onStatPress={handleStatPress}
+            stats={stats}
+          />
 
-              <View style={styles.overviewActions}>
-                {overviewActions.map((action) => (
-                  <AnimatedPressable
-                    key={action.key}
-                    onPress={action.onPress}
-                    hapticFeedback="light"
-                    style={[
-                      styles.overviewActionButton,
-                      action.primary && styles.overviewActionButtonPrimary,
-                    ]}
-                  >
-                    <Ionicons
-                      name={action.icon}
-                      size={18}
-                      color={
-                        action.primary
-                          ? unifiedColors.white
-                          : theme.colors.text.primary
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.overviewActionLabel,
-                        action.primary && styles.overviewActionLabelPrimary,
-                      ]}
-                    >
-                      {action.label}
-                    </Text>
-                  </AnimatedPressable>
-                ))}
-              </View>
-            </GlassCard>
-          </Animated.View>
+          <SupervisorActivitySection
+            activities={activities}
+            onOpenActivity={(activityId) =>
+              router.push(`/supervisor/session/${activityId}` as any)
+            }
+            onViewAll={() => router.push("/supervisor/activity-logs" as any)}
+          />
 
-          {/* Stats Grid */}
-          <View style={styles.statsGrid}>
-            <View style={styles.statsRow}>
-              <StatsCard
-                title="Total Sessions"
-                value={stats.totalSessions}
-                icon="folder-open"
-                variant="primary"
-                onPress={() => handleStatPress("total")}
-                style={styles.statCard}
-                delay={100}
-                animated
-              />
-              <StatsCard
-                title="Open Sessions"
-                value={stats.openSessions}
-                icon="time"
-                variant="warning"
-                onPress={() => handleStatPress("open")}
-                style={styles.statCard}
-                delay={150}
-                animated
-              />
-            </View>
+          <SupervisorRecentSessionsSection
+            onOpenSession={(sessionId) =>
+              router.push(`/supervisor/session/${sessionId}` as any)
+            }
+            onViewAll={() => router.push("/supervisor/sessions" as any)}
+            sessions={sessions}
+          />
 
-            <View style={styles.statsRow}>
-              <StatsCard
-                title="Items Counted"
-                value={stats.totalItems}
-                icon="cube"
-                variant="info"
-                onPress={() => handleStatPress("items")}
-                style={styles.statCard}
-                delay={200}
-                animated
-              />
-              <StatsCard
-                title="High Risk"
-                value={stats.highRiskSessions}
-                icon="warning"
-                variant="error"
-                subtitle="Sessions"
-                onPress={() => handleStatPress("risk")}
-                style={styles.statCard}
-                delay={250}
-                animated
-              />
-            </View>
-          </View>
-
-          {/* Completion Progress */}
-          <Animated.View entering={FadeInDown.delay(300).springify()}>
-            <GlassCard
-              variant="medium"
-              intensity={25}
-              borderRadius={theme.borderRadius.xl}
-              padding={theme.spacing.lg}
-              withGradientBorder={true}
-              elevation="lg"
-              style={styles.progressCard}
-            >
-              <View style={styles.progressContent}>
-                <View style={styles.progressInfo}>
-                  <Text
-                    style={[
-                      styles.progressTitle,
-                      {
-                        fontSize: 20,
-                        color: theme.colors.text.primary,
-                      },
-                    ]}
-                  >
-                    Session Completion
-                  </Text>
-                  <Text
-                    style={[
-                      styles.progressSubtitle,
-                      {
-                        fontSize: 14,
-                        color: theme.colors.text.secondary,
-                      },
-                    ]}
-                  >
-                    {stats.closedSessions + stats.reconciledSessions} of{" "}
-                    {stats.totalSessions} completed
-                  </Text>
-                </View>
-                <ProgressRing
-                  progress={completionPercentage}
-                  size={100}
-                  strokeWidth={10}
-                  colors={[
-                    theme.colors.success.main,
-                    theme.colors.success.main + "CC",
-                  ]}
-                />
-              </View>
-            </GlassCard>
-          </Animated.View>
-
-          {/* Activity Feed */}
-          <Animated.View
-            entering={FadeInDown.delay(350).springify()}
-            style={styles.section}
-          >
-            <View style={styles.sectionHeader}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  {
-                    fontSize: 24,
-                    color: theme.colors.text.primary,
-                  },
-                ]}
-              >
-                Recent Activity
-              </Text>
-              <AnimatedPressable
-                onPress={() => router.push("/supervisor/activity-logs" as any)}
-                hapticFeedback="light"
-              >
-                <Text
-                  style={[
-                    styles.sectionLink,
-                    {
-                      fontSize: 14,
-                      color: theme.colors.primary[500],
-                    },
-                  ]}
-                >
-                  View All
-                </Text>
-              </AnimatedPressable>
-            </View>
-
-            <GlassCard
-              variant="medium"
-              intensity={25}
-              borderRadius={theme.borderRadius.xl}
-              padding={theme.spacing.lg}
-              elevation="md"
-            >
-              {activities.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Ionicons
-                    name="time-outline"
-                    size={48}
-                    color={theme.colors.text.secondary}
-                  />
-                  <Text
-                    style={[
-                      styles.emptyText,
-                      {
-                        fontSize: 16,
-                        color: theme.colors.text.secondary,
-                      },
-                    ]}
-                  >
-                    No recent activity
-                  </Text>
-                </View>
-              ) : (
-                activities
-                  .slice(0, 5)
-                  .map((activity, index) => (
-                    <ActivityFeedItem
-                      key={activity.id}
-                      type={activity.type}
-                      title={activity.title}
-                      description={activity.description}
-                      timestamp={activity.timestamp}
-                      status={activity.status}
-                      onPress={() =>
-                        router.push(`/supervisor/session/${activity.id}` as any)
-                      }
-                      delay={index * 50}
-                    />
-                  ))
-              )}
-            </GlassCard>
-          </Animated.View>
-
-          {/* Recent Sessions */}
-          <Animated.View
-            entering={FadeInDown.delay(400).springify()}
-            style={styles.section}
-          >
-            <View style={styles.sectionHeader}>
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  {
-                    fontSize: 24,
-                    color: theme.colors.text.primary,
-                  },
-                ]}
-              >
-                Recent Sessions
-              </Text>
-              <AnimatedPressable
-                onPress={() => router.push("/supervisor/sessions" as any)}
-                hapticFeedback="light"
-              >
-                <Text
-                  style={[
-                    styles.sectionLink,
-                    {
-                      fontSize: 14,
-                      color: theme.colors.primary[500],
-                    },
-                  ]}
-                >
-                  View All
-                </Text>
-              </AnimatedPressable>
-            </View>
-
-            {sessions.slice(0, 3).map((session, index) => (
-              <Animated.View
-                key={session.id}
-                entering={FadeInDown.delay(450 + index * 50).springify()}
-              >
-                <AnimatedPressable
-                  onPress={() =>
-                    router.push(`/supervisor/session/${session.id}` as any)
-                  }
-                  hapticFeedback="light"
-                >
-                  <GlassCard
-                    variant="medium"
-                    intensity={25}
-                    borderRadius={theme.borderRadius.lg}
-                    padding={theme.spacing.md}
-                    elevation="md"
-                    style={styles.sessionCard}
-                  >
-                    <View style={styles.sessionHeader}>
-                      <View style={styles.sessionInfo}>
-                        <Text
-                          style={[
-                            styles.sessionWarehouse,
-                            {
-                              fontSize: 16,
-                              color: theme.colors.text.primary,
-                            },
-                          ]}
-                        >
-                          {session.warehouse}
-                        </Text>
-                        <Text
-                          style={[
-                            styles.sessionStaff,
-                            {
-                              fontSize: 14,
-                              color: theme.colors.text.secondary,
-                            },
-                          ]}
-                        >
-                          {session.staff_name || "Unknown"}
-                        </Text>
-                        {session.barcode && (
-                          <Text
-                            style={[
-                              styles.sessionBarcode,
-                              {
-                                fontSize: 12,
-                                color: theme.colors.text.tertiary,
-                                marginTop: 2,
-                              },
-                            ]}
-                          >
-                            {session.barcode}
-                          </Text>
-                        )}
-                      </View>
-                      <View
-                        style={[
-                          styles.statusBadge,
-                          {
-                            backgroundColor:
-                              session.status === "OPEN"
-                                ? theme.colors.warning.main
-                                : session.status === "CLOSED"
-                                  ? theme.colors.success.main
-                                  : theme.colors.secondary[500],
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.statusText,
-                            {
-                              fontSize: 12,
-                            },
-                          ]}
-                        >
-                          {session.status}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.sessionStats}>
-                      <View style={styles.sessionStat}>
-                        <Ionicons
-                          name="cube-outline"
-                          size={16}
-                          color={theme.colors.text.secondary}
-                        />
-                        <Text
-                          style={[
-                            styles.sessionStatText,
-                            {
-                              fontSize: 14,
-                              color: theme.colors.text.secondary,
-                            },
-                          ]}
-                        >
-                          {session.total_items} items
-                        </Text>
-                      </View>
-                      <View style={styles.sessionStat}>
-                        <Ionicons
-                          name="analytics-outline"
-                          size={16}
-                          color={
-                            Math.abs(session.total_variance) > 0
-                              ? theme.colors.error.main
-                              : theme.colors.text.secondary
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.sessionStatText,
-                            {
-                              fontSize: 14,
-                              color:
-                                Math.abs(session.total_variance) > 0
-                                  ? theme.colors.error.main
-                                  : theme.colors.text.secondary,
-                            },
-                          ]}
-                        >
-                          Var: {session.total_variance}
-                        </Text>
-                      </View>
-                    </View>
-                  </GlassCard>
-                </AnimatedPressable>
-              </Animated.View>
-            ))}
-            {sessions.length === 0 && (
-              <GlassCard
-                variant="medium"
-                intensity={25}
-                borderRadius={theme.borderRadius.lg}
-                padding={theme.spacing.lg}
-                elevation="md"
-              >
-                <View style={styles.emptyState}>
-                  <Ionicons
-                    name="file-tray-outline"
-                    size={48}
-                    color={theme.colors.text.secondary}
-                  />
-                  <Text
-                    style={[
-                      styles.emptyText,
-                      {
-                        fontSize: 16,
-                        color: theme.colors.text.secondary,
-                      },
-                    ]}
-                  >
-                    No sessions available yet
-                  </Text>
-                </View>
-              </GlassCard>
-            )}
-          </Animated.View>
-
-          {/* Bottom Spacing for Speed Dial */}
-          <View style={{ height: 100 }} />
+          <View style={styles.bottomSpacer} />
         </ScrollView>
       )}
 
-      {/* Create Session Modal */}
-      <RNModal
+      <CreateSessionModal
+        isCreatingSession={isCreatingSession}
+        isLoadingWarehouses={isLoadingWarehouses}
+        locationType={locationType}
+        onChangeLocationType={handleLocationTypeChange}
+        onChangeRackName={setRackName}
+        onChangeSelectedFloor={(value) => {
+          if (Platform.OS !== "web") Haptics.selectionAsync();
+          setSelectedFloor(value);
+        }}
+        onClose={() => setShowCreateSessionModal(false)}
+        onSubmit={handleCreateSession}
+        rackName={rackName}
+        selectedFloor={selectedFloor}
         visible={showCreateSessionModal}
-        transparent
-        animationType="slide"
-        statusBarTranslucent
-        onRequestClose={() => setShowCreateSessionModal(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable
-            style={styles.modalBackdrop}
-            onPress={() => setShowCreateSessionModal(false)}
-          />
-          <View style={styles.modalSheet}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Create New Session</Text>
-                <TouchableOpacity
-                  onPress={() => setShowCreateSessionModal(false)}
-                  style={styles.modalCloseButton}
-                >
-                  <Ionicons
-                    name="close"
-                    size={24}
-                    color={theme.colors.text.primary}
-                  />
-                </TouchableOpacity>
-              </View>
+        warehouses={warehouses}
+        zones={zones}
+      />
 
-              <ScrollView
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                nestedScrollEnabled
-              >
-                {/* Step 1: Location Type */}
-                <View style={styles.stepContainer}>
-                  <Text style={styles.stepLabel}>1. Select Location Type</Text>
-                  <View style={styles.optionsGrid}>
-                    {zones.map((zone) => (
-                      <TouchableOpacity
-                        key={zone.id}
-                        style={[
-                          styles.optionButton,
-                          locationType === zone.zone_name &&
-                            styles.optionButtonSelected,
-                        ]}
-                        onPress={() => handleLocationTypeChange(zone.zone_name)}
-                      >
-                        <Text
-                          style={[
-                            styles.optionText,
-                            locationType === zone.zone_name &&
-                              styles.optionTextSelected,
-                          ]}
-                        >
-                          {zone.zone_name}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </View>
-
-                {/* Step 2: Floor/Area */}
-                {locationType && (
-                  <View style={styles.stepContainer}>
-                    <Text style={styles.stepLabel}>2. Select Floor/Area</Text>
-                    {isLoadingWarehouses ? (
-                      <ActivityIndicator color={theme.colors.primary[500]} />
-                    ) : (
-                      <View style={styles.optionsGrid}>
-                        {warehouses.map((wh) => (
-                          <TouchableOpacity
-                            key={wh.id}
-                            style={[
-                              styles.optionButton,
-                              selectedFloor === wh.warehouse_name &&
-                                styles.optionButtonSelected,
-                            ]}
-                            onPress={() => {
-                              if (Platform.OS !== "web") Haptics.selectionAsync();
-                              setSelectedFloor(wh.warehouse_name);
-                            }}
-                          >
-                            <Text
-                              style={[
-                                styles.optionText,
-                                selectedFloor === wh.warehouse_name &&
-                                  styles.optionTextSelected,
-                              ]}
-                            >
-                              {wh.warehouse_name}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                )}
-
-                {/* Step 3: Rack Name */}
-                {selectedFloor && (
-                  <View style={styles.stepContainer}>
-                    <Text style={styles.stepLabel}>3. Rack / Shelf Identifier</Text>
-                    <PremiumInput
-                      value={rackName}
-                      onChangeText={setRackName}
-                      placeholder="e.g. RACK-A1"
-                      leftIcon="grid-outline"
-                      autoCapitalize="characters"
-                    />
-                  </View>
-                )}
-
-                <TouchableOpacity
-                  style={[
-                    styles.createButton,
-                    (!locationType ||
-                      !selectedFloor ||
-                      !rackName.trim() ||
-                      isCreatingSession) &&
-                      styles.createButtonDisabled,
-                  ]}
-                  onPress={handleCreateSession}
-                  disabled={
-                    !locationType ||
-                    !selectedFloor ||
-                    !rackName.trim() ||
-                    isCreatingSession
-                  }
-                >
-                  {isCreatingSession ? (
-                    <ActivityIndicator color="#FFFFFF" />
-                  ) : (
-                    <Text style={styles.createButtonText}>Start Session</Text>
-                  )}
-                </TouchableOpacity>
-
-                <View style={{ height: 40 }} />
-              </ScrollView>
-            </View>
-          </View>
-        </View>
-      </RNModal>
-
-      {/* Speed Dial Menu */}
       <SpeedDialMenu actions={speedDialActions} position="bottom-right" />
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scrollView: {
     flex: 1,
   },
   contentContainer: {
     padding: theme.spacing.lg,
   },
-  overviewSection: {
-    marginBottom: theme.spacing.xl,
-  },
-  overviewTopRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: theme.spacing.md,
-  },
-  overviewCopy: {
+  loadingState: {
     flex: 1,
-    gap: theme.spacing.xs,
-  },
-  overviewIndicator: {
-    alignSelf: "flex-start",
-  },
-  overviewEyebrow: {
-    color: theme.colors.primary[300],
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  overviewTitle: {
-    color: theme.colors.text.primary,
-    fontSize: 28,
-    fontWeight: "700",
-    lineHeight: 34,
-  },
-  overviewSubtitle: {
-    color: theme.colors.text.secondary,
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  overviewMetrics: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing.md,
-    marginTop: theme.spacing.lg,
-  },
-  overviewMetricCard: {
-    minWidth: 120,
-    flex: 1,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
-    backgroundColor: "rgba(255, 255, 255, 0.06)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    gap: theme.spacing.xs,
-  },
-  overviewMetricValue: {
-    color: theme.colors.text.primary,
-    fontSize: 26,
-    fontWeight: "700",
-  },
-  overviewMetricLabel: {
-    color: theme.colors.text.secondary,
-    fontSize: 13,
-    fontWeight: "500",
-  },
-  overviewActions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing.md,
-    marginTop: theme.spacing.lg,
-  },
-  overviewActionButton: {
-    minHeight: 48,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing.sm,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.full,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.16)",
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
-  },
-  overviewActionButtonPrimary: {
-    backgroundColor: theme.colors.primary[500],
-    borderColor: theme.colors.primary[400],
-  },
-  overviewActionLabel: {
-    color: theme.colors.text.primary,
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  overviewActionLabelPrimary: {
-    color: unifiedColors.white,
-  },
-  statsGrid: {
-    gap: theme.spacing.md,
-    marginBottom: theme.spacing.xl,
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: theme.spacing.md,
-  },
-  statCard: {
-    flex: 1,
-  },
-  progressCard: {
-    marginBottom: theme.spacing.xl,
-  },
-  progressContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  progressInfo: {
-    flex: 1,
-    gap: theme.spacing.xs,
-  },
-  progressTitle: {
-    fontWeight: "600",
-  },
-  progressSubtitle: {},
-  section: {
-    marginBottom: theme.spacing.xl,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: theme.spacing.md,
-  },
-  sectionTitle: {
-    fontWeight: "600",
-  },
-  sectionLink: {
-    fontWeight: "600",
-  },
-  emptyState: {
-    alignItems: "center",
     justifyContent: "center",
-    paddingVertical: theme.spacing.xl,
-    gap: theme.spacing.md,
-  },
-  emptyText: {
-    textAlign: "center",
-  },
-  sessionCard: {
-    marginBottom: theme.spacing.md,
-  },
-  sessionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: theme.spacing.md,
-  },
-  sessionInfo: {
-    flex: 1,
-    gap: theme.spacing.xs,
-  },
-  sessionWarehouse: {
-    fontWeight: "600",
-  },
-  sessionStaff: {},
-  sessionBarcode: {
-    fontWeight: "500",
-  },
-  statusBadge: {
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.xs,
-    borderRadius: theme.borderRadius.full,
-  },
-  statusText: {
-    color: unifiedColors.white,
-    fontWeight: "700",
-  },
-  sessionStats: {
-    flexDirection: "row",
-    gap: theme.spacing.lg,
-  },
-  sessionStat: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing.xs,
   },
-  sessionStatText: {},
-  scrollView: {
-    flex: 1,
+  loadingIcon: {
+    marginBottom: 16,
   },
-  // Modal Styles
-  modalOverlay: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
+  loadingText: {
+    color: theme.colors.text.secondary,
   },
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  modalSheet: {
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: theme.colors.background.paper,
-    borderTopLeftRadius: theme.borderRadius.xl,
-    borderTopRightRadius: theme.borderRadius.xl,
-    padding: theme.spacing.lg,
-    maxHeight: "80%",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: theme.spacing.lg,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: theme.colors.text.primary,
-  },
-  modalCloseButton: {
-    padding: theme.spacing.xs,
-  },
-  stepContainer: {
-    marginBottom: theme.spacing.lg,
-  },
-  stepLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: theme.colors.text.primary,
-    marginBottom: theme.spacing.sm,
-  },
-  optionsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: theme.spacing.sm,
-  },
-  optionButton: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.sm,
-    borderRadius: theme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: theme.colors.border.medium,
-    backgroundColor: theme.colors.background.elevated,
-  },
-  optionButtonSelected: {
-    borderColor: theme.colors.primary[500],
-    backgroundColor: theme.colors.primary[500] + "15",
-  },
-  optionText: {
-    color: theme.colors.text.primary,
-    fontWeight: "500",
-  },
-  optionTextSelected: {
-    color: theme.colors.primary[500],
-    fontWeight: "700",
-  },
-  createButton: {
-    backgroundColor: theme.colors.primary[500],
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.lg,
-    alignItems: "center",
-    marginTop: theme.spacing.md,
-  },
-  createButtonDisabled: {
-    opacity: 0.5,
-  },
-  createButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
+  bottomSpacer: {
+    height: 100,
   },
 });

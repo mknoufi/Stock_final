@@ -44,6 +44,7 @@ import {
   SessionStatsResponse,
 } from "../../src/services/api/api";
 import { RecentItemsService } from "../../src/services/enhancedFeatures";
+import { playScanSound } from "../../src/services/scanSoundService";
 import { toastService } from "../../src/services/utils/toastService";
 import { localDb } from "../../src/db/localDb";
 import { validateBarcode } from "../../src/utils/validation";
@@ -81,6 +82,15 @@ const ScanScreen = React.memo(function ScanScreen() {
   const scannerVibration = useSettingsStore(
     (state) => state.settings.scannerVibration,
   );
+  const scannerSound = useSettingsStore((state) => state.settings.scannerSound);
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
+  const scannerAutoSubmit = useSettingsStore(
+    (state) => state.settings.scannerAutoSubmit,
+  );
+  const scannerTimeout = useSettingsStore(
+    (state) => state.settings.scannerTimeout,
+  );
+  const lazyLoading = useSettingsStore((state) => state.settings.lazyLoading);
   const debounceDelay = useSettingsStore((state) => state.settings.debounceDelay);
 
   const { currentFloor, currentRack } = useScanSessionStore();
@@ -144,18 +154,34 @@ const ScanScreen = React.memo(function ScanScreen() {
   const loadSessionStats = useCallback(async () => {
     if (!sessionId || !isAuthenticated) return;
     try {
-      const stats = await safeAsync(() => getSessionStats(sessionId));
+      const stats = offlineMode
+        ? await safeAsync(() => localDb.getSessionStats(sessionId))
+        : await safeAsync(() => getSessionStats(sessionId));
       if (stats) {
-        safeSetState(setSessionStats, stats);
+        safeSetState(setSessionStats, {
+          id: String(sessionId),
+          ...stats,
+        });
       }
     } catch (error) {
       console.error("Failed to load stats", error);
     }
-  }, [isAuthenticated, safeAsync, safeSetState, sessionId]);
+  }, [isAuthenticated, offlineMode, safeAsync, safeSetState, sessionId]);
 
   const performSearch = useCallback(
     async (query: string) => {
       try {
+        if (offlineMode) {
+          const localResults = await safeAsync(() => localDb.searchItems(query));
+          if (localResults) {
+            safeSetState(
+              setSearchResults,
+              dedupeItemsKeepingHighestStock(localResults),
+            );
+          }
+          return;
+        }
+
         const results = await safeAsync(() => searchItems(query));
         if (results) {
           const items = Array.isArray(results.items) ? results.items : [];
@@ -168,7 +194,7 @@ const ScanScreen = React.memo(function ScanScreen() {
         console.error("Search failed", error);
       }
     },
-    [safeAsync, safeSetState],
+    [offlineMode, safeAsync, safeSetState],
   );
 
   const loadInitialData = useCallback(async () => {
@@ -316,15 +342,26 @@ const ScanScreen = React.memo(function ScanScreen() {
     if (scannerVibration) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
+    void playScanSound("capture", scannerSound);
     safeSetState(setIsScanning, false);
+    safeSetState(setSearchQuery, confident.code);
 
-    await handleLookup(confident.code);
+    if (scannerAutoSubmit) {
+      await handleLookup(confident.code);
+      return;
+    }
+
+    toastService.show("Scan captured. Review and submit when ready.", {
+      type: "info",
+    });
+    safeSetState(setScanned, false);
   };
 
   const handleLookup = async (barcode: string) => {
     if (loading) return;
     const validation = validateBarcode(barcode);
     if (!validation.valid) {
+      void playScanSound("error", scannerSound);
       Alert.alert("Invalid Barcode", validation.error || "Please try again");
       safeSetState(setScanned, false);
       return;
@@ -343,8 +380,8 @@ const ScanScreen = React.memo(function ScanScreen() {
         // Ignore local db error, fall through to API
       }
 
-      // If not found locally, force API lookup
-      if (!item) {
+      // If not found locally, use the API unless offline mode is enabled.
+      if (!item && !offlineMode) {
         try {
           item = await safeAsync(() => getItemByBarcode(validation.value!));
         } catch (e) {
@@ -358,58 +395,68 @@ const ScanScreen = React.memo(function ScanScreen() {
         );
         await loadRecentItems();
 
-        // Check for duplicates
-        try {
-          const scanStatus = await safeAsync(() =>
-            checkItemScanStatus(sessionId!, item.item_code),
-          );
-          if (scanStatus?.scanned) {
-            const locations = scanStatus.locations || [];
-            const duplicateInLocation = locations.find(
-              (loc: any) =>
-                loc.floor_no === currentFloor && loc.rack_no === currentRack,
+        if (!offlineMode) {
+          // Check for duplicates only when live validation is enabled.
+          try {
+            const scanStatus = await safeAsync(() =>
+              checkItemScanStatus(sessionId!, item.item_code),
             );
+            if (scanStatus?.scanned) {
+              const locations = scanStatus.locations || [];
+              const duplicateInLocation = locations.find(
+                (loc: any) =>
+                  loc.floor_no === currentFloor && loc.rack_no === currentRack,
+              );
 
-            if (duplicateInLocation) {
-              Haptics.notificationAsync(
-                Haptics.NotificationFeedbackType.Warning,
-              );
-              safeSetState(setLoading, false);
-              safeSetState(setScanned, false);
-              Alert.alert(
-                "Duplicate Scan",
-                `Item already counted here by ${duplicateInLocation.counted_by}.\nQty: ${duplicateInLocation.counted_qty}`,
-                [
+              if (duplicateInLocation) {
+                Haptics.notificationAsync(
+                  Haptics.NotificationFeedbackType.Warning,
+                );
+                void playScanSound("warning", scannerSound);
+                safeSetState(setLoading, false);
+                safeSetState(setScanned, false);
+                Alert.alert(
+                  "Duplicate Scan",
+                  `Item already counted here by ${duplicateInLocation.counted_by}.\nQty: ${duplicateInLocation.counted_qty}`,
+                  [
+                    {
+                      text: "Cancel",
+                      style: "cancel",
+                    },
+                    {
+                      text: "Verify / Update",
+                      onPress: () =>
+                        navigateToDetail(item.barcode || validation.value!),
+                    },
+                  ],
+                );
+                return;
+              } else {
+                toastService.show(
+                  `Item found in ${locations.length} other location(s)`,
                   {
-                    text: "Cancel",
-                    style: "cancel",
+                    type: "info",
                   },
-                  {
-                    text: "Verify / Update",
-                    onPress: () =>
-                      navigateToDetail(item.barcode || validation.value!),
-                  },
-                ],
-              );
-              return;
-            } else {
-              toastService.show(
-                `Item found in ${locations.length} other location(s)`,
-                {
-                  type: "info",
-                },
-              );
+                );
+              }
             }
+          } catch (_error) {
+            // Ignore check status error
           }
-        } catch (_error) {
-          // Ignore check status error
         }
 
         navigateToDetail(item.barcode || validation.value!);
       } else {
-        Alert.alert("Not Found", "Item not found in database");
+        void playScanSound("warning", scannerSound);
+        Alert.alert(
+          "Not Found",
+          offlineMode
+            ? "Offline mode is enabled, and this item is not available in local cache."
+            : "Item not found in database",
+        );
       }
     } catch (error: any) {
+      void playScanSound("error", scannerSound);
       Alert.alert("Error", error.message || "Failed to lookup item");
     } finally {
       safeSetState(setLoading, false);
@@ -475,6 +522,7 @@ const ScanScreen = React.memo(function ScanScreen() {
         permission={permission}
         requestPermission={requestPermission}
         scanned={scanned}
+        timeoutSeconds={scannerTimeout}
       />
     );
   }
@@ -503,6 +551,7 @@ const ScanScreen = React.memo(function ScanScreen() {
         keyboardDismissMode="on-drag"
         bounces={true}
         alwaysBounceVertical={true}
+        removeClippedSubviews={lazyLoading}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -534,7 +583,9 @@ const ScanScreen = React.memo(function ScanScreen() {
           }}
           onSubmitSearch={() => {
             if (!searchQuery.trim()) return;
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            if (scannerVibration) {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
             handleLookup(searchQuery.trim());
           }}
         />

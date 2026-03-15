@@ -83,8 +83,6 @@ export { Checkbox } from "./Checkbox";
 // Theme & Appearance Components
 export { PatternBackground } from "./PatternBackground";
 export { ThemePicker } from "./ThemePicker";
-export { PatternPicker } from "./PatternPicker";
-export { LayoutPicker } from "./LayoutPicker";
 export { AppearanceSettings } from "./AppearanceSettings";
 export { ThemedScreen, ThemedCard, ThemedText } from "./ThemedScreen";
 

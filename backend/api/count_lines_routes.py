@@ -137,6 +137,16 @@ def calculate_financial_impact(erp_mrp: float, counted_mrp: float, counted_qty: 
     return new_value - old_value
 
 
+def _build_count_line_draft_filter(line_data: CountLineCreate, username: str) -> dict[str, Any]:
+    return {
+        "session_id": line_data.session_id,
+        "item_code": line_data.item_code,
+        "counted_by": username,
+        "floor_no": line_data.floor_no,
+        "rack_no": line_data.rack_no,
+    }
+
+
 @router.post("/count-lines/draft")
 async def save_count_line_draft(
     request: Request,
@@ -145,13 +155,48 @@ async def save_count_line_draft(
 ):
     """
     Save a draft count line.
-    Currently a placeholder to support frontend autosave without errors.
-    In the future, this should save to a drafts collection or with status='draft'.
+    Upserts the current autosave payload into count_line_drafts.
     """
-    # Log the draft for debugging
-    logger.debug(f"Draft received for item {line_data.item_code}: {line_data.counted_qty}")
+    db = _get_db_client()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    draft_filter = _build_count_line_draft_filter(line_data, current_user["username"])
+    draft_payload = {
+        **line_data.model_dump(mode="json"),
+        "barcode": line_data.barcode,
+        "counted_by": current_user["username"],
+        "status": "draft",
+        "updated_at": now,
+    }
 
-    return {"success": True, "message": "Draft saved successfully", "data": line_data.model_dump()}
+    existing_draft_result = db.count_line_drafts.find_one(draft_filter)
+    existing_draft = (
+        await existing_draft_result
+        if inspect.isawaitable(existing_draft_result)
+        else existing_draft_result
+    )
+    if existing_draft:
+        update_result = db.count_line_drafts.update_one(
+            {"_id": existing_draft["_id"]},
+            {"$set": draft_payload},
+        )
+        if inspect.isawaitable(update_result):
+            await update_result
+        draft_id = str(existing_draft["_id"])
+    else:
+        draft_payload["created_at"] = now
+        insert_result = db.count_line_drafts.insert_one(draft_payload)
+        result = await insert_result if inspect.isawaitable(insert_result) else insert_result
+        draft_id = str(result.inserted_id)
+
+    logger.debug(f"Draft saved for item {line_data.item_code}: {line_data.counted_qty}")
+    return {
+        "success": True,
+        "message": "Draft saved successfully",
+        "data": {
+            "id": draft_id,
+            **draft_payload,
+        },
+    }
 
 
 @router.post("/count-lines")
@@ -415,6 +460,20 @@ async def create_count_line(
         }
 
         await db.count_lines.insert_one(count_line)
+
+        draft_update_result = db.count_line_drafts.update_one(
+            _build_count_line_draft_filter(line_data, current_user["username"]),
+            {
+                "$set": {
+                    "status": "submitted",
+                    "submitted_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    "submitted_count_line_id": count_line["id"],
+                    "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                }
+            },
+        )
+        if inspect.isawaitable(draft_update_result):
+            await draft_update_result
 
     finally:
         if _lock_service:

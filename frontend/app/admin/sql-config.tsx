@@ -15,6 +15,7 @@ import { usePermission } from "../../src/hooks/usePermission";
 import { ScreenContainer } from "../../src/components/ui/ScreenContainer";
 import { GlassCard } from "../../src/components/ui/GlassCard";
 import { AnimatedPressable } from "../../src/components/ui/AnimatedPressable";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 import {
   getSqlServerConfig,
@@ -27,6 +28,7 @@ const isWeb = Platform.OS === "web";
 export default function SqlConfigScreen() {
   const router = useRouter();
   const { hasRole } = usePermission();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -47,9 +49,22 @@ export default function SqlConfigScreen() {
       return;
     }
     loadConfig();
-  }, [hasRole, router]);
+  }, [hasRole, offlineMode, router]);
 
   const loadConfig = async () => {
+    if (offlineMode) {
+      setConfig({
+        host: "",
+        port: 1433,
+        database: "",
+        username: "",
+        password: "",
+      });
+      setTestResult(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await getSqlServerConfig();
@@ -70,6 +85,11 @@ export default function SqlConfigScreen() {
   };
 
   const handleTest = async () => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "Connection testing requires a live connection.");
+      return;
+    }
+
     try {
       setTesting(true);
       setTestResult(null);
@@ -91,6 +111,11 @@ export default function SqlConfigScreen() {
   };
 
   const handleSave = async () => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "Saving SQL configuration requires a live connection.");
+      return;
+    }
+
     try {
       setSaving(true);
       const response = await updateSqlServerConfig(config);
@@ -135,7 +160,9 @@ export default function SqlConfigScreen() {
       auroraVariant="primary"
       header={{
         title: "SQL Server",
-        subtitle: "ERP Connectivity & Credentials",
+        subtitle: offlineMode
+          ? "Configuration unavailable offline"
+          : "ERP Connectivity & Credentials",
         showBackButton: true,
       }}
     >
@@ -146,6 +173,25 @@ export default function SqlConfigScreen() {
           isWeb && styles.contentContainerWeb,
         ]}
       >
+        {offlineMode && (
+          <GlassCard variant="strong" style={styles.offlineNotice}>
+            <Ionicons
+              name="cloud-offline-outline"
+              size={24}
+              color={auroraTheme.colors.warning[500]}
+            />
+            <View style={styles.offlineNoticeContent}>
+              <Text style={styles.offlineNoticeTitle}>
+                SQL configuration requires a live connection
+              </Text>
+              <Text style={styles.offlineNoticeText}>
+                Server credentials are loaded from the backend and cannot be
+                viewed, tested, or updated while offline mode is enabled.
+              </Text>
+            </View>
+          </GlassCard>
+        )}
+
         <GlassCard variant="medium" style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons
@@ -165,6 +211,7 @@ export default function SqlConfigScreen() {
               value={config.host}
               onChangeText={(text) => setConfig({ ...config, host: text })}
               autoCapitalize="none"
+              editable={!offlineMode}
             />
           </View>
 
@@ -179,6 +226,7 @@ export default function SqlConfigScreen() {
                 setConfig({ ...config, port: parseInt(text) || 1433 })
               }
               keyboardType="numeric"
+              editable={!offlineMode}
             />
           </View>
 
@@ -191,6 +239,7 @@ export default function SqlConfigScreen() {
               value={config.database}
               onChangeText={(text) => setConfig({ ...config, database: text })}
               autoCapitalize="none"
+              editable={!offlineMode}
             />
           </View>
 
@@ -203,6 +252,7 @@ export default function SqlConfigScreen() {
               value={config.username}
               onChangeText={(text) => setConfig({ ...config, username: text })}
               autoCapitalize="none"
+              editable={!offlineMode}
             />
           </View>
 
@@ -216,6 +266,7 @@ export default function SqlConfigScreen() {
               onChangeText={(text) => setConfig({ ...config, password: text })}
               secureTextEntry
               autoCapitalize="none"
+              editable={!offlineMode}
             />
           </View>
         </GlassCard>
@@ -266,9 +317,13 @@ export default function SqlConfigScreen() {
 
         <View style={styles.actions}>
           <AnimatedPressable
-            style={[styles.button, styles.testButton]}
+            style={[
+              styles.button,
+              styles.testButton,
+              offlineMode && styles.buttonDisabled,
+            ]}
             onPress={handleTest}
-            disabled={testing || !config.host || !config.database}
+            disabled={offlineMode || testing || !config.host || !config.database}
           >
             {testing ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -281,9 +336,13 @@ export default function SqlConfigScreen() {
           </AnimatedPressable>
 
           <AnimatedPressable
-            style={[styles.button, styles.saveButton]}
+            style={[
+              styles.button,
+              styles.saveButton,
+              offlineMode && styles.buttonDisabled,
+            ]}
             onPress={handleSave}
-            disabled={saving || !config.host || !config.database}
+            disabled={offlineMode || saving || !config.host || !config.database}
           >
             {saving ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -340,6 +399,27 @@ const styles = StyleSheet.create({
   section: {
     padding: auroraTheme.spacing.lg,
     marginBottom: auroraTheme.spacing.lg,
+  },
+  offlineNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: auroraTheme.spacing.lg,
+    marginBottom: auroraTheme.spacing.lg,
+    gap: 16,
+  },
+  offlineNoticeContent: {
+    flex: 1,
+  },
+  offlineNoticeTitle: {
+    fontSize: auroraTheme.typography.fontSize.md,
+    fontWeight: "700" as const,
+    color: auroraTheme.colors.text.primary,
+    marginBottom: 4,
+  },
+  offlineNoticeText: {
+    fontSize: auroraTheme.typography.fontSize.sm,
+    color: auroraTheme.colors.text.secondary,
+    lineHeight: 20,
   },
   sectionHeader: {
     flexDirection: "row",
@@ -407,6 +487,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.55,
   },
   testButton: {
     backgroundColor: auroraTheme.colors.success[600],

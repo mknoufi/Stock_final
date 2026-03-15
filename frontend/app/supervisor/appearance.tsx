@@ -1,7 +1,7 @@
 /**
  * Appearance Settings Screen
  *
- * Allows users to customize theme, patterns, and layout arrangements
+ * Allows users to customize theme and typography preferences.
  */
 
 import React from "react";

@@ -63,6 +63,18 @@ class TestSessionModels:
         assert session_create.warehouse == "WH001"
         assert session_create.type == "STANDARD"
 
+    def test_session_create_model_accepts_location_metadata(self):
+        session_create = SessionCreate(
+            warehouse="Showroom - Ground Floor - A1",
+            type="STANDARD",
+            location_type="Showroom",
+            location_name="Ground Floor",
+            rack_no="A1",
+        )
+        assert session_create.location_type == "Showroom"
+        assert session_create.location_name == "Ground Floor"
+        assert session_create.rack_no == "A1"
+
     def test_session_create_default_type(self):
         """Test SessionCreate default type"""
         session_create = SessionCreate(warehouse="WH001")

@@ -26,8 +26,8 @@ for path in (str(BACKEND_DIR), str(PROJECT_ROOT)):
 os.environ.update(
     {
         "TESTING": "true",
-        "MONGO_URL": "mongodb://localhost:27017/stock_count_test",
-        "DB_NAME": "stock_count_test",
+        "MONGO_URL": "mongodb://localhost:27017/stock_verification_test",
+        "DB_NAME": "stock_verification_test",
         "JWT_SECRET": "test-jwt-secret-key-for-testing-only",
         "JWT_ALGORITHM": "HS256",
         "RATE_LIMIT_PER_MINUTE": "1000",

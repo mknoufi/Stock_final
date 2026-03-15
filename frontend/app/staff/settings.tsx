@@ -23,7 +23,10 @@ import Animated, { FadeInDown } from "react-native-reanimated";
 import { useAuthStore } from "../../src/store/authStore";
 import ModernCard from "../../src/components/ui/ModernCard";
 import ModernHeader from "../../src/components/ui/ModernHeader";
-import { UserSettingsSections } from "../../src/components/settings";
+import {
+  SettingsSyncStatus,
+  UserSettingsSections,
+} from "../../src/components/settings";
 import {
   colors,
   spacing,
@@ -218,6 +221,10 @@ export default function StaffSettingsScreen() {
           </ModernCard>
         </Animated.View>
 
+        <Animated.View entering={FadeInDown.delay(150).springify()}>
+          <SettingsSyncStatus />
+        </Animated.View>
+
         {/* Security Settings */}
         <SectionHeader title="Security" delay={200} />
         <Animated.View entering={FadeInDown.delay(250).springify()}>
@@ -242,6 +249,14 @@ export default function StaffSettingsScreen() {
         <SectionHeader title="Support" delay={400} />
         <Animated.View entering={FadeInDown.delay(450).springify()}>
           <ModernCard style={styles.settingsCard}>
+            <SettingRow
+              icon="notifications-outline"
+              label="Notifications"
+              description="Open recount and approval alerts"
+              onPress={() => router.push("/notifications" as any)}
+              type="navigation"
+            />
+            <View style={styles.divider} />
             <SettingRow
               icon="help-circle-outline"
               label="Help & Support"

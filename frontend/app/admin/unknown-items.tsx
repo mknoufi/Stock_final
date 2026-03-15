@@ -27,10 +27,12 @@ import {
     createSkuFromUnknown as _createSkuFromUnknown,
     deleteUnknownItem,
 } from "../../src/services/api";
+import { useSettingsStore } from "../../src/store/settingsStore";
 
 export default function UnknownItemsScreen() {
     const router = useRouter();
     const { hasRole } = usePermission();
+    const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
     const [loading, setLoading] = useState(true);
     const [items, setItems] = useState<any[]>([]);
     const [selectedItem, setSelectedItem] = useState<any>(null);
@@ -45,11 +47,16 @@ export default function UnknownItemsScreen() {
             return;
         }
         loadItems();
-    }, [hasRole, router]);
+    }, [hasRole, offlineMode, router]);
 
     const loadItems = async () => {
         setLoading(true);
         try {
+            if (offlineMode) {
+                setItems([]);
+                return;
+            }
+
             const response = await getUnknownItems({});
             if (response.success) {
                 setItems(response.data);
@@ -62,6 +69,11 @@ export default function UnknownItemsScreen() {
     };
 
     const handleMap = async () => {
+        if (offlineMode) {
+            Alert.alert("Offline Mode", "Unknown item mapping requires a live connection.");
+            return;
+        }
+
         if (!targetSku) {
             Alert.alert("Validation", "Please enter a target Item Code");
             return;
@@ -85,6 +97,11 @@ export default function UnknownItemsScreen() {
     };
 
     const handleDelete = (item: any) => {
+        if (offlineMode) {
+            Alert.alert("Offline Mode", "Unknown item dismissal requires a live connection.");
+            return;
+        }
+
         Alert.alert(
             "Confirm Dismiss",
             "Are you sure you want to dismiss this report? The count data will be lost.",
@@ -138,6 +155,7 @@ export default function UnknownItemsScreen() {
                         setSelectedItem(item);
                         setMappingModalVisible(true);
                     }}
+                    disabled={offlineMode}
                     variant="primary"
                     size="small"
                     style={styles.actionBtn}
@@ -145,6 +163,7 @@ export default function UnknownItemsScreen() {
                 <ModernButton
                     title="Dismiss"
                     onPress={() => handleDelete(item)}
+                    disabled={offlineMode}
                     variant="outline"
                     size="small"
                     style={styles.actionBtn}
@@ -162,6 +181,18 @@ export default function UnknownItemsScreen() {
                 showBackButton: true,
             }}
         >
+            {offlineMode && (
+                <GlassCard style={styles.offlineNotice}>
+                    <Text style={styles.offlineNoticeTitle}>
+                        Unknown items are unavailable offline
+                    </Text>
+                    <Text style={styles.offlineNoticeBody}>
+                        Unknown-item review, mapping, and dismissal all require a live backend
+                        connection. Reconnect to manage this queue.
+                    </Text>
+                </GlassCard>
+            )}
+
             {loading && items.length === 0 ? (
                 <View style={styles.centered}>
                     <LoadingSpinner size={40} color={auroraTheme.colors.primary[500]} />
@@ -174,8 +205,20 @@ export default function UnknownItemsScreen() {
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
-                            <Ionicons name="checkmark-circle-outline" size={64} color={auroraTheme.colors.success[500]} />
-                            <Text style={styles.emptyText}>All unknown items resolved!</Text>
+                            <Ionicons
+                                name={offlineMode ? "cloud-offline-outline" : "checkmark-circle-outline"}
+                                size={64}
+                                color={
+                                    offlineMode
+                                        ? auroraTheme.colors.warning[500]
+                                        : auroraTheme.colors.success[500]
+                                }
+                            />
+                            <Text style={styles.emptyText}>
+                                {offlineMode
+                                    ? "Reconnect to review unknown items"
+                                    : "All unknown items resolved!"}
+                            </Text>
                         </View>
                     }
                 />
@@ -235,6 +278,23 @@ const styles = StyleSheet.create({
     listContent: {
         padding: 16,
         paddingBottom: 40,
+    },
+    offlineNotice: {
+        marginHorizontal: 16,
+        marginTop: 16,
+        marginBottom: 8,
+        padding: 16,
+    },
+    offlineNoticeTitle: {
+        fontSize: 14,
+        fontWeight: "700",
+        color: auroraTheme.colors.text.primary,
+        marginBottom: 4,
+    },
+    offlineNoticeBody: {
+        fontSize: 12,
+        lineHeight: 18,
+        color: auroraTheme.colors.text.secondary,
     },
     itemCard: {
         marginBottom: 16,

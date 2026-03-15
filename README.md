@@ -94,6 +94,7 @@ Notes:
 - Production deploys pull prebuilt GHCR images referenced by `BACKEND_IMAGE` and `NGINX_IMAGE`.
 - If the GHCR packages are private, run `docker login ghcr.io` on the host before `make deploy`.
 - Kubernetes manifests under `k8s/` are reference material and are not the canonical release path.
+- `scripts/legacy/` is archived reference material and is not part of the supported runtime or deployment path.
 
 ## GitHub Actions Deploy Configuration
 
@@ -106,16 +107,27 @@ Configure `staging` and `production` GitHub Environments with:
   - `DEPLOY_PORT`
   - `DEPLOY_PATH`
   - `DEPLOY_HEALTHCHECK_URL`
+  - `DEPLOY_APP_BASE_URL` (optional, used by post-deploy smoke)
+  - `DEPLOY_FRONTEND_URL` (optional, used by post-deploy smoke)
   - `DEPLOY_KNOWN_HOSTS` (optional but recommended)
 - Secrets:
   - `DEPLOY_SSH_KEY`
   - `DEPLOY_ENV_FILE`
   - `DEPLOY_REGISTRY_USERNAME`
   - `DEPLOY_REGISTRY_TOKEN`
+  - `SMOKE_USERNAME` (optional, for post-deploy authenticated smoke)
+  - `SMOKE_PASSWORD` (optional, for post-deploy authenticated smoke)
 
 Behavior:
 - `push` to `main`: build images and deploy `staging`
 - `workflow_dispatch` on `main`: build images and deploy `production`
+- both deploy environments run a live post-deploy smoke check against the deployed domain
+
+Manual rollback:
+- render a previous image pair into the target environment and run:
+  - `BACKEND_IMAGE=<old-backend> NGINX_IMAGE=<old-nginx> ./scripts/rollback_remote_compose.sh`
+- verify backup/restore on a reachable MongoDB before production cutover:
+  - `./scripts/verify_backup_restore.sh`
 
 ## Configuration
 

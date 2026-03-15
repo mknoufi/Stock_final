@@ -131,7 +131,7 @@ systemctl restart sshd
 echo "⚙️  Configuring system limits..."
 cat >> /etc/security/limits.conf <<EOF
 
-# Stock Count Application Limits
+# Stock Verify Application Limits
 appuser soft nofile 65536
 appuser hard nofile 65536
 appuser soft nproc 4096
@@ -187,23 +187,23 @@ sysctl -p /etc/sysctl.d/99-security.conf
 # 9. Create Application User
 echo "👤 Creating application user..."
 if ! id "appuser" &>/dev/null; then
-    useradd -r -s /bin/bash -d /opt/stock_count -m appuser
+    useradd -r -s /bin/bash -d /opt/stock_verify -m appuser
     echo "User 'appuser' created"
 fi
 
 # 10. Set Directory Permissions
 echo "📁 Setting directory permissions..."
-mkdir -p /opt/stock_count
-mkdir -p /var/log/stock_count
-chown -R appuser:appuser /opt/stock_count
-chown -R appuser:appuser /var/log/stock_count
-chmod 750 /opt/stock_count
-chmod 750 /var/log/stock_count
+mkdir -p /opt/stock_verify
+mkdir -p /var/log/stock_verify
+chown -R appuser:appuser /opt/stock_verify
+chown -R appuser:appuser /var/log/stock_verify
+chmod 750 /opt/stock_verify
+chmod 750 /var/log/stock_verify
 
 # 11. Configure Log Rotation
 echo "📋 Configuring log rotation..."
-cat > /etc/logrotate.d/stock_count <<EOF
-/var/log/stock_count/*.log {
+cat > /etc/logrotate.d/stock_verify <<EOF
+/var/log/stock_verify/*.log {
     daily
     rotate 30
     compress
@@ -212,7 +212,7 @@ cat > /etc/logrotate.d/stock_count <<EOF
     create 0640 appuser appuser
     sharedscripts
     postrotate
-        systemctl reload stock-count >/dev/null 2>&1 || true
+        systemctl reload stock-verify >/dev/null 2>&1 || true
     endscript
 }
 EOF
@@ -220,12 +220,12 @@ EOF
 # 12. Configure Audit Logging (Optional)
 if command -v auditd &> /dev/null; then
     echo "📝 Configuring audit logging..."
-    cat >> /etc/audit/rules.d/stock-count.rules <<EOF
+    cat >> /etc/audit/rules.d/stock-verify.rules <<EOF
 # Monitor application directory
--w /opt/stock_count -p wa -k stock_count_changes
+-w /opt/stock_verify -p wa -k stock_verify_changes
 
 # Monitor configuration changes
--w /opt/stock_count/.env.production -p wa -k config_changes
+-w /opt/stock_verify/.env.production -p wa -k config_changes
 
 # Monitor executable changes
 -w /usr/local/bin/ -p wa -k binary_changes

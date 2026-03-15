@@ -10,12 +10,7 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Platform,
-  Dimensions,
   RefreshControl,
-  TextInput,
-  Modal as RNModal,
-  ActivityIndicator,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
@@ -23,124 +18,29 @@ import { usePermission } from "../../src/hooks/usePermission";
 import {
   LoadingSpinner,
   AnimatedPressable,
-  ScreenContainer,
   GlassCard,
+  ScreenContainer,
 } from "../../src/components/ui";
+import { UserFiltersBar } from "../../src/components/admin/users/UserFiltersBar";
+import { UserFormModal } from "../../src/components/admin/users/UserFormModal";
+import { UsersTable } from "../../src/components/admin/users/UsersTable";
+import {
+  createEmptyUserForm,
+  User,
+  UserFormState,
+  UserListResponse,
+  SortField,
+  SortOrder,
+  userTextStyles,
+} from "../../src/components/admin/users/userManagementShared";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 import apiClient from "../../src/services/httpClient";
-
-const { width } = Dimensions.get("window");
-const isWeb = Platform.OS === "web";
-const isTablet = width > 768;
-const isE2E = process.env.EXPO_PUBLIC_E2E === "true";
-
-// Typography helper
-const textStyles = {
-  h2: {
-    fontFamily: auroraTheme.typography.fontFamily.heading,
-    fontSize: auroraTheme.typography.fontSize["2xl"],
-    fontWeight: "700" as const,
-  },
-  h3: {
-    fontFamily: auroraTheme.typography.fontFamily.heading,
-    fontSize: auroraTheme.typography.fontSize.xl,
-    fontWeight: "600" as const,
-  },
-  body: {
-    fontFamily: auroraTheme.typography.fontFamily.body,
-    fontSize: auroraTheme.typography.fontSize.base,
-  },
-  label: {
-    fontFamily: auroraTheme.typography.fontFamily.label,
-    fontSize: auroraTheme.typography.fontSize.sm,
-  },
-  caption: {
-    fontFamily: auroraTheme.typography.fontFamily.body,
-    fontSize: auroraTheme.typography.fontSize.xs,
-  },
-};
-
-// Types
-interface User {
-  id: string;
-  username: string;
-  email: string | null;
-  fullName: string | null;
-  role: "staff" | "supervisor" | "admin";
-  isActive: boolean;
-  createdAt: string | null;
-  lastLogin: string | null;
-  permissionsCount: number;
-}
-
-interface UserListResponse {
-  users: User[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-}
-
-type SortField = "username" | "email" | "role" | "created_at";
-type SortOrder = "asc" | "desc";
-
-interface UserFormState {
-  username: string;
-  email: string;
-  fullName: string;
-  password: string;
-  pin: string;
-  role: User["role"];
-  isActive: boolean;
-}
-
-const createEmptyUserForm = (): UserFormState => ({
-  username: "",
-  email: "",
-  fullName: "",
-  password: "",
-  pin: "",
-  role: "staff",
-  isActive: true,
-});
-
-// Role badge colors
-const getRoleBadgeStyle = (role: string) => {
-  switch (role) {
-    case "admin":
-      return {
-        bg: auroraTheme.colors.error[100],
-        text: auroraTheme.colors.error[700],
-      };
-    case "supervisor":
-      return {
-        bg: auroraTheme.colors.warning[100],
-        text: auroraTheme.colors.warning[700],
-      };
-    default:
-      return {
-        bg: auroraTheme.colors.primary[100],
-        text: auroraTheme.colors.primary[700],
-      };
-  }
-};
-
-// Status badge
-const getStatusStyle = (isActive: boolean) => {
-  return isActive
-    ? {
-        bg: auroraTheme.colors.success[100],
-        text: auroraTheme.colors.success[700],
-      }
-    : {
-        bg: auroraTheme.colors.neutral[200],
-        text: auroraTheme.colors.neutral[600],
-      };
-};
 
 export default function UsersScreen() {
   const router = useRouter();
   const { hasRole } = usePermission();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
 
   // State
   const [loading, setLoading] = useState(true);
@@ -164,6 +64,20 @@ export default function UsersScreen() {
 
   const loadUsers = useCallback(
     async (isRefresh = false) => {
+      if (offlineMode) {
+        if (isRefresh) {
+          setRefreshing(true);
+        }
+        setUsers([]);
+        setTotal(0);
+        setTotalPages(1);
+        setSelectedUsers(new Set());
+        setShowUserModal(false);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
       try {
         if (isRefresh) {
           setRefreshing(true);
@@ -214,7 +128,7 @@ export default function UsersScreen() {
         setRefreshing(false);
       }
     },
-    [page, pageSize, sortBy, sortOrder, search, roleFilter, activeFilter],
+    [activeFilter, offlineMode, page, pageSize, roleFilter, search, sortBy, sortOrder],
   );
 
   // Check permissions
@@ -264,6 +178,11 @@ export default function UsersScreen() {
   const handleBulkAction = async (
     action: "activate" | "deactivate" | "delete",
   ) => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "User management actions require a live connection.");
+      return;
+    }
+
     if (selectedUsers.size === 0) {
       Alert.alert("No Selection", "Please select users first.");
       return;
@@ -304,6 +223,11 @@ export default function UsersScreen() {
   };
 
   const handleDeleteUser = async (user: User) => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "User deletion requires a live connection.");
+      return;
+    }
+
     Alert.alert(
       "Delete User",
       `Are you sure you want to delete "${user.username}"? This cannot be undone.`,
@@ -327,6 +251,11 @@ export default function UsersScreen() {
   };
 
   const handleToggleStatus = async (user: User) => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "User status changes require a live connection.");
+      return;
+    }
+
     const action = user.isActive ? "deactivate" : "activate";
     try {
       await apiClient.put(`/api/users/${user.id}`, { is_active: !user.isActive });
@@ -336,11 +265,6 @@ export default function UsersScreen() {
     }
   };
 
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "-";
-    return new Date(dateString).toLocaleDateString();
-  };
-
   const resetUserForm = useCallback(() => {
     setUserForm(createEmptyUserForm());
     setEditingUser(null);
@@ -348,11 +272,21 @@ export default function UsersScreen() {
   }, []);
 
   const openCreateModal = () => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "Creating users requires a live connection.");
+      return;
+    }
+
     resetUserForm();
     setShowUserModal(true);
   };
 
   const openEditModal = (user: User) => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "Editing users requires a live connection.");
+      return;
+    }
+
     setEditingUser(user);
     setUserForm({
       username: user.username,
@@ -414,6 +348,11 @@ export default function UsersScreen() {
   };
 
   const handleSubmitUser = async () => {
+    if (offlineMode) {
+      setFormError("User updates require a live connection.");
+      return;
+    }
+
     const validationError = validateUserForm();
     if (validationError) {
       setFormError(validationError);
@@ -471,636 +410,6 @@ export default function UsersScreen() {
     }
   };
 
-  const renderUserModal = () => {
-    const title = editingUser ? "Edit User" : "Create User";
-    const description = editingUser
-      ? "Update role, access, and credentials for this account."
-      : "Add a new account with the correct role and optional PIN.";
-
-    return (
-      <RNModal
-        visible={showUserModal}
-        transparent={true}
-        animationType={isE2E ? "none" : "fade"}
-        onRequestClose={closeUserModal}
-      >
-        <View style={styles.modalOverlay}>
-          <GlassCard variant="strong" style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderText}>
-                <Text style={styles.modalTitle}>{title}</Text>
-                <Text style={styles.modalDescription}>{description}</Text>
-              </View>
-              <AnimatedPressable
-                style={styles.modalCloseButton}
-                onPress={closeUserModal}
-                testID="user-form-close"
-              >
-                <Ionicons
-                  name="close"
-                  size={20}
-                  color={auroraTheme.colors.text.secondary}
-                />
-              </AnimatedPressable>
-            </View>
-
-            <ScrollView
-              style={styles.modalScroll}
-              contentContainerStyle={styles.modalBody}
-              showsVerticalScrollIndicator={false}
-            >
-              {formError && (
-                <View style={styles.formErrorBanner}>
-                  <Ionicons
-                    name="alert-circle"
-                    size={18}
-                    color={auroraTheme.colors.error[600]}
-                  />
-                  <Text style={styles.formErrorText}>{formError}</Text>
-                </View>
-              )}
-
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>Username</Text>
-                <TextInput
-                  style={[
-                    styles.formInput,
-                    editingUser && styles.formInputDisabled,
-                  ]}
-                  testID="user-form-username"
-                  value={userForm.username}
-                  onChangeText={(value) => updateUserForm("username", value)}
-                  editable={!editingUser}
-                  autoCapitalize="none"
-                  placeholder="Enter username"
-                  placeholderTextColor={auroraTheme.colors.neutral[400]}
-                />
-                {editingUser && (
-                  <Text style={styles.formHint}>
-                    Username is immutable after account creation.
-                  </Text>
-                )}
-              </View>
-
-              <View style={styles.formGrid}>
-                <View style={styles.formFieldHalf}>
-                  <Text style={styles.formLabel}>Full Name</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    testID="user-form-full-name"
-                    value={userForm.fullName}
-                    onChangeText={(value) => updateUserForm("fullName", value)}
-                    placeholder="Optional"
-                    placeholderTextColor={auroraTheme.colors.neutral[400]}
-                  />
-                </View>
-                <View style={styles.formFieldHalf}>
-                  <Text style={styles.formLabel}>Email</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    testID="user-form-email"
-                    value={userForm.email}
-                    onChangeText={(value) => updateUserForm("email", value)}
-                    placeholder="Optional"
-                    placeholderTextColor={auroraTheme.colors.neutral[400]}
-                    autoCapitalize="none"
-                    keyboardType="email-address"
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formGrid}>
-                <View style={styles.formFieldHalf}>
-                  <Text style={styles.formLabel}>
-                    {editingUser ? "New Password" : "Password"}
-                  </Text>
-                  <TextInput
-                    style={styles.formInput}
-                    testID="user-form-password"
-                    value={userForm.password}
-                    onChangeText={(value) => updateUserForm("password", value)}
-                    placeholder={
-                      editingUser ? "Leave blank to keep current password" : "Required"
-                    }
-                    placeholderTextColor={auroraTheme.colors.neutral[400]}
-                    secureTextEntry
-                  />
-                </View>
-                <View style={styles.formFieldHalf}>
-                  <Text style={styles.formLabel}>4-Digit PIN</Text>
-                  <TextInput
-                    style={styles.formInput}
-                    testID="user-form-pin"
-                    value={userForm.pin}
-                    onChangeText={(value) => updateUserForm("pin", value)}
-                    placeholder="Optional"
-                    placeholderTextColor={auroraTheme.colors.neutral[400]}
-                    secureTextEntry
-                    keyboardType="number-pad"
-                    maxLength={4}
-                  />
-                </View>
-              </View>
-
-              <View style={styles.formField}>
-                <Text style={styles.formLabel}>Role</Text>
-                <View style={styles.roleOptionRow}>
-                  {(["staff", "supervisor", "admin"] as User["role"][]).map((role) => (
-                    <AnimatedPressable
-                      key={role}
-                      style={[
-                        styles.roleOption,
-                        userForm.role === role && styles.roleOptionActive,
-                      ]}
-                      onPress={() => updateUserForm("role", role)}
-                      testID={`user-form-role-${role}`}
-                    >
-                      <Text
-                        style={[
-                          styles.roleOptionText,
-                          userForm.role === role && styles.roleOptionTextActive,
-                        ]}
-                      >
-                        {role.charAt(0).toUpperCase() + role.slice(1)}
-                      </Text>
-                    </AnimatedPressable>
-                  ))}
-                </View>
-              </View>
-
-              {editingUser && (
-                <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Account Status</Text>
-                  <View style={styles.roleOptionRow}>
-                    <AnimatedPressable
-                      style={[
-                        styles.roleOption,
-                        userForm.isActive && styles.roleOptionActive,
-                      ]}
-                      onPress={() => updateUserForm("isActive", true)}
-                      testID="user-form-status-active"
-                    >
-                      <Text
-                        style={[
-                          styles.roleOptionText,
-                          userForm.isActive && styles.roleOptionTextActive,
-                        ]}
-                      >
-                        Active
-                      </Text>
-                    </AnimatedPressable>
-                    <AnimatedPressable
-                      style={[
-                        styles.roleOption,
-                        !userForm.isActive && styles.roleOptionDanger,
-                      ]}
-                      onPress={() => updateUserForm("isActive", false)}
-                      testID="user-form-status-inactive"
-                    >
-                      <Text
-                        style={[
-                          styles.roleOptionText,
-                          !userForm.isActive && styles.roleOptionDangerText,
-                        ]}
-                      >
-                        Inactive
-                      </Text>
-                    </AnimatedPressable>
-                  </View>
-                </View>
-              )}
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <AnimatedPressable
-                style={styles.modalSecondaryButton}
-                onPress={closeUserModal}
-                disabled={submitting}
-                testID="user-form-cancel"
-              >
-                <Text style={styles.modalSecondaryButtonText}>Cancel</Text>
-              </AnimatedPressable>
-              <AnimatedPressable
-                style={[
-                  styles.modalPrimaryButton,
-                  submitting && styles.modalPrimaryButtonDisabled,
-                ]}
-                onPress={handleSubmitUser}
-                disabled={submitting}
-                testID="user-form-submit"
-              >
-                {submitting ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="save-outline" size={18} color="#fff" />
-                    <Text style={styles.modalPrimaryButtonText}>
-                      {editingUser ? "Save Changes" : "Create User"}
-                    </Text>
-                  </>
-                )}
-              </AnimatedPressable>
-            </View>
-          </GlassCard>
-        </View>
-      </RNModal>
-    );
-  };
-
-  // Render filter bar
-  const renderFilters = () => (
-    <View style={styles.filterBar}>
-      {/* Search Input */}
-      <View style={styles.searchContainer}>
-        <Ionicons
-          name="search"
-          size={20}
-          color={auroraTheme.colors.neutral[400]}
-        />
-        <TextInput
-          style={styles.searchInput}
-          testID="users-search-input"
-          placeholder="Search users..."
-          placeholderTextColor={auroraTheme.colors.neutral[400]}
-          value={search}
-          onChangeText={setSearch}
-        />
-        {search.length > 0 && (
-          <AnimatedPressable onPress={() => setSearch("")}>
-            <Ionicons
-              name="close-circle"
-              size={20}
-              color={auroraTheme.colors.neutral[400]}
-            />
-          </AnimatedPressable>
-        )}
-      </View>
-
-      {/* Role Filter */}
-      <View style={styles.filterGroup}>
-        <Text style={styles.filterLabel}>Role:</Text>
-        <View style={styles.filterButtons}>
-          <AnimatedPressable
-            style={[
-              styles.filterButton,
-              !roleFilter && styles.filterButtonActive,
-            ]}
-            onPress={() => setRoleFilter(null)}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                !roleFilter && styles.filterButtonTextActive,
-              ]}
-            >
-              All
-            </Text>
-          </AnimatedPressable>
-          {["staff", "supervisor", "admin"].map((role) => (
-            <AnimatedPressable
-              key={role}
-              style={[
-                styles.filterButton,
-                roleFilter === role && styles.filterButtonActive,
-              ]}
-              onPress={() => setRoleFilter(roleFilter === role ? null : role)}
-            >
-              <Text
-                style={[
-                  styles.filterButtonText,
-                  roleFilter === role && styles.filterButtonTextActive,
-                ]}
-              >
-                {role.charAt(0).toUpperCase() + role.slice(1)}
-              </Text>
-            </AnimatedPressable>
-          ))}
-        </View>
-      </View>
-
-      {/* Status Filter */}
-      <View style={styles.filterGroup}>
-        <Text style={styles.filterLabel}>Status:</Text>
-        <View style={styles.filterButtons}>
-          <AnimatedPressable
-            style={[
-              styles.filterButton,
-              activeFilter === null && styles.filterButtonActive,
-            ]}
-            onPress={() => setActiveFilter(null)}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                activeFilter === null && styles.filterButtonTextActive,
-              ]}
-            >
-              All
-            </Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            style={[
-              styles.filterButton,
-              activeFilter === true && styles.filterButtonActive,
-            ]}
-            onPress={() => setActiveFilter(activeFilter === true ? null : true)}
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                activeFilter === true && styles.filterButtonTextActive,
-              ]}
-            >
-              Active
-            </Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            style={[
-              styles.filterButton,
-              activeFilter === false && styles.filterButtonActive,
-            ]}
-            onPress={() =>
-              setActiveFilter(activeFilter === false ? null : false)
-            }
-          >
-            <Text
-              style={[
-                styles.filterButtonText,
-                activeFilter === false && styles.filterButtonTextActive,
-              ]}
-            >
-              Inactive
-            </Text>
-          </AnimatedPressable>
-        </View>
-      </View>
-    </View>
-  );
-
-  // Render bulk actions
-  const renderBulkActions = () => {
-    if (selectedUsers.size === 0) return null;
-
-    return (
-      <View style={styles.bulkActions}>
-        <Text style={styles.bulkText}>{selectedUsers.size} selected</Text>
-        <View style={styles.bulkButtons}>
-          <AnimatedPressable
-            style={[styles.bulkButton, styles.bulkButtonSuccess]}
-            onPress={() => handleBulkAction("activate")}
-          >
-            <Ionicons name="checkmark-circle" size={16} color="#fff" />
-            <Text style={styles.bulkButtonText}>Activate</Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            style={[styles.bulkButton, styles.bulkButtonWarning]}
-            onPress={() => handleBulkAction("deactivate")}
-          >
-            <Ionicons name="pause-circle" size={16} color="#fff" />
-            <Text style={styles.bulkButtonText}>Deactivate</Text>
-          </AnimatedPressable>
-          <AnimatedPressable
-            style={[styles.bulkButton, styles.bulkButtonDanger]}
-            onPress={() => handleBulkAction("delete")}
-          >
-            <Ionicons name="trash" size={16} color="#fff" />
-            <Text style={styles.bulkButtonText}>Delete</Text>
-          </AnimatedPressable>
-        </View>
-      </View>
-    );
-  };
-
-  // Render table header
-  const renderTableHeader = () => (
-    <View style={styles.tableHeader}>
-      <AnimatedPressable style={styles.checkboxCell} onPress={handleSelectAll}>
-        <Ionicons
-          name={
-            selectedUsers.size === users.length && users.length > 0
-              ? "checkbox"
-              : "square-outline"
-          }
-          size={20}
-          color={auroraTheme.colors.primary[600]}
-        />
-      </AnimatedPressable>
-      <AnimatedPressable
-        style={[styles.headerCell, styles.usernameCell]}
-        onPress={() => handleSort("username")}
-      >
-        <Text style={styles.headerText}>Username</Text>
-        {sortBy === "username" && (
-          <Ionicons
-            name={sortOrder === "asc" ? "arrow-up" : "arrow-down"}
-            size={14}
-            color={auroraTheme.colors.primary[600]}
-          />
-        )}
-      </AnimatedPressable>
-      <AnimatedPressable
-        style={[styles.headerCell, styles.emailCell]}
-        onPress={() => handleSort("email")}
-      >
-        <Text style={styles.headerText}>Email</Text>
-        {sortBy === "email" && (
-          <Ionicons
-            name={sortOrder === "asc" ? "arrow-up" : "arrow-down"}
-            size={14}
-            color={auroraTheme.colors.primary[600]}
-          />
-        )}
-      </AnimatedPressable>
-      <AnimatedPressable
-        style={[styles.headerCell, styles.roleCell]}
-        onPress={() => handleSort("role")}
-      >
-        <Text style={styles.headerText}>Role</Text>
-        {sortBy === "role" && (
-          <Ionicons
-            name={sortOrder === "asc" ? "arrow-up" : "arrow-down"}
-            size={14}
-            color={auroraTheme.colors.primary[600]}
-          />
-        )}
-      </AnimatedPressable>
-      <View style={[styles.headerCell, styles.statusCell]}>
-        <Text style={styles.headerText}>Status</Text>
-      </View>
-      <AnimatedPressable
-        style={[styles.headerCell, styles.dateCell]}
-        onPress={() => handleSort("created_at")}
-      >
-        <Text style={styles.headerText}>Created</Text>
-        {sortBy === "created_at" && (
-          <Ionicons
-            name={sortOrder === "asc" ? "arrow-up" : "arrow-down"}
-            size={14}
-            color={auroraTheme.colors.primary[600]}
-          />
-        )}
-      </AnimatedPressable>
-      <View style={[styles.headerCell, styles.actionsCell]}>
-        <Text style={styles.headerText}>Actions</Text>
-      </View>
-    </View>
-  );
-
-  // Render user row
-  const renderUserRow = (user: User) => {
-    const roleBadge = getRoleBadgeStyle(user.role);
-    const statusBadge = getStatusStyle(user.isActive);
-    const isSelected = selectedUsers.has(user.id);
-
-    return (
-      <View
-        key={user.id}
-        style={[styles.tableRow, isSelected && styles.tableRowSelected]}
-        testID={`user-row-${user.username}`}
-      >
-        <AnimatedPressable
-          style={styles.checkboxCell}
-          onPress={() => handleSelectUser(user.id)}
-        >
-          <Ionicons
-            name={isSelected ? "checkbox" : "square-outline"}
-            size={20}
-            color={auroraTheme.colors.primary[600]}
-          />
-        </AnimatedPressable>
-        <View style={[styles.cell, styles.usernameCell]}>
-          <View style={styles.userInfo}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {user.username.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-            <View>
-              <Text style={styles.username}>{user.username}</Text>
-              {user.fullName && (
-                <Text style={styles.fullName}>{user.fullName}</Text>
-              )}
-            </View>
-          </View>
-        </View>
-        <View style={[styles.cell, styles.emailCell]}>
-          <Text style={styles.cellText}>{user.email || "-"}</Text>
-        </View>
-        <View style={[styles.cell, styles.roleCell]}>
-          <View style={[styles.badge, { backgroundColor: roleBadge.bg }]}>
-            <Text style={[styles.badgeText, { color: roleBadge.text }]}>
-              {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.cell, styles.statusCell]}>
-          <View style={[styles.badge, { backgroundColor: statusBadge.bg }]}>
-            <Text style={[styles.badgeText, { color: statusBadge.text }]}>
-              {user.isActive ? "Active" : "Inactive"}
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.cell, styles.dateCell]}>
-          <Text style={styles.cellText}>{formatDate(user.createdAt)}</Text>
-        </View>
-        <View style={[styles.cell, styles.actionsCell]}>
-          <View style={styles.actionButtons}>
-          <AnimatedPressable
-            style={styles.actionButton}
-            onPress={() => openEditModal(user)}
-            testID={`user-edit-${user.username}`}
-            accessibilityLabel={`Edit user ${user.username}`}
-          >
-              <Ionicons
-                name="pencil"
-                size={18}
-                color={auroraTheme.colors.primary[600]}
-              />
-            </AnimatedPressable>
-            <AnimatedPressable
-              style={styles.actionButton}
-              onPress={() => handleToggleStatus(user)}
-              testID={`user-toggle-${user.username}`}
-              accessibilityLabel={`${user.isActive ? "Deactivate" : "Activate"} user ${user.username}`}
-            >
-              <Ionicons
-                name={
-                  user.isActive ? "pause-circle-outline" : "play-circle-outline"
-                }
-                size={18}
-                color={
-                  user.isActive
-                    ? auroraTheme.colors.warning[600]
-                    : auroraTheme.colors.success[600]
-                }
-              />
-            </AnimatedPressable>
-            <AnimatedPressable
-              style={styles.actionButton}
-              onPress={() => handleDeleteUser(user)}
-              testID={`user-delete-${user.username}`}
-              accessibilityLabel={`Delete user ${user.username}`}
-            >
-              <Ionicons
-                name="trash-outline"
-                size={18}
-                color={auroraTheme.colors.error[600]}
-              />
-            </AnimatedPressable>
-          </View>
-        </View>
-      </View>
-    );
-  };
-
-  // Render pagination
-  const renderPagination = () => (
-    <View style={styles.pagination}>
-      <Text style={styles.paginationText}>
-        Showing {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)}{" "}
-        of {total}
-      </Text>
-      <View style={styles.paginationButtons}>
-        <AnimatedPressable
-          style={[styles.pageButton, page === 1 && styles.pageButtonDisabled]}
-          onPress={() => page > 1 && setPage(page - 1)}
-          disabled={page === 1}
-        >
-          <Ionicons
-            name="chevron-back"
-            size={20}
-            color={
-              page === 1
-                ? auroraTheme.colors.neutral[300]
-                : auroraTheme.colors.primary[600]
-            }
-          />
-        </AnimatedPressable>
-        <Text style={styles.pageNumber}>
-          Page {page} of {totalPages}
-        </Text>
-        <AnimatedPressable
-          style={[
-            styles.pageButton,
-            page === totalPages && styles.pageButtonDisabled,
-          ]}
-          onPress={() => page < totalPages && setPage(page + 1)}
-          disabled={page === totalPages}
-        >
-          <Ionicons
-            name="chevron-forward"
-            size={20}
-            color={
-              page === totalPages
-                ? auroraTheme.colors.neutral[300]
-                : auroraTheme.colors.primary[600]
-            }
-          />
-        </AnimatedPressable>
-      </View>
-    </View>
-  );
-
   if (loading && users.length === 0) {
     return (
       <ScreenContainer>
@@ -1129,7 +438,7 @@ export default function UsersScreen() {
             <Text style={styles.title}>User Management</Text>
           </View>
           <AnimatedPressable
-            style={styles.createButton}
+            style={[styles.createButton, offlineMode && styles.disabledButton]}
             onPress={openCreateModal}
             testID="users-add-button"
           >
@@ -1137,6 +446,18 @@ export default function UsersScreen() {
             <Text style={styles.createButtonText}>Add User</Text>
           </AnimatedPressable>
         </View>
+
+        {offlineMode && (
+          <GlassCard variant="medium" style={styles.offlineNotice}>
+            <Text style={styles.offlineNoticeTitle}>
+              User management is unavailable offline
+            </Text>
+            <Text style={styles.offlineNoticeBody}>
+              User lists, account edits, and bulk actions require a live backend
+              connection and are not cached on this device.
+            </Text>
+          </GlassCard>
+        )}
 
         {/* Stats */}
         <View style={styles.statsRow}>
@@ -1158,148 +479,49 @@ export default function UsersScreen() {
           </View>
         </View>
 
-        {/* Filters */}
-        {renderFilters()}
+        {!offlineMode && (
+          <>
+            <UserFiltersBar
+              activeFilter={activeFilter}
+              onBulkAction={handleBulkAction}
+              onChangeActiveFilter={setActiveFilter}
+              onChangeRoleFilter={setRoleFilter}
+              onChangeSearch={setSearch}
+              roleFilter={roleFilter}
+              search={search}
+              selectedCount={selectedUsers.size}
+            />
 
-        {/* Bulk Actions */}
-        {renderBulkActions()}
-
-        {/* Table */}
-        <View style={styles.tableContainer} testID="users-table">
-          {isWeb || isTablet ? (
-            <>
-              {renderTableHeader()}
-              {users.length === 0 ? (
-                <View style={styles.emptyState} testID="users-empty-state">
-                  <Ionicons
-                    name="people-outline"
-                    size={48}
-                    color={auroraTheme.colors.neutral[300]}
-                  />
-                  <Text style={styles.emptyText}>No users found</Text>
-                </View>
-              ) : (
-                users.map(renderUserRow)
-              )}
-            </>
-          ) : // Mobile card layout
-          users.length === 0 ? (
-            <View style={styles.emptyState} testID="users-empty-state">
-              <Ionicons
-                name="people-outline"
-                size={48}
-                color={auroraTheme.colors.neutral[300]}
-              />
-              <Text style={styles.emptyText}>No users found</Text>
-            </View>
-          ) : (
-            users.map((user) => {
-              const roleBadge = getRoleBadgeStyle(user.role);
-              const statusBadge = getStatusStyle(user.isActive);
-              return (
-                <View key={user.id} style={styles.mobileCard}>
-                  <View style={styles.mobileCardHeader}>
-                    <View style={styles.userInfo}>
-                      <View style={styles.avatar}>
-                        <Text style={styles.avatarText}>
-                          {user.username.charAt(0).toUpperCase()}
-                        </Text>
-                      </View>
-                      <View>
-                        <Text style={styles.username}>{user.username}</Text>
-                        {user.email && (
-                          <Text style={styles.mobileEmail}>{user.email}</Text>
-                        )}
-                      </View>
-                    </View>
-                    <View style={styles.mobileBadges}>
-                      <View
-                        style={[
-                          styles.badge,
-                          { backgroundColor: roleBadge.bg },
-                        ]}
-                      >
-                        <Text
-                          style={[styles.badgeText, { color: roleBadge.text }]}
-                        >
-                          {user.role}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.badge,
-                          { backgroundColor: statusBadge.bg },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.badgeText,
-                            { color: statusBadge.text },
-                          ]}
-                        >
-                          {user.isActive ? "Active" : "Inactive"}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                  <View style={styles.mobileCardActions}>
-                    <AnimatedPressable
-                      style={styles.mobileAction}
-                      onPress={() => openEditModal(user)}
-                    >
-                      <Ionicons
-                        name="pencil"
-                        size={18}
-                        color={auroraTheme.colors.primary[600]}
-                      />
-                      <Text style={styles.mobileActionText}>Edit</Text>
-                    </AnimatedPressable>
-                    <AnimatedPressable
-                      style={styles.mobileAction}
-                      onPress={() => handleToggleStatus(user)}
-                    >
-                      <Ionicons
-                        name={user.isActive ? "pause-circle" : "play-circle"}
-                        size={18}
-                        color={
-                          user.isActive
-                            ? auroraTheme.colors.warning[600]
-                            : auroraTheme.colors.success[600]
-                        }
-                      />
-                      <Text style={styles.mobileActionText}>
-                        {user.isActive ? "Deactivate" : "Activate"}
-                      </Text>
-                    </AnimatedPressable>
-                    <AnimatedPressable
-                      style={styles.mobileAction}
-                      onPress={() => handleDeleteUser(user)}
-                    >
-                      <Ionicons
-                        name="trash"
-                        size={18}
-                        color={auroraTheme.colors.error[600]}
-                      />
-                      <Text
-                        style={[
-                          styles.mobileActionText,
-                          { color: auroraTheme.colors.error[600] },
-                        ]}
-                      >
-                        Delete
-                      </Text>
-                    </AnimatedPressable>
-                  </View>
-                </View>
-              );
-            })
-          )}
-        </View>
-
-        {/* Pagination */}
-        {total > pageSize && renderPagination()}
+            <UsersTable
+              onDeleteUser={handleDeleteUser}
+              onEditUser={openEditModal}
+              onPageChange={setPage}
+              onSort={handleSort}
+              onToggleSelectAll={handleSelectAll}
+              onToggleSelectUser={handleSelectUser}
+              onToggleStatus={handleToggleStatus}
+              page={page}
+              pageSize={pageSize}
+              selectedUsers={selectedUsers}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              total={total}
+              totalPages={totalPages}
+              users={users}
+            />
+          </>
+        )}
       </ScrollView>
-      {renderUserModal()}
+      <UserFormModal
+        editingUser={editingUser}
+        formError={formError}
+        onChangeField={updateUserForm}
+        onClose={closeUserModal}
+        onSubmit={handleSubmitUser}
+        submitting={submitting}
+        userForm={userForm}
+        visible={showUserModal}
+      />
     </ScreenContainer>
   );
 }
@@ -1322,7 +544,7 @@ const styles = StyleSheet.create({
     gap: auroraTheme.spacing.sm,
   },
   title: {
-    ...textStyles.h2,
+    ...userTextStyles.h2,
     color: auroraTheme.colors.text.primary,
   },
   createButton: {
@@ -1335,9 +557,28 @@ const styles = StyleSheet.create({
     borderRadius: auroraTheme.borderRadius.md,
   },
   createButtonText: {
-    ...textStyles.label,
+    ...userTextStyles.label,
     color: "#fff",
     fontWeight: "600",
+  },
+  disabledButton: {
+    opacity: 0.5,
+  },
+  offlineNotice: {
+    marginHorizontal: auroraTheme.spacing.lg,
+    marginBottom: auroraTheme.spacing.lg,
+    padding: auroraTheme.spacing.lg,
+  },
+  offlineNoticeTitle: {
+    ...userTextStyles.h3,
+    color: auroraTheme.colors.text.primary,
+    fontSize: 16,
+    marginBottom: auroraTheme.spacing.xs,
+  },
+  offlineNoticeBody: {
+    ...userTextStyles.body,
+    color: auroraTheme.colors.text.secondary,
+    lineHeight: 20,
   },
   statsRow: {
     flexDirection: "row",
@@ -1355,466 +596,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   statValue: {
-    ...textStyles.h3,
+    ...userTextStyles.h3,
     color: auroraTheme.colors.primary[600],
   },
   statLabel: {
-    ...textStyles.caption,
+    ...userTextStyles.caption,
     color: auroraTheme.colors.text.secondary,
     marginTop: auroraTheme.spacing.xs,
-  },
-  filterBar: {
-    paddingHorizontal: auroraTheme.spacing.lg,
-    paddingVertical: auroraTheme.spacing.md,
-    backgroundColor: auroraTheme.colors.background.secondary,
-    marginBottom: auroraTheme.spacing.md,
-    gap: auroraTheme.spacing.md,
-  },
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: auroraTheme.colors.background.primary,
-    borderRadius: auroraTheme.borderRadius.md,
-    paddingHorizontal: auroraTheme.spacing.sm,
-    paddingVertical: auroraTheme.spacing.xs,
-    gap: auroraTheme.spacing.xs,
-  },
-  searchInput: {
-    flex: 1,
-    ...textStyles.body,
-    color: auroraTheme.colors.text.primary,
-    padding: auroraTheme.spacing.xs,
-  },
-  filterGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: auroraTheme.spacing.sm,
-    flexWrap: "wrap",
-  },
-  filterLabel: {
-    ...textStyles.label,
-    color: auroraTheme.colors.text.secondary,
-  },
-  filterButtons: {
-    flexDirection: "row",
-    gap: auroraTheme.spacing.xs,
-    flexWrap: "wrap",
-  },
-  filterButton: {
-    paddingHorizontal: auroraTheme.spacing.sm,
-    paddingVertical: auroraTheme.spacing.xs,
-    borderRadius: auroraTheme.borderRadius.md,
-    backgroundColor: auroraTheme.colors.background.primary,
-    borderWidth: 1,
-    borderColor: auroraTheme.colors.neutral[200],
-  },
-  filterButtonActive: {
-    backgroundColor: auroraTheme.colors.primary[100],
-    borderColor: auroraTheme.colors.primary[300],
-  },
-  filterButtonText: {
-    ...textStyles.caption,
-    color: auroraTheme.colors.text.secondary,
-  },
-  filterButtonTextActive: {
-    color: auroraTheme.colors.primary[700],
-    fontWeight: "600",
-  },
-  bulkActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: auroraTheme.spacing.lg,
-    paddingVertical: auroraTheme.spacing.sm,
-    backgroundColor: auroraTheme.colors.primary[50],
-    marginHorizontal: auroraTheme.spacing.lg,
-    marginBottom: auroraTheme.spacing.md,
-    borderRadius: auroraTheme.borderRadius.md,
-  },
-  bulkText: {
-    ...textStyles.label,
-    color: auroraTheme.colors.primary[700],
-    fontWeight: "600",
-  },
-  bulkButtons: {
-    flexDirection: "row",
-    gap: auroraTheme.spacing.sm,
-  },
-  bulkButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: auroraTheme.spacing.xs,
-    paddingHorizontal: auroraTheme.spacing.sm,
-    paddingVertical: auroraTheme.spacing.xs,
-    borderRadius: auroraTheme.borderRadius.sm,
-  },
-  bulkButtonSuccess: {
-    backgroundColor: auroraTheme.colors.success[600],
-  },
-  bulkButtonWarning: {
-    backgroundColor: auroraTheme.colors.warning[600],
-  },
-  bulkButtonDanger: {
-    backgroundColor: auroraTheme.colors.error[600],
-  },
-  bulkButtonText: {
-    ...textStyles.caption,
-    color: "#fff",
-    fontWeight: "600",
-  },
-  tableContainer: {
-    marginHorizontal: auroraTheme.spacing.lg,
-    backgroundColor: auroraTheme.colors.background.secondary,
-    borderRadius: auroraTheme.borderRadius.lg,
-    overflow: "hidden",
-  },
-  tableHeader: {
-    flexDirection: "row",
-    backgroundColor: auroraTheme.colors.neutral[100],
-    borderBottomWidth: 1,
-    borderBottomColor: auroraTheme.colors.neutral[200],
-    paddingVertical: auroraTheme.spacing.sm,
-  },
-  headerCell: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: auroraTheme.spacing.xs,
-    paddingHorizontal: auroraTheme.spacing.sm,
-  },
-  headerText: {
-    ...textStyles.label,
-    color: auroraTheme.colors.text.secondary,
-    fontWeight: "600",
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: auroraTheme.colors.neutral[100],
-    paddingVertical: auroraTheme.spacing.sm,
-    alignItems: "center",
-  },
-  tableRowSelected: {
-    backgroundColor: auroraTheme.colors.primary[50],
-  },
-  cell: {
-    paddingHorizontal: auroraTheme.spacing.sm,
-  },
-  cellText: {
-    ...textStyles.body,
-    color: auroraTheme.colors.text.primary,
-  },
-  checkboxCell: {
-    width: 40,
-    alignItems: "center",
-  },
-  usernameCell: {
-    flex: 2,
-    minWidth: 150,
-  },
-  emailCell: {
-    flex: 2,
-    minWidth: 180,
-  },
-  roleCell: {
-    flex: 1,
-    minWidth: 100,
-  },
-  statusCell: {
-    flex: 1,
-    minWidth: 80,
-  },
-  dateCell: {
-    flex: 1,
-    minWidth: 100,
-  },
-  actionsCell: {
-    width: 120,
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: auroraTheme.spacing.sm,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: auroraTheme.colors.primary[100],
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: {
-    ...textStyles.label,
-    color: auroraTheme.colors.primary[700],
-    fontWeight: "700",
-  },
-  username: {
-    ...textStyles.body,
-    color: auroraTheme.colors.text.primary,
-    fontWeight: "600",
-  },
-  fullName: {
-    ...textStyles.caption,
-    color: auroraTheme.colors.text.secondary,
-  },
-  badge: {
-    paddingHorizontal: auroraTheme.spacing.sm,
-    paddingVertical: 2,
-    borderRadius: auroraTheme.borderRadius.sm,
-  },
-  badgeText: {
-    ...textStyles.caption,
-    fontWeight: "600",
-  },
-  actionButtons: {
-    flexDirection: "row",
-    gap: auroraTheme.spacing.xs,
-  },
-  actionButton: {
-    padding: auroraTheme.spacing.xs,
-    borderRadius: auroraTheme.borderRadius.sm,
-  },
-  emptyState: {
-    padding: auroraTheme.spacing["2xl"],
-    alignItems: "center",
-    gap: auroraTheme.spacing.md,
-  },
-  emptyText: {
-    ...textStyles.body,
-    color: auroraTheme.colors.text.tertiary,
-  },
-  modalOverlay: {
-    flex: 1,
-    padding: auroraTheme.spacing.lg,
-    backgroundColor: "rgba(8, 13, 28, 0.72)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 720,
-    maxHeight: "92%",
-    padding: 0,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    padding: auroraTheme.spacing.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: auroraTheme.colors.border.light,
-  },
-  modalHeaderText: {
-    flex: 1,
-    gap: auroraTheme.spacing.xs,
-  },
-  modalTitle: {
-    ...textStyles.h3,
-    color: auroraTheme.colors.text.primary,
-  },
-  modalDescription: {
-    ...textStyles.body,
-    color: auroraTheme.colors.text.secondary,
-  },
-  modalCloseButton: {
-    padding: auroraTheme.spacing.xs,
-    borderRadius: auroraTheme.borderRadius.sm,
-  },
-  modalScroll: {
-    maxHeight: 480,
-  },
-  modalBody: {
-    padding: auroraTheme.spacing.lg,
-    gap: auroraTheme.spacing.md,
-  },
-  formErrorBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: auroraTheme.spacing.sm,
-    padding: auroraTheme.spacing.sm,
-    borderRadius: auroraTheme.borderRadius.md,
-    backgroundColor: auroraTheme.colors.error[50],
-    borderWidth: 1,
-    borderColor: auroraTheme.colors.error[200],
-  },
-  formErrorText: {
-    ...textStyles.body,
-    flex: 1,
-    color: auroraTheme.colors.error[700],
-  },
-  formGrid: {
-    flexDirection: isTablet ? "row" : "column",
-    gap: auroraTheme.spacing.md,
-  },
-  formField: {
-    gap: auroraTheme.spacing.xs,
-  },
-  formFieldHalf: {
-    flex: 1,
-    gap: auroraTheme.spacing.xs,
-  },
-  formLabel: {
-    ...textStyles.label,
-    color: auroraTheme.colors.text.primary,
-  },
-  formInput: {
-    ...textStyles.body,
-    color: auroraTheme.colors.text.primary,
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: auroraTheme.colors.neutral[200],
-    backgroundColor: auroraTheme.colors.background.primary,
-    borderRadius: auroraTheme.borderRadius.md,
-    paddingHorizontal: auroraTheme.spacing.md,
-    paddingVertical: auroraTheme.spacing.sm,
-  },
-  formInputDisabled: {
-    backgroundColor: auroraTheme.colors.neutral[100],
-    color: auroraTheme.colors.text.tertiary,
-  },
-  formHint: {
-    ...textStyles.caption,
-    color: auroraTheme.colors.text.tertiary,
-  },
-  roleOptionRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: auroraTheme.spacing.sm,
-  },
-  roleOption: {
-    paddingHorizontal: auroraTheme.spacing.md,
-    paddingVertical: auroraTheme.spacing.sm,
-    borderRadius: auroraTheme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: auroraTheme.colors.neutral[200],
-    backgroundColor: auroraTheme.colors.background.primary,
-  },
-  roleOptionActive: {
-    borderColor: auroraTheme.colors.primary[300],
-    backgroundColor: auroraTheme.colors.primary[100],
-  },
-  roleOptionDanger: {
-    borderColor: auroraTheme.colors.error[300],
-    backgroundColor: auroraTheme.colors.error[50],
-  },
-  roleOptionText: {
-    ...textStyles.label,
-    color: auroraTheme.colors.text.secondary,
-  },
-  roleOptionTextActive: {
-    color: auroraTheme.colors.primary[700],
-    fontWeight: "700",
-  },
-  roleOptionDangerText: {
-    color: auroraTheme.colors.error[700],
-    fontWeight: "700",
-  },
-  modalFooter: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: auroraTheme.spacing.sm,
-    padding: auroraTheme.spacing.lg,
-    borderTopWidth: 1,
-    borderTopColor: auroraTheme.colors.border.light,
-  },
-  modalSecondaryButton: {
-    minWidth: 120,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: auroraTheme.spacing.lg,
-    paddingVertical: auroraTheme.spacing.sm,
-    borderRadius: auroraTheme.borderRadius.md,
-    borderWidth: 1,
-    borderColor: auroraTheme.colors.neutral[200],
-    backgroundColor: auroraTheme.colors.background.primary,
-  },
-  modalSecondaryButtonText: {
-    ...textStyles.label,
-    color: auroraTheme.colors.text.secondary,
-  },
-  modalPrimaryButton: {
-    minWidth: 160,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: auroraTheme.spacing.xs,
-    paddingHorizontal: auroraTheme.spacing.lg,
-    paddingVertical: auroraTheme.spacing.sm,
-    borderRadius: auroraTheme.borderRadius.md,
-    backgroundColor: auroraTheme.colors.primary[600],
-  },
-  modalPrimaryButtonDisabled: {
-    opacity: 0.7,
-  },
-  modalPrimaryButtonText: {
-    ...textStyles.label,
-    color: "#fff",
-    fontWeight: "700",
-  },
-  pagination: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: auroraTheme.spacing.lg,
-    paddingVertical: auroraTheme.spacing.md,
-  },
-  paginationText: {
-    ...textStyles.caption,
-    color: auroraTheme.colors.text.secondary,
-  },
-  paginationButtons: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: auroraTheme.spacing.sm,
-  },
-  pageButton: {
-    padding: auroraTheme.spacing.xs,
-    borderRadius: auroraTheme.borderRadius.sm,
-    borderWidth: 1,
-    borderColor: auroraTheme.colors.neutral[200],
-  },
-  pageButtonDisabled: {
-    opacity: 0.5,
-  },
-  pageNumber: {
-    ...textStyles.label,
-    color: auroraTheme.colors.text.primary,
-  },
-  mobileCard: {
-    backgroundColor: auroraTheme.colors.background.primary,
-    margin: auroraTheme.spacing.sm,
-    borderRadius: auroraTheme.borderRadius.md,
-    padding: auroraTheme.spacing.md,
-    borderWidth: 1,
-    borderColor: auroraTheme.colors.neutral[100],
-  },
-  mobileCardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: auroraTheme.spacing.md,
-  },
-  mobileBadges: {
-    flexDirection: "row",
-    gap: auroraTheme.spacing.xs,
-  },
-  mobileEmail: {
-    ...textStyles.caption,
-    color: auroraTheme.colors.text.secondary,
-  },
-  mobileCardActions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    borderTopWidth: 1,
-    borderTopColor: auroraTheme.colors.neutral[100],
-    paddingTop: auroraTheme.spacing.sm,
-  },
-  mobileAction: {
-    alignItems: "center",
-    gap: 2,
-  },
-  mobileActionText: {
-    ...textStyles.caption,
-    color: auroraTheme.colors.text.secondary,
   },
 });

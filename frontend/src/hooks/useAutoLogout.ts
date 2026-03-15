@@ -2,14 +2,22 @@ import { useEffect, useRef, useCallback } from "react";
 import { AppState, Alert } from "react-native";
 import { useAuthStore } from "../store/authStore";
 
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-const WARNING_TIMEOUT = 28 * 60 * 1000; // 28 minutes (2 min warning)
+const DEFAULT_INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+const WARNING_LEAD_MS = 2 * 60 * 1000; // 2 minutes
 
-export const useAutoLogout = (enabled: boolean = true) => {
+export const useAutoLogout = (
+  enabled: boolean = true,
+  timeoutMs: number = DEFAULT_INACTIVITY_TIMEOUT,
+) => {
   const { logout, user } = useAuthStore();
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastActivityRef = useRef<number>(Date.now());
+  const timeoutDuration = Math.max(60 * 1000, timeoutMs);
+  const warningDelay = Math.max(
+    0,
+    timeoutDuration - Math.min(WARNING_LEAD_MS, Math.round(timeoutDuration / 4)),
+  );
 
   const resetTimer = useCallback(() => {
     if (!enabled || !user) return;
@@ -25,19 +33,21 @@ export const useAutoLogout = (enabled: boolean = true) => {
     }
 
     // Set warning timer (2 minutes before logout)
-    warningTimeoutRef.current = setTimeout(() => {
-      Alert.alert(
-        "Session Expiring",
-        "Your session will expire in 2 minutes due to inactivity. Tap OK to continue.",
-        [
-          {
-            text: "OK",
-            onPress: () => resetTimer(),
-          },
-        ],
-        { cancelable: false },
-      );
-    }, WARNING_TIMEOUT);
+    if (warningDelay > 0) {
+      warningTimeoutRef.current = setTimeout(() => {
+        Alert.alert(
+          "Session Expiring",
+          "Your session will expire soon due to inactivity. Tap OK to continue.",
+          [
+            {
+              text: "OK",
+              onPress: () => resetTimer(),
+            },
+          ],
+          { cancelable: false },
+        );
+      }, warningDelay);
+    }
 
     // Set auto logout timer
     timeoutRef.current = setTimeout(() => {
@@ -54,8 +64,8 @@ export const useAutoLogout = (enabled: boolean = true) => {
         ],
         { cancelable: false },
       );
-    }, INACTIVITY_TIMEOUT);
-  }, [enabled, user, logout]);
+    }, timeoutDuration);
+  }, [enabled, logout, timeoutDuration, user, warningDelay]);
 
   useEffect(() => {
     if (!enabled || !user) return;
@@ -68,7 +78,7 @@ export const useAutoLogout = (enabled: boolean = true) => {
       if (nextAppState === "active") {
         // Check if timeout exceeded while app was in background
         const elapsed = Date.now() - lastActivityRef.current;
-        if (elapsed > INACTIVITY_TIMEOUT) {
+        if (elapsed > timeoutDuration) {
           void logout();
         } else {
           resetTimer();
@@ -86,7 +96,7 @@ export const useAutoLogout = (enabled: boolean = true) => {
       }
       subscription.remove();
     };
-  }, [enabled, user, resetTimer, logout]);
+  }, [enabled, logout, resetTimer, timeoutDuration, user]);
 
   return { resetTimer };
 };

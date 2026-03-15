@@ -4,7 +4,6 @@
     "slug": "lavanya-mart-stock-verify",
     "version": "1.0.0",
     "scheme": "lavanyamart",
-    "sdkVersion": "54.0.0",
     "userInterfaceStyle": "automatic",
     "description": "Modern stock verification system for Lavanya Mart inventory management",
     "primaryColor": "#3B82F6",
@@ -37,9 +36,6 @@
       "package": "com.lavanyamart.stockverify",
       "userInterfaceStyle": "automatic"
     },
-    "transpilePackages": [
-      "zustand"
-    ],
     "plugins": [
       [
         "expo-background-fetch",
@@ -48,7 +44,11 @@
         }
       ],
       "./plugins/withQuotedReactNativeBundlePhase",
-      "expo-router"
+      "expo-router",
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-secure-store",
+      "expo-sqlite"
     ],
     "web": {
       "bundler": "metro"

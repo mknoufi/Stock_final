@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { storage } from "../storage/asyncStorageService";
 import { levenshteinDistance } from "../../utils/algorithms";
 import { createLogger } from "../logging";
+import { useSettingsStore } from "../../store/settingsStore";
 
 const log = createLogger("OfflineStorage");
 
@@ -33,7 +34,13 @@ export interface CacheResult<T> {
  * Check if cached data is stale (older than threshold)
  * Default: 1 hour
  */
-export function isCacheStale(cachedAt: string | null, maxAgeMs: number = 60 * 60 * 1000): boolean {
+export function isCacheStale(
+  cachedAt: string | null,
+  maxAgeMs: number = useSettingsStore.getState().settings.cacheExpiration *
+    60 *
+    60 *
+    1000,
+): boolean {
   if (!cachedAt) return true;
   const cacheTime = new Date(cachedAt).getTime();
   return Date.now() - cacheTime > maxAgeMs;
@@ -261,6 +268,7 @@ export const addToOfflineQueue = async (
 ) => {
   try {
     const queue = await getOfflineQueue();
+    const maxQueueSize = useSettingsStore.getState().settings.maxQueueSize;
     const queueItem: OfflineQueueItem = {
       id: `${type}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type,
@@ -270,7 +278,11 @@ export const addToOfflineQueue = async (
     };
 
     queue.push(queueItem);
-    await storage.set(STORAGE_KEYS.OFFLINE_QUEUE, queue);
+    const boundedQueue =
+      queue.length > maxQueueSize
+        ? queue.slice(queue.length - maxQueueSize)
+        : queue;
+    await storage.set(STORAGE_KEYS.OFFLINE_QUEUE, boundedQueue);
     return queueItem;
   } catch (error) {
     __DEV__ && console.error("Error adding to offline queue:", error);

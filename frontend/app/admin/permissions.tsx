@@ -19,6 +19,7 @@ import {
   addUserPermissions,
   removeUserPermissions,
 } from "../../src/services/api";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
@@ -27,6 +28,7 @@ const isWeb = Platform.OS === "web";
 export default function PermissionsScreen() {
   const router = useRouter();
   const { hasRole } = usePermission();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [loading, setLoading] = useState(true);
   const [availablePermissions, setAvailablePermissions] = useState<any>(null);
   const [selectedUsername, setSelectedUsername] = useState("");
@@ -46,10 +48,19 @@ export default function PermissionsScreen() {
 
   // Load available permissions
   useEffect(() => {
-    loadAvailablePermissions();
-  }, []);
+    if (hasRole("admin")) {
+      loadAvailablePermissions();
+    }
+  }, [hasRole, offlineMode]);
 
   const loadAvailablePermissions = async () => {
+    if (offlineMode) {
+      setAvailablePermissions(null);
+      setUserPermissions([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await getAvailablePermissions();
@@ -62,6 +73,11 @@ export default function PermissionsScreen() {
   };
 
   const loadUserPermissions = async (username: string) => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "Permission lookup requires a live connection.");
+      return;
+    }
+
     if (!username.trim()) {
       Alert.alert(
         "Input Required",
@@ -83,6 +99,11 @@ export default function PermissionsScreen() {
   };
 
   const handleAddUserPermission = async (permission: string) => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "Permission updates require a live connection.");
+      return;
+    }
+
     if (!selectedUsername) {
       Alert.alert("Error", "Please enter a username first");
       return;
@@ -97,6 +118,11 @@ export default function PermissionsScreen() {
   };
 
   const handleRemoveUserPermission = async (permission: string) => {
+    if (offlineMode) {
+      Alert.alert("Offline Mode", "Permission updates require a live connection.");
+      return;
+    }
+
     if (!selectedUsername) return;
 
     try {
@@ -161,12 +187,14 @@ export default function PermissionsScreen() {
                       style={[
                         styles.permissionButton,
                         hasPermission ? styles.removeButton : styles.addButton,
+                        offlineMode && styles.disabledButton,
                       ]}
                       onPress={() =>
                         hasPermission
                           ? handleRemoveUserPermission(permission)
                           : handleAddUserPermission(permission)
                       }
+                      disabled={offlineMode}
                     >
                       <Ionicons
                         name={hasPermission ? "close" : "add"}
@@ -225,6 +253,27 @@ export default function PermissionsScreen() {
         showBackButton: true,
       }}
     >
+      {offlineMode && (
+        <View style={styles.topPanel}>
+          <GlassCard variant="strong" style={styles.noticeCard}>
+            <Ionicons
+              name="cloud-offline-outline"
+              size={20}
+              color={auroraTheme.colors.warning[500]}
+            />
+            <View style={styles.noticeCopy}>
+              <Text style={styles.noticeTitle}>
+                Permissions are unavailable offline
+              </Text>
+              <Text style={styles.noticeBody}>
+                Available permission rules and user permission assignments are
+                loaded from the backend. Reconnect to view or update access.
+              </Text>
+            </View>
+          </GlassCard>
+        </View>
+      )}
+
       <View style={styles.topPanel}>
         <GlassCard variant="strong" style={styles.controlPanel}>
           <View style={styles.inputSection}>
@@ -244,11 +293,13 @@ export default function PermissionsScreen() {
                   value={selectedUsername}
                   onChangeText={setSelectedUsername}
                   autoCapitalize="none"
+                  editable={!offlineMode}
                 />
               </View>
               <AnimatedPressable
-                style={styles.loadButton}
+                style={[styles.loadButton, offlineMode && styles.disabledButton]}
                 onPress={() => loadUserPermissions(selectedUsername)}
+                disabled={offlineMode}
               >
                 <Text style={styles.loadButtonText}>Load</Text>
               </AnimatedPressable>
@@ -270,6 +321,7 @@ export default function PermissionsScreen() {
                 placeholderTextColor={auroraTheme.colors.text.muted}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
+                editable={!offlineMode}
               />
             </View>
           </View>
@@ -325,6 +377,26 @@ const styles = StyleSheet.create({
     padding: auroraTheme.spacing.lg,
     gap: 16,
   },
+  noticeCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    padding: auroraTheme.spacing.md,
+  },
+  noticeCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  noticeTitle: {
+    color: auroraTheme.colors.text.primary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  noticeBody: {
+    color: auroraTheme.colors.text.secondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   sectionLabel: {
     fontSize: 12,
     fontWeight: "700",
@@ -373,6 +445,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 4,
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   loadButtonText: {
     color: "#fff",

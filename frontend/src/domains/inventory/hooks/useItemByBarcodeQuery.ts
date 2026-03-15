@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getItemByBarcode } from "@/services/api";
+import { localDb } from "@/db/localDb";
+import { useSettingsStore } from "@/store/settingsStore";
 
 interface UseItemByBarcodeQueryOptions {
   barcode: string | null;
@@ -16,11 +18,16 @@ export const useItemByBarcodeQuery = ({
   enabled = true,
   retryCount = 3,
 }: UseItemByBarcodeQueryOptions) => {
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
+
   return useQuery({
-    queryKey: ["item", "barcode", barcode],
+    queryKey: ["item", "barcode", barcode, offlineMode ? "offline" : "online"],
     queryFn: () => {
       if (!barcode) {
         throw new Error("Barcode is required");
+      }
+      if (offlineMode) {
+        return localDb.getItemByBarcode(barcode);
       }
       return getItemByBarcode(barcode, retryCount);
     },

@@ -13,6 +13,9 @@ export const setUserPreferenceScope = (scope?: string | null): void => {
   currentUserPreferenceScope = normalizeScope(scope);
 };
 
+export const getUserPreferenceScope = (): string | null =>
+  currentUserPreferenceScope;
+
 export const getScopedStorageKey = (
   baseKey: string,
   scope: string | null = currentUserPreferenceScope,

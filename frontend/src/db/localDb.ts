@@ -208,6 +208,20 @@ export const localDb = {
     return mapLocalItemToAppItem(row);
   },
 
+  async searchItems(query: string): Promise<Partial<Item>[]> {
+    const db = await getDb();
+    const normalizedQuery = `%${query.trim()}%`;
+    const rows = await db.getAllAsync<LocalItem>(
+      `SELECT * FROM items
+       WHERE barcode LIKE ? OR name LIKE ? OR category LIKE ?
+       ORDER BY last_sync DESC
+       LIMIT 25`,
+      [normalizedQuery, normalizedQuery, normalizedQuery],
+    );
+
+    return rows.map(mapLocalItemToAppItem);
+  },
+
   async savePendingVerification(
     payload: CreateCountLinePayload,
   ): Promise<void> {

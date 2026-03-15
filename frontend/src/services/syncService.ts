@@ -10,6 +10,7 @@ import {
 import { syncBatch, isOnline } from "./api/api";
 import { useNetworkStore } from "../store/networkStore";
 import { useAuthStore } from "../store/authStore";
+import { useSettingsStore } from "../store/settingsStore";
 import { createLogger } from "./logging";
 
 const log = createLogger("syncService");
@@ -39,6 +40,16 @@ export const initializeSyncService = () => {
     networkReady = state.isOnline;
 
     if (state.isOnline && !wasOnline) {
+      const settings = useSettingsStore.getState().settings;
+      if (
+        settings.offlineMode ||
+        !settings.autoSyncEnabled ||
+        !settings.syncOnReconnect
+      ) {
+        log.debug("Reconnect sync disabled by user settings");
+        return;
+      }
+
       log.debug("Network came online, scheduling sync");
 
       setTimeout(() => {
@@ -83,6 +94,12 @@ export const syncOfflineQueue = async (
 
   if (!isOnline()) {
     log.debug("Offline, skipping sync");
+    return { success: 0, failed: 0, total: 0, errors: [] };
+  }
+
+  const settings = useSettingsStore.getState().settings;
+  if (options?.background && (settings.offlineMode || !settings.autoSyncEnabled)) {
+    log.debug("Background sync disabled by user settings");
     return { success: 0, failed: 0, total: 0, errors: [] };
   }
 

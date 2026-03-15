@@ -9,6 +9,7 @@ import Notifications, {
   SchedulableTriggerInputTypes,
 } from "expo-notifications";
 import { errorReporter } from "./errorRecovery";
+import { useSettingsStore } from "../../store/settingsStore";
 
 export interface NotificationOptions {
   title: string;
@@ -51,12 +52,17 @@ export class NotificationService {
 
       // Configure notification handler
       Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldPlaySound: true,
-          shouldSetBadge: true,
+        handleNotification: async () => {
+          const settings = useSettingsStore.getState().settings;
+          return {
+            shouldPlaySound:
+              settings.notificationsEnabled && settings.notificationSound,
+            shouldSetBadge:
+              settings.notificationsEnabled && settings.notificationBadge,
           shouldShowBanner: true,
           shouldShowList: true,
-        }),
+          };
+        },
       });
 
       this.initialized = true;
@@ -70,6 +76,11 @@ export class NotificationService {
    */
   static async showNotification(options: NotificationOptions) {
     try {
+      const settings = useSettingsStore.getState().settings;
+      if (!settings.notificationsEnabled) {
+        return;
+      }
+
       await this.initialize();
 
       await Notifications.scheduleNotificationAsync({
@@ -77,8 +88,8 @@ export class NotificationService {
           title: options.title,
           body: options.body,
           data: options.data,
-          sound: options.sound !== false,
-          badge: options.badge,
+          sound: options.sound !== false && settings.notificationSound,
+          badge: settings.notificationBadge ? options.badge : undefined,
           priority: options.priority || "default",
         },
         trigger: null, // Show immediately
@@ -93,9 +104,14 @@ export class NotificationService {
    */
   static async scheduleNotification(
     options: NotificationOptions,
-    trigger: Date | { seconds: number },
-  ) {
+    trigger: Date | { seconds: number; repeats?: boolean },
+  ): Promise<string | null> {
     try {
+      const settings = useSettingsStore.getState().settings;
+      if (!settings.notificationsEnabled) {
+        return null;
+      }
+
       await this.initialize();
 
       const triggerValue = (
@@ -104,20 +120,22 @@ export class NotificationService {
           : {
               type: SchedulableTriggerInputTypes.TIME_INTERVAL,
               seconds: trigger.seconds,
+              repeats: trigger.repeats ?? false,
             }
       ) as NotificationTriggerInput;
 
-      await Notifications.scheduleNotificationAsync({
+      return await Notifications.scheduleNotificationAsync({
         content: {
           title: options.title,
           body: options.body,
           data: options.data,
-          sound: options.sound !== false,
+          sound: options.sound !== false && settings.notificationSound,
         },
         trigger: triggerValue,
       });
     } catch (error) {
       errorReporter.report(error, "NotificationService.scheduleNotification");
+      return null;
     }
   }
 
@@ -148,7 +166,8 @@ export class NotificationService {
    */
   static async setBadgeCount(count: number) {
     try {
-      if (Platform.OS === "ios") {
+      const settings = useSettingsStore.getState().settings;
+      if (Platform.OS === "ios" && settings.notificationBadge) {
         await Notifications.setBadgeCountAsync(count);
       }
     } catch (error) {

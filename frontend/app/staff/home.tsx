@@ -3,7 +3,7 @@
  * Dashboard for managing stock verification sessions
  */
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
   KeyboardAvoidingView,
   BackHandler,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ import Animated, { FadeInDown, FadeInUp } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAuthStore } from "../../src/store/authStore";
+import { useNotificationStore } from "../../src/store/notificationStore";
 import { useScanSessionStore } from "../../src/store/scanSessionStore";
 import { useSessionsQuery } from "../../src/hooks/useSessionsQuery";
 import {
@@ -143,6 +144,10 @@ const StaffHome = React.memo(function StaffHome() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { user, logout } = useAuthStore();
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const fetchUnreadCount = useNotificationStore(
+    (state) => state.fetchUnreadCount,
+  );
 
   // Check for PIN setup
   useEffect(() => {
@@ -187,6 +192,12 @@ const StaffHome = React.memo(function StaffHome() {
 
     return () => backHandler.remove();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void fetchUnreadCount();
+    }, [fetchUnreadCount]),
+  );
 
   // State
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -367,6 +378,9 @@ const StaffHome = React.memo(function StaffHome() {
       const session = await createSession({
         warehouse: warehouseName,
         type: "STANDARD",
+        location_type: locationType,
+        location_name: selectedFloor,
+        rack_no: trimmedRack.toUpperCase(),
       });
       const sessionId = session?.id || session?._id || session?.session_id;
       if (!sessionId) {
@@ -570,6 +584,27 @@ const StaffHome = React.memo(function StaffHome() {
       <ModernHeader
         title="Dashboard"
         subtitle={`Welcome, ${user?.username || "Staff"}`}
+        rightComponent={
+          <TouchableOpacity
+            style={styles.headerIconButton}
+            onPress={() => router.push("/notifications" as any)}
+            accessibilityRole="button"
+            accessibilityLabel={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
+          >
+            <Ionicons
+              name={unreadCount > 0 ? "notifications" : "notifications-outline"}
+              size={22}
+              color={colors.gray[700]}
+            />
+            {unreadCount > 0 ? (
+              <View style={styles.notificationBadge}>
+                <Text style={styles.notificationBadgeText}>
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        }
         rightAction={{
           icon: "log-out-outline",
           onPress: () => {
@@ -813,6 +848,33 @@ const styles = StyleSheet.create({
   },
   chevron: {
     marginLeft: spacing.sm,
+  },
+  headerIconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: borderRadius.full,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.xs,
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 18,
+    height: 18,
+    borderRadius: borderRadius.full,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.error[500],
+    borderWidth: 2,
+    borderColor: colors.white,
+  },
+  notificationBadgeText: {
+    color: colors.white,
+    fontSize: 9,
+    fontWeight: typography.fontWeight.bold,
   },
   sessionStats: {
     flexDirection: "row",

@@ -33,4 +33,4 @@ npm run update-ip
 # Clear caches and start
 rm -rf .metro-cache node_modules/.cache ~/.expo/cache .expo 2>/dev/null || true
 
-npx expo start --web --clear
+npx expo start --go --clear

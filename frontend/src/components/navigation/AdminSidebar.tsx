@@ -26,160 +26,7 @@ import {
   typography,
   breakpoints,
 } from "../../styles/globalStyles";
-
-interface SidebarItem {
-  key: string;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  route: string;
-  badge?: number;
-}
-
-interface SidebarGroup {
-  title: string;
-  items: SidebarItem[];
-}
-
-const ADMIN_GROUPS: SidebarGroup[] = [
-  {
-    title: "Overview",
-    items: [
-      {
-        key: "dashboard",
-        label: "Dashboard",
-        icon: "grid",
-        route: "/admin/dashboard-web",
-      },
-      {
-        key: "sessions",
-        label: "Sessions",
-        icon: "cube",
-        route: "/supervisor/sessions",
-      },
-    ],
-  },
-  {
-    title: "Administration",
-    items: [
-      {
-        key: "users",
-        label: "Users",
-        icon: "people",
-        route: "/admin/users",
-      },
-      {
-        key: "permissions",
-        label: "Permissions",
-        icon: "shield",
-        route: "/admin/permissions",
-      },
-      {
-        key: "security",
-        label: "Security",
-        icon: "lock-closed",
-        route: "/admin/security",
-      },
-    ],
-  },
-  {
-    title: "Monitoring",
-    items: [
-      {
-        key: "user-workflows",
-        label: "User Workflows",
-        icon: "git-network",
-        route: "/supervisor/user-workflows",
-      },
-      {
-        key: "live-view",
-        label: "Live View",
-        icon: "pulse",
-        route: "/admin/realtime-dashboard",
-      },
-      {
-        key: "activity-logs",
-        label: "Activity Logs",
-        icon: "list",
-        route: "/supervisor/activity-logs",
-      },
-      {
-        key: "error-logs",
-        label: "Error Logs",
-        icon: "warning",
-        route: "/supervisor/error-logs",
-      },
-      {
-        key: "sync-conflicts",
-        label: "Sync Conflicts",
-        icon: "sync",
-        route: "/supervisor/sync-conflicts",
-      },
-    ],
-  },
-  {
-    title: "System",
-    items: [
-      {
-        key: "unknown-items",
-        label: "Unknown Items",
-        icon: "help-circle-outline",
-        route: "/admin/unknown-items",
-      },
-      {
-        key: "sql-config",
-        label: "SQL Config",
-        icon: "server",
-        route: "/admin/sql-config",
-      },
-      {
-        key: "logs",
-        label: "System Logs",
-        icon: "journal",
-        route: "/admin/logs",
-      },
-      {
-        key: "ai-assistant",
-        label: "AI Assistant",
-        icon: "chatbubble-ellipses",
-        route: "/admin/ai-assistant",
-      },
-    ],
-  },
-  {
-    title: "Exports",
-    items: [
-      {
-        key: "export-schedules",
-        label: "Export Schedules",
-        icon: "calendar",
-        route: "/supervisor/export-schedules",
-      },
-      {
-        key: "export-results",
-        label: "Export Results",
-        icon: "document",
-        route: "/supervisor/export-results",
-      },
-    ],
-  },
-  {
-    title: "Settings",
-    items: [
-      {
-        key: "settings",
-        label: "Settings",
-        icon: "settings",
-        route: "/admin/settings",
-      },
-      {
-        key: "db-mapping",
-        label: "DB Mapping",
-        icon: "server",
-        route: "/supervisor/db-mapping",
-      },
-    ],
-  },
-];
+import { ADMIN_NAV_GROUPS, AdminNavItem } from "./adminNavShared";
 
 interface AdminSidebarProps {
   collapsed?: boolean;
@@ -190,7 +37,7 @@ interface AdminSidebarProps {
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   collapsed = false,
-  onToggleCollapse: _onToggleCollapse,
+  onToggleCollapse,
   style,
   testID,
 }) => {
@@ -202,7 +49,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const isMobile = width < breakpoints.tablet;
 
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
-    new Set(ADMIN_GROUPS.map((g) => g.title)),
+    new Set(ADMIN_NAV_GROUPS.map((group) => group.title)),
   );
 
   const currentRoute = segments.join("/");
@@ -213,7 +60,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     );
   };
 
-  const handleItemPress = (item: SidebarItem) => {
+  const handleItemPress = (item: AdminNavItem) => {
     if (item.route.startsWith("http")) {
       Linking.openURL(item.route);
       return;
@@ -238,13 +85,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   const sidebarWidth = collapsed
     ? layout.sidebarCollapsedWidth
     : layout.sidebarWidth;
+  const panelBackground = theme.colors.surfaceElevated || theme.colors.surface;
+  const subtleBorder = theme.colors.borderLight || theme.colors.border;
+  const activeBackground =
+    theme.colors.overlayPrimary || "rgba(76, 175, 80, 0.14)";
 
   if (isMobile && !collapsed) {
     return null;
   }
 
   return (
-    <View style={styles.outerContainer}>
+    <View style={[styles.outerContainer, { width: sidebarWidth }]}>
       <BlurView
         intensity={collapsed ? 0 : 40}
         tint="dark"
@@ -265,6 +116,68 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
         >
+          <View
+            style={[
+              styles.brandSection,
+              {
+                borderBottomColor: subtleBorder,
+                backgroundColor: panelBackground,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.brandBadge,
+                { backgroundColor: activeBackground, borderColor: subtleBorder },
+              ]}
+            >
+              <Ionicons
+                name="shield-checkmark-outline"
+                size={collapsed ? 20 : 18}
+                color={theme.colors.primary}
+              />
+            </View>
+
+            {!collapsed && (
+              <View style={styles.brandCopy}>
+                <Text style={[styles.brandTitle, { color: theme.colors.text }]}>
+                  Admin Control
+                </Text>
+                <Text
+                  style={[
+                    styles.brandSubtitle,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  System oversight and control
+                </Text>
+              </View>
+            )}
+
+            {onToggleCollapse && (
+              <TouchableOpacity
+                style={[
+                  styles.collapseButton,
+                  { backgroundColor: activeBackground, borderColor: subtleBorder },
+                ]}
+                onPress={onToggleCollapse}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  collapsed ? "Expand admin sidebar" : "Collapse admin sidebar"
+                }
+              >
+                <Ionicons
+                  name={
+                    collapsed ? "chevron-forward-outline" : "chevron-back-outline"
+                  }
+                  size={18}
+                  color={theme.colors.text}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+
           {/* User Profile Section */}
           {!collapsed && (
             <View
@@ -300,7 +213,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           )}
 
           {/* Navigation Groups */}
-          {ADMIN_GROUPS.map((group) => {
+          {ADMIN_NAV_GROUPS.map((group) => {
             const isExpanded = expandedGroups.has(group.title);
 
             return (
@@ -426,6 +339,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 const styles = StyleSheet.create({
   outerContainer: {
     height: "100%",
+    flexShrink: 0,
     zIndex: 100,
   },
   container: {
@@ -443,6 +357,42 @@ const styles = StyleSheet.create({
   } as any,
   scrollView: {
     flex: 1,
+  },
+  brandSection: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderRadius: 16,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  brandBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  brandCopy: {
+    flex: 1,
+  },
+  brandTitle: {
+    ...typography.bodyMedium,
+    fontWeight: "700",
+  },
+  brandSubtitle: {
+    ...typography.caption,
+    marginTop: 2,
+  },
+  collapseButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   profileSection: {
     flexDirection: "row",

@@ -36,6 +36,7 @@ import {
   GlassCard,
   AnimatedPressable,
 } from "../../src/components/ui";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { theme } from "../../src/styles/modernDesignSystem";
 import { toastService } from "../../src/services/utils/toastService";
 
@@ -47,6 +48,7 @@ const getLocalFileUri = (filename: string) => {
 
 export default function VariancesScreen() {
   const router = useRouter();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [variances, setVariances] = useState<VarianceItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -96,6 +98,13 @@ export default function VariancesScreen() {
           text: "Confirm",
           style: action === "reject" ? "destructive" : "default",
           onPress: async () => {
+            if (offlineMode) {
+              Alert.alert(
+                "Offline Mode",
+                "Bulk variance actions require a live connection.",
+              );
+              return;
+            }
             try {
               setLoading(true);
               const ids = Array.from(selectedIds);
@@ -131,6 +140,16 @@ export default function VariancesScreen() {
           setPagination((prev) => ({ ...prev, skip: 0 }));
         }
 
+        if (offlineMode) {
+          setVariances([]);
+          setPagination((prev) => ({
+            ...prev,
+            total: 0,
+            skip: 0,
+          }));
+          return;
+        }
+
         const skip = reset ? 0 : pagination.skip;
         const response = await ItemVerificationAPI.getVariances({
           category: filters.category,
@@ -155,7 +174,7 @@ export default function VariancesScreen() {
         setRefreshing(false);
       }
     },
-    [filters, pagination.limit, pagination.skip],
+    [filters, offlineMode, pagination.limit, pagination.skip],
   );
 
   useEffect(() => {
@@ -170,6 +189,10 @@ export default function VariancesScreen() {
   };
 
   const handleLoadMore = () => {
+    if (offlineMode) {
+      return;
+    }
+
     if (!loading && pagination.skip + pagination.limit < pagination.total) {
       setPagination((prev) => ({
         ...prev,
@@ -181,6 +204,14 @@ export default function VariancesScreen() {
 
   const handleExportCSV = async () => {
     try {
+      if (offlineMode) {
+        Alert.alert(
+          "Offline Mode",
+          "Variance exports require a live connection.",
+        );
+        return;
+      }
+
       if (variances.length === 0) {
         Alert.alert("No Data", "There are no variances to export");
         return;
@@ -489,16 +520,42 @@ export default function VariancesScreen() {
           </GlassCard>
         </Animated.View>
 
+        {offlineMode && (
+          <GlassCard
+            intensity={10}
+            padding={theme.spacing.sm}
+            style={{ marginBottom: theme.spacing.md }}
+          >
+            <Text style={styles.offlineNoticeTitle}>Offline mode enabled</Text>
+            <Text style={styles.offlineNoticeBody}>
+              Variance review, bulk approve/reject, and exports require a live
+              connection because discrepancy data is not cached locally.
+            </Text>
+          </GlassCard>
+        )}
+
         {variances.length === 0 && !loading ? (
           <View style={styles.centered}>
             <Ionicons
-              name="checkmark-done-circle-outline"
+              name={
+                offlineMode
+                  ? "cloud-offline-outline"
+                  : "checkmark-done-circle-outline"
+              }
               size={64}
-              color={theme.colors.success.main}
+              color={
+                offlineMode
+                  ? theme.colors.text.tertiary
+                  : theme.colors.success.main
+              }
             />
-            <Text style={styles.emptyText}>No variances found</Text>
+            <Text style={styles.emptyText}>
+              {offlineMode ? "Variance list unavailable offline" : "No variances found"}
+            </Text>
             <Text style={styles.emptySubtext}>
-              All items match system quantities
+              {offlineMode
+                ? "Reconnect to review discrepancies and approve or reject them."
+                : "All items match system quantities"}
             </Text>
           </View>
         ) : (
@@ -762,5 +819,16 @@ const styles = StyleSheet.create({
     color: "white",
     fontWeight: "bold",
     fontSize: 16,
+  },
+  offlineNoticeTitle: {
+    color: theme.colors.text.primary,
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  offlineNoticeBody: {
+    color: theme.colors.text.secondary,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

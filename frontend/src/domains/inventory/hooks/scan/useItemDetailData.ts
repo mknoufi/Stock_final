@@ -6,8 +6,10 @@ import {
   getItemByBarcode,
   searchItems,
 } from "@/services/api/api";
+import { localDb } from "@/db/localDb";
 import apiClient from "@/services/httpClient";
 import { RecentItemsService } from "@/services/enhancedFeatures";
+import { useSettingsStore } from "@/store/settingsStore";
 import { toastService } from "@/services/utils/toastService";
 import { Item } from "@/types/scan";
 import { getStockQty, sortItemsByStockDesc } from "@/utils/itemBatchUtils";
@@ -41,6 +43,7 @@ export const useItemDetailData = ({
   onMrpChange,
   onQuantityChange,
 }: UseItemDetailDataParams) => {
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [loading, setLoading] = useState(false);
   const [item, setItem] = useState<ItemDetailItem | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -107,15 +110,24 @@ export const useItemDetailData = ({
 
     setLoading(true);
     try {
-      const itemData = (await getItemByBarcode(
-        barcode,
-        3,
-        sessionId || undefined,
-        currentRack || undefined,
-      )) as ItemDetailItem | null;
+      const itemData = offlineMode
+        ? ((await localDb.getItemByBarcode(
+            barcode,
+          )) as ItemDetailItem | null)
+        : ((await getItemByBarcode(
+          barcode,
+          3,
+          sessionId || undefined,
+          currentRack || undefined,
+        )) as ItemDetailItem | null);
 
       if (!itemData) {
-        Alert.alert("Error", "Item not found");
+        Alert.alert(
+          "Error",
+          offlineMode
+            ? "Offline mode is enabled, and this item is not available in local cache."
+            : "Item not found",
+        );
         onBackPress();
         return;
       }
@@ -123,7 +135,7 @@ export const useItemDetailData = ({
       setItem(itemData);
       applyInitialMrpState(itemData);
 
-      if (sessionId) {
+      if (sessionId && !offlineMode) {
         try {
           const scanStatus = await checkItemScanStatus(
             sessionId,
@@ -151,6 +163,12 @@ export const useItemDetailData = ({
         itemData.item_code || barcode,
         itemData,
       );
+
+      if (offlineMode) {
+        toastService.show("Offline mode enabled: showing cached item data", {
+          type: "info",
+        });
+      }
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to load item");
       onBackPress();
@@ -169,6 +187,10 @@ export const useItemDetailData = ({
 
   const handleRefreshStock = useCallback(async () => {
     if (!item?.barcode && !barcode) return;
+    if (offlineMode) {
+      toastService.show("Offline mode is enabled", { type: "warning" });
+      return;
+    }
 
     setIsRefreshing(true);
     try {
@@ -194,7 +216,7 @@ export const useItemDetailData = ({
     } finally {
       setIsRefreshing(false);
     }
-  }, [barcode, item]);
+  }, [barcode, item, offlineMode]);
 
   useEffect(() => {
     void loadItem();
@@ -212,6 +234,15 @@ export const useItemDetailData = ({
       setBatchError(null);
 
       try {
+        if (offlineMode) {
+          const fallbackQuery =
+            item.item_code || item.item_name || item.name || item.barcode || "";
+          const localVariants = await localDb.searchItems(fallbackQuery);
+          setRawVariants(localVariants as ItemDetailItem[]);
+          setBatchError("Batch data unavailable while offline mode is enabled.");
+          return;
+        }
+
         const response = await apiClient.get(
           `/api/item-batches/${encodeURIComponent(item.item_code)}`,
         );
@@ -236,20 +267,26 @@ export const useItemDetailData = ({
       } catch (error) {
         console.warn("Failed to load batches:", error);
         try {
-          const results = await searchItems(item.item_code);
+          const results = offlineMode
+            ? { items: await localDb.searchItems(item.item_code) }
+            : await searchItems(item.item_code);
           setRawVariants((results.items || []) as ItemDetailItem[]);
         } catch (fallbackError) {
           console.warn("Batch fallback search failed:", fallbackError);
           setRawVariants([]);
         }
-        setBatchError("Batch data unavailable while ERP is offline.");
+        setBatchError(
+          offlineMode
+            ? "Batch data unavailable while offline mode is enabled."
+            : "Batch data unavailable while ERP is offline.",
+        );
       } finally {
         setBatchLoading(false);
       }
     };
 
     void loadVariants();
-  }, [item]);
+  }, [item, offlineMode]);
 
   return {
     batchError,

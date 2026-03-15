@@ -17,6 +17,7 @@ import { spacing, typography, layout as _layout } from "@/styles/globalStyles";
 import { useTheme } from "@/hooks/useTheme";
 import axios from "axios";
 import { useAuthStore } from "@/store/authStore";
+import { useSettingsStore } from "@/store/settingsStore";
 
 interface Message {
     id: string;
@@ -28,6 +29,7 @@ interface Message {
 export default function AIAssistantScreen() {
     const theme = useTheme();
     const { user: _user } = useAuthStore();
+    const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
     const [messages, setMessages] = useState<Message[]>([
         {
             id: "1",
@@ -42,10 +44,19 @@ export default function AIAssistantScreen() {
     const scrollViewRef = useRef<ScrollView>(null);
 
     useEffect(() => {
+        if (offlineMode) {
+            setStatus("offline");
+            return;
+        }
         checkStatus();
-    }, []);
+    }, [offlineMode]);
 
     const checkStatus = async () => {
+        if (offlineMode) {
+            setStatus("offline");
+            return;
+        }
+
         try {
             const response = await axios.get("/api/pi/status");
             setStatus(response.data.active ? "online" : "offline");
@@ -55,7 +66,7 @@ export default function AIAssistantScreen() {
     };
 
     const handleSend = async () => {
-        if (!inputText.trim() || isLoading) return;
+        if (!inputText.trim() || isLoading || offlineMode) return;
 
         const userMessage: Message = {
             id: Date.now().toString(),
@@ -124,10 +135,19 @@ export default function AIAssistantScreen() {
                         ]}
                     />
                     <Text style={[styles.statusText, { color: theme.colors.textSecondary }]}>
-                        AI Sidecar: {status.charAt(0).toUpperCase() + status.slice(1)}
+                        AI Sidecar: {offlineMode ? "Offline mode enabled" : status.charAt(0).toUpperCase() + status.slice(1)}
                     </Text>
                 </View>
             </View>
+
+            {offlineMode && (
+                <View style={[styles.offlineNotice, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+                    <Ionicons name="cloud-offline-outline" size={18} color={theme.colors.primary} />
+                    <Text style={[styles.offlineNoticeText, { color: theme.colors.textSecondary }]}>
+                        AI chat is disabled while offline mode is enabled. Reconnect to send messages to the sidecar service.
+                    </Text>
+                </View>
+            )}
 
             <ScrollView
                 ref={scrollViewRef}
@@ -191,16 +211,20 @@ export default function AIAssistantScreen() {
             >
                 <TextInput
                     style={[styles.input, { color: theme.colors.text, backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}
-                    placeholder="Ask something..."
+                    placeholder={offlineMode ? "AI chat unavailable offline" : "Ask something..."}
                     placeholderTextColor={theme.colors.textSecondary}
                     value={inputText}
                     onChangeText={setInputText}
                     multiline
+                    editable={!offlineMode}
                 />
                 <TouchableOpacity
-                    style={[styles.sendButton, { backgroundColor: theme.colors.primary }]}
+                    style={[
+                        styles.sendButton,
+                        { backgroundColor: offlineMode ? theme.colors.border : theme.colors.primary }
+                    ]}
                     onPress={handleSend}
-                    disabled={isLoading || !inputText.trim()}
+                    disabled={offlineMode || isLoading || !inputText.trim()}
                 >
                     <Ionicons name="send" size={20} color="#FFFFFF" />
                 </TouchableOpacity>
@@ -217,6 +241,19 @@ const styles = StyleSheet.create({
         padding: spacing.sm,
         borderBottomWidth: 1,
         alignItems: "center",
+    },
+    offlineNotice: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderBottomWidth: 1,
+    },
+    offlineNoticeText: {
+        flex: 1,
+        fontSize: 12,
+        lineHeight: 18,
     },
     statusRow: {
         flexDirection: "row",

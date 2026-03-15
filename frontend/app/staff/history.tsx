@@ -183,7 +183,7 @@ export default function HistoryScreen() {
           </Text>
           <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
             <Text style={styles.statusText}>
-              (normalizedStatus || "pending").toUpperCase()
+              {(normalizedStatus || "pending").toUpperCase()}
             </Text>
           </View>
         </View>

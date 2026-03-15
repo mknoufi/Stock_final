@@ -15,17 +15,22 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
 import { AppearanceSettings } from "../../src/components/ui/AppearanceSettings";
-import { UserSettingsSections } from "../../src/components/settings";
+import {
+  SettingsSyncStatus,
+  UserSettingsSections,
+} from "../../src/components/settings";
 import { ScreenContainer } from "../../src/components/ui";
 import {
   getSystemSettings,
   updateSystemSettings,
 } from "../../src/services/api";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 
 export default function MasterSettingsScreen() {
   const router = useRouter();
   const { hasRole } = usePermission();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState<any>(null);
@@ -40,9 +45,15 @@ export default function MasterSettingsScreen() {
       return;
     }
     loadSettings();
-  }, [hasRole, router]);
+  }, [hasRole, offlineMode, router]);
 
   const loadSettings = async () => {
+    if (offlineMode) {
+      setSettings(null);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await getSystemSettings();
@@ -59,6 +70,14 @@ export default function MasterSettingsScreen() {
   };
 
   const handleSave = async () => {
+    if (offlineMode) {
+      Alert.alert(
+        "Offline Mode",
+        "System settings require a live connection to save.",
+      );
+      return;
+    }
+
     try {
       setSaving(true);
       const response = await updateSystemSettings(settings);
@@ -153,8 +172,8 @@ export default function MasterSettingsScreen() {
           customRightContent: (
             <TouchableOpacity
               onPress={handleSave}
-              style={styles.saveButton}
-              disabled={saving}
+              style={[styles.saveButton, offlineMode && styles.disabledButton]}
+              disabled={offlineMode || saving}
             >
               {saving ? (
                 <ActivityIndicator size="small" color="#fff" />
@@ -186,8 +205,8 @@ export default function MasterSettingsScreen() {
         customRightContent: (
           <TouchableOpacity
             onPress={handleSave}
-            style={styles.saveButton}
-            disabled={saving}
+            style={[styles.saveButton, offlineMode && styles.disabledButton]}
+            disabled={offlineMode || saving}
           >
             {saving ? (
               <ActivityIndicator size="small" color="#fff" />
@@ -206,6 +225,8 @@ export default function MasterSettingsScreen() {
             These preferences are saved automatically for your account. The
             page save button below only applies to system parameters.
           </Text>
+          <SettingsSyncStatus />
+          <View style={styles.personalPreferencesSpacer} />
           <AppearanceSettings
             showTitle={false}
             scrollable={false}
@@ -228,122 +249,127 @@ export default function MasterSettingsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* API Settings */}
-        <View style={styles.section}>
-          {renderSectionHeader("API Configuration", "globe-outline")}
-          {renderInput(
-            "API Timeout (seconds)",
-            "api_timeout",
-            "numeric",
-            "Request timeout duration",
-          )}
-          {renderInput(
-            "Rate Limit (per minute)",
-            "api_rate_limit",
-            "numeric",
-            "Maximum requests per minute",
-          )}
-        </View>
+        {offlineMode ? (
+          <View style={styles.section}>
+            {renderSectionHeader("System Parameters", "cloud-offline-outline")}
+            <Text style={styles.sectionDescription}>
+              System-level admin settings are loaded from the backend and cannot
+              be reviewed or changed while offline mode is enabled. Your
+              personal app preferences above still work normally.
+            </Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.section}>
+              {renderSectionHeader("API Configuration", "globe-outline")}
+              {renderInput(
+                "API Timeout (seconds)",
+                "api_timeout",
+                "numeric",
+                "Request timeout duration",
+              )}
+              {renderInput(
+                "Rate Limit (per minute)",
+                "api_rate_limit",
+                "numeric",
+                "Maximum requests per minute",
+              )}
+            </View>
 
-        {/* Cache Settings */}
-        <View style={styles.section}>
-          {renderSectionHeader("Caching", "hardware-chip-outline")}
-          {renderSwitch("Enable Caching", "cache_enabled")}
-          {renderInput(
-            "Cache TTL (seconds)",
-            "cache_ttl",
-            "numeric",
-            "Time to live for cached items",
-          )}
-          {renderInput(
-            "Max Cache Size",
-            "cache_max_size",
-            "numeric",
-            "Maximum number of items in cache",
-          )}
-        </View>
+            <View style={styles.section}>
+              {renderSectionHeader("Caching", "hardware-chip-outline")}
+              {renderSwitch("Enable Caching", "cache_enabled")}
+              {renderInput(
+                "Cache TTL (seconds)",
+                "cache_ttl",
+                "numeric",
+                "Time to live for cached items",
+              )}
+              {renderInput(
+                "Max Cache Size",
+                "cache_max_size",
+                "numeric",
+                "Maximum number of items in cache",
+              )}
+            </View>
 
-        {/* Sync Settings */}
-        <View style={styles.section}>
-          {renderSectionHeader("Synchronization", "sync-outline")}
-          {renderSwitch("Auto Sync", "auto_sync_enabled")}
-          {renderInput(
-            "Sync Interval (seconds)",
-            "sync_interval",
-            "numeric",
-            "Time between automatic syncs",
-          )}
-          {renderInput(
-            "Batch Size",
-            "sync_batch_size",
-            "numeric",
-            "Items per sync batch",
-          )}
-        </View>
+            <View style={styles.section}>
+              {renderSectionHeader("Synchronization", "sync-outline")}
+              {renderSwitch("Auto Sync", "auto_sync_enabled")}
+              {renderInput(
+                "Sync Interval (seconds)",
+                "sync_interval",
+                "numeric",
+                "Time between automatic syncs",
+              )}
+              {renderInput(
+                "Batch Size",
+                "sync_batch_size",
+                "numeric",
+                "Items per sync batch",
+              )}
+            </View>
 
-        {/* Session Settings */}
-        <View style={styles.section}>
-          {renderSectionHeader("Sessions", "people-outline")}
-          {renderInput(
-            "Session Timeout (seconds)",
-            "session_timeout",
-            "numeric",
-          )}
-          {renderInput(
-            "Max Concurrent Sessions",
-            "max_concurrent_sessions",
-            "numeric",
-          )}
-        </View>
+            <View style={styles.section}>
+              {renderSectionHeader("Sessions", "people-outline")}
+              {renderInput(
+                "Session Timeout (seconds)",
+                "session_timeout",
+                "numeric",
+              )}
+              {renderInput(
+                "Max Concurrent Sessions",
+                "max_concurrent_sessions",
+                "numeric",
+              )}
+            </View>
 
-        {/* Logging Settings */}
-        <View style={styles.section}>
-          {renderSectionHeader("Logging", "document-text-outline")}
-          {renderSwitch("Enable Audit Log", "enable_audit_log")}
-          {renderInput("Log Retention (days)", "log_retention_days", "numeric")}
-          {renderInput(
-            "Log Level",
-            "log_level",
-            "default",
-            "DEBUG, INFO, WARN, ERROR",
-          )}
-        </View>
+            <View style={styles.section}>
+              {renderSectionHeader("Logging", "document-text-outline")}
+              {renderSwitch("Enable Audit Log", "enable_audit_log")}
+              {renderInput("Log Retention (days)", "log_retention_days", "numeric")}
+              {renderInput(
+                "Log Level",
+                "log_level",
+                "default",
+                "DEBUG, INFO, WARN, ERROR",
+              )}
+            </View>
 
-        {/* Database Settings */}
-        <View style={styles.section}>
-          {renderSectionHeader("Database", "server-outline")}
-          {renderInput("MongoDB Pool Size", "mongo_pool_size", "numeric")}
-          {renderInput("SQL Pool Size", "sql_pool_size", "numeric")}
-          {renderInput("Query Timeout (seconds)", "query_timeout", "numeric")}
-        </View>
+            <View style={styles.section}>
+              {renderSectionHeader("Database", "server-outline")}
+              {renderInput("MongoDB Pool Size", "mongo_pool_size", "numeric")}
+              {renderInput("SQL Pool Size", "sql_pool_size", "numeric")}
+              {renderInput("Query Timeout (seconds)", "query_timeout", "numeric")}
+            </View>
 
-        {/* Security Settings */}
-        <View style={styles.section}>
-          {renderSectionHeader("Security", "shield-checkmark-outline")}
-          {renderInput("Min Password Length", "password_min_length", "numeric")}
-          {renderSwitch("Require Uppercase", "password_require_uppercase")}
-          {renderSwitch("Require Lowercase", "password_require_lowercase")}
-          {renderSwitch("Require Numbers", "password_require_numbers")}
-          {renderInput("JWT Expiration (seconds)", "jwt_expiration", "numeric")}
-        </View>
+            <View style={styles.section}>
+              {renderSectionHeader("Security", "shield-checkmark-outline")}
+              {renderInput("Min Password Length", "password_min_length", "numeric")}
+              {renderSwitch("Require Uppercase", "password_require_uppercase")}
+              {renderSwitch("Require Lowercase", "password_require_lowercase")}
+              {renderSwitch("Require Numbers", "password_require_numbers")}
+              {renderInput("JWT Expiration (seconds)", "jwt_expiration", "numeric")}
+            </View>
 
-        {/* Performance Settings */}
-        <View style={styles.section}>
-          {renderSectionHeader("Performance", "speedometer-outline")}
-          {renderSwitch("Enable Compression", "enable_compression")}
-          {renderSwitch("Enable CORS", "enable_cors")}
-          {renderInput(
-            "Max Request Size (bytes)",
-            "max_request_size",
-            "numeric",
-          )}
-        </View>
+            <View style={styles.section}>
+              {renderSectionHeader("Performance", "speedometer-outline")}
+              {renderSwitch("Enable Compression", "enable_compression")}
+              {renderSwitch("Enable CORS", "enable_cors")}
+              {renderInput(
+                "Max Request Size (bytes)",
+                "max_request_size",
+                "numeric",
+              )}
+            </View>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            Note: Some changes may require a system restart to take full effect.
-          </Text>
-        </View>
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>
+                Note: Some changes may require a system restart to take full effect.
+              </Text>
+            </View>
+          </>
+        )}
       </ScrollView>
     </ScreenContainer>
   );
@@ -366,6 +392,9 @@ const styles = StyleSheet.create({
     borderRadius: auroraTheme.borderRadius.full,
     minWidth: 70,
     alignItems: "center",
+  },
+  disabledButton: {
+    opacity: 0.5,
   },
   saveButtonText: {
     color: "#fff",

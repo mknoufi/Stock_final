@@ -140,11 +140,9 @@ jobs:
 
       - name: Security scan (Bandit)
         run: bandit -r backend/ -ll -ii --exclude "*/tests/*"
-        continue-on-error: true
 
       - name: Dependency vulnerability check
         run: safety check -r backend/requirements.production.txt --full-report
-        continue-on-error: true
 
   # ==========================================
   # Frontend Tests & Build
@@ -409,6 +407,17 @@ jobs:
           chmod +x scripts/deploy_remote_compose.sh
           ./scripts/deploy_remote_compose.sh
 
+      - name: Run staging post-deploy smoke
+        env:
+          SMOKE_HEALTH_URL: ${{ vars.DEPLOY_HEALTHCHECK_URL }}
+          SMOKE_BASE_URL: ${{ vars.DEPLOY_APP_BASE_URL }}
+          SMOKE_FRONTEND_URL: ${{ vars.DEPLOY_FRONTEND_URL }}
+          SMOKE_USERNAME: ${{ secrets.SMOKE_USERNAME }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+        run: |
+          chmod +x scripts/post_deploy_smoke.sh
+          ./scripts/post_deploy_smoke.sh
+
   # ==========================================
   # Deploy to Production (Manual Trigger)
   # ==========================================
@@ -449,6 +458,17 @@ jobs:
         run: |
           chmod +x scripts/deploy_remote_compose.sh
           ./scripts/deploy_remote_compose.sh
+
+      - name: Run production post-deploy smoke
+        env:
+          SMOKE_HEALTH_URL: ${{ vars.DEPLOY_HEALTHCHECK_URL }}
+          SMOKE_BASE_URL: ${{ vars.DEPLOY_APP_BASE_URL }}
+          SMOKE_FRONTEND_URL: ${{ vars.DEPLOY_FRONTEND_URL }}
+          SMOKE_USERNAME: ${{ secrets.SMOKE_USERNAME }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+        run: |
+          chmod +x scripts/post_deploy_smoke.sh
+          ./scripts/post_deploy_smoke.sh
 
       - name: Notify on success
         if: success()

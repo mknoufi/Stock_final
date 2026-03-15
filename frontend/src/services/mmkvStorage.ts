@@ -1,7 +1,14 @@
 import { createLogger } from "./logging";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorageDefault, {
+  type AsyncStorageStatic,
+} from "@react-native-async-storage/async-storage";
+import * as AsyncStorageModule from "@react-native-async-storage/async-storage";
 
 const log = createLogger("mmkvStorage");
+const AsyncStorage: AsyncStorageStatic =
+  AsyncStorageDefault ??
+  (AsyncStorageModule as unknown as { default?: AsyncStorageStatic }).default ??
+  (AsyncStorageModule as unknown as AsyncStorageStatic);
 
 // Use AsyncStorage with an in-memory cache for synchronous-like access.
 // react-native-mmkv v4 requires react-native-nitro-modules which cannot be
@@ -23,17 +30,19 @@ const LARGE_CACHE_KEYS = new Set([
   "offline_queue",
 ]);
 
-AsyncStorage.getAllKeys()
+Promise.resolve(
+  typeof AsyncStorage.getAllKeys === "function" ? AsyncStorage.getAllKeys() : []
+)
   .then((keys: readonly string[]) => {
     const smallKeys = (keys as string[]).filter((k) => !LARGE_CACHE_KEYS.has(k));
-    if (smallKeys.length > 0) {
+    if (smallKeys.length > 0 && typeof AsyncStorage.multiGet === "function") {
       return AsyncStorage.multiGet(smallKeys);
     }
     return [];
   })
   .then((pairs) => {
     if (pairs && pairs.length > 0) {
-      pairs.forEach(([key, value]) => {
+      pairs.forEach(([key, value]: readonly [string, string | null]) => {
         if (value) memoryCache.set(key, value);
       });
       log.info(`Hydrated ${pairs.length} keys from AsyncStorage`);
@@ -44,16 +53,24 @@ AsyncStorage.getAllKeys()
 const storage = {
   set: (key: string, value: string) => {
     memoryCache.set(key, value);
-    AsyncStorage.setItem(key, value).catch((e: any) => log.error("AsyncStorage set failed", e));
+    if (typeof AsyncStorage.setItem === "function") {
+      AsyncStorage.setItem(key, value).catch((e: any) => log.error("AsyncStorage set failed", e));
+    }
   },
   getString: (key: string) => memoryCache.get(key),
   remove: (key: string) => {
     memoryCache.delete(key);
-    AsyncStorage.removeItem(key).catch((e: any) => log.error("AsyncStorage remove failed", e));
+    if (typeof AsyncStorage.removeItem === "function") {
+      AsyncStorage.removeItem(key).catch((e: any) =>
+        log.error("AsyncStorage remove failed", e)
+      );
+    }
   },
   clearAll: () => {
     memoryCache.clear();
-    AsyncStorage.clear().catch((e: any) => log.error("AsyncStorage clear failed", e));
+    if (typeof AsyncStorage.clear === "function") {
+      AsyncStorage.clear().catch((e: any) => log.error("AsyncStorage clear failed", e));
+    }
   },
 };
 

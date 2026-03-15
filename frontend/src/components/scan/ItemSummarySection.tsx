@@ -3,6 +3,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
 
 import ModernCard from "@/components/ui/ModernCard";
+import { useSettingsStore } from "@/store/settingsStore";
 import { Item } from "@/types/scan";
 import {
   colors,
@@ -78,6 +79,7 @@ export function ItemSummarySection({
   showItemPrices,
   showItemStock,
 }: ItemSummarySectionProps) {
+  const imageCacheEnabled = useSettingsStore((state) => state.settings.imageCache);
   const sourceBadge = item._source ? getSourceBadgeStyle(item._source) : null;
   const bundleComponents = Array.isArray(item.components) ? item.components : [];
   const stockQty = item.current_stock ?? item.stock_qty ?? 0;
@@ -109,6 +111,7 @@ export function ItemSummarySection({
                 source={{ uri: item.image_url }}
                 style={styles.itemImage}
                 contentFit="cover"
+                cachePolicy={imageCacheEnabled ? "disk" : "none"}
                 transition={300}
               />
             ) : (

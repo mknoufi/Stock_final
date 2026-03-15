@@ -22,6 +22,7 @@ import {
   StatsCard,
   AnimatedPressable,
 } from "../../src/components/ui";
+import { useSettingsStore } from "../../src/store/settingsStore";
 import RecountAssignmentModal, {
   type AssignableStaffUser,
 } from "../../src/components/supervisor/RecountAssignmentModal";
@@ -32,6 +33,7 @@ export default function VarianceDetailsScreen() {
   const { itemCode } = useLocalSearchParams();
   const router = useRouter();
   const { show } = useToast();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [loading, setLoading] = useState(true);
   const [itemDetails, setItemDetails] = useState<any>(null);
   const [processing, setProcessing] = useState(false);
@@ -44,6 +46,11 @@ export default function VarianceDetailsScreen() {
   const loadDetails = useCallback(async () => {
     try {
       setLoading(true);
+      if (offlineMode) {
+        setItemDetails(null);
+        return;
+      }
+
       const response = await ItemVerificationAPI.getVariances({
         search: itemCode as string,
         limit: 1,
@@ -64,13 +71,17 @@ export default function VarianceDetailsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [itemCode, router, show]);
+  }, [itemCode, offlineMode, router, show]);
 
   useEffect(() => {
     loadDetails();
   }, [loadDetails]);
 
   const loadAssignableStaff = useCallback(async () => {
+    if (offlineMode) {
+      throw new Error("Recount assignment requires a live connection.");
+    }
+
     if (assignableStaff.length > 0) {
       return assignableStaff;
     }
@@ -89,6 +100,11 @@ export default function VarianceDetailsScreen() {
   }, [assignableStaff, show]);
 
   const handleApprove = async () => {
+    if (offlineMode) {
+      show("Variance approval requires a live connection", "warning");
+      return;
+    }
+
     if (Platform.OS !== "web")
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
@@ -131,6 +147,11 @@ export default function VarianceDetailsScreen() {
   };
 
   const handleOpenRecount = async () => {
+    if (offlineMode) {
+      show("Recount requests require a live connection", "warning");
+      return;
+    }
+
     if (Platform.OS !== "web") Haptics.selectionAsync();
     try {
       await loadAssignableStaff();
@@ -147,6 +168,11 @@ export default function VarianceDetailsScreen() {
     notes: string;
     assignTo?: string;
   }) => {
+    if (offlineMode) {
+      show("Recount requests require a live connection", "warning");
+      return;
+    }
+
     try {
       setProcessing(true);
       if (itemDetails?.count_line_id) {
@@ -199,7 +225,9 @@ export default function VarianceDetailsScreen() {
                 color={theme.colors.text.tertiary}
               />
               <Text style={{ color: theme.colors.text.secondary }}>
-                Item not found
+                {offlineMode
+                  ? "Variance details are unavailable in offline mode"
+                  : "Item not found"}
               </Text>
               <AnimatedPressable onPress={() => router.back()}>
                 <Text style={{ color: theme.colors.primary[500] }}>

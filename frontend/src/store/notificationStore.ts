@@ -2,6 +2,7 @@
  * Notification Store - Manages user notifications and unread count
  * Supports FR-M-23: Recount notifications
  */
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import {
@@ -109,7 +110,7 @@ export const useNotificationStore = create<NotificationState>()(
     }),
     {
       name: "notification-store",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         notifications: state.notifications.slice(0, 100), // Keep last 100
       }),

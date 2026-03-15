@@ -26,7 +26,11 @@ import {
   AnimatedPressable,
 } from "../../src/components/ui";
 import { theme } from "../../src/styles/modernDesignSystem";
-import { ChangePasswordModal, UserSettingsSections } from "../../src/components/settings";
+import {
+  ChangePasswordModal,
+  SettingsSyncStatus,
+  UserSettingsSections,
+} from "../../src/components/settings";
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -96,6 +100,10 @@ export default function SettingsScreen() {
               compact={true}
             />
           </View>
+        </Animated.View>
+
+        <Animated.View entering={FadeInDown.delay(250).springify()}>
+          <SettingsSyncStatus />
         </Animated.View>
 
         {/* User Preferences */}

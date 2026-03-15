@@ -7,7 +7,7 @@ load_dotenv()
 
 
 async def reset_session():
-    mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017/stock_count")
+    mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017/stock_verification")
     client = AsyncIOMotorClient(mongo_url)
     db = client.get_default_database()
 

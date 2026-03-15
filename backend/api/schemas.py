@@ -275,6 +275,9 @@ class BulkCountLineUpdate(BaseModel):
 class Session(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     warehouse: str
+    location_type: Optional[str] = None
+    location_name: Optional[str] = None
+    rack_no: Optional[str] = None
     staff_user: str
     staff_name: str
     status: str = "OPEN"  # OPEN, ACTIVE, CLOSED
@@ -323,6 +326,9 @@ class Session(BaseModel):
 class SessionCreate(BaseModel):
     warehouse: str
     type: Optional[str] = "STANDARD"
+    location_type: Optional[str] = None
+    location_name: Optional[str] = None
+    rack_no: Optional[str] = None
 
 
 class UnknownItem(BaseModel):

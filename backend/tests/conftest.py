@@ -18,8 +18,8 @@ os.environ.update(
     {
         "TESTING": "true",
         "APP_ENV": "test",
-        "MONGO_URL": "mongodb://localhost:27017/stock_count_test",
-        "DB_NAME": "stock_count_test",
+        "MONGO_URL": "mongodb://localhost:27017/stock_verification_test",
+        "DB_NAME": "stock_verification_test",
         "JWT_SECRET": "test-jwt-secret-key-for-testing-only",
         "JWT_REFRESH_SECRET": "test-jwt-refresh-secret-key-for-testing-only",
         "JWT_ALGORITHM": "HS256",

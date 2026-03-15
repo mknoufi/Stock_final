@@ -1,7 +1,7 @@
 """
 User Settings Migration Script
 
-Adds default user settings documents for users who do not have one yet.
+Ensures each user has a normalized user settings document.
 """
 
 import asyncio
@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
 
+from backend.api.user_settings_api import _build_user_settings
 from backend.core.schemas.user_settings import UserSettings
 from backend.db.runtime import get_db
 
@@ -36,6 +37,7 @@ async def migrate_user_settings(db: AsyncIOMotorDatabase) -> dict:
     stats = {
         "total_users": 0,
         "users_with_settings": 0,
+        "users_normalized": 0,
         "users_migrated": 0,
         "errors": 0,
     }
@@ -62,7 +64,24 @@ async def migrate_user_settings(db: AsyncIOMotorDatabase) -> dict:
 
                 if existing_settings:
                     stats["users_with_settings"] += 1
-                    logger.debug(f"User {username} already has settings")
+                    normalized_settings = _build_user_settings(existing_settings).model_dump()
+                    created_at = existing_settings.get("created_at") or datetime.now(
+                        timezone.utc
+                    ).replace(tzinfo=None)
+                    normalized_doc = {
+                        "user_id": user_id,
+                        **normalized_settings,
+                        "created_at": created_at,
+                        "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    }
+
+                    await settings_collection.replace_one(
+                        {"user_id": user_id},
+                        normalized_doc,
+                        upsert=True,
+                    )
+                    stats["users_normalized"] += 1
+                    logger.info(f"Normalized settings for user {username}")
                 else:
                     # Create default settings for user
                     settings_doc = {
@@ -82,6 +101,7 @@ async def migrate_user_settings(db: AsyncIOMotorDatabase) -> dict:
 
         logger.info(
             f"Migration complete: {stats['users_migrated']} users migrated, "
+            f"{stats['users_normalized']} normalized, "
             f"{stats['users_with_settings']} already had settings, "
             f"{stats['errors']} errors"
         )
@@ -115,6 +135,7 @@ async def run_migration():
             print("\n=== Migration Results ===")
             print(f"Total users: {stats['total_users']}")
             print(f"Already had settings: {stats['users_with_settings']}")
+            print(f"Normalized: {stats['users_normalized']}")
             print(f"Migrated: {stats['users_migrated']}")
             print(f"Errors: {stats['errors']}")
 

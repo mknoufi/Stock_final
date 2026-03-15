@@ -9,7 +9,7 @@ These rules help AI coding agents work productively and safely in this repo. Foc
   - **Sync**: Data flows `SQL Server -> MongoDB -> Frontend`.
 - **Backend**: FastAPI (Python 3.10+), Motor (Async Mongo), PyODBC (SQL).
 - **Frontend**: React Native (Expo 54), TypeScript, Zustand (State), Offline-first architecture.
-- **Network**: Backend auto-detects LAN IP; Frontend reads `backend_port.json` for connection.
+- **Network**: Production web prefers same-origin `/api`; development can use `EXPO_PUBLIC_BACKEND_URL` or nearby `8001+` backend probing.
 
 ## 🛠 Developer Workflows
 - **Startup**: Use `make start` for full stack. Individual: `make backend` (port 8001), `make frontend` (port 8081).
@@ -31,7 +31,7 @@ These rules help AI coding agents work productively and safely in this repo. Foc
   - **Normalization Layer**: `frontend/src/services/api/api.ts` maps backend snake_case to frontend camelCase. Update this when adding API fields.
   - **Offline**: Use `offlineStorage.ts` patterns. Check `isOnline()` before API calls.
 - **Auth**:
-  - JWT Bearer tokens required for `/api/*`.
+  - Native clients use Bearer tokens; web can use the cookie-based browser auth flow.
   - Use `current_user: dict = Depends(get_current_user)` dependency.
 
 ## 🧩 Integration Points

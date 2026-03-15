@@ -21,7 +21,6 @@ import * as Haptics from "expo-haptics";
 
 import { getSessions } from "../../src/services/api/api";
 import { ExportService } from "../../src/services/exportService";
-import { useAutoLogout } from "../../src/hooks/useAutoLogout";
 import { LogoutButton } from "../../src/components/LogoutButton";
 import {
   ScreenContainer,
@@ -34,11 +33,6 @@ export default function ExportReports() {
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
   const [exportType, setExportType] = React.useState<string | null>(null);
-  const { resetTimer } = useAutoLogout(true);
-
-  const handleInteraction = () => {
-    resetTimer();
-  };
 
   const handleExportStart = (type: string) => {
     if (Platform.OS !== "web")
@@ -227,7 +221,6 @@ export default function ExportReports() {
         <AnimatedPressable
           onPress={onPress}
           disabled={loading}
-          onPressIn={handleInteraction}
           style={{ marginBottom: theme.spacing.md }}
         >
           <GlassCard

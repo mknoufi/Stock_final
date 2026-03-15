@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   StyleSheet,
   Text,
@@ -26,6 +26,7 @@ interface ScanCameraOverlayProps {
   permission?: { granted?: boolean } | null;
   requestPermission: () => unknown | Promise<unknown>;
   scanned: boolean;
+  timeoutSeconds?: number;
 }
 
 export function ScanCameraOverlay({
@@ -36,7 +37,20 @@ export function ScanCameraOverlay({
   permission,
   requestPermission,
   scanned,
+  timeoutSeconds = 30,
 }: ScanCameraOverlayProps) {
+  useEffect(() => {
+    if (timeoutSeconds <= 0) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      onClose();
+    }, timeoutSeconds * 1000);
+
+    return () => clearTimeout(timer);
+  }, [onClose, timeoutSeconds]);
+
   if (!permission) {
     return <View />;
   }
@@ -116,7 +130,12 @@ export function ScanCameraOverlay({
 
               <Animated.View style={[styles.scanLine, animatedScanLine]} />
             </View>
-            <Text style={styles.scanInstruction}>Align barcode within frame</Text>
+            <Text style={styles.scanInstruction}>
+              Align barcode within frame
+            </Text>
+            <Text style={styles.scanTimeoutText}>
+              Scanner closes after {timeoutSeconds}s of inactivity
+            </Text>
           </View>
         </SafeAreaView>
       </CameraView>
@@ -220,6 +239,12 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: borderRadius.full,
     overflow: "hidden",
+  },
+  scanTimeoutText: {
+    color: "rgba(255,255,255,0.8)",
+    marginTop: spacing.md,
+    fontSize: typography.fontSize.xs,
+    fontWeight: "500",
   },
   permissionContainer: {
     flex: 1,

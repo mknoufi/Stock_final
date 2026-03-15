@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "@/hooks/useTheme";
+import { useSettingsStore } from "@/store/settingsStore";
 import { ItemVerificationAPI } from "@/domains/inventory/services/itemVerificationApi";
 import { getRackProgress } from "@/services/api/api";
 import { RackProgressCard } from "@/components/scan/RackProgressCard";
@@ -48,6 +49,7 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
   sessionId,
 }) => {
   const theme = useTheme();
+  const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
   const [filters, setFilters] = useState<FilterValues>(initialFilters);
   const [isExpanded, setIsExpanded] = useState(false);
   const [floors, setFloors] = useState<string[]>([]);
@@ -64,6 +66,12 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
 
   useEffect(() => {
     const loadLocations = async () => {
+      if (offlineMode) {
+        setFloors([]);
+        setRacks([]);
+        return;
+      }
+
       setLoadingLocations(true);
       try {
         const data = await ItemVerificationAPI.getLocations();
@@ -77,10 +85,10 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
     };
 
     loadLocations();
-  }, []);
+  }, [offlineMode]);
 
   const loadRackProgress = async () => {
-    if (!sessionId || loadingRacks) return;
+    if (!sessionId || loadingRacks || offlineMode) return;
     setLoadingRacks(true);
     try {
       const data = await getRackProgress(sessionId);
@@ -114,6 +122,9 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
   const hasActiveFilters = Object.keys(filters).length > 0;
 
   const openModal = (type: "floor" | "rack") => {
+    if (offlineMode) {
+      return;
+    }
     setModalType(type);
     setModalVisible(true);
     if (type === "rack" && sessionId) {
@@ -308,8 +319,10 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
                     flexDirection: "row",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    opacity: offlineMode ? 0.5 : 1,
                   },
                 ]}
+                disabled={offlineMode}
                 onPress={() => openModal("floor")}
               >
                 <Text
@@ -342,8 +355,10 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
                     flexDirection: "row",
                     justifyContent: "space-between",
                     alignItems: "center",
+                    opacity: offlineMode ? 0.5 : 1,
                   },
                 ]}
+                disabled={offlineMode}
                 onPress={() => openModal("rack")}
               >
                 <Text
@@ -363,6 +378,18 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
               </TouchableOpacity>
             </View>
           </View>
+
+          {offlineMode && (
+            <Text
+              style={[
+                styles.helperText,
+                { color: theme.colors.textSecondary },
+              ]}
+            >
+              Location filters require a live connection. Search and verification
+              status filters still work with cached data.
+            </Text>
+          )}
 
           {showVerifiedFilter && (
             <View style={styles.filterGroup}>
@@ -472,6 +499,11 @@ const styles = StyleSheet.create({
         elevation: 2,
       },
     }),
+  },
+  helperText: {
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 16,
   },
   header: {
     flexDirection: "row",

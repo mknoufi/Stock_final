@@ -7,6 +7,7 @@ describe("authStore.establishSession", () => {
   it("persists tokens, user, and last logged user metadata", async () => {
     const setItem = jest.fn(async () => undefined);
     const removeItem = jest.fn(async () => undefined);
+    const loadSettings = jest.fn(async () => undefined);
     const syncFromBackend = jest.fn();
 
     jest.doMock("../../services/storage/secureStorage", () => ({
@@ -34,6 +35,7 @@ describe("authStore.establishSession", () => {
       useSettingsStore: {
         getState: () => ({
           settings: { biometricAuth: false },
+          loadSettings,
           syncFromBackend,
         }),
       },
@@ -106,6 +108,7 @@ describe("authStore.establishSession", () => {
         has_pin: false,
       }),
     );
+    expect(loadSettings).toHaveBeenCalled();
     expect(syncFromBackend).toHaveBeenCalled();
     expect(state.isAuthenticated).toBe(true);
     expect(state.isInitialized).toBe(true);

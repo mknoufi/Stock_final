@@ -137,6 +137,11 @@ jest.mock("expo-haptics", () => ({
   selectionAsync: jest.fn(),
 }));
 
+// React Native Worklets 0.7+ requires its dedicated Jest mock before Reanimated.
+jest.mock("react-native-worklets", () =>
+  require("react-native-worklets/lib/module/mock")
+);
+
 // Mock react-native-reanimated
 jest.mock("react-native-reanimated", () => {
   const Reanimated = require("react-native-reanimated/mock");

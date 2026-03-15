@@ -1,6 +1,10 @@
 import React, { useEffect } from "react";
 import { useRouter, useSegments } from "expo-router";
 import { useAuthStore } from "../../store/authStore";
+import {
+  startNotificationPolling,
+  stopNotificationPolling,
+} from "../../store/notificationStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import {
   getRouteForRole,
@@ -13,6 +17,19 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { settings } = useSettingsStore();
   const segments = useSegments();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!user) {
+      stopNotificationPolling();
+      return;
+    }
+
+    startNotificationPolling();
+
+    return () => {
+      stopNotificationPolling();
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!isInitialized || isLoading || !segments?.length) return;
