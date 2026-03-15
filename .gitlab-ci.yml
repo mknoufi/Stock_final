@@ -163,10 +163,69 @@ pr-checks:
     - python -m pip install --upgrade pip
     - pip install -r backend/requirements.production.txt
     - pip install pytest pytest-asyncio httpx ruff
-    - bash scripts/check_repo_hygiene.sh || true
-    - python scripts/check_duplicate_routes.py || true
-    - cd backend && python -m pytest tests/governance -q || true
+    - bash scripts/check_repo_hygiene.sh
+    - python scripts/check_duplicate_routes.py
+    - cd backend && python -m pytest tests/governance -q
     - cd ..
-    - ruff check backend/ || true
+    - ruff check backend/
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# ==========================================
+# Frontend E2E (Smoke)
+# ==========================================
+frontend-e2e:
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.57.0-noble
+  services:
+    - name: mongo:6.0
+      alias: mongodb
+    - name: redis:7-alpine
+      alias: redis
+  variables:
+    MONGODB_URL: "mongodb://mongodb:27017/test_db"
+    REDIS_URL: "redis://redis:6379"
+    JWT_SECRET: "test-secret-key-for-ci-only"
+    JWT_REFRESH_SECRET: "test-refresh-secret-for-ci-only"
+    ENVIRONMENT: "test"
+    AUTO_SEED_DEFAULT_USERS: "true"
+    AUTO_SEED_MOCK_ERP_DATA: "true"
+    E2E_WEB_PORT: 8081
+    E2E_BASE_URL: "http://127.0.0.1:8081"
+    E2E_BACKEND_URL: "http://127.0.0.1:8001"
+  cache:
+    key: frontend-npm
+    paths:
+      - .cache/npm
+      - frontend/node_modules
+  before_script:
+    - apt-get update && apt-get install -y python3 python3-pip python3-venv curl
+    - python3 -m venv /opt/venv
+    - export PATH="/opt/venv/bin:$PATH"
+    - pip install --upgrade pip
+    - pip install -r backend/requirements.production.txt
+    - pip install -r backend/requirements.dev.txt
+    - cd frontend
+    - npm ci --cache ../.cache/npm --legacy-peer-deps
+    - npx playwright install chromium
+  script:
+    - echo "Starting backend server in background..."
+    - cd ../backend
+    - python -m uvicorn server:app --host 127.0.0.1 --port 8001 &
+    - |
+      echo "Waiting for backend healthcheck..."
+      for i in {1..30}; do
+        curl -sSf http://127.0.0.1:8001/health && echo "Backend is healthy!" && break
+        echo "Waiting... $i"
+        sleep 2
+        if [ $i -eq 30 ]; then
+          echo "Backend failed to start"
+          exit 1
+        fi
+      done
+    - cd ../frontend
+    - echo "Starting frontend server and running tests..."
+    - npm run e2e:recount-smoke
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
