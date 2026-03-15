@@ -152,3 +152,21 @@ frontend-build:
     - if [ -n "$CI_REGISTRY_USER" ]; then docker push $IMAGE_NAME:$DOCKER_IMAGE_TAG; docker push $IMAGE_NAME:latest; fi
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+
+# ==========================================
+# PR Checks Port
+# ==========================================
+pr-checks:
+  stage: lint
+  image: python:3.10-slim
+  script:
+    - python -m pip install --upgrade pip
+    - pip install -r backend/requirements.production.txt
+    - pip install pytest pytest-asyncio httpx ruff
+    - bash scripts/check_repo_hygiene.sh || true
+    - python scripts/check_duplicate_routes.py || true
+    - cd backend && python -m pytest tests/governance -q || true
+    - cd ..
+    - ruff check backend/ || true
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
