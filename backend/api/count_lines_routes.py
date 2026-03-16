@@ -14,6 +14,15 @@ from backend.core.websocket_manager import manager
 from backend.db.runtime import get_db
 from backend.models.audit import AuditEventType, AuditLogStatus
 from backend.services.activity_log import ActivityLogService
+from backend.services.canonical_inventory import (
+    can_reuse_rejected_count_line,
+    extract_document_id,
+    find_duplicate_count_line,
+    find_session,
+    is_count_line_locked,
+    is_session_finalized,
+    recompute_session_totals,
+)
 from backend.services.lock_service import LockService, ResourceLockedError
 from backend.services.notification_service import NotificationService
 from backend.services.snapshot_service import SnapshotService
@@ -82,6 +91,31 @@ def _get_db_client(db_override=None):
 def _require_supervisor(current_user: dict):
     if current_user.get("role") not in {"supervisor", "admin"}:
         raise HTTPException(status_code=403, detail="Supervisor access required")
+
+
+async def _get_mutable_session_or_409(db: Any, session_id: str) -> dict[str, Any]:
+    session = await find_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+    if is_session_finalized(session):
+        raise HTTPException(status_code=409, detail="Session is finalized and cannot be modified")
+    return session
+
+
+async def _ensure_count_line_mutable(
+    db: Any,
+    count_line: dict[str, Any],
+    *,
+    session: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    if is_count_line_locked(count_line):
+        raise HTTPException(status_code=409, detail="Count line is finalized and cannot be modified")
+
+    active_session = session or await find_session(db, str(count_line.get("session_id") or ""))
+    if is_session_finalized(active_session):
+        raise HTTPException(status_code=409, detail="Session is finalized and cannot be modified")
+
+    return active_session or {}
 
 
 # Helper function to detect high-risk corrections
@@ -221,11 +255,7 @@ async def create_count_line(
 ):
     db = _get_db_client()
 
-    # Validate session exists (support both async and sync mocks)
-    result = db.sessions.find_one({"id": line_data.session_id})
-    session = await result if inspect.isawaitable(result) else result
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
+    session = await _get_mutable_session_or_409(db, line_data.session_id)
 
     # Enforce session status
     # Allow OPEN or ACTIVE. Reject CLOSED or RECONCILE
@@ -236,6 +266,17 @@ async def create_count_line(
     # Check if session is in reconciliation mode (ACTIVE but reconciled_at is set)
     if session.get("reconciled_at"):
         raise HTTPException(status_code=400, detail="Session is in reconciliation mode")
+
+    if line_data.idempotency_key:
+        existing_idempotent = await db.count_lines.find_one(
+            {
+                "session_id": line_data.session_id,
+                "idempotency_key": line_data.idempotency_key,
+            }
+        )
+        if existing_idempotent:
+            existing_idempotent.pop("_id", None)
+            return existing_idempotent
 
     # Get ERP item - prefer barcode for exact batch identification if provided
     erp_item = None
@@ -366,21 +407,23 @@ async def create_count_line(
         # Uniqueness Gate: Block duplicate location scans
         # Rule: UNIQUE(window_id, item_code, location_code, zone)
         # Using floor_no + rack_no as proxy for location+zone
-        unique_filter = {
-            "session_id": line_data.session_id,
-            "item_code": line_data.item_code,
-            "floor_no": line_data.floor_no,
-            "rack_no": line_data.rack_no,
-        }
-        # If barcode is present, strict check against barcode too?
-        # No, duplicate items in same rack is the issue.
-
-        # Check if already exists
-        existing_count = await db.count_lines.find_one(unique_filter)
-        if existing_count:
+        existing_count = await find_duplicate_count_line(
+            db,
+            line_data.model_dump(mode="json"),
+        )
+        recount_update_target: Optional[dict[str, Any]] = None
+        if existing_count and can_reuse_rejected_count_line(
+            existing_count,
+            line_data.model_dump(mode="json"),
+        ):
+            recount_update_target = existing_count
+        elif existing_count:
             raise HTTPException(
                 status_code=409,
-                detail="Duplicate Scan: This item has already been counted in this specific location (Floor/Rack). Ask supervisor to REVERIFY if needed.",
+                detail=(
+                    "Duplicate Scan: This item has already been counted in this specific "
+                    "location (Floor/Rack). Use an explicit recount flow to resubmit it."
+                ),
             )
 
         # Existing Warning-only Duplicate Check (Legacy, mostly redundant now but keeps 'DUPLICATE_CORRECTION' flag logic if we wanted to allow it)
@@ -395,9 +438,15 @@ async def create_count_line(
         approval_status = "NEEDS_REVIEW" if risk_flags else "PENDING"
 
         # Create count line with enhanced fields
+        count_line_id = (
+            extract_document_id(recount_update_target) if recount_update_target else str(uuid.uuid4())
+        )
+        counted_at = datetime.now(timezone.utc).replace(tzinfo=None)
         count_line = {
-            "id": str(uuid.uuid4()),
+            "id": count_line_id,
             "session_id": line_data.session_id,
+            "idempotency_key": line_data.idempotency_key,
+            "recount_of_id": line_data.recount_of_id,
             "item_code": line_data.item_code,
             "barcode": line_data.barcode or erp_item.get("barcode"),
             "item_name": erp_item["item_name"],
@@ -451,7 +500,9 @@ async def create_count_line(
             # User and timestamp
             "created_by": current_user["username"],  # Legacy field
             "counted_by": current_user["username"],
-            "counted_at": datetime.now(timezone.utc).replace(tzinfo=None),
+            "counted_at": counted_at,
+            "updated_at": counted_at,
+            "updated_by": current_user["username"],
             # MRP tracking
             "mrp_erp": erp_item["mrp"],
             "mrp_counted": line_data.mrp_counted,
@@ -471,18 +522,33 @@ async def create_count_line(
             "verified": False,
             "verified_at": None,
             "verified_by": None,
+            "approved_by": None,
+            "approved_at": None,
+            "rejected_by": None,
+            "rejected_at": None,
+            "recount_requested_at": None,
+            "recount_requested_by": None,
+            "assigned_to": None,
         }
 
-        await db.count_lines.insert_one(count_line)
+        if recount_update_target:
+            recount_iteration = int(recount_update_target.get("recount_iteration", 0) or 0) + 1
+            count_line["recount_iteration"] = recount_iteration
+            await db.count_lines.update_one(
+                {"_id": recount_update_target["_id"]},
+                {"$set": count_line},
+            )
+        else:
+            await db.count_lines.insert_one(count_line)
 
         draft_update_result = db.count_line_drafts.update_one(
             _build_count_line_draft_filter(line_data, current_user["username"]),
             {
                 "$set": {
                     "status": "submitted",
-                    "submitted_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    "submitted_at": counted_at,
                     "submitted_count_line_id": count_line["id"],
-                    "updated_at": datetime.now(timezone.utc).replace(tzinfo=None),
+                    "updated_at": counted_at,
                 }
             },
         )
@@ -533,32 +599,9 @@ async def create_count_line(
     except Exception as e:
         logger.warning(f"Failed to broadcast scan event: {e}")
 
-    # Update session stats atomically using aggregation
+    # Deterministically recompute session totals from the canonical count_lines collection.
     try:
-        pipeline: list[dict[str, Any]] = [
-            {"$match": {"session_id": line_data.session_id}},
-            {
-                "$group": {
-                    "_id": None,
-                    "total_items": {"$sum": 1},
-                    "total_variance": {"$sum": "$variance"},
-                }
-            },
-        ]
-        cursor = db.count_lines.aggregate(pipeline)
-        if hasattr(cursor, "__await__"):
-            cursor = await cursor
-        stats = await cursor.to_list(1)
-        if stats:
-            await db.sessions.update_one(
-                {"id": line_data.session_id},
-                {
-                    "$set": {
-                        "total_items": stats[0]["total_items"],
-                        "total_variance": stats[0]["total_variance"],
-                    }
-                },
-            )
+        await recompute_session_totals(db, line_data.session_id)
     except Exception as e:
         logger.error(f"Failed to update session stats: {str(e)}")
         # Non-critical error, continue execution
@@ -566,10 +609,11 @@ async def create_count_line(
     # Update session barcode if this count line has a barcode and session doesn't have one yet
     try:
         if line_data.barcode:
-            session_result = await db.sessions.find_one({"id": line_data.session_id})
+            session_result = await find_session(db, line_data.session_id)
             if session_result and not session_result.get("barcode"):
                 await db.sessions.update_one(
-                    {"id": line_data.session_id}, {"$set": {"barcode": line_data.barcode}}
+                    {"id": line_data.session_id},
+                    {"$set": {"barcode": line_data.barcode}},
                 )
                 logger.info(
                     f"Updated session {line_data.session_id} with barcode {line_data.barcode}"
@@ -627,9 +671,13 @@ async def verify_stock(
     """Mark a count line as verified. Exposed for direct test usage."""
     _require_supervisor(current_user)
     db_client = _get_db_client(db_override)
+    count_line = await _find_count_line(db_client, line_id)
+    if not count_line:
+        raise HTTPException(status_code=404, detail="Count line not found")
+    await _ensure_count_line_mutable(db_client, count_line)
 
     update_result = await db_client.count_lines.update_one(
-        {"id": line_id},
+        {"_id": count_line["_id"]},
         update={
             "$set": {
                 "verified": True,
@@ -640,6 +688,8 @@ async def verify_stock(
     )
     if update_result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Count line not found")
+
+    await recompute_session_totals(db_client, str(count_line.get("session_id") or ""))
 
     if _activity_log_service:
         await _activity_log_service.log_activity(
@@ -665,13 +715,19 @@ async def unverify_stock(
     """Remove verification metadata from a count line."""
     _require_supervisor(current_user)
     db_client = _get_db_client(db_override)
+    count_line = await _find_count_line(db_client, line_id)
+    if not count_line:
+        raise HTTPException(status_code=404, detail="Count line not found")
+    await _ensure_count_line_mutable(db_client, count_line)
 
     update_result = await db_client.count_lines.update_one(
-        {"id": line_id},
+        {"_id": count_line["_id"]},
         update={"$set": {"verified": False, "verified_by": None, "verified_at": None}},
     )
     if update_result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Count line not found")
+
+    await recompute_session_totals(db_client, str(count_line.get("session_id") or ""))
 
     if _activity_log_service:
         await _activity_log_service.log_activity(
@@ -799,6 +855,7 @@ async def get_count_line_detail(
     count_line = await _find_count_line(db, line_id)
     if not count_line:
         raise HTTPException(status_code=404, detail="Count line not found")
+    await _ensure_count_line_mutable(db, count_line)
 
     if current_user.get("role") == "staff":
         allowed_usernames = {
@@ -829,6 +886,7 @@ async def approve_count_line(
         count_line = await _find_count_line(db, line_id)
         if not count_line:
             raise HTTPException(status_code=404, detail="Count line not found")
+        await _ensure_count_line_mutable(db, count_line)
 
         approved_at = _current_timestamp()
 
@@ -849,6 +907,8 @@ async def approve_count_line(
 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Count line not found")
+
+        await recompute_session_totals(db, str(count_line.get("session_id") or ""))
 
         owner_id = count_line.get("counted_by") or count_line.get("created_by")
         if owner_id:
@@ -902,6 +962,7 @@ async def reject_count_line(
         count_line = await _find_count_line(db, line_id)
         if not count_line:
             raise HTTPException(status_code=404, detail="Count line not found")
+        await _ensure_count_line_mutable(db, count_line)
 
         rejected_at = _current_timestamp()
         owner_id = count_line.get("counted_by") or count_line.get("created_by")
@@ -931,6 +992,8 @@ async def reject_count_line(
 
         if result.matched_count == 0:
             raise HTTPException(status_code=404, detail="Count line not found")
+
+        await recompute_session_totals(db, str(count_line.get("session_id") or ""))
 
         notification_service = NotificationService(db)
         notification_kwargs = {
@@ -1107,7 +1170,6 @@ async def add_quantity_to_count_line(
     new_counted_qty = old_counted_qty + float(payload.additional_qty)
 
     erp_qty = float(count_line.get("erp_qty") or 0)
-    old_variance = float(count_line.get("variance") or (old_counted_qty - erp_qty))
     new_variance = new_counted_qty - erp_qty
 
     mrp_erp = float(count_line.get("mrp_erp") or 0)
@@ -1128,14 +1190,10 @@ async def add_quantity_to_count_line(
     if update_result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Count line not found")
 
-    # Best-effort: keep session totals consistent (variance is additive).
     try:
-        delta = new_variance - old_variance
-        session_id = count_line.get("session_id")
-        if session_id and delta != 0:
-            await db.sessions.update_one({"id": session_id}, {"$inc": {"total_variance": delta}})
+        await recompute_session_totals(db, str(count_line.get("session_id") or ""))
     except Exception as exc:
-        logger.warning(f"Failed to update session variance totals after add-quantity: {exc}")
+        logger.warning(f"Failed to recompute session totals after add-quantity: {exc}")
 
     return {"success": True, "message": "Quantity added successfully", "data": update_data}
 
@@ -1157,6 +1215,7 @@ async def update_count_line(
     count_line = await _find_count_line(db, line_id)
     if not count_line:
         raise HTTPException(status_code=404, detail="Count line not found")
+    await _ensure_count_line_mutable(db, count_line)
 
     if payload.counted_qty is None and payload.batches is None:
         raise HTTPException(status_code=400, detail="No updatable fields provided")
@@ -1166,8 +1225,6 @@ async def update_count_line(
         "counted_by"
     ) != current_user.get("username"):
         raise HTTPException(status_code=403, detail="Not authorized to modify this count line")
-
-    old_variance = float(count_line.get("variance") or 0)
 
     update_data: dict[str, Any] = {
         "updated_at": _current_timestamp(),
@@ -1198,16 +1255,10 @@ async def update_count_line(
     if update_result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Count line not found")
 
-    # Best-effort: keep session totals consistent if qty was updated.
     try:
-        if payload.counted_qty is not None:
-            new_variance = float(update_data["variance"]) if "variance" in update_data else old_variance
-            delta = new_variance - old_variance
-            session_id = count_line.get("session_id")
-            if session_id and delta != 0:
-                await db.sessions.update_one({"id": session_id}, {"$inc": {"total_variance": delta}})
+        await recompute_session_totals(db, str(count_line.get("session_id") or ""))
     except Exception as exc:
-        logger.warning(f"Failed to update session variance totals after count-line update: {exc}")
+        logger.warning(f"Failed to recompute session totals after count-line update: {exc}")
 
     return {"success": True, "message": "Count line updated successfully", "data": update_data}
 
@@ -1215,22 +1266,7 @@ async def update_count_line(
 async def _recalculate_session_stats(db, session_id: str) -> None:
     """Re-calculate session stats after line deletion."""
     try:
-        pipeline: list[dict[str, Any]] = [
-            {"$match": {"session_id": session_id}},
-            {
-                "$group": {
-                    "_id": None,
-                    "total_items": {"$sum": 1},
-                    "total_variance": {"$sum": "$variance"},
-                }
-            },
-        ]
-        stats = await db.count_lines.aggregate(pipeline).to_list(1)
-        update_data = {
-            "total_items": stats[0]["total_items"] if stats else 0,
-            "total_variance": stats[0]["total_variance"] if stats else 0,
-        }
-        await db.sessions.update_one({"id": session_id}, {"$set": update_data})
+        await recompute_session_totals(db, session_id)
     except Exception as e:
         logger.error(f"Failed to update session stats after delete: {str(e)}")
 
@@ -1273,6 +1309,7 @@ async def delete_count_line(
         count_line = await _find_count_line(db, line_id)
         if not count_line:
             raise HTTPException(status_code=404, detail="Count line not found")
+        await _ensure_count_line_mutable(db, count_line)
 
         result = await db.count_lines.delete_one({"_id": count_line["_id"]})
         if result.deleted_count == 0:
@@ -1341,12 +1378,15 @@ async def bulk_approve_count_lines(
         object_ids = [ObjectId(i) for i in ids if ObjectId.is_valid(i)]
 
         query = {"$or": [{"id": {"$in": ids}}, {"_id": {"$in": object_ids}}]}
+        candidate_lines = await db.count_lines.find(query).to_list(length=max(len(ids), 1))
+        for candidate in candidate_lines:
+            await _ensure_count_line_mutable(db, candidate)
 
         result = await db.count_lines.update_many(
             query,
             {
                 "$set": {
-                    "status": "APPROVED",
+                    "status": "approved",
                     "approval_status": "APPROVED",
                     "approved_by": current_user["username"],
                     "approved_at": datetime.now(timezone.utc).replace(tzinfo=None),
@@ -1357,6 +1397,14 @@ async def bulk_approve_count_lines(
                 }
             },
         )
+
+        session_ids = {
+            str(candidate.get("session_id"))
+            for candidate in candidate_lines
+            if candidate.get("session_id")
+        }
+        for session_id in session_ids:
+            await recompute_session_totals(db, session_id)
 
         return {
             "success": True,
@@ -1385,12 +1433,15 @@ async def bulk_reject_count_lines(
         object_ids = [ObjectId(i) for i in ids if ObjectId.is_valid(i)]
 
         query = {"$or": [{"id": {"$in": ids}}, {"_id": {"$in": object_ids}}]}
+        candidate_lines = await db.count_lines.find(query).to_list(length=max(len(ids), 1))
+        for candidate in candidate_lines:
+            await _ensure_count_line_mutable(db, candidate)
 
         result = await db.count_lines.update_many(
             query,
             {
                 "$set": {
-                    "status": "REJECTED",
+                    "status": "rejected",
                     "approval_status": "REJECTED",
                     "rejected_by": current_user["username"],
                     "rejected_at": datetime.now(timezone.utc).replace(tzinfo=None),
@@ -1399,6 +1450,14 @@ async def bulk_reject_count_lines(
                 }
             },
         )
+
+        session_ids = {
+            str(candidate.get("session_id"))
+            for candidate in candidate_lines
+            if candidate.get("session_id")
+        }
+        for session_id in session_ids:
+            await recompute_session_totals(db, session_id)
 
         return {
             "success": True,
