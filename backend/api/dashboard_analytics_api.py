@@ -624,7 +624,7 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
 
-        item_codes = [line.get("item_code") for line in count_lines if line.get("item_code")]
+        item_codes = {line.get("item_code") for line in count_lines if line.get("item_code")}
         items = [items_by_code[ic] for ic in item_codes if ic in items_by_code]
 
         total_counted_value = sum(
