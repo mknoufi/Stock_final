@@ -65,8 +65,7 @@ async def test_download_export_result_decodes_xlsx_payload():
     )
 
     assert (
-        response.media_type
-        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        response.media_type == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
     assert response.body == binary_payload
     assert 'filename="weekly_export_' in response.headers["content-disposition"]
