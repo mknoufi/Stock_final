@@ -66,8 +66,8 @@ async def test_add_quantity_updates_count_line_and_session_totals(async_client, 
 
     updated_session = await test_db.sessions.find_one({"id": session_id})
     assert updated_session is not None
-    # delta variance = (4 - 1) = 3
-    assert updated_session["total_variance"] == 3.0
+    # canonical totals are recomputed from the current count_lines state
+    assert updated_session["total_variance"] == 4.0
 
 
 @pytest.mark.asyncio
@@ -181,6 +181,6 @@ async def test_put_update_count_line_recalculates_variance(async_client, test_db
 
     updated_session = await test_db.sessions.find_one({"id": session_id})
     assert updated_session is not None
-    # delta variance = (9 - 1) = 8
-    assert updated_session["total_variance"] == 8.0
+    # canonical totals are recomputed from the current count_lines state
+    assert updated_session["total_variance"] == 9.0
 

@@ -123,7 +123,7 @@ class TestCreateReportTemplateEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.post(
                     "/api/dynamic-reports/templates",
@@ -157,7 +157,7 @@ class TestCreateReportTemplateEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.post(
                     "/api/dynamic-reports/templates",
@@ -194,7 +194,7 @@ class TestGetReportTemplatesEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.get("/api/dynamic-reports/templates")
                 assert response.status_code == 200
@@ -225,7 +225,7 @@ class TestGetReportTemplatesEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.get("/api/dynamic-reports/templates")
                 assert response.status_code == 200
@@ -255,7 +255,7 @@ class TestGetReportTemplatesEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.get("/api/dynamic-reports/templates?report_type=variance")
                 assert response.status_code == 200
@@ -293,7 +293,7 @@ class TestGenerateReportEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.post(
                     "/api/dynamic-reports/generate",
@@ -329,7 +329,7 @@ class TestGenerateReportEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.post(
                     "/api/dynamic-reports/generate",
@@ -371,7 +371,7 @@ class TestGenerateReportEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.post(
                     "/api/dynamic-reports/generate",
@@ -410,7 +410,7 @@ class TestGenerateReportEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.post(
                     "/api/dynamic-reports/generate",
@@ -449,7 +449,7 @@ class TestGetGeneratedReportsEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 # Correct endpoint is /history not /generated
                 response = await client.get("/api/dynamic-reports/history")
@@ -485,7 +485,7 @@ class TestDownloadReportEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 # Correct endpoint is /{report_id}/download
                 response = await client.get("/api/dynamic-reports/rpt_123/download")
@@ -515,7 +515,7 @@ class TestDownloadReportEndpoint:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.get("/api/dynamic-reports/nonexistent/download")
                 assert response.status_code == 404
@@ -573,7 +573,7 @@ class TestQuickReportEndpoints:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 # Correct endpoint is /quick/items-with-fields
                 response = await client.get("/api/dynamic-reports/quick/items-with-fields")
@@ -622,7 +622,7 @@ class TestQuickReportEndpoints:
         try:
             async with AsyncClient(
                 transport=ASGITransport(app=app),
-                base_url="http://test",
+                base_url="http://localhost",
             ) as client:
                 response = await client.get("/api/dynamic-reports/quick/variance-summary")
                 assert response.status_code == 200

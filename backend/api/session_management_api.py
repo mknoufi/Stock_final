@@ -1694,7 +1694,7 @@ async def check_session_integrity(
         start_ts = start_time.timestamp()
         start_dt = start_time
     else:
-        start_ts = float(start_time)
+        start_ts = float(start_time or 0)
         start_dt = datetime.fromtimestamp(start_ts)
 
     # Check for items updated after session start

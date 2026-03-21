@@ -52,7 +52,7 @@ async def test_get_notifications_accepts_both_route_forms(
 ):
     async with AsyncClient(
         transport=ASGITransport(app=notifications_app),
-        base_url="http://test",
+        base_url="http://localhost",
     ) as client:
         response = await client.get(path, params={"limit": 5})
 
@@ -67,7 +67,7 @@ async def test_get_notifications_accepts_both_route_forms(
 async def test_register_notification_device(notifications_app: FastAPI):
     async with AsyncClient(
         transport=ASGITransport(app=notifications_app),
-        base_url="http://test",
+        base_url="http://localhost",
     ) as client:
         response = await client.post(
             "/api/notifications/devices",
@@ -82,7 +82,7 @@ async def test_register_notification_device(notifications_app: FastAPI):
 async def test_unregister_notification_device(notifications_app: FastAPI):
     async with AsyncClient(
         transport=ASGITransport(app=notifications_app),
-        base_url="http://test",
+        base_url="http://localhost",
     ) as client:
         response = await client.post(
             "/api/notifications/devices/unregister",

@@ -302,7 +302,8 @@ async def create_count_line(
         )
 
     # Use snapshot qty if available, fallback to live (emergency only)
-    erp_qty = erp_snapshot.get("erp_qty") if erp_snapshot else erp_item.get("stock_qty", 0)
+    erp_qty_source: Any = erp_snapshot.get("erp_qty") if erp_snapshot else erp_item.get("stock_qty", 0)
+    erp_qty = 0.0 if erp_qty_source is None else float(erp_qty_source or 0)
     baseline_hash = erp_snapshot.get("baseline_hash") if erp_snapshot else "UNHASHED_FALLBACK"
 
     # Calculate variance using snapshot quantity (Rule 2 + Rule 4)
@@ -1156,6 +1157,7 @@ async def add_quantity_to_count_line(
     count_line = await _find_count_line(db, line_id)
     if not count_line:
         raise HTTPException(status_code=404, detail="Count line not found")
+    await _ensure_count_line_mutable(db, count_line)
 
     if payload.additional_qty == 0:
         raise HTTPException(status_code=400, detail="additional_qty must be non-zero")
