@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pymongo.errors import DuplicateKeyError
 from pydantic import BaseModel
 
 from backend.api.schemas import BulkCountLineUpdate, CountLineCreate
@@ -16,11 +17,14 @@ from backend.models.audit import AuditEventType, AuditLogStatus
 from backend.services.activity_log import ActivityLogService
 from backend.services.canonical_inventory import (
     can_reuse_rejected_count_line,
+    count_line_requires_supervisor_review,
     extract_document_id,
     find_duplicate_count_line,
     find_session,
     is_count_line_locked,
+    is_count_line_effectively_reviewed,
     is_session_finalized,
+    materialize_count_line_review_state,
     recompute_session_totals,
 )
 from backend.services.lock_service import LockService, ResourceLockedError
@@ -185,7 +189,32 @@ def calculate_financial_impact(erp_mrp: float, counted_mrp: float, counted_qty: 
     return new_value - old_value
 
 
+def requires_supervisor_verification(variance: float) -> bool:
+    """Only non-zero variance lines require supervisor review."""
+    return abs(float(variance or 0)) > 0
+
+
+def _build_draft_line_id(line_data: CountLineCreate) -> str:
+    """Build a stable draft identifier per user/session/item/location."""
+    parts = [
+        line_data.item_code or "",
+        line_data.floor_no or "",
+        line_data.rack_no or "",
+        line_data.mark_location or "",
+    ]
+    return "|".join(str(part).strip().upper() for part in parts)
+
+
 def _build_count_line_draft_filter(line_data: CountLineCreate, username: str) -> dict[str, Any]:
+    line_id = _build_draft_line_id(line_data)
+    return {
+        "session_id": line_data.session_id,
+        "user_id": username,
+        "line_id": line_id,
+    }
+
+
+def _build_legacy_count_line_draft_filter(line_data: CountLineCreate, username: str) -> dict[str, Any]:
     return {
         "session_id": line_data.session_id,
         "item_code": line_data.item_code,
@@ -193,6 +222,74 @@ def _build_count_line_draft_filter(line_data: CountLineCreate, username: str) ->
         "floor_no": line_data.floor_no,
         "rack_no": line_data.rack_no,
     }
+
+
+async def _resolve_item_name_for_draft(db: Any, line_data: CountLineCreate) -> Optional[str]:
+    if line_data.item_name:
+        return line_data.item_name
+
+    erp_item = None
+    if line_data.barcode:
+        result = db.erp_items.find_one({"barcode": line_data.barcode})
+        erp_item = await result if inspect.isawaitable(result) else result
+
+    if not erp_item and line_data.item_code:
+        result = db.erp_items.find_one({"item_code": line_data.item_code})
+        erp_item = await result if inspect.isawaitable(result) else result
+
+    item_name = erp_item.get("item_name") if erp_item else None
+    return item_name or None
+
+
+def _build_dashboard_refresh_message(
+    event: str,
+    *,
+    session_id: Optional[str] = None,
+    session_ids: Optional[set[str]] = None,
+    count_line: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "event": event,
+        "timestamp": datetime.now(timezone.utc).replace(tzinfo=None).isoformat(),
+    }
+    if session_id:
+        payload["session_id"] = session_id
+    if session_ids:
+        payload["session_ids"] = sorted(session_ids)
+    if count_line:
+        payload.update(
+            {
+                "count_line_id": str(count_line.get("id") or ""),
+                "item_code": count_line.get("item_code"),
+                "item_name": count_line.get("item_name"),
+            }
+        )
+
+    return {
+        "type": "dashboard_refresh_requested",
+        "payload": payload,
+    }
+
+
+async def _broadcast_dashboard_refresh(
+    event: str,
+    *,
+    session_id: Optional[str] = None,
+    session_ids: Optional[set[str]] = None,
+    count_line: Optional[dict[str, Any]] = None,
+) -> None:
+    try:
+        await manager.broadcast_to_roles(
+            message=_build_dashboard_refresh_message(
+                event,
+                session_id=session_id,
+                session_ids=session_ids,
+                count_line=count_line,
+            ),
+            roles={"supervisor", "admin"},
+        )
+    except Exception as exc:
+        logger.warning(f"Failed to broadcast dashboard refresh event: {exc}")
 
 
 @router.post("/count-lines/draft")
@@ -207,11 +304,18 @@ async def save_count_line_draft(
     """
     db = _get_db_client()
     now = datetime.now(timezone.utc).replace(tzinfo=None)
-    draft_filter = _build_count_line_draft_filter(line_data, current_user["username"])
+    username = current_user["username"]
+    draft_line_id = _build_draft_line_id(line_data)
+    draft_filter = _build_count_line_draft_filter(line_data, username)
+    legacy_draft_filter = _build_legacy_count_line_draft_filter(line_data, username)
+    resolved_item_name = await _resolve_item_name_for_draft(db, line_data)
     draft_payload = {
         **line_data.model_dump(mode="json"),
+        "item_name": resolved_item_name,
         "barcode": line_data.barcode,
-        "counted_by": current_user["username"],
+        "counted_by": username,
+        "user_id": username,
+        "line_id": draft_line_id,
         "status": "draft",
         "updated_at": now,
     }
@@ -222,6 +326,15 @@ async def save_count_line_draft(
         if inspect.isawaitable(existing_draft_result)
         else existing_draft_result
     )
+    if not existing_draft:
+        # Backward compatibility: upgrade older draft identity to indexed identity.
+        legacy_draft_result = db.count_line_drafts.find_one(legacy_draft_filter)
+        existing_draft = (
+            await legacy_draft_result
+            if inspect.isawaitable(legacy_draft_result)
+            else legacy_draft_result
+        )
+
     if existing_draft:
         update_result = db.count_line_drafts.update_one(
             {"_id": existing_draft["_id"]},
@@ -232,9 +345,35 @@ async def save_count_line_draft(
         draft_id = str(existing_draft["_id"])
     else:
         draft_payload["created_at"] = now
-        insert_result = db.count_line_drafts.insert_one(draft_payload)
-        result = await insert_result if inspect.isawaitable(insert_result) else insert_result
-        draft_id = str(result.inserted_id)
+        try:
+            insert_result = db.count_line_drafts.insert_one(draft_payload)
+            result = await insert_result if inspect.isawaitable(insert_result) else insert_result
+            draft_id = str(result.inserted_id)
+        except DuplicateKeyError:
+            # Recover from concurrent insert/legacy key collision.
+            conflicting_draft_result = db.count_line_drafts.find_one(draft_filter)
+            conflicting_draft = (
+                await conflicting_draft_result
+                if inspect.isawaitable(conflicting_draft_result)
+                else conflicting_draft_result
+            )
+            if not conflicting_draft:
+                legacy_conflicting_result = db.count_line_drafts.find_one(legacy_draft_filter)
+                conflicting_draft = (
+                    await legacy_conflicting_result
+                    if inspect.isawaitable(legacy_conflicting_result)
+                    else legacy_conflicting_result
+                )
+            if not conflicting_draft:
+                raise HTTPException(status_code=409, detail="Draft conflict detected")
+
+            update_result = db.count_line_drafts.update_one(
+                {"_id": conflicting_draft["_id"]},
+                {"$set": draft_payload},
+            )
+            if inspect.isawaitable(update_result):
+                await update_result
+            draft_id = str(conflicting_draft["_id"])
 
     logger.debug(f"Draft saved for item {line_data.item_code}: {line_data.counted_qty}")
     return {
@@ -434,15 +573,13 @@ async def create_count_line(
         # The legacy check was: session + item + username. (Prevents same user scanning same item ANYWHERE?)
         # That was invalid logic. We replace it.
 
-        # Determine approval status based on risk
-        # High-risk corrections require supervisor review
-        approval_status = "NEEDS_REVIEW" if risk_flags else "PENDING"
-
         # Create count line with enhanced fields
         count_line_id = (
             extract_document_id(recount_update_target) if recount_update_target else str(uuid.uuid4())
         )
         counted_at = datetime.now(timezone.utc).replace(tzinfo=None)
+        review_required = requires_supervisor_verification(variance)
+        approval_status = "NEEDS_REVIEW" if review_required else "APPROVED"
         count_line = {
             "id": count_line_id,
             "session_id": line_data.session_id,
@@ -488,8 +625,8 @@ async def create_count_line(
                 else None
             ),
             "approval_status": approval_status,
-            "approval_by": None,
-            "approval_at": None,
+            "approval_by": "system" if not review_required else None,
+            "approval_at": counted_at if not review_required else None,
             "rejection_reason": None,
             # Misplaced Stock Fields
             "is_misplaced": is_misplaced,
@@ -519,12 +656,12 @@ async def create_count_line(
                 else None
             ),
             # Legacy approval fields
-            "status": "pending",
+            "status": "pending" if review_required else "approved",
             "verified": False,
             "verified_at": None,
             "verified_by": None,
-            "approved_by": None,
-            "approved_at": None,
+            "approved_by": "system" if not review_required else None,
+            "approved_at": counted_at if not review_required else None,
             "rejected_by": None,
             "rejected_at": None,
             "recount_requested_at": None,
@@ -542,8 +679,13 @@ async def create_count_line(
         else:
             await db.count_lines.insert_one(count_line)
 
-        draft_update_result = db.count_line_drafts.update_one(
-            _build_count_line_draft_filter(line_data, current_user["username"]),
+        draft_update_result = db.count_line_drafts.update_many(
+            {
+                "$or": [
+                    _build_count_line_draft_filter(line_data, current_user["username"]),
+                    _build_legacy_count_line_draft_filter(line_data, current_user["username"]),
+                ]
+            },
             {
                 "$set": {
                     "status": "submitted",
@@ -599,6 +741,12 @@ async def create_count_line(
 
     except Exception as e:
         logger.warning(f"Failed to broadcast scan event: {e}")
+
+    await _broadcast_dashboard_refresh(
+        "count_line_created",
+        session_id=line_data.session_id,
+        count_line=count_line,
+    )
 
     # Deterministically recompute session totals from the canonical count_lines collection.
     try:
@@ -676,6 +824,11 @@ async def verify_stock(
     if not count_line:
         raise HTTPException(status_code=404, detail="Count line not found")
     await _ensure_count_line_mutable(db_client, count_line)
+    if not count_line_requires_supervisor_review(count_line):
+        raise HTTPException(
+            status_code=409,
+            detail="Only variance items require supervisor verification",
+        )
 
     update_result = await db_client.count_lines.update_one(
         {"_id": count_line["_id"]},
@@ -691,6 +844,11 @@ async def verify_stock(
         raise HTTPException(status_code=404, detail="Count line not found")
 
     await recompute_session_totals(db_client, str(count_line.get("session_id") or ""))
+    await _broadcast_dashboard_refresh(
+        "count_line_verified",
+        session_id=str(count_line.get("session_id") or ""),
+        count_line=count_line,
+    )
 
     if _activity_log_service:
         await _activity_log_service.log_activity(
@@ -729,6 +887,11 @@ async def unverify_stock(
         raise HTTPException(status_code=404, detail="Count line not found")
 
     await recompute_session_totals(db_client, str(count_line.get("session_id") or ""))
+    await _broadcast_dashboard_refresh(
+        "count_line_unverified",
+        session_id=str(count_line.get("session_id") or ""),
+        count_line=count_line,
+    )
 
     if _activity_log_service:
         await _activity_log_service.log_activity(
@@ -774,24 +937,24 @@ async def get_count_lines(
     db_override=None,
 ):
     """Get count lines with pagination. Shared between routes and tests."""
-    skip = (page - 1) * page_size
-    filter_query: dict[str, Any] = {"session_id": session_id}
+    db_client = _get_db_client(db_override)
+    lines_cursor = db_client.count_lines.find({"session_id": session_id}, {"_id": 0}).sort(
+        "counted_at", -1
+    )
+    lines = await lines_cursor.to_list(length=None)
+    projected_lines = [materialize_count_line_review_state(line) for line in lines]
 
     if verified is not None:
-        filter_query["verified"] = verified
+        projected_lines = [
+            line for line in projected_lines if is_count_line_effectively_reviewed(line) == verified
+        ]
 
-    db_client = _get_db_client(db_override)
-    total = await db_client.count_lines.count_documents(filter_query)
-    lines_cursor = (
-        db_client.count_lines.find(filter_query, {"_id": 0})
-        .sort("counted_at", -1)
-        .skip(skip)
-        .limit(page_size)
-    )
-    lines = await lines_cursor.to_list(page_size)
+    total = len(projected_lines)
+    skip = (page - 1) * page_size
+    lines_page = projected_lines[skip : skip + page_size]
 
     return {
-        "items": lines,
+        "items": lines_page,
         "pagination": {
             "page": page,
             "page_size": page_size,
@@ -829,6 +992,7 @@ async def list_count_lines(
         .limit(effective_page_size)
     )
     lines = await lines_cursor.to_list(effective_page_size)
+    lines = [materialize_count_line_review_state(line) for line in lines]
     total_pages = (
         (total + effective_page_size - 1) // effective_page_size if effective_page_size else 0
     )
@@ -868,7 +1032,7 @@ async def get_count_line_detail(
             raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     count_line["_id"] = str(count_line["_id"])
-    return count_line
+    return materialize_count_line_review_state(count_line)
 
 
 @router.put("/count-lines/{line_id}/approve")
@@ -910,6 +1074,11 @@ async def approve_count_line(
             raise HTTPException(status_code=404, detail="Count line not found")
 
         await recompute_session_totals(db, str(count_line.get("session_id") or ""))
+        await _broadcast_dashboard_refresh(
+            "count_line_approved",
+            session_id=str(count_line.get("session_id") or ""),
+            count_line=count_line,
+        )
 
         owner_id = count_line.get("counted_by") or count_line.get("created_by")
         if owner_id:
@@ -995,6 +1164,11 @@ async def reject_count_line(
             raise HTTPException(status_code=404, detail="Count line not found")
 
         await recompute_session_totals(db, str(count_line.get("session_id") or ""))
+        await _broadcast_dashboard_refresh(
+            "count_line_rejected",
+            session_id=str(count_line.get("session_id") or ""),
+            count_line=count_line,
+        )
 
         notification_service = NotificationService(db)
         notification_kwargs = {
@@ -1196,6 +1370,12 @@ async def add_quantity_to_count_line(
         await recompute_session_totals(db, str(count_line.get("session_id") or ""))
     except Exception as exc:
         logger.warning(f"Failed to recompute session totals after add-quantity: {exc}")
+    else:
+        await _broadcast_dashboard_refresh(
+            "count_line_quantity_updated",
+            session_id=str(count_line.get("session_id") or ""),
+            count_line=count_line,
+        )
 
     return {"success": True, "message": "Quantity added successfully", "data": update_data}
 
@@ -1261,6 +1441,12 @@ async def update_count_line(
         await recompute_session_totals(db, str(count_line.get("session_id") or ""))
     except Exception as exc:
         logger.warning(f"Failed to recompute session totals after count-line update: {exc}")
+    else:
+        await _broadcast_dashboard_refresh(
+            "count_line_updated",
+            session_id=str(count_line.get("session_id") or ""),
+            count_line=count_line,
+        )
 
     return {"success": True, "message": "Count line updated successfully", "data": update_data}
 
@@ -1318,6 +1504,11 @@ async def delete_count_line(
             raise HTTPException(status_code=404, detail="Count line not found")
 
         await _recalculate_session_stats(db, count_line["session_id"])
+        await _broadcast_dashboard_refresh(
+            "count_line_deleted",
+            session_id=str(count_line.get("session_id") or ""),
+            count_line=count_line,
+        )
         await _log_delete_activity(count_line, line_id, current_user, request)
 
         return {"success": True, "message": "Count line deleted successfully"}
@@ -1407,6 +1598,11 @@ async def bulk_approve_count_lines(
         }
         for session_id in session_ids:
             await recompute_session_totals(db, session_id)
+        if session_ids:
+            await _broadcast_dashboard_refresh(
+                "count_lines_bulk_approved",
+                session_ids=session_ids,
+            )
 
         return {
             "success": True,
@@ -1460,6 +1656,11 @@ async def bulk_reject_count_lines(
         }
         for session_id in session_ids:
             await recompute_session_totals(db, session_id)
+        if session_ids:
+            await _broadcast_dashboard_refresh(
+                "count_lines_bulk_rejected",
+                session_ids=session_ids,
+            )
 
         return {
             "success": True,

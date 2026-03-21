@@ -29,6 +29,7 @@ from backend.services.canonical_inventory import (
     find_session,
     get_session_count_lines,
     is_blocking_finalization,
+    is_count_line_effectively_reviewed,
     is_session_finalized,
     normalize_session_status as normalize_canonical_session_status,
     recompute_session_totals,
@@ -465,12 +466,7 @@ async def _get_session_line_summary(
 ) -> dict[str, Any]:
     lines = await get_session_count_lines(db, session_id)
     item_count = len(lines)
-    verified_count = sum(
-        1
-        for line in lines
-        if bool(line.get("verified"))
-        or str(line.get("status", "")).lower() in {"approved", "locked"}
-    )
+    verified_count = sum(1 for line in lines if is_count_line_effectively_reviewed(line))
     total_variance = sum(float(line.get("variance") or 0.0) for line in lines)
     damage_items = int(sum(float(line.get("damaged_qty") or 0.0) for line in lines))
     return {
