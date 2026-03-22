@@ -136,7 +136,7 @@ async def count_active_sessions(db) -> int:
     try:
         return await db.sessions.count_documents(
             {
-                "status": {"$in": ["OPEN", "ACTIVE", "PAUSED"]},
+                "status": {"$in": ["OPEN", "ACTIVE", "PAUSED", "RECONCILE"]},
                 "$and": [
                     {"$or": [{"closed_at": {"$exists": False}}, {"closed_at": {"$in": [None, ""]}}]},
                     {
@@ -168,7 +168,7 @@ async def count_pending_variances(db) -> int:
     try:
         return await db.count_lines.count_documents(
             {
-                "variance": {"$ne": 0},
+                "variance": {"$exists": True, "$ne": 0},
                 "$or": [
                     {"status": {"$in": ["pending_approval", "NEEDS_REVIEW"]}},
                     {"approval_status": "NEEDS_REVIEW"},

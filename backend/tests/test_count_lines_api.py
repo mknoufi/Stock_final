@@ -893,12 +893,18 @@ class TestGetCountLines:
     async def test_get_count_lines_basic(self):
         """Test basic count lines retrieval"""
         mock_db = Mock()
-        mock_db.count_lines.find.return_value.sort.return_value.to_list = AsyncMock(
+        mock_db.count_lines.count_documents = AsyncMock(return_value=2)
+        cursor = Mock()
+        cursor.sort.return_value = cursor
+        cursor.skip.return_value = cursor
+        cursor.limit.return_value = cursor
+        cursor.to_list = AsyncMock(
             return_value=[
                 {"id": "1", "session_id": "session123", "counted_qty": 50},
                 {"id": "2", "session_id": "session123", "counted_qty": 30},
             ]
         )
+        mock_db.count_lines.find.return_value = cursor
 
         with patch("backend.api.count_lines_routes._get_db_client", return_value=mock_db):
             result = await get_count_lines(
@@ -988,12 +994,16 @@ class TestCountLinesAPIEdgeCases:
         # Support async for in recompute_session_totals
         # find() is NOT awaited, but its result is used in 'async for', so use a regular Mock
         mock_db.count_lines.find = Mock(return_value=AsyncIter([]))
-        # Simulate error in session stats update
-        mock_db.count_lines.aggregate = Mock(side_effect=Exception("Database error"))
         mock_db.sessions.update_one = AsyncMock()
         mock_db.count_line_drafts.update_many = AsyncMock()
 
-        with patch("backend.api.count_lines_routes._get_db_client", return_value=mock_db):
+        with (
+            patch("backend.api.count_lines_routes._get_db_client", return_value=mock_db),
+            patch(
+                "backend.api.count_lines_routes.recompute_session_totals",
+                AsyncMock(side_effect=Exception("Database error")),
+            ),
+        ):
             # Should still succeed despite stats update error
             result = await create_count_line(
                 request=AsyncMock(),
@@ -1007,6 +1017,49 @@ class TestCountLinesAPIEdgeCases:
             )
 
         assert result["session_id"] == "session123"
+
+    @pytest.mark.asyncio
+    async def test_create_count_line_updates_session_barcode_by_dual_key(self):
+        mock_db = AsyncMock()
+        mock_db.sessions.find_one = AsyncMock(
+            return_value={"session_id": "session123", "status": "OPEN"}
+        )
+        mock_db.erp_items.find_one = AsyncMock(
+            return_value={
+                "item_name": "Test Item",
+                "barcode": "123456789",
+                "stock_qty": 40,
+                "mrp": 100,
+            }
+        )
+        mock_db.count_lines.count_documents = AsyncMock(return_value=0)
+        mock_db.count_lines.find_one = AsyncMock(return_value=None)
+        mock_db.count_lines.insert_one = AsyncMock()
+        mock_db.count_lines.find = Mock(return_value=AsyncIter([]))
+        mock_db.sessions.update_one = AsyncMock()
+        mock_db.count_line_drafts.update_many = AsyncMock()
+
+        with patch("backend.api.count_lines_routes._get_db_client", return_value=mock_db):
+            result = await create_count_line(
+                request=AsyncMock(),
+                line_data=CountLineCreate(
+                    session_id="session123",
+                    item_code="ITEM001",
+                    counted_qty=50,
+                    barcode="123456789",
+                    variance_reason="test_reason",
+                ),
+                current_user={"username": "testuser"},
+            )
+
+        assert result["session_id"] == "session123"
+        filter_query = mock_db.sessions.update_one.await_args_list[-1].args[0]
+        assert filter_query == {
+            "$or": [
+                {"id": "session123"},
+                {"session_id": "session123"},
+            ]
+        }
 
     @pytest.mark.asyncio
     async def test_create_count_line_auto_approves_zero_variance(self):

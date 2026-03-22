@@ -16,6 +16,7 @@ from backend.db.runtime import get_db
 from backend.models.audit import AuditEventType, AuditLogStatus
 from backend.services.activity_log import ActivityLogService
 from backend.services.canonical_inventory import (
+    build_session_lookup,
     can_reuse_rejected_count_line,
     count_line_requires_supervisor_review,
     extract_document_id,
@@ -761,7 +762,7 @@ async def create_count_line(
             session_result = await find_session(db, line_data.session_id)
             if session_result and not session_result.get("barcode"):
                 await db.sessions.update_one(
-                    {"id": line_data.session_id},
+                    build_session_lookup(line_data.session_id),
                     {"$set": {"barcode": line_data.barcode}},
                 )
                 logger.info(
@@ -938,6 +939,29 @@ async def get_count_lines(
 ):
     """Get count lines with pagination. Shared between routes and tests."""
     db_client = _get_db_client(db_override)
+    if verified is None:
+        skip = (page - 1) * page_size
+        total = await db_client.count_lines.count_documents({"session_id": session_id})
+        lines_cursor = (
+            db_client.count_lines.find({"session_id": session_id}, {"_id": 0})
+            .sort("counted_at", -1)
+            .skip(skip)
+            .limit(page_size)
+        )
+        lines = await lines_cursor.to_list(length=page_size)
+        projected_lines = [materialize_count_line_review_state(line) for line in lines]
+        return {
+            "items": projected_lines,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total,
+                "total_pages": (total + page_size - 1) // page_size if page_size else 0,
+                "has_next": skip + page_size < total,
+                "has_prev": page > 1,
+            },
+        }
+
     lines_cursor = db_client.count_lines.find({"session_id": session_id}, {"_id": 0}).sort(
         "counted_at", -1
     )

@@ -26,6 +26,7 @@ from backend.core.websocket_manager import manager
 from backend.db.runtime import get_db
 from backend.services.lock_manager import get_lock_manager
 from backend.services.canonical_inventory import (
+    build_session_lookup,
     find_session,
     get_session_count_lines,
     is_blocking_finalization,
@@ -41,6 +42,8 @@ from backend.services.runtime import get_refresh_token_service
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/sessions", tags=["Session Management"])
+
+ACTIVE_SESSION_STATUSES = ["OPEN", "ACTIVE", "PAUSED", "RECONCILE"]
 
 
 # Models
@@ -458,6 +461,14 @@ def _datetime_to_timestamp(value: Any) -> Optional[float]:
 
 def _current_utc_naive() -> datetime:
     return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _session_identifier(session: Optional[dict[str, Any]]) -> str:
+    return str((session or {}).get("id") or (session or {}).get("session_id") or "")
+
+
+def _session_owner(session: Optional[dict[str, Any]]) -> str:
+    return str((session or {}).get("staff_user") or (session or {}).get("user_id") or "")
 
 
 async def _get_session_line_summary(
@@ -962,7 +973,7 @@ async def get_active_sessions(
     """
     # Build canonical session query
     query: dict[str, Any] = {
-        "status": {"$in": ["OPEN", "ACTIVE", "PAUSED"]},
+        "status": {"$in": ACTIVE_SESSION_STATUSES},
         "$and": [
             {"$or": [{"finalized_at": {"$exists": False}}, {"finalized_at": {"$in": [None, ""]}}]},
             {"$or": [{"closed_at": {"$exists": False}}, {"closed_at": {"$in": [None, ""]}}]},
@@ -984,7 +995,7 @@ async def get_active_sessions(
 
     result = []
     for session in sessions:
-        line_summary = await _get_session_line_summary(db, str(session.get("id") or ""))
+        line_summary = await _get_session_line_summary(db, _session_identifier(session))
         result.append(_build_session_detail_from_doc(session, line_summary))
 
     return result
@@ -1000,7 +1011,7 @@ async def get_user_workflows(
 
     active_sessions_cursor = db.sessions.find(
         {
-            "status": {"$in": ["OPEN", "ACTIVE", "PAUSED"]},
+            "status": {"$in": ACTIVE_SESSION_STATUSES},
             "$and": [
                 {"$or": [{"closed_at": {"$exists": False}}, {"closed_at": {"$in": [None, ""]}}]},
                 {
@@ -1265,7 +1276,7 @@ async def get_session_detail(
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     # Check access
-    if current_user["role"] != "supervisor" and session["staff_user"] != current_user["username"]:
+    if current_user["role"] != "supervisor" and _session_owner(session) != current_user["username"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     line_summary = await _get_session_line_summary(db, session_id)
@@ -1296,7 +1307,7 @@ async def get_session_stats(
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     # Check access
-    if current_user["role"] != "supervisor" and session["staff_user"] != current_user["username"]:
+    if current_user["role"] != "supervisor" and _session_owner(session) != current_user["username"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     line_summary = await _get_session_line_summary(db, session_id)
@@ -1348,7 +1359,7 @@ async def session_heartbeat(
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     # Verify ownership
-    if session["staff_user"] != user_id:
+    if _session_owner(session) != user_id:
         raise HTTPException(status_code=403, detail="Not your session")
 
     # Update user heartbeat
@@ -1367,7 +1378,9 @@ async def session_heartbeat(
 
     # Update session last_heartbeat
     heartbeat_at = _current_utc_naive()
-    await db.sessions.update_one({"id": session_id}, {"$set": {"last_heartbeat": heartbeat_at}})
+    await db.sessions.update_one(
+        build_session_lookup(session_id), {"$set": {"last_heartbeat": heartbeat_at}}
+    )
     try:
         await db.verification_sessions.update_one(
             {"session_id": session_id},
@@ -1411,7 +1424,7 @@ async def update_session_status(
         raise HTTPException(status_code=409, detail="Finalized sessions cannot be modified")
 
     # Verify ownership or supervisor
-    if current_user["role"] not in {"supervisor", "admin"} and session["staff_user"] != user_id:
+    if current_user["role"] not in {"supervisor", "admin"} and _session_owner(session) != user_id:
         raise HTTPException(status_code=403, detail="Not your session")
 
     normalized_status = status.upper()
@@ -1434,7 +1447,7 @@ async def update_session_status(
     else:
         session_update["status"] = normalized_status
 
-    await db.sessions.update_one({"id": session_id}, {"$set": session_update})
+    await db.sessions.update_one(build_session_lookup(session_id), {"$set": session_update})
     try:
         await db.verification_sessions.update_one(
             {"session_id": session_id},
@@ -1464,7 +1477,8 @@ async def update_session_status(
 
     # Also notify the user personally in case they are not subscribed to the session channel yet
     # or to ensure they get the message on their user channel
-    if session["staff_user"] != user_id:  # If supervisor updated it
+    session_owner = _session_owner(session)
+    if session_owner != user_id:  # If supervisor updated it
         await manager.send_personal_message(
             message={
                 "type": "session_update",
@@ -1474,7 +1488,7 @@ async def update_session_status(
                     "reason": "Supervisor update",
                 },
             },
-            user_id=session["staff_user"],
+            user_id=session_owner,
         )
 
     return {"success": True, "id": session_id, "status": normalized_status}
@@ -1560,7 +1574,7 @@ async def _finalize_session_canonical(
     if note:
         session_update["finalization_note"] = note
 
-    await db.sessions.update_one({"id": session_id}, {"$set": session_update})
+    await db.sessions.update_one(build_session_lookup(session_id), {"$set": session_update})
     try:
         await db.verification_sessions.update_one(
             {"session_id": session_id},
@@ -1632,7 +1646,7 @@ async def _complete_session_legacy_compatible(
         raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
 
     session_owner = (
-        (canonical_session or {}).get("staff_user")
+        _session_owner(canonical_session)
         or (legacy_session or {}).get("user_id")
         or ""
     )
@@ -1678,7 +1692,7 @@ async def _complete_session_legacy_compatible(
 
     if canonical_session:
         await db.sessions.update_one(
-            {"id": session_id},
+            build_session_lookup(session_id),
             {
                 "$set": {
                     "status": "CLOSED",
