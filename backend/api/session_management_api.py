@@ -1585,7 +1585,10 @@ async def _finalize_session_canonical(
         except Exception:
             logger.debug("Rack registry finalize mirror skipped", exc_info=True)
 
-    await lock_manager.delete_session(session_id)
+    try:
+        await lock_manager.delete_session(session_id)
+    except Exception:
+        logger.debug("Session lock deletion skipped during completion", exc_info=True)
 
     await manager.broadcast_to_session(
         message={
@@ -1607,6 +1610,108 @@ async def _finalize_session_canonical(
         "finalized_at": finalized_at.isoformat(),
         "finalized_by": finalized_by,
         "message": "Session finalized successfully",
+    }
+
+
+async def _complete_session_legacy_compatible(
+    session_id: str,
+    db: AsyncIOMotorDatabase,
+    current_user: dict[str, Any],
+    lock_manager: Any,
+) -> dict[str, Any]:
+    user_id = current_user["username"]
+    canonical_session = await find_session(db, session_id)
+
+    legacy_session: Optional[dict[str, Any]] = None
+    try:
+        legacy_session = await db.verification_sessions.find_one({"session_id": session_id})
+    except Exception:
+        logger.debug("Legacy verification session lookup skipped", exc_info=True)
+
+    if not canonical_session and not legacy_session:
+        raise HTTPException(status_code=404, detail=f"Session {session_id} not found")
+
+    session_owner = (
+        (canonical_session or {}).get("staff_user")
+        or (legacy_session or {}).get("user_id")
+        or ""
+    )
+    if current_user.get("role") not in {"supervisor", "admin"} and session_owner != user_id:
+        raise HTTPException(status_code=403, detail="Not your session")
+
+    if canonical_session and is_session_finalized(canonical_session):
+        raise HTTPException(status_code=409, detail="Session is already finalized")
+
+    current_status = (
+        _effective_session_status(canonical_session).value
+        if canonical_session
+        else str((legacy_session or {}).get("status") or "").upper()
+    )
+    if not SessionStateMachine.can_transition(current_status, "CLOSED"):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Invalid session transition: {current_status} -> CLOSED",
+        )
+
+    completed_at = _current_utc_naive()
+    rack_id = (
+        (canonical_session or {}).get("rack_no")
+        or (legacy_session or {}).get("rack_id")
+        or None
+    )
+
+    if rack_id:
+        await lock_manager.release_rack_lock(rack_id, session_owner or user_id)
+        try:
+            await db.rack_registry.update_one(
+                {"rack_id": rack_id},
+                {"$set": {"status": "completed", "updated_at": time.time()}},
+            )
+        except Exception:
+            logger.debug("Rack registry completion mirror skipped", exc_info=True)
+
+    if legacy_session:
+        await db.verification_sessions.update_one(
+            {"session_id": session_id},
+            {"$set": {"status": "CLOSED", "completed_at": completed_at.timestamp()}},
+        )
+
+    if canonical_session:
+        await db.sessions.update_one(
+            {"id": session_id},
+            {
+                "$set": {
+                    "status": "CLOSED",
+                    "closed_at": completed_at,
+                    "completed_at": completed_at,
+                    "last_heartbeat": completed_at,
+                }
+            },
+        )
+
+    try:
+        await lock_manager.delete_session(session_id)
+    except Exception:
+        logger.debug("Session lock deletion skipped during finalization", exc_info=True)
+
+    await manager.broadcast_to_session(
+        message={
+            "type": "session_completed",
+            "payload": {
+                "session_id": session_id,
+                "completed_by": user_id,
+                "completed_at": completed_at.timestamp(),
+                "status": "CLOSED",
+            },
+        },
+        session_id=session_id,
+    )
+
+    return {
+        "success": True,
+        "id": session_id,
+        "status": "CLOSED",
+        "message": "Session completed successfully",
     }
 
 
@@ -1636,13 +1741,12 @@ async def complete_session(
     redis_service=Depends(get_redis),
 ) -> dict[str, Any]:
     """
-    Finalize session and release rack.
+    Complete session and release rack.
 
-    This legacy endpoint is preserved for older clients and now delegates to the
-    canonical finalization workflow.
+    This legacy endpoint preserves the historical owner-compatible close flow.
     """
     lock_manager = get_lock_manager(redis_service)
-    return await _finalize_session_canonical(session_id, db, current_user, lock_manager)
+    return await _complete_session_legacy_compatible(session_id, db, current_user, lock_manager)
 
 
 @router.get("/user/history")

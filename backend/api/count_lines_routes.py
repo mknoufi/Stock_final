@@ -1020,7 +1020,6 @@ async def get_count_line_detail(
     count_line = await _find_count_line(db, line_id)
     if not count_line:
         raise HTTPException(status_code=404, detail="Count line not found")
-    await _ensure_count_line_mutable(db, count_line)
 
     if current_user.get("role") == "staff":
         allowed_usernames = {

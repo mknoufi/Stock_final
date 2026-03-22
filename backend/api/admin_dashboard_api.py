@@ -117,7 +117,14 @@ async def calculate_completion_percentage(db) -> float:
         if total_items == 0:
             return 0.0
 
-        verified_items = await db.count_lines.count_documents({"status": "locked"})
+        verified_items_result = await db.count_lines.aggregate(
+            [
+                {"$match": {"status": "locked", "item_code": {"$exists": True, "$ne": ""}}},
+                {"$group": {"_id": "$item_code"}},
+                {"$count": "count"},
+            ]
+        ).to_list(1)
+        verified_items = verified_items_result[0]["count"] if verified_items_result else 0
         return round((verified_items / total_items) * 100, 2)
     except Exception as e:
         logger.error(f"Error calculating completion: {e}")
@@ -160,7 +167,13 @@ async def count_pending_variances(db) -> int:
     """Count variances pending supervisor review."""
     try:
         return await db.count_lines.count_documents(
-            {"approval_status": "NEEDS_REVIEW", "variance": {"$ne": 0}}
+            {
+                "variance": {"$ne": 0},
+                "$or": [
+                    {"status": {"$in": ["pending_approval", "NEEDS_REVIEW"]}},
+                    {"approval_status": "NEEDS_REVIEW"},
+                ],
+            }
         )
     except Exception as e:
         logger.error(f"Error counting variances: {e}")
