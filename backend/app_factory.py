@@ -771,9 +771,14 @@ async def bulk_export_sessions(
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     try:
+        # ⚡ Bolt: Fixed N+1 query. Fetched all sessions in a single query.
+        sessions_cursor = db.sessions.find({"session_id": {"$in": session_ids}})
+        fetched_sessions = await sessions_cursor.to_list(length=None)
+        sessions_map = {s.get("session_id"): s for s in fetched_sessions}
+
         sessions = []
         for session_id in session_ids:
-            session = await db.sessions.find_one({"session_id": session_id})
+            session = sessions_map.get(session_id)
             if session:
                 sessions.append(session)
 

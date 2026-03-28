@@ -39,7 +39,7 @@ from backend.config import settings  # noqa: E402
 from backend.error_messages import get_error_message  # noqa: E402
 from backend.exceptions import AuthenticationError, NotFoundError
 from backend.exceptions import RateLimitError as RateLimitExceededError
-from backend.exceptions import (  # noqa: E402; Using base class as generic database error for now
+from backend.exceptions import (  # noqa: E402
     StockVerifyException as DatabaseError,
 )
 from backend.exceptions import ValidationError
@@ -92,8 +92,8 @@ except ImportError as e:
     ENTERPRISE_AVAILABLE = False
     enterprise_router = None  # type: ignore
     logger.info(f"Enterprise features not available: {e}")
-    init_enrichment_api = None  # type: ignore # noqa: F811
-    enrichment_router = None  # type: ignore # noqa: F811
+    init_enrichment_api = None  # type: ignore # noqa: E402
+    enrichment_router = None  # type: ignore # noqa: E402
 
 
 T = TypeVar("T")
@@ -831,9 +831,14 @@ async def bulk_export_sessions(
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     try:
+        # ⚡ Bolt: Fixed N+1 query. Fetched all sessions in a single query.
+        sessions_cursor = db.sessions.find({"id": {"$in": session_ids}})
+        fetched_sessions = await sessions_cursor.to_list(length=None)
+        sessions_map = {s.get("id"): s for s in fetched_sessions}
+
         sessions = []
         for session_id in session_ids:
-            session = await db.sessions.find_one({"id": session_id})
+            session = sessions_map.get(session_id)
             if session:
                 sessions.append(session)
 

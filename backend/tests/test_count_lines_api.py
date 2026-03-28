@@ -375,7 +375,9 @@ class TestCreateCountLine:
         mock_db.sessions.find_one.return_value = {"id": "session123", "status": "OPEN"}
         mock_db.erp_items.find_one.return_value = erp_item
         mock_db.count_lines.count_documents = AsyncMock(return_value=1)  # Duplicate exists
-        mock_db.count_lines.find_one = AsyncMock(return_value={"id": "existing", "status": "approved"})  # Existing count
+        mock_db.count_lines.find_one = AsyncMock(
+            return_value={"id": "existing", "status": "approved"}
+        )  # Existing count
 
         mock_find_cursor = Mock()
         mock_find_cursor.sort.return_value = mock_find_cursor
