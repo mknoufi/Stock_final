@@ -334,15 +334,26 @@ class DynamicFieldsService:
 
             # Get item details from main items collection
             items = []
-            for result in results:
-                item_code = result["_id"]
-                item = await self.db.items.find_one({"item_code": item_code})
+            if results:
+                item_codes = [result["_id"] for result in results if result.get("_id")]
 
-                if item:
-                    item["dynamic_fields"] = {
-                        field["field_name"]: field["value"] for field in result["fields"]
-                    }
-                    items.append(item)
+                # Bolt: Replaced N+1 query pattern with a single O(1) bulk fetch and dictionary mapping
+                items_cursor = self.db.items.find({"item_code": {"$in": item_codes}})
+                db_items_list = await items_cursor.to_list(length=None)
+
+                # Map results to an in-memory dictionary. Do not cast id to string.
+                db_items_map = {item["item_code"]: item for item in db_items_list}
+
+                for result in results:
+                    item_code = result.get("_id")
+                    item = db_items_map.get(item_code)
+
+                    if item:
+                        item["dynamic_fields"] = {
+                            field["field_name"]: field["value"]
+                            for field in result.get("fields", [])
+                        }
+                        items.append(item)
 
             return items
 
