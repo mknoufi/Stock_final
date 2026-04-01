@@ -10,7 +10,6 @@ import {
   Modal,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -23,6 +22,7 @@ import {
   modernSpacing,
   modernBorderRadius,
 } from "../../styles/modernDesignSystem";
+import { VirtualList } from "../common/VirtualList";
 
 interface SearchableSelectModalProps {
   visible: boolean;
@@ -144,8 +144,10 @@ export const SearchableSelectModal: React.FC<SearchableSelectModalProps> = ({
           </View>
 
           {/* Options List */}
-          <FlatList
+          {/* ⚡ Bolt: Replaced FlatList with VirtualList to improve rendering performance and reduce memory usage for potentially long lists. */}
+          <VirtualList
             data={filteredOptions}
+            estimatedItemSize={57}
             keyExtractor={(item, index) => `${item}-${index}`}
             renderItem={renderOption}
             style={styles.list}
