@@ -10,7 +10,7 @@
     "node": ">=20.0.0 <25.0.0"
   },
   "scripts": {
-    "doctor:node": "node -e \"const major = Number(process.versions.node.split('.')[0]); if (major !== 20) { console.error('Node 20.x is required. Current:', process.versions.node); process.exit(1); }\"",
+    "doctor:node": "node ./scripts/check-node-version.cjs",
     "postinstall": "node -e \"if (process.env.SKIP_POSTINSTALL === 'true') { process.exit(0); }\" && patch-package",
     "prestart": "npm run doctor:node && npm run update-ip --silent",
     "start": "expo start",
