@@ -39,6 +39,7 @@ export interface OfflineAuditMetadata {
   created_offline: true;
   offline_created_at: string;
   sync_status: "pending";
+  idempotency_key: string;
 }
 
 /**
@@ -84,21 +85,25 @@ export async function createOfflineCountLine(
   const context = { ...globalDeviceContext, ...deviceContext };
   const user = useAuthStore.getState().user;
 
-  // Try to get item name from cache
-  let itemName = "Unknown Item";
-  try {
-    const cachedItem = await getItemFromCache(countData.item_code);
-    if (cachedItem) {
-      itemName = cachedItem.item_name;
+  let itemName =
+    countData.item_name?.trim() || context.itemName?.trim() || "Unknown Item";
+
+  if (itemName === "Unknown Item") {
+    try {
+      const cachedItem = await getItemFromCache(countData.item_code);
+      if (cachedItem) {
+        itemName = cachedItem.item_name;
+      }
+    } catch (error) {
+      log.warn("Failed to get item from cache for offline count line", {
+        itemCode: countData.item_code,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
-  } catch (error) {
-    log.warn("Failed to get item from cache for offline count line", {
-      itemCode: countData.item_code,
-      error: error instanceof Error ? error.message : String(error),
-    });
   }
 
   // Create audit metadata
+  const offlineId = generateOfflineId();
   const audit: OfflineAuditMetadata = {
     source: context.sourceScreen || "scan_screen",
     device_id: context.deviceId || null,
@@ -106,11 +111,13 @@ export async function createOfflineCountLine(
     created_offline: true,
     offline_created_at: new Date().toISOString(),
     sync_status: "pending",
+    idempotency_key: offlineId,
   };
 
   // Create the offline count line with UUID-based ID
   const offlineCountLine: OfflineCountLine = {
-    _id: generateOfflineId(),
+    _id: offlineId,
+    idempotency_key: offlineId,
     session_id: countData.session_id,
     item_code: countData.item_code,
     item_name: itemName,

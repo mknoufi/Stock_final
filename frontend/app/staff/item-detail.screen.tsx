@@ -14,6 +14,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
@@ -32,6 +33,7 @@ import { ItemMrpSection } from "@/components/scan/ItemMrpSection";
 import { ItemSubmitBar } from "@/components/scan/ItemSubmitBar";
 import { ItemSummarySection } from "@/components/scan/ItemSummarySection";
 import { SerializedItemSection } from "@/components/scan/SerializedItemSection";
+import { PhotoCaptureModal } from "@/components/modals/PhotoCaptureModal";
 import { useDeferredItemSubmission } from "@/domains/inventory/hooks/scan/useDeferredItemSubmission";
 import { useItemDraftAutosave } from "@/domains/inventory/hooks/scan/useItemDraftAutosave";
 import { useItemDetailData } from "@/domains/inventory/hooks/scan/useItemDetailData";
@@ -48,6 +50,7 @@ import {
 } from "@/theme/unified";
 
 export default function ItemDetailScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const params = useLocalSearchParams<{ barcode: string; sessionId: string }>();
   const { barcode, sessionId } = params;
@@ -124,13 +127,17 @@ export default function ItemDetailScreen() {
     setQuantity,
   });
   const {
+    closePhotoCapture,
     damagePhoto,
     damageQty,
     damageType,
     handleAddItemPhoto,
+    handlePhotoCaptured,
     handleTakeDamagePhoto,
     isDamageEnabled,
     itemPhotos,
+    photoCaptureTitle,
+    photoCaptureVisible,
     remark,
     removeDamagePhoto,
     removeItemPhoto,
@@ -428,7 +435,11 @@ export default function ItemDetailScreen() {
             </>
           )}
 
-          <View style={styles.footerSpacer} />
+          <View
+            style={{
+              height: Math.max(96, insets.bottom + 88),
+            }}
+          />
         </ScrollView>
 
         <ItemSubmitBar
@@ -448,6 +459,13 @@ export default function ItemDetailScreen() {
         onCloseSerialScanner={() => setShowSerialScanner(false)}
         onSerialScanned={handleSerialScanned}
         serialScannerVisible={showSerialScanner}
+      />
+
+      <PhotoCaptureModal
+        visible={photoCaptureVisible}
+        title={photoCaptureTitle}
+        onClose={closePhotoCapture}
+        onCapture={handlePhotoCaptured}
       />
     </ThemedScreen>
   );
@@ -481,8 +499,5 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: spacing.xl,
-  },
-  footerSpacer: {
-    height: 80,
   },
 });

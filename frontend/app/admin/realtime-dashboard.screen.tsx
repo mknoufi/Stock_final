@@ -22,16 +22,21 @@ import { RealtimeDashboardTable } from "../../src/components/admin/realtime-dash
 import { RealtimeDashboardToolbar } from "../../src/components/admin/realtime-dashboard/RealtimeDashboardToolbar";
 import { RealtimeStatsStrip } from "../../src/components/admin/realtime-dashboard/RealtimeStatsStrip";
 import {
+  getRealtimeDashboardConnectionState,
+  shouldRefreshRealtimeDashboard,
+} from "../../src/components/admin/realtime-dashboard/realtimeDashboardLive";
+import {
   Column,
   DashboardItem,
   DashboardStats,
-  IS_WEB,
   Pagination,
   Summary,
 } from "../../src/components/admin/realtime-dashboard/realtimeDashboardShared";
+import { useWebSocket } from "../../src/hooks/useWebSocket";
 import api from "../../src/services/api/api";
 import { useSettingsStore } from "../../src/store/settingsStore";
 import { auroraTheme } from "../../src/theme/auroraTheme";
+import { saveArrayBufferExport } from "../../src/utils/fileExport";
 
 const DEFAULT_PAGINATION: Pagination = {
   page: 1,
@@ -45,7 +50,17 @@ export default function RealtimeDashboard() {
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
+  const realtimeRefreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const refreshDashboardSnapshotRef = useRef<((page?: number) => Promise<void>) | null>(
+    null,
+  );
+  const paginationPageRef = useRef(1);
+  const effectiveAutoRefreshRef = useRef(true);
+  const offlineModeRef = useRef(false);
   const offlineMode = useSettingsStore((state) => state.settings.offlineMode);
+  const { isConnected, lastMessage } = useWebSocket();
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +79,15 @@ export default function RealtimeDashboard() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [verifiedFilter, setVerifiedFilter] = useState<boolean | null>(null);
   const effectiveAutoRefresh = autoRefresh && !offlineMode;
+  const connectionState = useMemo(
+    () =>
+      getRealtimeDashboardConnectionState({
+        autoRefresh: effectiveAutoRefresh,
+        isConnected,
+        offlineMode,
+      }),
+    [effectiveAutoRefresh, isConnected, offlineMode],
+  );
 
   const visibleColumns = useMemo(
     () => columns.filter((column) => column.visible),
@@ -143,6 +167,50 @@ export default function RealtimeDashboard() {
     }
   }, [offlineMode]);
 
+  const refreshDashboardSnapshot = useCallback(
+    async (page = pagination.page) => {
+      await Promise.all([fetchData(page), fetchStats()]);
+    },
+    [fetchData, fetchStats, pagination.page],
+  );
+
+  useEffect(() => {
+    refreshDashboardSnapshotRef.current = refreshDashboardSnapshot;
+  }, [refreshDashboardSnapshot]);
+
+  useEffect(() => {
+    paginationPageRef.current = pagination.page;
+  }, [pagination.page]);
+
+  useEffect(() => {
+    effectiveAutoRefreshRef.current = effectiveAutoRefresh;
+    offlineModeRef.current = offlineMode;
+  }, [effectiveAutoRefresh, offlineMode]);
+
+  const clearRealtimeRefreshTimeout = useCallback(() => {
+    if (realtimeRefreshTimeoutRef.current) {
+      clearTimeout(realtimeRefreshTimeoutRef.current);
+      realtimeRefreshTimeoutRef.current = null;
+    }
+  }, []);
+
+  const requestRealtimeRefresh = useCallback(() => {
+    if (!effectiveAutoRefresh || offlineMode) {
+      clearRealtimeRefreshTimeout();
+      return;
+    }
+
+    clearRealtimeRefreshTimeout();
+
+    realtimeRefreshTimeoutRef.current = setTimeout(() => {
+      realtimeRefreshTimeoutRef.current = null;
+      if (!effectiveAutoRefreshRef.current || offlineModeRef.current) {
+        return;
+      }
+      void refreshDashboardSnapshotRef.current?.(paginationPageRef.current);
+    }, 300);
+  }, [clearRealtimeRefreshTimeout, effectiveAutoRefresh, offlineMode]);
+
   const fetchColumns = useCallback(async () => {
     if (offlineMode) {
       setColumns([]);
@@ -165,27 +233,47 @@ export default function RealtimeDashboard() {
     const initialize = async () => {
       setLoading(true);
       await fetchColumns();
-      await Promise.all([fetchData(), fetchStats()]);
+      await refreshDashboardSnapshotRef.current?.(1);
       setLoading(false);
     };
 
     void initialize();
-  }, [fetchColumns, fetchData, fetchStats]);
+  }, [fetchColumns, offlineMode]);
 
   useEffect(() => {
-    if (effectiveAutoRefresh) {
+    if (effectiveAutoRefresh && !isConnected) {
       refreshIntervalRef.current = setInterval(() => {
-        fetchData(pagination.page);
-        fetchStats();
+        void refreshDashboardSnapshotRef.current?.(paginationPageRef.current);
       }, 10000);
     }
 
     return () => {
       if (refreshIntervalRef.current) {
         clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
       }
     };
-  }, [effectiveAutoRefresh, fetchData, fetchStats, pagination.page]);
+  }, [effectiveAutoRefresh, isConnected]);
+
+  useEffect(() => {
+    if (!effectiveAutoRefresh || offlineMode) {
+      clearRealtimeRefreshTimeout();
+    }
+  }, [clearRealtimeRefreshTimeout, effectiveAutoRefresh, offlineMode]);
+
+  useEffect(() => {
+    if (!shouldRefreshRealtimeDashboard(lastMessage)) {
+      return;
+    }
+
+    requestRealtimeRefresh();
+  }, [lastMessage, requestRealtimeRefresh]);
+
+  useEffect(() => {
+    return () => {
+      clearRealtimeRefreshTimeout();
+    };
+  }, [clearRealtimeRefreshTimeout]);
 
   useEffect(() => {
     if (!loading) {
@@ -196,7 +284,7 @@ export default function RealtimeDashboard() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchData(pagination.page), fetchStats()]);
+    await refreshDashboardSnapshot(pagination.page);
     setRefreshing(false);
   };
 
@@ -237,7 +325,7 @@ export default function RealtimeDashboard() {
     setShowItemDetails(true);
   };
 
-  const handleExportCSV = async () => {
+  const handleExport = async (format: "csv" | "xlsx") => {
     if (offlineMode) {
       Alert.alert(
         "Offline Mode",
@@ -258,19 +346,17 @@ export default function RealtimeDashboard() {
         sort_order: sortOrder,
       };
 
-      const response = await api.post("/api/dashboard/export/csv", config, {
-        responseType: "blob",
+      const response = await api.post(`/api/dashboard/export/${format}`, config, {
+        responseType: "arraybuffer",
       });
 
-      if (IS_WEB) {
-        const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement("a");
-        link.href = url;
-        link.setAttribute("download", `dashboard_export_${Date.now()}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-      }
+      await saveArrayBufferExport(
+        response.data as ArrayBuffer,
+        `dashboard_erpnext_import_${Date.now()}.${format}`,
+        format === "csv"
+          ? "text/csv"
+          : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
     } catch (error) {
       console.error("Export error:", error);
     }
@@ -336,7 +422,9 @@ export default function RealtimeDashboard() {
         <RealtimeDashboardToolbar
           actionsDisabled={offlineMode}
           autoRefresh={effectiveAutoRefresh}
-          onExportCSV={handleExportCSV}
+          connectionState={connectionState}
+          onExportCSV={() => void handleExport("csv")}
+          onExportXLSX={() => void handleExport("xlsx")}
           onOpenColumnSettings={() => setShowColumnSettings(true)}
           onToggleAutoRefresh={() => {
             if (!offlineMode) {
