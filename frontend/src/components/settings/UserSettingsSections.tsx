@@ -1,11 +1,14 @@
-import React, { useMemo } from "react";
-import { StyleSheet, Switch, Text, View, Platform } from "react-native";
+import React, { useCallback, useMemo } from "react";
+import { Alert, Linking, Platform, StyleSheet, Switch, Text, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 
 import { useTheme } from "../../hooks/useTheme";
+import { useAppVersion } from "../../hooks/useAppVersion";
+import { useVersionCheck } from "../../hooks/useVersionCheck";
 import { useSettingsStore } from "../../store/settingsStore";
 import type { Settings } from "../../store/settingsStore";
+import { resolveAppUpdateUrl } from "../../services/updateService";
 import { GlassCard } from "../ui/GlassCard";
 import { AnimatedPressable } from "../ui/AnimatedPressable";
 
@@ -77,8 +80,6 @@ const BACKUP_FREQUENCY_OPTIONS: Option<Settings["backupFrequency"]>[] = [
 
 const MODE_OPTIONS: Option<Settings["operationalMode"]>[] = [
   { label: "Routine", value: "routine" },
-  { label: "Live Audit", value: "live_audit" },
-  { label: "Training", value: "training" },
 ];
 
 const DEBOUNCE_DELAY_OPTIONS: Option<number>[] = [
@@ -252,9 +253,96 @@ const cycleOption = <T,>(options: Option<T>[], currentValue: T): T => {
   return options[nextIndex]?.value ?? options[0]!.value;
 };
 
+const openExternalUrl = async (url: string): Promise<boolean> => {
+  try {
+    const canOpen = await Linking.canOpenURL(url);
+    if (!canOpen) {
+      return false;
+    }
+    await Linking.openURL(url);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 export function UserSettingsSections() {
   const { settings, setSetting } = useSettingsStore();
   const spacing = useTheme().spacing;
+  const { version, buildVersion } = useAppVersion();
+  const { versionInfo, isChecking, checkForUpdates, dismissUpdate, isDismissed } =
+    useVersionCheck({
+      checkOnMount: false,
+    });
+
+  const latestVersionLabel = versionInfo?.current_version
+    ? `v${versionInfo.current_version}`
+    : "Not checked";
+  const currentVersionLabel = `v${version} (${buildVersion})`;
+  const updateUrl = resolveAppUpdateUrl(versionInfo);
+
+  const handleUpdateNow = useCallback(
+    async (url?: string | null) => {
+      if (!url) {
+        Alert.alert(
+          "Update Link Missing",
+          "No update download link is configured yet. Please contact your administrator.",
+        );
+        return;
+      }
+
+      const opened = await openExternalUrl(url);
+      if (!opened) {
+        Alert.alert(
+          "Unable to Open Link",
+          "Could not open the update link on this device.",
+        );
+      }
+    },
+    [],
+  );
+
+  const handleCheckForUpdates = useCallback(async () => {
+    const result = await checkForUpdates();
+    if (!result || result.error) {
+      Alert.alert(
+        "Update Check Failed",
+        "Unable to check for updates right now. Please try again shortly.",
+      );
+      return;
+    }
+
+    const targetUrl = resolveAppUpdateUrl(result);
+    if (result.force_update || result.update_available) {
+      const latest = result.current_version || "latest";
+      const title = result.force_update ? "Update Required" : "Update Available";
+      const message = result.force_update
+        ? `This app version is no longer supported. Please update to v${latest} to continue.`
+        : `A newer version (v${latest}) is available.`;
+
+      const updateAction = () => {
+        void handleUpdateNow(targetUrl);
+      };
+
+      if (result.force_update) {
+        Alert.alert(title, message, [{ text: "Update Now", onPress: updateAction }], {
+          cancelable: false,
+        });
+        } else {
+          Alert.alert(title, message, [
+            {
+              text: "Later",
+              style: "cancel",
+              onPress: dismissUpdate,
+            },
+            { text: "Update Now", onPress: updateAction },
+          ]);
+        }
+      return;
+    }
+
+    Alert.alert("App is Up to Date", `You are using the latest version (v${version}).`);
+  }, [checkForUpdates, dismissUpdate, handleUpdateNow, version]);
 
   const labels = useMemo(
     () => ({
@@ -558,6 +646,71 @@ export function UserSettingsSections() {
         />
       </Section>
 
+      <Section title="App Updates">
+        <SettingRow
+          icon="phone-portrait-outline"
+          label="Current Version"
+          description="Installed app version on this device"
+          type="select"
+          disabled
+          valueLabel={currentVersionLabel}
+        />
+        <SectionDivider />
+        <SettingRow
+          icon="cloud-download-outline"
+          label="Latest Version"
+          description="Latest version reported by the server"
+          type="select"
+          disabled
+          valueLabel={latestVersionLabel}
+        />
+        <SectionDivider />
+        <SettingRow
+          icon="refresh-outline"
+          label="Check for Updates"
+          description="Look for a newer app version now"
+          type="select"
+          disabled={isChecking}
+          valueLabel={isChecking ? "Checking..." : "Tap to check"}
+          onPress={() => {
+            void handleCheckForUpdates();
+          }}
+        />
+        {versionInfo?.update_available && isDismissed && (
+          <>
+            <SectionDivider />
+            <SettingRow
+              icon="notifications-off-outline"
+              label="Update Reminder"
+              description="Optional update reminders are paused until a newer version is reported"
+              type="select"
+              disabled
+              valueLabel="Dismissed"
+            />
+          </>
+        )}
+        {versionInfo?.update_available && !isDismissed && (
+          <>
+            <SectionDivider />
+            <SettingRow
+              icon="download-outline"
+              label="Update Now"
+              description={
+                updateUrl
+                  ? "Open the latest app download link"
+                  : "Update link not configured"
+              }
+              type="select"
+              disabled={!updateUrl}
+              valueLabel={updateUrl ? "Open link" : "Link missing"}
+              onPress={() => {
+                void handleUpdateNow(updateUrl);
+              }}
+            />
+          </>
+        )}
+      </Section>
+
       <Section title="Access & Workflow">
         <SettingRow
           icon="lock-closed-outline"
@@ -595,15 +748,10 @@ export function UserSettingsSections() {
         <SettingRow
           icon="construct-outline"
           label="Operational Mode"
-          description="Switch the app behavior profile for your work"
+          description="Routine mode is the only supported workflow profile in this build"
           type="select"
+          disabled
           valueLabel={labels.operationalMode}
-          onPress={() =>
-            setSetting(
-              "operationalMode",
-              cycleOption(MODE_OPTIONS, settings.operationalMode),
-            )
-          }
         />
       </Section>
 

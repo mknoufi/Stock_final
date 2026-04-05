@@ -3,25 +3,40 @@
  * Validates scanned codes as serial numbers (not barcodes)
  * Collects detected candidates and lets user tap the correct serial to add
  */
-import React, { useRef, useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   Modal,
   StyleSheet,
+  ScrollView,
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Alert,
+  Linking,
 } from "react-native";
-import { CameraView } from "expo-camera";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
-import { ScanThrottleManager } from "../../config/scannerConfig";
 import {
   validateScannedSerial,
   normalizeSerialValue,
 } from "../../utils/scanUtils";
+import {
+  clearRecentScanTimes,
+  DEFAULT_SERIAL_RESCAN_WINDOW_MS,
+  createDetectedCodeList,
+  DetectedCode,
+  DetectedCodeStatus,
+  isScanWithinRescanWindow,
+  isScanLocked,
+  nextAfterResume,
+  nextAfterSerialAdded,
+} from "./serialScannerState";
 import {
   colors,
   spacing,
@@ -29,16 +44,6 @@ import {
   fontWeight,
   radius as borderRadius,
 } from "../../theme/unified";
-
-type DetectedCodeStatus = "ready" | "invalid" | "duplicate";
-
-type DetectedCode = {
-  code: string;
-  status: DetectedCodeStatus;
-  message: string;
-};
-
-const MAX_DETECTED_CODES = 20;
 
 interface SerialScannerModalProps {
   visible: boolean;
@@ -53,6 +58,26 @@ interface SerialScannerModalProps {
   onClose: () => void;
 }
 
+export const describeInvalidCandidateMessage = (code: string, fallback?: string) => {
+  if (fallback?.includes("already been added")) {
+    return fallback;
+  }
+
+  const numericOnly = /^\d+$/.test(code);
+  const eanOrUpcLike = numericOnly && code.length >= 8 && code.length <= 14;
+  const likelyManufacturerCode = numericOnly && code.length > 14;
+
+  if (fallback?.includes("product barcode") || eanOrUpcLike) {
+    return "EAN/UPC barcode detected. Select the serial code from the list.";
+  }
+
+  if (likelyManufacturerCode) {
+    return "Manufacturer code detected. Select the correct serial code.";
+  }
+
+  return fallback || "Invalid serial number";
+};
+
 export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
   visible,
   existingSerials,
@@ -61,9 +86,15 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
   onSerialScanned,
   onClose,
 }) => {
-  const throttleManagerRef = useRef<ScanThrottleManager>(
-    new ScanThrottleManager(),
-  );
+  const CANDIDATE_BURST_PAUSE_MS = 650;
+  const insets = useSafeAreaInsets();
+  const getInvalidCandidateMessage = useCallback(describeInvalidCandidateMessage, []);
+
+  const recentScanTimesRef = useRef<Map<string, number>>(new Map());
+  const burstPauseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const acceptedSerialsRef = useRef<Set<string>>(new Set());
+  const hasAutoRequestedPermissionRef = useRef(false);
+  const [permission, requestPermission] = useCameraPermissions();
 
   const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [scanFeedback, setScanFeedback] = useState<{
@@ -71,6 +102,7 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
     message: string;
   } | null>(null);
   const [detectedCodes, setDetectedCodes] = useState<DetectedCode[]>([]);
+  const [scanPaused, setScanPaused] = useState(false);
 
   // Manual Input State
   const [showManualInput, setShowManualInput] = useState(false);
@@ -97,6 +129,7 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
         );
         if (wasAdded) {
           localExisting.push(normalized);
+          acceptedSerialsRef.current.add(normalized);
           addedCount++;
         }
       }
@@ -112,11 +145,26 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
   }, [manualText, existingSerials, defaultMrp, onSerialScanned]);
 
   const upsertDetectedCode = useCallback((entry: DetectedCode) => {
-    setDetectedCodes((prev) => {
-      const deduped = prev.filter((candidate) => candidate.code !== entry.code);
-      return [entry, ...deduped].slice(0, MAX_DETECTED_CODES);
-    });
+    setDetectedCodes((prev) => createDetectedCodeList(prev, entry));
   }, []);
+
+  const clearBurstPauseTimer = useCallback(() => {
+    if (burstPauseTimerRef.current) {
+      clearTimeout(burstPauseTimerRef.current);
+      burstPauseTimerRef.current = null;
+    }
+  }, []);
+
+  const scheduleBurstPause = useCallback(() => {
+    clearBurstPauseTimer();
+    burstPauseTimerRef.current = setTimeout(() => {
+      setScanPaused(true);
+      setScanFeedback({
+        type: "warning",
+        message: "Select the correct serial, then tap Scan Next Serial.",
+      });
+    }, CANDIDATE_BURST_PAUSE_MS);
+  }, [CANDIDATE_BURST_PAUSE_MS, clearBurstPauseTimer]);
 
   const handleDetectedCodePress = useCallback(
     async (candidate: DetectedCode) => {
@@ -147,26 +195,73 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
       }
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      acceptedSerialsRef.current.add(candidate.code);
       setScanFeedback({
         type: "success",
-        message: `Serial added: ${candidate.code}`,
+        message: `Serial added: ${candidate.code}. Tap Scan Next to continue.`,
       });
-      setDetectedCodes((prev) => prev.filter((entry) => entry.code !== candidate.code));
+      setDetectedCodes([]);
+      clearBurstPauseTimer();
+      setScanPaused(nextAfterSerialAdded({ scanPaused }).scanPaused);
     },
-    [defaultMrp, onSerialScanned],
+    [clearBurstPauseTimer, defaultMrp, onSerialScanned, scanPaused],
   );
 
+  const handleResumeScan = useCallback(() => {
+    clearBurstPauseTimer();
+    setScanPaused(nextAfterResume({ scanPaused }).scanPaused);
+    setDetectedCodes([]);
+    setScanFeedback({
+      type: "success",
+      message: "Ready to scan the next serial.",
+    });
+  }, [clearBurstPauseTimer, scanPaused]);
+
+  const handleResetDetected = useCallback(() => {
+    clearBurstPauseTimer();
+    setDetectedCodes([]);
+    setLastScanned(null);
+    clearRecentScanTimes(recentScanTimesRef.current);
+    setScanFeedback({
+      type: "success",
+      message: "Detected list reset. Continue scanning.",
+    });
+  }, [clearBurstPauseTimer]);
+
+  const handleOpenSettings = useCallback(async () => {
+    try {
+      await Linking.openSettings();
+    } catch {
+      Alert.alert(
+        "Settings Unavailable",
+        "Unable to open app settings. Please enable camera permission manually.",
+      );
+    }
+  }, []);
+
   // Reset state when modal opens
-  React.useEffect(() => {
+  useEffect(() => {
     if (visible) {
       setLastScanned(null);
       setScanFeedback(null);
       setDetectedCodes([]);
+      setScanPaused(false);
+      clearBurstPauseTimer();
+      clearRecentScanTimes(recentScanTimesRef.current);
+      acceptedSerialsRef.current = new Set(
+        existingSerials.map(normalizeSerialValue).filter(Boolean),
+      );
     }
-  }, [visible]);
+  }, [clearBurstPauseTimer, existingSerials, visible]);
+
+  useEffect(() => {
+    acceptedSerialsRef.current = new Set(
+      existingSerials.map(normalizeSerialValue).filter(Boolean),
+    );
+  }, [existingSerials]);
 
   // Clear feedback after delay
-  React.useEffect(() => {
+  useEffect(() => {
     if (scanFeedback) {
       const timer = setTimeout(() => setScanFeedback(null), 2000);
       return () => clearTimeout(timer);
@@ -174,20 +269,54 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
     return undefined;
   }, [scanFeedback]);
 
+  useEffect(() => {
+    if (!visible) {
+      hasAutoRequestedPermissionRef.current = false;
+      return;
+    }
+
+    if (permission?.granted || hasAutoRequestedPermissionRef.current) {
+      return;
+    }
+
+    if (permission?.canAskAgain !== false) {
+      hasAutoRequestedPermissionRef.current = true;
+      void requestPermission();
+    }
+  }, [permission, requestPermission, visible]);
+
+  useEffect(() => () => clearBurstPauseTimer(), [clearBurstPauseTimer]);
+
   const handleBarcodeScanned = useCallback(
     (data: { data: string }) => {
+      if (isScanLocked({ scanPaused })) {
+        return;
+      }
+
       const scannedValue = normalizeSerialValue(data.data);
       if (!scannedValue) {
         return;
       }
 
-      // Check throttle
-      if (!throttleManagerRef.current.shouldProcessScan(scannedValue)) {
+      const now = Date.now();
+      const lastSeenAt = recentScanTimesRef.current.get(scannedValue) ?? 0;
+      if (
+        isScanWithinRescanWindow({
+          lastSeenAt,
+          now,
+          windowMs: DEFAULT_SERIAL_RESCAN_WINDOW_MS,
+        })
+      ) {
         return;
       }
+      recentScanTimesRef.current.set(scannedValue, now);
 
       // Validate as serial number (not barcode)
-      const validation = validateScannedSerial(scannedValue, existingSerials);
+      const knownSerials = [
+        ...existingSerials,
+        ...Array.from(acceptedSerialsRef.current),
+      ];
+      const validation = validateScannedSerial(scannedValue, knownSerials);
       const status: DetectedCodeStatus = validation.valid
         ? "ready"
         : validation.error?.includes("already been added")
@@ -195,7 +324,7 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
           : "invalid";
       const message = validation.valid
         ? "Tap to add"
-        : validation.error || "Invalid serial number";
+        : getInvalidCandidateMessage(scannedValue, validation.error);
       upsertDetectedCode({
         code: scannedValue,
         status,
@@ -213,6 +342,7 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
           type: validation.error?.includes("barcode") ? "warning" : "error",
           message,
         });
+        scheduleBurstPause();
         return;
       }
 
@@ -221,8 +351,15 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
         type: "warning",
         message: "Code detected. Tap it below to add.",
       });
+      scheduleBurstPause();
     },
-    [existingSerials, upsertDetectedCode],
+    [
+      existingSerials,
+      getInvalidCandidateMessage,
+      scanPaused,
+      scheduleBurstPause,
+      upsertDetectedCode,
+    ],
   );
 
   const getFeedbackStyle = () => {
@@ -239,12 +376,123 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
     }
   };
 
+  const isCameraGranted = permission?.granted === true;
+  const canAskPermission = permission?.canAskAgain !== false;
+
+  if (!isCameraGranted) {
+    return (
+      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+        <View style={styles.container}>
+          <View style={styles.permissionContainer}>
+            <Ionicons name="camera-outline" size={64} color={colors.neutral[300]} />
+            <Text style={styles.permissionTitle}>Camera access is required</Text>
+            <Text style={styles.permissionText}>
+              Enable camera permission to scan serial numbers quickly.
+            </Text>
+
+            {!permission ? (
+              <ActivityIndicator
+                size="large"
+                color={colors.primary[500]}
+                style={{ marginTop: spacing.md }}
+              />
+            ) : canAskPermission ? (
+              <TouchableOpacity
+                style={styles.permissionButton}
+                onPress={requestPermission}
+              >
+                <Text style={styles.permissionButtonText}>Grant Permission</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.permissionButton}
+                onPress={handleOpenSettings}
+              >
+                <Text style={styles.permissionButtonText}>Open Settings</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={[styles.permissionButton, styles.permissionSecondaryButton]}
+              onPress={() => setShowManualInput(true)}
+            >
+              <Text
+                style={[
+                  styles.permissionButtonText,
+                  styles.permissionSecondaryButtonText,
+                ]}
+              >
+                Use Manual Entry
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.permissionButton, styles.permissionSecondaryButton]}
+              onPress={onClose}
+            >
+              <Text
+                style={[
+                  styles.permissionButtonText,
+                  styles.permissionSecondaryButtonText,
+                ]}
+              >
+                Close
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Manual Input Overlay */}
+          <Modal
+            visible={showManualInput}
+            animationType="slide"
+            presentationStyle="pageSheet"
+            onRequestClose={() => setShowManualInput(false)}
+          >
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={styles.manualContainer}
+            >
+              <View style={styles.manualHeader}>
+                <Text style={styles.manualTitle}>Manual / Bulk Input</Text>
+                <TouchableOpacity onPress={() => setShowManualInput(false)}>
+                  <Ionicons name="close" size={28} color={colors.neutral[900]} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.manualHelperText}>
+                Enter serial numbers separated by commas, spaces, or new lines.
+              </Text>
+
+              <TextInput
+                style={styles.manualInput}
+                multiline
+                placeholder="Paste serial numbers here..."
+                value={manualText}
+                onChangeText={setManualText}
+                autoCapitalize="characters"
+                autoCorrect={false}
+              />
+
+              <TouchableOpacity
+                style={[styles.doneButton, { margin: spacing.lg }]}
+                onPress={handleBulkProcess}
+              >
+                <Text style={styles.doneButtonText}>Process Serials</Text>
+              </TouchableOpacity>
+            </KeyboardAvoidingView>
+          </Modal>
+        </View>
+      </Modal>
+    );
+  }
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <CameraView
           style={StyleSheet.absoluteFillObject}
           facing="back"
+          active={visible && !showManualInput}
           barcodeScannerSettings={{
             barcodeTypes: [
               "qr",
@@ -258,13 +506,22 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
               "upc_e",
             ],
           }}
-          onBarcodeScanned={handleBarcodeScanned}
+          onBarcodeScanned={
+            scanPaused || showManualInput ? undefined : handleBarcodeScanned
+          }
         />
 
         {/* Overlay */}
         <View style={styles.overlay}>
           {/* Top Bar */}
-          <View style={styles.topBar}>
+          <View
+            style={[
+              styles.topBar,
+              {
+                paddingTop: Math.max(insets.top + spacing.xs, spacing.md),
+              },
+            ]}
+          >
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Ionicons name="close" size={28} color={colors.white} />
             </TouchableOpacity>
@@ -314,7 +571,14 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
           </View>
 
           {/* Bottom Info */}
-          <View style={styles.bottomInfo}>
+          <View
+            style={[
+              styles.bottomInfo,
+              {
+                paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl),
+              },
+            ]}
+          >
             <View style={styles.infoCard}>
               <Ionicons
                 name="information-circle-outline"
@@ -322,51 +586,76 @@ export const SerialScannerModal: React.FC<SerialScannerModalProps> = ({
                 color={colors.primary[400]}
               />
               <Text style={styles.infoText}>
-                Scan product labels and select the correct serial code.{"\n"}
-                Stickers with multiple barcodes are supported.
+                Review mode is ON. Detected codes are listed for manual selection.
+                {"\n"}
+                Nearby serial/EAN/manufacturer barcodes are supported in one scan burst.
               </Text>
             </View>
 
+            {scanPaused && (
+              <TouchableOpacity
+                style={[
+                  styles.doneButton,
+                  { marginBottom: spacing.md, backgroundColor: colors.success[600] },
+                ]}
+                onPress={handleResumeScan}
+              >
+                <Ionicons name="scan-outline" size={22} color={colors.white} />
+                <Text style={styles.doneButtonText}>Scan Next Serial</Text>
+              </TouchableOpacity>
+            )}
+
             {detectedCodes.length > 0 && (
               <View style={styles.detectedList}>
-                <Text style={styles.detectedLabel}>
-                  Detected Codes ({detectedCodes.length})
-                </Text>
-                {detectedCodes.map((candidate) => (
-                  <TouchableOpacity
-                    key={candidate.code}
-                    style={[
-                      styles.detectedRow,
-                      candidate.status !== "ready" && styles.detectedRowDisabled,
-                    ]}
-                    activeOpacity={0.8}
-                    onPress={() => handleDetectedCodePress(candidate)}
-                    disabled={candidate.status !== "ready"}
-                  >
-                    <View style={styles.detectedRowContent}>
-                      <Text style={styles.detectedCode}>{candidate.code}</Text>
-                      <Text style={styles.detectedMessage}>{candidate.message}</Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.detectedBadge,
-                        candidate.status === "ready"
-                          ? styles.detectedBadgeReady
-                          : candidate.status === "duplicate"
-                            ? styles.detectedBadgeDuplicate
-                            : styles.detectedBadgeInvalid,
-                      ]}
-                    >
-                      <Text style={styles.detectedBadgeText}>
-                        {candidate.status === "ready"
-                          ? "Add"
-                          : candidate.status === "duplicate"
-                            ? "Dup"
-                            : "Skip"}
-                      </Text>
-                    </View>
+                <View style={styles.detectedHeader}>
+                  <Text style={styles.detectedLabel}>
+                    Detected Codes ({detectedCodes.length})
+                  </Text>
+                  <TouchableOpacity onPress={handleResetDetected}>
+                    <Text style={styles.detectedResetText}>Reset</Text>
                   </TouchableOpacity>
-                ))}
+                </View>
+                <ScrollView
+                  style={styles.detectedScroll}
+                  nestedScrollEnabled
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {detectedCodes.map((candidate) => (
+                    <TouchableOpacity
+                      key={candidate.code}
+                      style={[
+                        styles.detectedRow,
+                        candidate.status !== "ready" && styles.detectedRowDisabled,
+                      ]}
+                      activeOpacity={0.8}
+                      onPress={() => handleDetectedCodePress(candidate)}
+                      disabled={candidate.status !== "ready"}
+                    >
+                      <View style={styles.detectedRowContent}>
+                        <Text style={styles.detectedCode}>{candidate.code}</Text>
+                        <Text style={styles.detectedMessage}>{candidate.message}</Text>
+                      </View>
+                      <View
+                        style={[
+                          styles.detectedBadge,
+                          candidate.status === "ready"
+                            ? styles.detectedBadgeReady
+                            : candidate.status === "duplicate"
+                              ? styles.detectedBadgeDuplicate
+                              : styles.detectedBadgeInvalid,
+                        ]}
+                      >
+                        <Text style={styles.detectedBadgeText}>
+                          {candidate.status === "ready"
+                            ? "Add"
+                            : candidate.status === "duplicate"
+                              ? "Dup"
+                              : "Skip"}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
             )}
 
@@ -452,6 +741,51 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.neutral[900],
   },
+  permissionContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xl,
+  },
+  permissionTitle: {
+    marginTop: spacing.md,
+    color: colors.white,
+    fontSize: fontSize.lg,
+    fontWeight: fontWeight.bold,
+    textAlign: "center",
+  },
+  permissionText: {
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
+    color: colors.neutral[300],
+    fontSize: fontSize.sm,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  permissionButton: {
+    width: "100%",
+    minHeight: 44,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.primary[600],
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  permissionButtonText: {
+    color: colors.white,
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.semiBold,
+  },
+  permissionSecondaryButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.neutral[500],
+  },
+  permissionSecondaryButtonText: {
+    color: colors.neutral[200],
+  },
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.4)",
@@ -459,7 +793,6 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 60,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
@@ -576,7 +909,29 @@ const styles = StyleSheet.create({
   },
   bottomInfo: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: 40,
+    paddingBottom: spacing.xl,
+  },
+  modeToggleButton: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  modeToggleButtonActive: {
+    backgroundColor: colors.success[600],
+  },
+  modeToggleButtonInactive: {
+    backgroundColor: colors.neutral[700],
+  },
+  modeToggleButtonText: {
+    color: colors.white,
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semiBold,
   },
   infoCard: {
     flexDirection: "row",
@@ -600,11 +955,25 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     gap: spacing.xs,
   },
+  detectedScroll: {
+    maxHeight: 210,
+  },
+  detectedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: spacing.xs,
+  },
   detectedLabel: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.medium,
     color: colors.neutral[300],
-    marginBottom: spacing.xs,
+    textTransform: "uppercase",
+  },
+  detectedResetText: {
+    color: colors.primary[300],
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semiBold,
     textTransform: "uppercase",
   },
   detectedRow: {
