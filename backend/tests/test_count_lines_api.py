@@ -265,7 +265,7 @@ class TestCreateCountLine:
         """Create mock database"""
         db = AsyncMock()
         db.sessions.find_one = AsyncMock()
-        db.erp_items.find_one = AsyncMock()
+        db.erp_items.find_one = AsyncMock(return_value=None)
         db.count_lines.count_documents = AsyncMock(return_value=0)
         db.count_lines.find_one = AsyncMock(return_value=None)
         db.count_lines.insert_one = AsyncMock()

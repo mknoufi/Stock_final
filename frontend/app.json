@@ -46,12 +46,6 @@
       ]
     },
     "plugins": [
-      [
-        "expo-background-fetch",
-        {
-          "isHeadless": true
-        }
-      ],
       "./plugins/withQuotedReactNativeBundlePhase",
       "expo-router",
       [
@@ -63,7 +57,8 @@
       "@react-native-community/datetimepicker",
       "expo-font",
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-background-task"
     ],
     "web": {
       "bundler": "metro"
