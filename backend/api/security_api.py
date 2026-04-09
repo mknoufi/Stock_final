@@ -193,12 +193,20 @@ async def get_security_sessions(
         cursor = db.refresh_tokens.find(query).sort("created_at", -1).limit(limit)
         tokens = await cursor.to_list(limit)
 
+        # Fetch all unique users in a single query to prevent N+1 queries
+        usernames = list({t.get("username") for t in tokens if t.get("username")})
+        user_map: dict[str, Any] = {}
+        if usernames:
+            users_cursor = db.users.find({"username": {"$in": usernames}})
+            users_list = await users_cursor.to_list(None)
+            user_map = {u.get("username"): u for u in users_list if u.get("username")}
+
         # Get user info for each token
         sessions: list[dict[str, Any]] = []
         for token in tokens:
             username = token.get("username")
             if username:
-                user = await db.users.find_one({"username": username})
+                user = user_map.get(username)
                 if user:
                     sessions.append(
                         {
