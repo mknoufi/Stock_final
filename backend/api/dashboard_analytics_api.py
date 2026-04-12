@@ -369,12 +369,23 @@ async def _breakdown_by_category(
             category_items[cat] = []
         category_items[cat].append(item)
 
+    # Batch fetch count lines
+    all_item_codes = [item["item_code"] for item in items]
+    all_count_lines = await db.count_lines.find({"item_code": {"$in": all_item_codes}}).to_list(None)
+
+    lines_by_item_code = {}
+    for line in all_count_lines:
+        code = line.get("item_code")
+        if code not in lines_by_item_code:
+            lines_by_item_code[code] = []
+        lines_by_item_code[code].append(line)
+
     breakdown = []
     for category, cat_items in category_items.items():
-        item_codes = [item["item_code"] for item in cat_items]
-
         # Get count lines for these items
-        count_lines = await db.count_lines.find({"item_code": {"$in": item_codes}}).to_list(None)
+        count_lines = []
+        for item in cat_items:
+            count_lines.extend(lines_by_item_code.get(item["item_code"], []))
 
         # Calculate metrics (similar to location breakdown)
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
@@ -442,10 +453,28 @@ async def _breakdown_by_session(
         None
     )
 
+    sessions_to_process = sessions[:20]  # Limit to 20 most recent sessions
+    session_ids = [s.get("id") for s in sessions_to_process if s.get("id")]
+
+    # Batch fetch count lines
+    all_count_lines = await db.count_lines.find({"session_id": {"$in": session_ids}}).to_list(None)
+    lines_by_session = {}
+    item_codes_set = set()
+    for line in all_count_lines:
+        sid = line.get("session_id")
+        if sid not in lines_by_session:
+            lines_by_session[sid] = []
+        lines_by_session[sid].append(line)
+        item_codes_set.add(line.get("item_code"))
+
+    # Batch fetch items
+    items = await db.erp_items.find({"item_code": {"$in": list(item_codes_set)}}).to_list(None)
+    items_by_code = {item["item_code"]: item for item in items}
+
     breakdown = []
-    for session in sessions[:20]:  # Limit to 20 most recent sessions
+    for session in sessions_to_process:
         session_id = session.get("id")
-        count_lines = await db.count_lines.find({"session_id": session_id}).to_list(None)
+        count_lines = lines_by_session.get(session_id, [])
 
         if not count_lines:
             continue
@@ -454,11 +483,10 @@ async def _breakdown_by_session(
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
 
-        # Get prices
-        item_codes = [line.get("item_code") for line in count_lines]
-        items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
+        # Get prices from pre-fetched items
         price_map = {
-            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
+            item_code: items_by_code[item_code].get(valuation_basis, 0) or items_by_code[item_code].get("mrp", 0)
+            for item_code in set(line.get("item_code") for line in count_lines) if item_code in items_by_code
         }
 
         total_counted_value = sum(
@@ -481,7 +509,7 @@ async def _breakdown_by_session(
                         (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
                     ),
                     items_counted=len(set(line.get("item_code") for line in count_lines)),
-                    items_total=len(items),
+                    items_total=len(set(line.get("item_code") for line in count_lines)),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),
                 value_status=ValueStatus(
