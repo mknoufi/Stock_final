@@ -189,7 +189,9 @@ async def find_duplicate_count_line(
     return None
 
 
-def can_reuse_rejected_count_line(existing: Optional[dict[str, Any]], line_data: dict[str, Any]) -> bool:
+def can_reuse_rejected_count_line(
+    existing: Optional[dict[str, Any]], line_data: dict[str, Any]
+) -> bool:
     if not existing or not is_explicit_recount(line_data):
         return False
 
@@ -243,7 +245,9 @@ async def recompute_session_totals(db: Any, session_id: str) -> dict[str, Any]:
         if is_count_line_effectively_reviewed(line):
             verified_items += 1
 
-        candidate_activity = line.get("updated_at") or line.get("approved_at") or line.get("counted_at")
+        candidate_activity = (
+            line.get("updated_at") or line.get("approved_at") or line.get("counted_at")
+        )
         if isinstance(candidate_activity, datetime):
             if candidate_activity.tzinfo is not None:
                 candidate_activity = candidate_activity.astimezone(timezone.utc).replace(
