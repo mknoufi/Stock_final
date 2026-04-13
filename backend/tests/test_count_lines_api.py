@@ -29,6 +29,7 @@ from backend.api.schemas import CountLineCreate
 
 class AsyncIter:
     """Helper to mock async iterators (like MongoDB cursors)"""
+
     def __init__(self, items):
         self.items = items
 
@@ -36,8 +37,8 @@ class AsyncIter:
         async def gen():
             for item in self.items:
                 yield item
-        return gen()
 
+        return gen()
 
 
 @pytest.fixture(autouse=True)
@@ -982,12 +983,14 @@ class TestCountLinesAPIEdgeCases:
         """Test count line creation when session stats update fails"""
         mock_db = AsyncMock()
         mock_db.sessions.find_one = AsyncMock(return_value={"id": "session123", "status": "OPEN"})
-        mock_db.erp_items.find_one = AsyncMock(return_value={
-            "item_name": "Test Item",
-            "barcode": "123456789",
-            "stock_qty": 40,
-            "mrp": 100,
-        })
+        mock_db.erp_items.find_one = AsyncMock(
+            return_value={
+                "item_name": "Test Item",
+                "barcode": "123456789",
+                "stock_qty": 40,
+                "mrp": 100,
+            }
+        )
         mock_db.count_lines.count_documents = AsyncMock(return_value=0)
         mock_db.count_lines.find_one = AsyncMock(return_value=None)
         mock_db.count_lines.insert_one = AsyncMock()

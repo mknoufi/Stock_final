@@ -114,7 +114,9 @@ async def _ensure_count_line_mutable(
     session: Optional[dict[str, Any]] = None,
 ) -> dict[str, Any]:
     if is_count_line_locked(count_line):
-        raise HTTPException(status_code=409, detail="Count line is finalized and cannot be modified")
+        raise HTTPException(
+            status_code=409, detail="Count line is finalized and cannot be modified"
+        )
 
     active_session = session or await find_session(db, str(count_line.get("session_id") or ""))
     if is_session_finalized(active_session):
@@ -215,7 +217,9 @@ def _build_count_line_draft_filter(line_data: CountLineCreate, username: str) ->
     }
 
 
-def _build_legacy_count_line_draft_filter(line_data: CountLineCreate, username: str) -> dict[str, Any]:
+def _build_legacy_count_line_draft_filter(
+    line_data: CountLineCreate, username: str
+) -> dict[str, Any]:
     return {
         "session_id": line_data.session_id,
         "item_code": line_data.item_code,
@@ -442,7 +446,9 @@ async def create_count_line(
         )
 
     # Use snapshot qty if available, fallback to live (emergency only)
-    erp_qty_source: Any = erp_snapshot.get("erp_qty") if erp_snapshot else erp_item.get("stock_qty", 0)
+    erp_qty_source: Any = (
+        erp_snapshot.get("erp_qty") if erp_snapshot else erp_item.get("stock_qty", 0)
+    )
     erp_qty = 0.0 if erp_qty_source is None else float(erp_qty_source or 0)
     baseline_hash = erp_snapshot.get("baseline_hash") if erp_snapshot else "UNHASHED_FALLBACK"
 
@@ -576,7 +582,9 @@ async def create_count_line(
 
         # Create count line with enhanced fields
         count_line_id = (
-            extract_document_id(recount_update_target) if recount_update_target else str(uuid.uuid4())
+            extract_document_id(recount_update_target)
+            if recount_update_target
+            else str(uuid.uuid4())
         )
         counted_at = datetime.now(timezone.utc).replace(tzinfo=None)
         review_required = requires_supervisor_verification(variance)
@@ -1385,7 +1393,9 @@ async def add_quantity_to_count_line(
     if payload.batches is not None:
         update_data["batches"] = payload.batches
 
-    update_result = await db.count_lines.update_one({"_id": count_line["_id"]}, {"$set": update_data})
+    update_result = await db.count_lines.update_one(
+        {"_id": count_line["_id"]}, {"$set": update_data}
+    )
     if update_result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Count line not found")
 
@@ -1456,7 +1466,9 @@ async def update_count_line(
     if payload.batches is not None:
         update_data["batches"] = payload.batches
 
-    update_result = await db.count_lines.update_one({"_id": count_line["_id"]}, {"$set": update_data})
+    update_result = await db.count_lines.update_one(
+        {"_id": count_line["_id"]}, {"$set": update_data}
+    )
     if update_result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Count line not found")
 

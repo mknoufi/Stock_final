@@ -662,7 +662,10 @@ async def _process_count_line_op(
     session = await find_session(db, session_id)
     if not session:
         raise ValueError("Session not found for count line operation")
-    if session.get("finalized_at") or str(session.get("status", "")).upper() in {"COMPLETED", "CLOSED"}:
+    if session.get("finalized_at") or str(session.get("status", "")).upper() in {
+        "COMPLETED",
+        "CLOSED",
+    }:
         raise ValueError("Session is finalized and cannot accept offline counts")
     if str(session.get("status", "")).upper() not in {"OPEN", "ACTIVE"}:
         raise ValueError("Session is not active")
@@ -823,7 +826,9 @@ async def _process_count_line_op(
         line_data["assigned_to"] = None
         line_data["recount_requested_at"] = None
         line_data["recount_requested_by"] = None
-        line_data["recount_iteration"] = int(existing_duplicate.get("recount_iteration", 0) or 0) + 1
+        line_data["recount_iteration"] = (
+            int(existing_duplicate.get("recount_iteration", 0) or 0) + 1
+        )
         update_payload = dict(line_data)
         update_payload.pop("_id", None)
         await db.count_lines.update_one(
