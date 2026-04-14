@@ -1,7 +1,7 @@
 # Makefile for STOCK_VERIFY CI and Development Tasks
 # Usage: make <target>
 
-.PHONY: help ci test lint format typecheck pre-commit install clean eval security secrets agent-ci agent-python agent-node audit-count-line-names
+.PHONY: help ci test lint format typecheck pre-commit install clean eval security secrets agent-ci agent-python agent-node audit-count-line-names jenkins-up jenkins-down jenkins-logs jenkins-password
 
 PYTHON := ./scripts/python.sh
 
@@ -27,6 +27,12 @@ help:
 	@echo "🛠️  Development:"
 	@echo "  make install     - Install dependencies"
 	@echo "  make clean       - Clean build artifacts"
+	@echo ""
+	@echo "Jenkins:"
+	@echo "  make jenkins-up       - Start a fresh local Jenkins instance"
+	@echo "  make jenkins-password - Print local Jenkins initial admin password"
+	@echo "  make jenkins-logs     - Tail Jenkins logs"
+	@echo "  make jenkins-down     - Stop local Jenkins instance"
 	@echo ""
 
 # =============================================================================
@@ -261,3 +267,25 @@ deploy: deploy-check
 deploy-certs: deploy-check
 	@echo "🔐 Provisioning TLS certificates..."
 	./scripts/init_letsencrypt.sh
+
+# =============================================================================
+# JENKINS
+# =============================================================================
+JENKINS_COMPOSE_FILE := docker-compose.jenkins.yml
+
+jenkins-up:
+	@echo "Starting local Jenkins..."
+	docker compose -f $(JENKINS_COMPOSE_FILE) up -d --build
+	@echo "Jenkins URL: http://localhost:8088"
+	@echo "Initial admin password:"
+	@docker compose -f $(JENKINS_COMPOSE_FILE) exec -T jenkins cat /var/jenkins_home/secrets/initialAdminPassword || true
+
+jenkins-password:
+	@docker compose -f $(JENKINS_COMPOSE_FILE) exec -T jenkins cat /var/jenkins_home/secrets/initialAdminPassword
+
+jenkins-logs:
+	docker compose -f $(JENKINS_COMPOSE_FILE) logs -f jenkins
+
+jenkins-down:
+	@echo "Stopping local Jenkins..."
+	docker compose -f $(JENKINS_COMPOSE_FILE) down

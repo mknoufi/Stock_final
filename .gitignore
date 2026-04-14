@@ -108,3 +108,4 @@ backend/data/db_seeded_archive_*/
 # Generated frontend debug exports (never commit)
 frontend/dist-debug/
 frontend/dist-debug2/
+.agent/

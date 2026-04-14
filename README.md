@@ -104,6 +104,12 @@ If you do not want to use GitHub Actions, this repo can be orchestrated by Jenki
 - Deploys are executed through `scripts/deploy_remote_compose.sh`
 - Live validation runs through `scripts/post_deploy_smoke.sh`
 
+For a fresh local Jenkins instance, run:
+
+- `make jenkins-up`
+- open `http://localhost:8088`
+- use `make jenkins-password` to unlock Jenkins
+
 Setup details: `docs/jenkins-deployment.md`
 
 ## GitHub Actions Deploy Configuration

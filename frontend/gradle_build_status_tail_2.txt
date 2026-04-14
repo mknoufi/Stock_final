@@ -1,0 +1,50 @@
+﻿C:/Users/mknou/.gemini/antigravity/scratch/Stock_final/frontend/node_modules/react-native-mmkv/android/.cxx/RelWithDebInfo/6n6c4a2d/arm64-v8a
+[0/1] Re-running CMake...
+-- Configuring done
+-- Generating done
+-- Build files have been written to: 
+C:/Users/mknou/.gemini/antigravity/scratch/Stock_final/frontend/node_modules/react-native-mmkv/android/.cxx/RelWithDebInfo/6n6c4a2d/arm64-v8a
+
+C++ build system [build] failed while executing:
+    @echo off
+    "C:\\Users\\mknou\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe" ^
+      -C ^
+      "C:\\Users\\mknou\\.gemini\\antigravity\\scratch\\Stock_final\\frontend\\node_modules\\react-native-mmkv\\android\\.cxx\\RelWithDebInfo\\6n6c4a
+2d\\arm64-v8a" ^
+      NitroMmkv
+  from C:\Users\mknou\.gemini\antigravity\scratch\Stock_final\frontend\node_modules\react-native-mmkv\android
+ninja: error: manifest 'build.ninja' still dirty after 100 tries
+
+
+	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt.execute(ExecuteProcess.kt:288)
+	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt$executeProcess$1.invoke(ExecuteProcess.kt:108)
+	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt$executeProcess$1.invoke(ExecuteProcess.kt:106)
+	at com.android.build.gradle.internal.cxx.timing.TimingEnvironmentKt.time(TimingEnvironment.kt:32)
+	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt.executeProcess(ExecuteProcess.kt:106)
+	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt.executeProcess$default(ExecuteProcess.kt:85)
+	at com.android.build.gradle.internal.cxx.build.CxxRegularBuilder.executeProcessBatch(CxxRegularBuilder.kt:332)
+	at com.android.build.gradle.internal.cxx.build.CxxRegularBuilder.build(CxxRegularBuilder.kt:129)
+	at com.android.build.gradle.tasks.ExternalNativeBuildTask.doTaskAction(ExternalNativeBuildTask.kt:72)
+	at com.android.build.gradle.internal.tasks.UnsafeOutputsTask$taskAction$$inlined$recordTaskAction$1.invoke(BaseTask.kt:59)
+	at com.android.build.gradle.internal.tasks.Blocks.recordSpan(Blocks.java:51)
+	at com.android.build.gradle.internal.tasks.UnsafeOutputsTask.taskAction(UnsafeOutputsTask.kt:81)
+	at jdk.internal.reflect.GeneratedMethodAccessor727.invoke(Unknown Source)
+	at java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at org.gradle.internal.reflect.JavaMethod.invoke(JavaMethod.java:125)
+	... 117 more
+Caused by: com.android.ide.common.process.ProcessException: Error while executing process 
+C:\Users\mknou\AppData\Local\Android\Sdk\cmake\3.22.1\bin\ninja.exe with arguments {-C 
+C:\Users\mknou\.gemini\antigravity\scratch\Stock_final\frontend\node_modules\react-native-mmkv\android\.cxx\RelWithDebInfo\6n6c4a2d\arm64-v8a 
+NitroMmkv}
+	at com.android.build.gradle.internal.process.GradleProcessResult.buildProcessException(GradleProcessResult.java:73)
+	at com.android.build.gradle.internal.process.GradleProcessResult.assertNormalExitValue(GradleProcessResult.java:48)
+	at com.android.build.gradle.internal.cxx.process.ExecuteProcessKt.execute(ExecuteProcess.kt:277)
+	... 131 more
+Caused by: org.gradle.process.internal.ExecException: Process 'command 'C:\Users\mknou\AppData\Local\Android\Sdk\cmake\3.22.1\bin\ninja.exe'' 
+finished with non-zero exit value 1
+	at org.gradle.process.internal.DefaultExecHandle$ExecResultImpl.assertNormalExitValue(DefaultExecHandle.java:442)
+	at com.android.build.gradle.internal.process.GradleProcessResult.assertNormalExitValue(GradleProcessResult.java:46)
+	... 132 more
+
+
+BUILD FAILED in 3m 14s

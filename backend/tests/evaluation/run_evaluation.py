@@ -58,7 +58,7 @@ class EvaluationRunner:
         ]
 
         print(f"\n{'=' * 60}")
-        print(f"🧪 Running {name} Evaluation")
+        print(f"Running {name} Evaluation")
         print(f"{'=' * 60}")
         print(f"Command: {' '.join(cmd)}")
 
@@ -89,9 +89,9 @@ class EvaluationRunner:
 
         # Print summary
         if result.returncode == 0:
-            print(f"✅ {name}: {passed} passed, {skipped} skipped in {duration:.2f}s")
+            print(f"[PASS] {name}: {passed} passed, {skipped} skipped in {duration:.2f}s")
         else:
-            print(f"❌ {name}: {failed} failed, {passed} passed in {duration:.2f}s")
+            print(f"[FAIL] {name}: {failed} failed, {passed} passed in {duration:.2f}s")
             if verbose:
                 print("\nOutput:")
                 print(result.stdout)
@@ -111,7 +111,7 @@ class EvaluationRunner:
         self.collector.start_evaluation()
 
         print(f"\n{'=' * 60}")
-        print(f"🧪 Running Standalone {evaluation_type} Evaluation")
+        print(f"Running Standalone {evaluation_type} Evaluation")
         print(f"{'=' * 60}")
 
         if evaluation_type == "business_logic":
@@ -189,16 +189,16 @@ class EvaluationRunner:
 
         if format == "json":
             report_path = self.output_dir / f"evaluation_report_{timestamp}.json"
-            with open(report_path, "w") as f:
+            with open(report_path, "w", encoding="utf-8") as f:
                 json.dump(results, f, indent=2, default=str)
         elif format == "md":
             report_path = self.output_dir / f"evaluation_report_{timestamp}.md"
-            with open(report_path, "w") as f:
+            with open(report_path, "w", encoding="utf-8") as f:
                 f.write(self._generate_markdown_report(results))
         else:
             raise ValueError(f"Unknown format: {format}")
 
-        print(f"\n📄 Report saved to: {report_path}")
+        print(f"\nReport saved to: {report_path}")
         return report_path
 
     def _generate_markdown_report(self, results: dict[str, Any]) -> str:
@@ -213,17 +213,17 @@ class EvaluationRunner:
         ]
 
         summary = results.get("summary", {})
-        lines.append(f"| ✅ Passed | {summary.get('total_passed', 0)} |")
-        lines.append(f"| ❌ Failed | {summary.get('total_failed', 0)} |")
-        lines.append(f"| ⏭️ Skipped | {summary.get('total_skipped', 0)} |")
+        lines.append(f"| Passed | {summary.get('total_passed', 0)} |")
+        lines.append(f"| Failed | {summary.get('total_failed', 0)} |")
+        lines.append(f"| Skipped | {summary.get('total_skipped', 0)} |")
 
-        status = "✅ SUCCESS" if summary.get("overall_success") else "❌ NEEDS ATTENTION"
+        status = "SUCCESS" if summary.get("overall_success") else "NEEDS ATTENTION"
         lines.append(f"| Overall | {status} |")
 
         lines.append("\n## Detailed Results\n")
 
         for name, eval_result in results.get("evaluations", {}).items():
-            icon = "✅" if eval_result.get("success") else "❌"
+            icon = "[PASS]" if eval_result.get("success") else "[FAIL]"
             lines.append(f"### {icon} {name}")
             lines.append("")
             lines.append(f"- **Passed:** {eval_result.get('passed', 0)}")
@@ -234,32 +234,32 @@ class EvaluationRunner:
         lines.append("\n## Recommendations\n")
 
         if summary.get("total_failed", 0) > 0:
-            lines.append("⚠️ Some evaluations failed. Review the following:")
+            lines.append("Some evaluations failed. Review the following:")
             lines.append("")
             for name, eval_result in results.get("evaluations", {}).items():
                 if not eval_result.get("success"):
                     lines.append(f"- [ ] Fix issues in **{name}** evaluation")
         else:
-            lines.append("✅ All evaluations passed! The system is operating correctly.")
+            lines.append("All evaluations passed. The system is operating correctly.")
 
         return "\n".join(lines)
 
     def print_final_summary(self, results: dict[str, Any]):
         """Print final summary to console."""
         print("\n" + "=" * 60)
-        print("📊 EVALUATION COMPLETE")
+        print("EVALUATION COMPLETE")
         print("=" * 60)
 
         summary = results.get("summary", {})
 
-        print(f"\n✅ Passed:  {summary.get('total_passed', 0)}")
-        print(f"❌ Failed:  {summary.get('total_failed', 0)}")
-        print(f"⏭️  Skipped: {summary.get('total_skipped', 0)}")
+        print(f"\nPassed:  {summary.get('total_passed', 0)}")
+        print(f"Failed:  {summary.get('total_failed', 0)}")
+        print(f"Skipped: {summary.get('total_skipped', 0)}")
 
         if summary.get("overall_success"):
-            print("\n🎉 All evaluations PASSED!")
+            print("\nAll evaluations PASSED!")
         else:
-            print("\n⚠️  Some evaluations FAILED - review needed")
+            print("\nSome evaluations FAILED - review needed")
 
         print("\n" + "=" * 60)
 

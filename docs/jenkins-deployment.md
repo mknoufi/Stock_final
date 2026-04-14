@@ -8,6 +8,24 @@ This repository can be orchestrated by Jenkins without using GitHub Actions. The
 - deploy to the remote Docker host with `./scripts/deploy_remote_compose.sh`
 - verify the live environment with `./scripts/post_deploy_smoke.sh`
 
+## Create a New Jenkins Instance (Local)
+
+Use the bundled local Jenkins bootstrap:
+
+1. `make jenkins-up`
+2. Open `http://localhost:8088`
+3. Unlock Jenkins using:
+   - `make jenkins-password`
+4. Create a Pipeline job that points to this repository and uses the root `Jenkinsfile`
+
+Stop local Jenkins:
+
+- `make jenkins-down`
+
+View logs:
+
+- `make jenkins-logs`
+
 ## Jenkins Agent Requirements
 
 Use a Linux Jenkins agent with:
@@ -91,7 +109,6 @@ Set these at the Jenkins folder level, multibranch job level, or pipeline job le
 | `DEPLOY_APP_BASE_URL_PRODUCTION` | `https://stock-verify.example.com` | No but recommended | Base URL for docs and authenticated smoke. |
 | `DEPLOY_FRONTEND_URL_PRODUCTION` | `https://stock-verify.example.com` | No | Separate frontend URL only if needed. |
 | `DEPLOY_KNOWN_HOSTS_PRODUCTION` | `stock-verify.example.com ssh-ed25519 AAAA...` | No but recommended | Strongly preferred for production. |
-
 ## Required Jenkins Environment Variables
 
 Set these as job-level or folder-level environment variables:
@@ -144,7 +161,7 @@ EXPO_PUBLIC_API_TIMEOUT=30000
 
 Notes:
 - `BACKEND_IMAGE` and `NGINX_IMAGE` will be overwritten by the deploy script at runtime, so placeholder values are acceptable in the secret text.
-- Keep `AUTO_SEED_DEFAULT_USERS=false` and `AUTO_SEED_MOCK_ERP_DATA=false` for any real environment.
+- Keep `AUTO_SEED_DEFAULT_USERS=false` and `AUTO_SEED_MOCK_ERP_DATA=false` for real environments.
 - Leave `EXPO_PUBLIC_BACKEND_URL` unset when nginx should proxy same-origin `/api`.
 - A copy-paste version also lives in [docs/jenkins-staging.env.prod.example](/D:/stk/Stock_final/docs/jenkins-staging.env.prod.example).
 
@@ -158,7 +175,6 @@ Use this order for the first bring-up:
 4. Populate the staging env secret with real values.
 5. Run the job with `DEPLOY_TARGET=staging`, `BUILD_AND_PUSH_IMAGES=true`, `RUN_SMOKE=true`.
 6. If staging is healthy, repeat for production with a human approval gate before the deploy run.
-
 ## Pipeline Parameters
 
 The Jenkins pipeline exposes:
@@ -172,6 +188,8 @@ The Jenkins pipeline exposes:
   - `false`: skip builds and deploy the tag given in `IMAGE_TAG`
 - `PUSH_LATEST_TAG`
   - whether to also publish `:latest`
+- `RUN_IMAGE_SCAN`
+  - run Trivy CRITICAL scan on built images
 - `RUN_SMOKE`
   - run post-deploy smoke after deployment
 - `IMAGE_REPO`
@@ -198,7 +216,6 @@ Redeploy an existing production image tag:
 - `BUILD_AND_PUSH_IMAGES=false`
 - `IMAGE_TAG=<existing-tag>`
 - `RUN_SMOKE=true`
-
 ## Rollback
 
 To roll back, run the same Jenkins job with:
