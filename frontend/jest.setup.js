@@ -17,6 +17,19 @@ if (!global.window.removeEventListener) {
   global.window.removeEventListener = jest.fn();
 }
 
+try {
+  const webStreams = require("node:stream/web");
+  if (webStreams?.ReadableStream) {
+    global.ReadableStream = webStreams.ReadableStream;
+  }
+  if (webStreams?.WritableStream) {
+    global.WritableStream = webStreams.WritableStream;
+  }
+  if (webStreams?.TransformStream) {
+    global.TransformStream = webStreams.TransformStream;
+  }
+} catch (_err) {}
+
 // Fix for "The global process.env.EXPO_OS is not defined" warning (redundant but safe)
 if (!process.env.EXPO_OS) {
   process.env.EXPO_OS = "ios";
