@@ -1,3 +1,6 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+## 2024-05-25 - [MongoDB Aggregation for Performance]
+**Learning:** Fetching an entire MongoDB collection into memory using `db.collection.find({}).to_list(None)` just to calculate sums or averages in Python space causes massive memory overhead and latency spikes as the dataset grows (O(N) data transfer).
+**Action:** Always prefer using MongoDB's built-in `$group` aggregation pipeline to calculate global metrics (like total stock quantity or value) directly on the database side, which drastically reduces I/O bandwidth and memory usage to O(1).
