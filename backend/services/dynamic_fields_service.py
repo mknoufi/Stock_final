@@ -332,17 +332,27 @@ class DynamicFieldsService:
             cursor = self.field_values.aggregate(pipeline)
             results = await cursor.to_list(length=None)
 
-            # Get item details from main items collection
+            # Get item details from main items collection in a single query
             items = []
-            for result in results:
-                item_code = result["_id"]
-                item = await self.db.items.find_one({"item_code": item_code})
+            item_codes = [result["_id"] for result in results if result.get("_id")]
 
-                if item:
-                    item["dynamic_fields"] = {
-                        field["field_name"]: field["value"] for field in result["fields"]
-                    }
-                    items.append(item)
+            if item_codes:
+                fetched_items = await self.db.items.find(
+                    {"item_code": {"$in": item_codes}}
+                ).to_list(length=None)
+                item_map = {
+                    item["item_code"]: item for item in fetched_items if "item_code" in item
+                }
+
+                for result in results:
+                    item_code = result["_id"]
+                    item = item_map.get(item_code)
+
+                    if item:
+                        item["dynamic_fields"] = {
+                            field["field_name"]: field["value"] for field in result["fields"]
+                        }
+                        items.append(item)
 
             return items
 
