@@ -109,10 +109,6 @@ async def calculate_dashboard_overview(
     Returns:
         DashboardOverview with all KPIs
     """
-    # Get all items from ERP
-    all_items_cursor = db.erp_items.find({})
-    all_items = await all_items_cursor.to_list(None)
-
     # Get all count lines from active sessions
     active_sessions_cursor = db.sessions.find({"status": {"$in": ["OPEN", "ACTIVE"]}})
     active_sessions = await active_sessions_cursor.to_list(None)
@@ -121,30 +117,74 @@ async def calculate_dashboard_overview(
     count_lines_cursor = db.count_lines.find({"session_id": {"$in": session_ids}})
     count_lines = await count_lines_cursor.to_list(None)
 
-    # Calculate quantity metrics
-    total_stock_qty = sum(item.get("stock_qty", 0) for item in all_items)
+    # Setup value metrics basis
+    price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
+
+    # Use aggregation to calculate ERP totals without loading all items into memory
+    erp_totals_pipeline = [
+        {
+            "$group": {
+                "_id": None,
+                "items_total": {"$sum": 1},
+                "total_stock_qty": {"$sum": {"$ifNull": ["$stock_qty", 0]}},
+                "total_stock_value": {
+                    "$sum": {
+                        "$multiply": [
+                            {"$ifNull": ["$stock_qty", 0]},
+                            {
+                                "$cond": {
+                                    "if": {"$gt": [{"$ifNull": [f"${price_field}", 0]}, 0]},
+                                    "then": {"$ifNull": [f"${price_field}", 0]},
+                                    "else": {
+                                        "$cond": {
+                                            "if": {"$gt": [{"$ifNull": ["$sale_price", 0]}, 0]},
+                                            "then": {"$ifNull": ["$sale_price", 0]},
+                                            "else": {"$ifNull": ["$mrp", 0]},
+                                        }
+                                    },
+                                }
+                            },
+                        ]
+                    }
+                },
+            }
+        }
+    ]
+
+    erp_totals_result = await db.erp_items.aggregate(erp_totals_pipeline).to_list(1)
+
+    if erp_totals_result:
+        totals = erp_totals_result[0]
+        total_stock_qty = totals.get("total_stock_qty", 0)
+        items_total = totals.get("items_total", 0)
+        total_stock_value = totals.get("total_stock_value", 0)
+    else:
+        total_stock_qty = 0
+        items_total = 0
+        total_stock_value = 0
+
+    # Calculate quantity metrics for counted items
     total_counted_qty = sum(line.get("counted_qty", 0) for line in count_lines)
     variance_qty = total_counted_qty - total_stock_qty
 
     qty_completion = (total_counted_qty / total_stock_qty * 100) if total_stock_qty > 0 else 0
 
     # Get unique items counted
-    items_counted = len(set(line.get("item_code") for line in count_lines))
-    items_total = len(all_items)
+    counted_item_codes = list(
+        set(line.get("item_code") for line in count_lines if line.get("item_code"))
+    )
+    items_counted = len(counted_item_codes)
 
-    # Calculate value metrics
-    price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
+    # Fetch only counted items to build price map
+    counted_items = await db.erp_items.find({"item_code": {"$in": counted_item_codes}}).to_list(
+        None
+    )
 
-    # Build item price map
+    # Build item price map for counted items only
     item_price_map = {}
-    for item in all_items:
+    for item in counted_items:
         price = item.get(price_field, 0) or item.get("sale_price", 0) or item.get("mrp", 0)
         item_price_map[item["item_code"]] = price
-
-    # Calculate total stock value
-    total_stock_value = sum(
-        item.get("stock_qty", 0) * item_price_map.get(item["item_code"], 0) for item in all_items
-    )
 
     # Calculate total counted value
     total_counted_value = sum(
