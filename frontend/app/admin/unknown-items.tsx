@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    FlatList,
     Alert,
     Modal,
     TextInput as _TextInput,
@@ -17,6 +16,7 @@ import {
     ModernButton,
     ModernInput,
 } from "@/components/ui";
+import { VirtualList } from "../../src/components/common/VirtualList";
 import { auroraTheme } from "../../src/theme/auroraTheme";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
@@ -198,11 +198,14 @@ export default function UnknownItemsScreen() {
                     <LoadingSpinner size={40} color={auroraTheme.colors.primary[500]} />
                 </View>
             ) : (
-                <FlatList
+                <>
+                {/* ⚡ Bolt: Replaced FlatList with VirtualList to improve rendering performance and reduce memory usage for long lists. */}
+                <VirtualList
                     data={items}
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id || item._id}
                     contentContainerStyle={styles.listContent}
+                    estimatedItemSize={100}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
                             <Ionicons
@@ -222,6 +225,7 @@ export default function UnknownItemsScreen() {
                         </View>
                     }
                 />
+                </>
             )}
 
             <Modal
