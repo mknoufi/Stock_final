@@ -157,8 +157,15 @@ async def validate_record(
     """
     # Check for duplicate serial numbers
     if record.serial_numbers:
+        # ⚡ Bolt: Fixed N+1 query. Fetched all existing serials in one query and mapped them.
+        existing_serials_cursor = db.item_serials.find(
+            {"serial_number": {"$in": record.serial_numbers}}
+        )
+        existing_serials_list = await existing_serials_cursor.to_list(length=None)
+        existing_serials_map = {s.get("serial_number"): s for s in existing_serials_list}
+
         for serial in record.serial_numbers:
-            existing = await db.item_serials.find_one({"serial_number": serial})
+            existing = existing_serials_map.get(serial)
             if existing and existing.get("client_record_id") != record.client_record_id:
                 conflict_id = None
                 if sync_service and user_id:
@@ -408,12 +415,15 @@ async def sync_batch(
 
     try:
         # Validate all records first
+        # ⚡ Bolt: Fixed N+1 query. Fetched all idempotency ops in a single query.
+        all_record_ids = [r.client_record_id for r in request.records]
+        ops_cursor = db.idempotency_operations.find({"operation_id": {"$in": all_record_ids}})
+        existing_ops_list = await ops_cursor.to_list(length=None)
+        existing_ops_set = {op.get("operation_id") for op in existing_ops_list}
+
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in existing_ops_set:
                 ok_records.append(record.client_record_id)
                 continue
 
@@ -923,14 +933,19 @@ async def _process_legacy_operations(
 
     ordered_ops = sorted(operations, key=lambda op: op.timestamp or "")
 
+    # ⚡ Bolt: Fixed N+1 query. Fetched all legacy idempotency ops in a single query.
+    all_op_ids = [op.id for op in operations]
+    legacy_ops_cursor = db.idempotency_operations.find({"operation_id": {"$in": all_op_ids}})
+    existing_legacy_ops_list = await legacy_ops_cursor.to_list(length=None)
+    existing_legacy_ops_set = {doc.get("operation_id") for doc in existing_legacy_ops_list}
+
     for op in ordered_ops:
         success = False
         message: Optional[str] = None
 
         try:
             # Check idempotency
-            existing_op = await db.idempotency_operations.find_one({"operation_id": op.id})
-            if existing_op:
+            if op.id in existing_legacy_ops_set:
                 success = True
                 message = "Already processed (idempotency)"
             else:
