@@ -1,3 +1,6 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+## 2024-05-20 - [MongoDB Aggregation with mixed types]
+**Learning:** When pushing sum aggregations that use `or` fallbacks from Python to MongoDB, you can encounter strings mixed with numbers resulting in a `$toDouble` error on `null` or uncastable strings.
+**Action:** Always prefer `$convert` with `onError: 0` and `onNull: 0` over raw `$toDouble` or raw math functions when operating on schema-less or poorly validated numbers in MongoDB aggregations to mimic Python's `float(val) or 0.0` flexibility.

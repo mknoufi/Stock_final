@@ -99,13 +99,38 @@ async def calculate_total_stock_value(db) -> float:
 async def calculate_verified_value(db) -> float:
     """Calculate value of verified stock."""
     try:
-        total_value = 0.0
-        cursor = db.count_lines.find({"status": "locked"})
-        async for line in cursor:
-            qty = float(line.get("counted_qty") or 0.0)
-            unit_value = float(line.get("mrp_counted") or line.get("mrp_erp") or 0.0)
-            total_value += qty * unit_value
-        return total_value
+        pipeline = [
+            {"$match": {"status": "locked"}},
+            {
+                "$group": {
+                    "_id": None,
+                    "total_value": {
+                        "$sum": {
+                            "$multiply": [
+                                {
+                                    "$convert": {
+                                        "input": {"$ifNull": ["$counted_qty", 0]},
+                                        "to": "double",
+                                        "onError": 0.0,
+                                        "onNull": 0.0,
+                                    }
+                                },
+                                {
+                                    "$cond": [
+                                        {"$gt": [{"$convert": {"input": "$mrp_counted", "to": "double", "onError": 0, "onNull": 0}}, 0]},
+                                        {"$convert": {"input": "$mrp_counted", "to": "double", "onError": 0, "onNull": 0}},
+                                        {"$convert": {"input": "$mrp_erp", "to": "double", "onError": 0, "onNull": 0}}
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        ]
+        # ⚡ Bolt: Use MongoDB aggregation instead of iterative Python computation to fix O(N) memory/network bottleneck
+        result = await db.count_lines.aggregate(pipeline).to_list(1)
+        return float(result[0]["total_value"]) if result else 0.0
     except Exception as e:
         logger.error(f"Error calculating verified value: {e}")
         return 0.0
