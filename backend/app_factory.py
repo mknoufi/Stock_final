@@ -774,13 +774,26 @@ async def bulk_export_sessions(
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     try:
+        # ⚡ Bolt Optimization: Fixed N+1 query.
+        # Instead of looping through session_ids and making O(N) database calls,
+        # we make a single O(1) bulk fetch using the $in operator.
+        cursor = db.sessions.find(
+            {"$or": [{"id": {"$in": session_ids}}, {"session_id": {"$in": session_ids}}]}
+        )
+        fetched_sessions = await cursor.to_list(length=None)
+
+        # ⚡ Map the results to preserve the original ordering of session_ids
+        session_map = {}
+        for s in fetched_sessions:
+            if "id" in s:
+                session_map[s["id"]] = s
+            if "session_id" in s:
+                session_map[s["session_id"]] = s
+
         sessions = []
-        for session_id in session_ids:
-            session = await db.sessions.find_one(
-                {"$or": [{"id": session_id}, {"session_id": session_id}]}
-            )
-            if session:
-                sessions.append(session)
+        for sid in session_ids:
+            if sid in session_map:
+                sessions.append(session_map[sid])
 
         # Log activity
         await activity_log_service.log_activity(
