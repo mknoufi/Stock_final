@@ -775,12 +775,21 @@ async def bulk_export_sessions(
 
     try:
         sessions = []
+        sessions_cursor = db.sessions.find(
+            {"$or": [{"id": {"$in": session_ids}}, {"session_id": {"$in": session_ids}}]}
+        )
+        sessions_raw = await sessions_cursor.to_list(length=None)
+
+        session_map = {}
+        for s in sessions_raw:
+            if "id" in s:
+                session_map[s["id"]] = s
+            if "session_id" in s:
+                session_map[s["session_id"]] = s
+
         for session_id in session_ids:
-            session = await db.sessions.find_one(
-                {"$or": [{"id": session_id}, {"session_id": session_id}]}
-            )
-            if session:
-                sessions.append(session)
+            if session_id in session_map:
+                sessions.append(session_map[session_id])
 
         # Log activity
         await activity_log_service.log_activity(
