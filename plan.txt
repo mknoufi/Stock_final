@@ -1,0 +1,44 @@
+1.  **Modify `backend/app_factory.py`**:
+    *   Locate the `bulk_export_sessions` function.
+    *   Replace the `for session_id in session_ids:` loop with a bulk query.
+    *   I need to map the results by id and session_id, then rebuild the array based on the `session_ids` order.
+    ```python
+<<<<<<< SEARCH
+        sessions = []
+        for session_id in session_ids:
+            session = await db.sessions.find_one(
+                {"$or": [{"id": session_id}, {"session_id": session_id}]}
+            )
+            if session:
+                sessions.append(session)
+=======
+        # ⚡ Bolt: Replace N+1 query loop with a single bulk query
+        bulk_sessions = await db.sessions.find(
+            {"$or": [{"id": {"$in": session_ids}}, {"session_id": {"$in": session_ids}}]}
+        ).to_list(length=None)
+
+        # Map results to preserve original input order and handle duplicate IDs
+        session_map = {}
+        for s in bulk_sessions:
+            if "id" in s:
+                session_map[s["id"]] = s
+            if "session_id" in s:
+                session_map[s["session_id"]] = s
+
+        sessions = []
+        for session_id in session_ids:
+            if session_id in session_map:
+                sessions.append(session_map[session_id])
+>>>>>>> REPLACE
+    ```
+2.  **Verify the fix**:
+    *   Use `run_in_bash_session` with `sed -n '775,795p' backend/app_factory.py` to read the edited lines and confirm the edit was successful.
+    *   Run linting (`make python-lint`) and testing (`make python-test`) to confirm the change does not break functionality or introduce syntax errors.
+3.  **Complete pre-commit steps to ensure proper testing, verification, review, and reflection are done.**
+4.  **Submit the change**:
+    *   Use the exact PR title "⚡ Bolt: Resolve N+1 query in bulk_export_sessions".
+    *   Draft the explicit description content, outlining:
+        *   💡 What: Replaced iterative `find_one` calls in `bulk_export_sessions` with a single bulk query using `$in`.
+        *   🎯 Why: To fix an N+1 query problem that degrades performance when exporting a large number of sessions.
+        *   📊 Impact: Reduces database queries from O(N) to O(1), significantly speeding up the bulk export operation and reducing database load.
+        *   🔬 Measurement: Can be verified by running the test suite and observing faster completion times for bulk export requests.
