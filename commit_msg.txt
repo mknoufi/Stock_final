@@ -1,0 +1,6 @@
+⚡ Bolt: Resolve N+1 query in bulk_export_sessions
+
+💡 What: Replaced iterative find_one calls in bulk_export_sessions with a single bulk query using $in.
+🎯 Why: To fix an N+1 query problem that degrades performance when exporting a large number of sessions.
+📊 Impact: Reduces database queries from O(N) to O(1), significantly speeding up the bulk export operation and reducing database load.
+🔬 Measurement: Can be verified by running the test suite and observing faster completion times for bulk export requests.
