@@ -7,7 +7,6 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -18,6 +17,7 @@ import { useNotificationStore } from "../src/store/notificationStore";
 import { getCountLineById, type Notification } from "../src/services/api/api";
 import ModernHeader from "../src/components/ui/ModernHeader";
 import ModernCard from "../src/components/ui/ModernCard";
+import { VirtualList } from "../src/components/common/VirtualList";
 import {
   colors,
   spacing,
@@ -210,8 +210,10 @@ export default function NotificationsScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
+      {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve scrolling performance for large notification lists. */}
+      <VirtualList
         data={notifications}
+        estimatedItemSize={135}
         renderItem={renderNotificationItem}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.listContent}
