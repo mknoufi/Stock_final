@@ -666,6 +666,17 @@ async def bulk_user_action(
     success_count = 0
     failed_ids: list[str] = []
 
+    # ⚡ Bolt: Replace N+1 query loop with a single bulk query mapping for user lookups
+    valid_oids = []
+    for user_id in request.user_ids:
+        try:
+            valid_oids.append(ObjectId(user_id))
+        except Exception:
+            pass
+
+    users_cursor = await db.users.find({"_id": {"$in": valid_oids}}).to_list(length=None)
+    users_map = {str(user["_id"]): user for user in users_cursor}
+
     for user_id in request.user_ids:
         try:
             oid = ObjectId(user_id)
@@ -675,7 +686,7 @@ async def bulk_user_action(
                 failed_ids.append(user_id)
                 continue
 
-            user = await db.users.find_one({"_id": oid})
+            user = users_map.get(user_id)
             if not user:
                 failed_ids.append(user_id)
                 continue

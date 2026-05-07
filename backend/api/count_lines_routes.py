@@ -1308,19 +1308,20 @@ async def check_serial_uniqueness(
         "status": 1,
     }
 
-    for candidate in candidates:
-        existing = await db.count_lines.find_one(
-            {
-                "session_id": session_id,
-                "$or": [
-                    {"serial_numbers": candidate},
-                    {"serial_entries.serial_number": candidate},
-                ],
-            },
-            projection,
-        )
-        if existing:
-            return {"exists": True, **existing}
+    # ⚡ Bolt: Replace N+1 query loop with a single bulk query using $in operator
+    candidate_list = list(candidates)
+    existing = await db.count_lines.find_one(
+        {
+            "session_id": session_id,
+            "$or": [
+                {"serial_numbers": {"$in": candidate_list}},
+                {"serial_entries.serial_number": {"$in": candidate_list}},
+            ],
+        },
+        projection,
+    )
+    if existing:
+        return {"exists": True, **existing}
 
     return {"exists": False}
 

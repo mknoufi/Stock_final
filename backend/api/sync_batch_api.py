@@ -408,11 +408,21 @@ async def sync_batch(
 
     try:
         # Validate all records first
+
+        # ⚡ Bolt: Replace N+1 query loop with a single bulk query mapping for idempotency checks
+        client_record_ids = [r.client_record_id for r in request.records if r.client_record_id]
+        existing_ops_cursor = await db.idempotency_operations.find(
+            {"operation_id": {"$in": client_record_ids}}
+        ).to_list(length=None)
+
+        existing_ops_map = {
+            op.get("operation_id"): op for op in existing_ops_cursor if op.get("operation_id")
+        }
+
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
+            existing_op = existing_ops_map.get(record.client_record_id)
+
             if existing_op:
                 ok_records.append(record.client_record_id)
                 continue
@@ -923,13 +933,23 @@ async def _process_legacy_operations(
 
     ordered_ops = sorted(operations, key=lambda op: op.timestamp or "")
 
+    # ⚡ Bolt: Replace N+1 query loop with a single bulk query mapping for idempotency checks
+    op_ids = [op.id for op in ordered_ops if op.id]
+    existing_ops_cursor = await db.idempotency_operations.find(
+        {"operation_id": {"$in": op_ids}}
+    ).to_list(length=None)
+
+    existing_ops_map = {
+        op.get("operation_id"): op for op in existing_ops_cursor if op.get("operation_id")
+    }
+
     for op in ordered_ops:
         success = False
         message: Optional[str] = None
 
         try:
             # Check idempotency
-            existing_op = await db.idempotency_operations.find_one({"operation_id": op.id})
+            existing_op = existing_ops_map.get(op.id)
             if existing_op:
                 success = True
                 message = "Already processed (idempotency)"
