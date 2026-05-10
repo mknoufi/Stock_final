@@ -407,13 +407,21 @@ async def sync_batch(
     errors = []
 
     try:
+        # ⚡ Bolt: Bulk fetch idempotency operations to avoid N+1 queries
+        operation_ids = [r.client_record_id for r in request.records]
+        if operation_ids:
+            existing_ops_cursor = db.idempotency_operations.find(
+                {"operation_id": {"$in": operation_ids}}
+            )
+            existing_ops_list = await existing_ops_cursor.to_list(length=None)
+            existing_ops_set = {op["operation_id"] for op in existing_ops_list}
+        else:
+            existing_ops_set = set()
+
         # Validate all records first
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in existing_ops_set:
                 ok_records.append(record.client_record_id)
                 continue
 
@@ -923,14 +931,22 @@ async def _process_legacy_operations(
 
     ordered_ops = sorted(operations, key=lambda op: op.timestamp or "")
 
+    # ⚡ Bolt: Bulk fetch idempotency operations to avoid N+1 queries
+    op_ids = [op.id for op in ordered_ops]
+    if op_ids:
+        existing_ops_cursor = db.idempotency_operations.find({"operation_id": {"$in": op_ids}})
+        existing_ops_list = await existing_ops_cursor.to_list(length=None)
+        existing_ops_set = {op["operation_id"] for op in existing_ops_list}
+    else:
+        existing_ops_set = set()
+
     for op in ordered_ops:
         success = False
         message: Optional[str] = None
 
         try:
             # Check idempotency
-            existing_op = await db.idempotency_operations.find_one({"operation_id": op.id})
-            if existing_op:
+            if op.id in existing_ops_set:
                 success = True
                 message = "Already processed (idempotency)"
             else:
