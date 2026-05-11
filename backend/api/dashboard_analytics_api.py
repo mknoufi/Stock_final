@@ -121,36 +121,33 @@ async def calculate_dashboard_overview(
     count_lines_cursor = db.count_lines.find({"session_id": {"$in": session_ids}})
     count_lines = await count_lines_cursor.to_list(None)
 
-    # Calculate quantity metrics
-    total_stock_qty = sum(item.get("stock_qty", 0) for item in all_items)
-    total_counted_qty = sum(line.get("counted_qty", 0) for line in count_lines)
-    variance_qty = total_counted_qty - total_stock_qty
-
-    qty_completion = (total_counted_qty / total_stock_qty * 100) if total_stock_qty > 0 else 0
-
-    # Get unique items counted
-    items_counted = len(set(line.get("item_code") for line in count_lines))
-    items_total = len(all_items)
-
-    # Calculate value metrics
     price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
 
-    # Build item price map
+    # Calculate metrics with single pass iterations
+    total_stock_qty = 0
+    total_stock_value = 0
     item_price_map = {}
     for item in all_items:
+        qty = item.get("stock_qty", 0)
         price = item.get(price_field, 0) or item.get("sale_price", 0) or item.get("mrp", 0)
+        total_stock_qty += qty
         item_price_map[item["item_code"]] = price
+        total_stock_value += qty * price
 
-    # Calculate total stock value
-    total_stock_value = sum(
-        item.get("stock_qty", 0) * item_price_map.get(item["item_code"], 0) for item in all_items
-    )
+    total_counted_qty = 0
+    total_counted_value = 0
+    unique_items_counted = set()
+    for line in count_lines:
+        code = line.get("item_code")
+        qty = line.get("counted_qty", 0)
+        total_counted_qty += qty
+        total_counted_value += qty * item_price_map.get(code, 0)
+        unique_items_counted.add(code)
 
-    # Calculate total counted value
-    total_counted_value = sum(
-        line.get("counted_qty", 0) * item_price_map.get(line.get("item_code"), 0)
-        for line in count_lines
-    )
+    variance_qty = total_counted_qty - total_stock_qty
+    qty_completion = (total_counted_qty / total_stock_qty * 100) if total_stock_qty > 0 else 0
+    items_counted = len(unique_items_counted)
+    items_total = len(all_items)
 
     variance_value = total_counted_value - total_stock_value
     value_completion = (
