@@ -1,3 +1,7 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+
+## 2024-05-25 - [Dashboard Analytics Computation Optimization]
+**Learning:** Calculating metrics by iterating multiple times across all fetched items and count lines (O(N) operations in multiple loops with Python generator expressions) introduces unnecessary latency and memory overhead. Combining multiple passes into single aggregate loops over massive collections yields significant speed improvements due to reduced byte-code and dictionary lookup overhead.
+**Action:** In analytical or dashboard endpoints, construct logic to do single passes across massive document sets to compute all aggregated metrics at once instead of individual generator expressions, or consider offloading the aggregation entirely to MongoDB via `$group` pipelines where feasible.
