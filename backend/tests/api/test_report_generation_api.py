@@ -31,6 +31,9 @@ class _AsyncCursor:
         except StopIteration as exc:
             raise StopAsyncIteration from exc
 
+    async def to_list(self, length=None):
+        return self._rows
+
 
 @pytest.mark.asyncio
 async def test_generate_stock_summary_short_circuits_when_item_filters_match_nothing():
