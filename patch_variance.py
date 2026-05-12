@@ -3,15 +3,7 @@ import re
 with open('backend/api/report_generation_api.py', 'r') as f:
     content = f.read()
 
-old_block = """    item_query: dict[str, Any] = {}
-    if filters.warehouse:
-        item_query["warehouse"] = filters.warehouse
-    if filters.floor:
-        item_query["floor"] = filters.floor
-    if filters.category:
-        item_query["category"] = filters.category
-
-    # ⚡ Bolt: Fixed N+1 query. Fetched lines first, then fetch only related items to avoid O(N) memory
+old_block = """    # ⚡ Bolt: Fixed N+1 query. Fetched lines first, then fetch only related items to avoid O(N) memory
     lines_cursor = db.count_lines.find(line_query)
     lines = await lines_cursor.to_list(length=None)
     item_codes = list({line.get("item_code") for line in lines if line.get("item_code")})
@@ -26,20 +18,9 @@ old_block = """    item_query: dict[str, Any] = {}
         }
 
     if (filters.warehouse or filters.floor or filters.category) and not item_docs:
-        return []
+        return []"""
 
-    results: list[dict[str, Any]] = []
-    for line in lines:"""
-
-new_block = """    item_query: dict[str, Any] = {}
-    if filters.warehouse:
-        item_query["warehouse"] = filters.warehouse
-    if filters.floor:
-        item_query["floor"] = filters.floor
-    if filters.category:
-        item_query["category"] = filters.category
-
-    # ⚡ Bolt: Fixed N+1 query. First check if filtering items to avoid fetching all count_lines
+new_block = """    # ⚡ Bolt: Fixed N+1 query. First check if filtering items to avoid fetching all count_lines
     # If item filters are provided, we should ensure there are items matching the criteria before proceeding.
     item_codes_filter = None
     if filters.warehouse or filters.floor or filters.category:
@@ -64,10 +45,7 @@ new_block = """    item_query: dict[str, Any] = {}
             item.get("item_code"): item
             async for item in db.erp_items.find(item_query)
             if item.get("item_code")
-        }
-
-    results: list[dict[str, Any]] = []
-    for line in lines:"""
+        }"""
 
 if old_block in content:
     content = content.replace(old_block, new_block)
