@@ -109,9 +109,59 @@ async def calculate_dashboard_overview(
     Returns:
         DashboardOverview with all KPIs
     """
-    # Get all items from ERP
-    all_items_cursor = db.erp_items.find({})
-    all_items = await all_items_cursor.to_list(None)
+    price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
+
+    # Build MongoDB aggregation expression to replicate Python's:
+    # item.get(price_field, 0) or item.get("sale_price", 0) or item.get("mrp", 0)
+    def build_fallback(fields):
+        if not fields:
+            return 0
+        current_field = fields[0]
+        if len(fields) == 1:
+            return {"$ifNull": [f"${current_field}", 0]}
+
+        return {
+            "$cond": [
+                {
+                    "$and": [
+                        {
+                            "$in": [
+                                {"$type": f"${current_field}"},
+                                ["double", "int", "long", "decimal"],
+                            ]
+                        },
+                        {"$ne": [f"${current_field}", 0]},
+                    ]
+                },
+                f"${current_field}",
+                build_fallback(fields[1:]),
+            ]
+        }
+
+    price_expr = build_fallback([price_field, "sale_price", "mrp"])
+
+    # Calculate global totals directly in MongoDB (O(N) db-side vs O(N) mem-side)
+    # ⚡ Bolt: Using MongoDB aggregation to prevent loading entire erp_items collection into memory
+    agg_pipeline = [
+        {
+            "$group": {
+                "_id": None,
+                "total_stock_qty": {"$sum": "$stock_qty"},
+                "items_total": {"$sum": 1},
+                "total_stock_value": {
+                    "$sum": {"$multiply": [{"$ifNull": ["$stock_qty", 0]}, price_expr]}
+                },
+            }
+        }
+    ]
+    agg_res = await db.erp_items.aggregate(agg_pipeline).to_list(None)
+    agg_data = (
+        agg_res[0] if agg_res else {"total_stock_qty": 0, "items_total": 0, "total_stock_value": 0}
+    )
+
+    total_stock_qty = agg_data.get("total_stock_qty", 0)
+    items_total = agg_data.get("items_total", 0)
+    total_stock_value = agg_data.get("total_stock_value", 0)
 
     # Get all count lines from active sessions
     active_sessions_cursor = db.sessions.find({"status": {"$in": ["OPEN", "ACTIVE"]}})
@@ -121,30 +171,24 @@ async def calculate_dashboard_overview(
     count_lines_cursor = db.count_lines.find({"session_id": {"$in": session_ids}})
     count_lines = await count_lines_cursor.to_list(None)
 
-    # Calculate quantity metrics
-    total_stock_qty = sum(item.get("stock_qty", 0) for item in all_items)
     total_counted_qty = sum(line.get("counted_qty", 0) for line in count_lines)
     variance_qty = total_counted_qty - total_stock_qty
-
     qty_completion = (total_counted_qty / total_stock_qty * 100) if total_stock_qty > 0 else 0
 
-    # Get unique items counted
-    items_counted = len(set(line.get("item_code") for line in count_lines))
-    items_total = len(all_items)
+    items_counted = len(set(line.get("item_code") for line in count_lines if line.get("item_code")))
 
-    # Calculate value metrics
-    price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
-
-    # Build item price map
-    item_price_map = {}
-    for item in all_items:
-        price = item.get(price_field, 0) or item.get("sale_price", 0) or item.get("mrp", 0)
-        item_price_map[item["item_code"]] = price
-
-    # Calculate total stock value
-    total_stock_value = sum(
-        item.get("stock_qty", 0) * item_price_map.get(item["item_code"], 0) for item in all_items
+    # Get prices only for items that were counted to calculate counted_value
+    counted_item_codes = list(
+        set(line.get("item_code") for line in count_lines if line.get("item_code"))
     )
+    item_price_map = {}
+
+    if counted_item_codes:
+        counted_items_cursor = db.erp_items.find({"item_code": {"$in": counted_item_codes}})
+        counted_items = await counted_items_cursor.to_list(None)
+        for item in counted_items:
+            price = item.get(price_field, 0) or item.get("sale_price", 0) or item.get("mrp", 0)
+            item_price_map[item["item_code"]] = price
 
     # Calculate total counted value
     total_counted_value = sum(
