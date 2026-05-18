@@ -42,7 +42,7 @@ def mock_db():
 @pytest.mark.asyncio
 async def test_get_tables(mock_pyodbc):
     mock_cursor = mock_pyodbc.connect.return_value.cursor.return_value
-    mock_cursor.fetchall.return_value = MOCK_TABLES
+    mock_cursor.__iter__.return_value = iter(MOCK_TABLES)
 
     current_user = {"username": "testuser", "role": "admin"}
 
@@ -67,7 +67,7 @@ async def test_get_tables(mock_pyodbc):
 @pytest.mark.asyncio
 async def test_get_columns(mock_pyodbc):
     mock_cursor = mock_pyodbc.connect.return_value.cursor.return_value
-    mock_cursor.fetchall.return_value = MOCK_COLUMNS
+    mock_cursor.__iter__.return_value = iter(MOCK_COLUMNS)
 
     current_user = {"username": "testuser", "role": "admin"}
 
@@ -90,7 +90,7 @@ async def test_get_columns(mock_pyodbc):
 async def test_preview_mapping(mock_pyodbc):
     mock_cursor = mock_pyodbc.connect.return_value.cursor.return_value
     mock_cursor.description = [("item_code",), ("item_name",)]
-    mock_cursor.fetchall.return_value = MOCK_SAMPLE_DATA
+    mock_cursor.__iter__.return_value = iter(MOCK_SAMPLE_DATA)
 
     current_user = {"username": "testuser", "role": "admin"}
 
