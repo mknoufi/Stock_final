@@ -169,8 +169,9 @@ async def get_tables(
         WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_SCHEMA = ?
         ORDER BY TABLE_NAME
         """
+        # ⚡ Bolt: Iterate directly over cursor to stream rows from DB and avoid loading all rows into memory
         cursor.execute(query, (schema,))
-        tables = [row[0] for row in cursor.fetchall()]
+        tables = [row[0] for row in cursor]
 
         conn.close()
         return {"tables": tables, "count": len(tables)}
@@ -205,9 +206,10 @@ async def get_columns(
         ORDER BY ORDINAL_POSITION
         """
         cursor.execute(query, (table_name, schema))
+        # ⚡ Bolt: Iterate directly over cursor to stream rows from DB and avoid loading all rows into memory
 
         columns = []
-        for row in cursor.fetchall():
+        for row in cursor:
             columns.append(
                 {
                     "name": row[0],
@@ -272,10 +274,11 @@ async def preview_mapping(
             len(select_fields),
         )
 
+        # ⚡ Bolt: Iterate directly over cursor to stream rows from DB and avoid loading all rows into memory
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
         results = []
-        for row in cursor.fetchall():
+        for row in cursor:
             results.append(dict(zip(columns, row)))
 
         conn.close()
