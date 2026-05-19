@@ -109,8 +109,13 @@ async def calculate_dashboard_overview(
     Returns:
         DashboardOverview with all KPIs
     """
-    # Get all items from ERP
-    all_items_cursor = db.erp_items.find({})
+    # ⚡ Bolt: Fetch only the necessary fields to drastically reduce memory usage and JSON parsing overhead
+    price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
+
+    # Get all items from ERP (Optimized: projection)
+    all_items_cursor = db.erp_items.find(
+        {}, {"item_code": 1, "stock_qty": 1, price_field: 1, "sale_price": 1, "mrp": 1, "_id": 0}
+    )
     all_items = await all_items_cursor.to_list(None)
 
     # Get all count lines from active sessions
@@ -118,7 +123,10 @@ async def calculate_dashboard_overview(
     active_sessions = await active_sessions_cursor.to_list(None)
     session_ids = [s.get("id") for s in active_sessions]
 
-    count_lines_cursor = db.count_lines.find({"session_id": {"$in": session_ids}})
+    # ⚡ Bolt: Fetch only necessary fields for count lines
+    count_lines_cursor = db.count_lines.find(
+        {"session_id": {"$in": session_ids}}, {"item_code": 1, "counted_qty": 1, "_id": 0}
+    )
     count_lines = await count_lines_cursor.to_list(None)
 
     # Calculate quantity metrics
@@ -133,8 +141,6 @@ async def calculate_dashboard_overview(
     items_total = len(all_items)
 
     # Calculate value metrics
-    price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
-
     # Build item price map
     item_price_map = {}
     for item in all_items:

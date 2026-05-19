@@ -1,3 +1,6 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+## 2024-05-25 - [MongoDB Find Query Optimization]
+**Learning:** Using `find({}).to_list(None)` on large collections fetches entire documents into Python memory, causing significant overhead in parsing JSON.
+**Action:** When calculating metrics or fetching data from large collections (like `erp_items` or `count_lines`), always use field projection (e.g. `{"item_code": 1, "stock_qty": 1, "_id": 0}`) to only fetch the exact fields required. If possible and if testing frameworks support it, use MongoDB Aggregation pipelines (`$group`) to push calculations entirely into the database.
