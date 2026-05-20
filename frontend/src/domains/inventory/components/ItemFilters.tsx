@@ -12,13 +12,14 @@ import {
   StyleSheet,
   Platform,
   Modal,
-  FlatList,
+
   ActivityIndicator,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "@/hooks/useTheme";
 import { useSettingsStore } from "@/store/settingsStore";
 import { ItemVerificationAPI } from "@/domains/inventory/services/itemVerificationApi";
+import { VirtualList } from "@/components/common/VirtualList";
 import { getRackProgress } from "@/services/api/api";
 import { RackProgressCard } from "@/components/scan/RackProgressCard";
 
@@ -180,8 +181,10 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
                 style={{ margin: 20 }}
               />
             ) : (
-              <FlatList
+              // ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve performance and prevent memory issues for long lists of floors or racks.
+              <VirtualList
                 data={data}
+                estimatedItemSize={60}
                 keyExtractor={(item) =>
                   typeof item === "string" ? item : item.rack
                 }
