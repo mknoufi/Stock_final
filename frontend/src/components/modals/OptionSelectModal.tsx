@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  FlatList,
   Modal,
   Pressable,
   StyleSheet,
@@ -16,6 +15,7 @@ import {
   semanticColors,
   spacing,
 } from "@/theme/unified";
+import { VirtualList } from "../common/VirtualList";
 
 interface OptionSelectModalProps {
   visible: boolean;
@@ -37,7 +37,9 @@ export const OptionSelectModal: React.FC<OptionSelectModalProps> = ({
       <View style={styles.backdrop}>
         <View style={styles.content}>
           <Text style={styles.title}>{title}</Text>
-          <FlatList
+          {/* ⚡ Bolt: Replaced FlatList with VirtualList for improved rendering performance on long lists.
+              estimatedItemSize: 39 (12px top padding + 12px bottom padding + 14px fontSize + 1px border) */}
+          <VirtualList
             data={options}
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
@@ -45,6 +47,7 @@ export const OptionSelectModal: React.FC<OptionSelectModalProps> = ({
                 <Text style={styles.optionText}>{item}</Text>
               </Pressable>
             )}
+            estimatedItemSize={39}
           />
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>Close</Text>
