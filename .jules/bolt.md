@@ -1,3 +1,6 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+## 2024-05-27 - [MongoDB N+1 Queries in Bulk Endpoints]
+**Learning:** Endpoints that accept a list of IDs (e.g., `session_ids`) and iterate over them using `find_one()` create an N+1 query problem, which severely impacts performance for large inputs.
+**Action:** Always replace N+1 loop queries with a single MongoDB `$in` operator query. To maintain original order and handle duplicate IDs correctly, map the bulk query results into an in-memory Python dictionary and iterate over the input IDs to construct the final result array. This reduces O(N) database round trips to O(1).
