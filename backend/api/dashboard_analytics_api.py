@@ -442,10 +442,38 @@ async def _breakdown_by_session(
         None
     )
 
+    # ⚡ Bolt: Fixed N+1 query. Fetched all count lines and items in bulk
+    session_ids = [session.get("id") for session in sessions[:20]]
+    all_count_lines = await db.count_lines.find({"session_id": {"$in": session_ids}}).to_list(None)
+
+    # Group count lines by session_id
+    session_count_lines = {}
+    item_codes_set = set()
+    for line in all_count_lines:
+        s_id = line.get("session_id")
+        if s_id not in session_count_lines:
+            session_count_lines[s_id] = []
+        session_count_lines[s_id].append(line)
+        item_codes_set.add(line.get("item_code"))
+
+    # Fetch all items in one query
+    all_items = await db.erp_items.find({"item_code": {"$in": list(item_codes_set)}}).to_list(None)
+    price_map = {
+        item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in all_items
+    }
+
+    # Pre-calculate item mappings by session for len(items) reference
+    session_items = {}
+    for line in all_count_lines:
+        s_id = line.get("session_id")
+        if s_id not in session_items:
+            session_items[s_id] = set()
+        session_items[s_id].add(line.get("item_code"))
+
     breakdown = []
     for session in sessions[:20]:  # Limit to 20 most recent sessions
         session_id = session.get("id")
-        count_lines = await db.count_lines.find({"session_id": session_id}).to_list(None)
+        count_lines = session_count_lines.get(session_id, [])
 
         if not count_lines:
             continue
@@ -453,13 +481,6 @@ async def _breakdown_by_session(
         # Calculate metrics
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
-
-        # Get prices
-        item_codes = [line.get("item_code") for line in count_lines]
-        items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
-        price_map = {
-            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
-        }
 
         total_counted_value = sum(
             line.get("counted_qty", 0) * price_map.get(line.get("item_code"), 0)
@@ -481,7 +502,7 @@ async def _breakdown_by_session(
                         (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
                     ),
                     items_counted=len(set(line.get("item_code") for line in count_lines)),
-                    items_total=len(items),
+                    items_total=len(session_items.get(session_id, set())),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),
                 value_status=ValueStatus(
