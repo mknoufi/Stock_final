@@ -39,7 +39,7 @@ from backend.config import settings  # noqa: E402
 from backend.error_messages import get_error_message  # noqa: E402
 from backend.exceptions import AuthenticationError, NotFoundError
 from backend.exceptions import RateLimitError as RateLimitExceededError
-from backend.exceptions import (  # noqa: E402; Using base class as generic database error for now
+from backend.exceptions import (  # noqa: E402
     StockVerifyException as DatabaseError,
 )
 from backend.exceptions import ValidationError
