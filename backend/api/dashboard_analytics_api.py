@@ -296,7 +296,8 @@ async def _breakdown_by_location(
         total_expected = sum(line.get("erp_qty", 0) for line in lines)
 
         # Get item prices
-        item_codes = [line.get("item_code") for line in lines]
+        # ⚡ Bolt: Deduplicate item_codes to reduce payload size for $in query
+        item_codes = list(set(line.get("item_code") for line in lines))
         items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
         price_map = {
             item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
@@ -374,7 +375,9 @@ async def _breakdown_by_category(
         item_codes = [item["item_code"] for item in cat_items]
 
         # Get count lines for these items
-        count_lines = await db.count_lines.find({"item_code": {"$in": item_codes}}).to_list(None)
+        count_lines = await db.count_lines.find(
+            {"item_code": {"$in": list(set(item_codes))}}
+        ).to_list(None)
 
         # Calculate metrics (similar to location breakdown)
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
@@ -455,7 +458,9 @@ async def _breakdown_by_session(
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
 
         # Get prices
-        item_codes = [line.get("item_code") for line in count_lines]
+        # ⚡ Bolt: Deduplicate item_codes to reduce payload size for $in query
+        # ⚡ Bolt: Deduplicate item_codes to reduce payload size for $in query
+        item_codes = list(set(line.get("item_code") for line in count_lines))
         items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
         price_map = {
             item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
@@ -528,7 +533,7 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
 
-        item_codes = [line.get("item_code") for line in count_lines]
+        item_codes = list(set(line.get("item_code") for line in count_lines))
         items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
         price_map = {
             item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
