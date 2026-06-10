@@ -5,6 +5,7 @@ PC-based web dashboard endpoints for administrators
 
 import logging
 import os
+import asyncio
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
@@ -512,14 +513,17 @@ async def get_dashboard_summary(current_user: dict = Depends(require_admin)):
     db = get_db()
 
     # Parallel fetch of all dashboard data
-    kpis = await get_dashboard_kpis(current_user)
-    system_status = await get_system_status(current_user)
-    active_users = await get_active_users(current_user)
-
-    # Get recent error count
+    # ⚡ Bolt: Replaced sequential awaits with asyncio.gather to fetch dashboard data concurrently.
+    # This drastically reduces total response time.
     cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=1)
-    recent_errors = await db.error_logs.count_documents(
-        {"timestamp": {"$gte": cutoff}, "level": {"$in": ["ERROR", "CRITICAL"]}}
+
+    kpis, system_status, active_users, recent_errors = await asyncio.gather(
+        get_dashboard_kpis(current_user),
+        get_system_status(current_user),
+        get_active_users(current_user),
+        db.error_logs.count_documents(
+            {"timestamp": {"$gte": cutoff}, "level": {"$in": ["ERROR", "CRITICAL"]}}
+        ),
     )
 
     return {
