@@ -471,6 +471,39 @@ def _session_owner(session: Optional[dict[str, Any]]) -> str:
     return str((session or {}).get("staff_user") or (session or {}).get("user_id") or "")
 
 
+async def _get_sessions_lines_summary(
+    db: AsyncIOMotorDatabase,
+    session_ids: list[str],
+) -> dict[str, dict[str, Any]]:
+    if not session_ids:
+        return {}
+
+    unique_session_ids = list(set(session_ids))
+    cursor = db.count_lines.find({"session_id": {"$in": unique_session_ids}})
+    lines_by_session = {sid: [] for sid in unique_session_ids}
+
+    async for line in cursor:
+        sid = line.get("session_id")
+        if sid in lines_by_session:
+            lines_by_session[sid].append(line)
+
+    result = {}
+    for sid, lines in lines_by_session.items():
+        item_count = len(lines)
+        verified_count = sum(1 for line in lines if is_count_line_effectively_reviewed(line))
+        total_variance = sum(float(line.get("variance") or 0.0) for line in lines)
+        damage_items = int(sum(float(line.get("damaged_qty") or 0.0) for line in lines))
+        result[sid] = {
+            "lines": lines,
+            "item_count": item_count,
+            "verified_count": verified_count,
+            "pending_count": max(item_count - verified_count, 0),
+            "total_variance": total_variance,
+            "damage_items": damage_items,
+        }
+    return result
+
+
 async def _get_session_line_summary(
     db: AsyncIOMotorDatabase,
     session_id: str,
@@ -997,8 +1030,13 @@ async def get_active_sessions(
     sessions = await sessions_cursor.to_list(length=100)
 
     result = []
+    # ⚡ Bolt: Batch fetching session lines to resolve N+1 query
+    session_ids = [_session_identifier(session) for session in sessions]
+    summaries = await _get_sessions_lines_summary(db, session_ids)
+
     for session in sessions:
-        line_summary = await _get_session_line_summary(db, _session_identifier(session))
+        sid = _session_identifier(session)
+        line_summary = summaries.get(sid, {})
         result.append(_build_session_detail_from_doc(session, line_summary))
 
     return result
@@ -1778,9 +1816,13 @@ async def get_user_session_history(
     sessions = await sessions_cursor.to_list(length=limit)
 
     result = []
+    # ⚡ Bolt: Batch fetching session lines to resolve N+1 query
+    session_ids = [str(session.get("id") or session.get("session_id")) for session in sessions]
+    summaries = await _get_sessions_lines_summary(db, session_ids)
+
     for session in sessions:
         session_identifier = str(session.get("id") or session.get("session_id"))
-        line_summary = await _get_session_line_summary(db, session_identifier)
+        line_summary = summaries.get(session_identifier, {})
         result.append(_build_session_detail_from_doc(session, line_summary))
 
     return result
