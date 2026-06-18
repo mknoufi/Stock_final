@@ -145,7 +145,7 @@ async def generate_stock_summary(db, filters: ReportFilter) -> list[dict]:
 
     items_cursor = db.erp_items.find(item_query)
     items: list[dict[str, Any]] = [item async for item in items_cursor]
-    item_codes = [item.get("item_code") for item in items if item.get("item_code")]
+    item_codes = list({item.get("item_code") for item in items if item.get("item_code")})  # ⚡ Bolt: Deduplicate item_codes to optimize $in query payload
     if (filters.warehouse or filters.floor or filters.category) and not item_codes:
         return []
 
