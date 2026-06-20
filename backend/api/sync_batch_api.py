@@ -157,8 +157,17 @@ async def validate_record(
     """
     # Check for duplicate serial numbers
     if record.serial_numbers:
+        # ⚡ Bolt: Batch database query to fix N+1 issue for serial number validation
+        serials_to_check = list({s for s in record.serial_numbers if s})
+        existing_serials = []
+        if serials_to_check:
+            cursor = db.item_serials.find({"serial_number": {"$in": serials_to_check}})
+            existing_serials = await cursor.to_list(length=None)
+
+        existing_by_serial = {s["serial_number"]: s for s in existing_serials}
+
         for serial in record.serial_numbers:
-            existing = await db.item_serials.find_one({"serial_number": serial})
+            existing = existing_by_serial.get(serial)
             if existing and existing.get("client_record_id") != record.client_record_id:
                 conflict_id = None
                 if sync_service and user_id:
