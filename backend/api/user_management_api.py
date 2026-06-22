@@ -666,51 +666,61 @@ async def bulk_user_action(
     success_count = 0
     failed_ids: list[str] = []
 
+    valid_oids = []
+
+    # 1. Input validation & self-modification filtering
     for user_id in request.user_ids:
+        if user_id == current_user_id:
+            failed_ids.append(user_id)
+            continue
         try:
-            oid = ObjectId(user_id)
+            valid_oids.append(ObjectId(user_id))
+        except Exception as e:
+            logger.error("Invalid ObjectId %s: %s", user_id, str(e))
+            failed_ids.append(user_id)
 
-            # Skip self-modification
-            if user_id == current_user_id:
-                failed_ids.append(user_id)
-                continue
+    # 2. Bulk existence check
+    verified_oids = []
+    if valid_oids:
+        existing_users = await db.users.find({"_id": {"$in": valid_oids}}, {"_id": 1}).to_list(
+            length=None
+        )
+        existing_ids = {u["_id"] for u in existing_users}
+        for oid in valid_oids:
+            if oid in existing_ids:
+                verified_oids.append(oid)
+            else:
+                failed_ids.append(str(oid))
 
-            user = await db.users.find_one({"_id": oid})
-            if not user:
-                failed_ids.append(user_id)
-                continue
-
+    # 3. Bulk operation execution
+    if verified_oids:
+        try:
             if request.action == "activate":
-                await db.users.update_one(
-                    {"_id": oid},
+                await db.users.update_many(
+                    {"_id": {"$in": verified_oids}},
                     {"$set": {"is_active": True}},
                 )
             elif request.action == "deactivate":
-                await db.users.update_one(
-                    {"_id": oid},
+                await db.users.update_many(
+                    {"_id": {"$in": verified_oids}},
                     {"$set": {"is_active": False}},
                 )
             elif request.action == "delete":
-                await db.users.delete_one({"_id": oid})
+                await db.users.delete_many({"_id": {"$in": verified_oids}})
             elif request.action == "change_role":
                 if request.role:
-                    await db.users.update_one(
-                        {"_id": oid},
+                    await db.users.update_many(
+                        {"_id": {"$in": verified_oids}},
                         {"$set": {"role": request.role}},
                     )
                 else:
-                    failed_ids.append(user_id)
-                    continue
+                    failed_ids.extend([str(oid) for oid in verified_oids])
+                    verified_oids = []
 
-            success_count += 1
-
+            success_count = len(verified_oids)
         except Exception as e:
-            logger.error(
-                "Bulk action failed for user %s: %s",
-                user_id,
-                str(e),
-            )
-            failed_ids.append(user_id)
+            logger.error("Bulk database operation failed: %s", str(e))
+            failed_ids.extend([str(oid) for oid in verified_oids])
 
     action_msg = {
         "activate": "activated",
