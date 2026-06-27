@@ -559,22 +559,20 @@ async def _process_session_op(
             ]
 
             updated = 0
-            if resolved_ids:
-                # ⚡ Bolt: Replaced N+1 update_one queries in loop with O(1) update_many
+            for session_id in resolved_ids:
                 if operation == "bulk_close":
-                    await db.sessions.update_many(
-                        {"id": {"$in": resolved_ids}},
+                    result = await db.sessions.update_one(
+                        {"id": session_id},
                         {"$set": {"status": "CLOSED", "closed_at": now, "ended_at": now}},
                     )
                 else:
                     # M2 fix: Set status to RECONCILE (not ACTIVE) for consistency
-                    await db.sessions.update_many(
-                        {"id": {"$in": resolved_ids}},
+                    result = await db.sessions.update_one(
+                        {"id": session_id},
                         {"$set": {"status": "RECONCILE", "reconciled_at": now}},
                     )
-
-                # Use length of resolved_ids as we do for idempotent bulk operations
-                updated = len(resolved_ids)
+                if getattr(result, "modified_count", 0) > 0:
+                    updated += 1
 
             return f"Bulk session operation '{operation}' applied (updated={updated})"
 
