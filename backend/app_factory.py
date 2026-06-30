@@ -775,12 +775,19 @@ async def bulk_export_sessions(
 
     try:
         sessions = []
-        for session_id in session_ids:
-            session = await db.sessions.find_one(
-                {"$or": [{"id": session_id}, {"session_id": session_id}]}
+        # ⚡ Bolt: Replaced O(N) find_one loop with O(1) bulk fetch using $in to eliminate N+1 queries.
+        # Deduplicate to minimize payload and processing.
+        deduplicated_ids = list({sid for sid in session_ids if sid})
+        if deduplicated_ids:
+            cursor = db.sessions.find(
+                {
+                    "$or": [
+                        {"id": {"$in": deduplicated_ids}},
+                        {"session_id": {"$in": deduplicated_ids}},
+                    ]
+                }
             )
-            if session:
-                sessions.append(session)
+            sessions = await cursor.to_list(length=None)
 
         # Log activity
         await activity_log_service.log_activity(
