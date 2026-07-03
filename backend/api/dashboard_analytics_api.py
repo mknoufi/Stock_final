@@ -10,6 +10,7 @@ Provides comprehensive dashboard KPIs for admin/supervisor monitoring:
 
 import logging
 from datetime import datetime, timedelta, timezone
+import asyncio
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -109,13 +110,12 @@ async def calculate_dashboard_overview(
     Returns:
         DashboardOverview with all KPIs
     """
-    # Get all items from ERP
-    all_items_cursor = db.erp_items.find({})
-    all_items = await all_items_cursor.to_list(None)
+    # ⚡ Bolt: Use asyncio.gather to fetch independent data concurrently, reducing overall network latency
+    all_items_task = db.erp_items.find({}).to_list(None)
+    active_sessions_task = db.sessions.find({"status": {"$in": ["OPEN", "ACTIVE"]}}).to_list(None)
 
-    # Get all count lines from active sessions
-    active_sessions_cursor = db.sessions.find({"status": {"$in": ["OPEN", "ACTIVE"]}})
-    active_sessions = await active_sessions_cursor.to_list(None)
+    all_items, active_sessions = await asyncio.gather(all_items_task, active_sessions_task)
+
     session_ids = [s.get("id") for s in active_sessions]
 
     count_lines_cursor = db.count_lines.find({"session_id": {"$in": session_ids}})
@@ -157,13 +157,13 @@ async def calculate_dashboard_overview(
         (total_counted_value / total_stock_value * 100) if total_stock_value > 0 else 0
     )
 
-    # Get pending approvals count
-    pending_approvals = await db.count_lines.count_documents(
+    # Get pending approvals count and total users concurrently
+    pending_approvals_task = db.count_lines.count_documents(
         {"status": {"$in": ["pending_approval", "NEEDS_REVIEW"]}}
     )
+    total_users_task = db.users.count_documents({})
 
-    # Get total users
-    total_users = await db.users.count_documents({})
+    pending_approvals, total_users = await asyncio.gather(pending_approvals_task, total_users_task)
 
     return DashboardOverview(
         quantity_status=QuantityStatus(
