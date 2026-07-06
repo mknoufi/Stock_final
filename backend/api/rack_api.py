@@ -144,11 +144,25 @@ async def get_available_racks(
 
     # Get item counts (estimated from ERP items)
     result = []
+    if not racks:
+        logger.info(f"Found 0 available racks (floor={floor})")
+        return result
+
+    # ⚡ Bolt: Fix N+1 query by aggregating counts for all racks in a single database round-trip
+    rack_pairs = [{"rack": r["rack_id"], "floor": r["floor"]} for r in racks]
+    pipeline = [
+        {"$match": {"$or": rack_pairs}},
+        {"$group": {"_id": {"rack": "$rack", "floor": "$floor"}, "count": {"$sum": 1}}},
+    ]
+
+    counts_cursor = db.erp_items.aggregate(pipeline)
+    counts = await counts_cursor.to_list(length=None)
+
+    count_map = {f"{c['_id']['rack']}_{c['_id']['floor']}": c["count"] for c in counts}
+
     for rack in racks:
-        # Count items in this rack
-        item_count = await db.erp_items.count_documents(
-            {"rack": rack["rack_id"], "floor": rack["floor"]}
-        )
+        key = f"{rack['rack_id']}_{rack['floor']}"
+        item_count = count_map.get(key, 0)
 
         result.append(
             AvailableRack(
