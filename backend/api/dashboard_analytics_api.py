@@ -296,7 +296,7 @@ async def _breakdown_by_location(
         total_expected = sum(line.get("erp_qty", 0) for line in lines)
 
         # Get item prices
-        item_codes = [line.get("item_code") for line in lines]
+        item_codes = list({line.get("item_code") for line in lines if line.get("item_code")})
         items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
         price_map = {
             item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
@@ -371,7 +371,7 @@ async def _breakdown_by_category(
 
     breakdown = []
     for category, cat_items in category_items.items():
-        item_codes = [item["item_code"] for item in cat_items]
+        item_codes = list({item["item_code"] for item in cat_items if item.get("item_code")})
 
         # Get count lines for these items
         count_lines = await db.count_lines.find({"item_code": {"$in": item_codes}}).to_list(None)
@@ -455,7 +455,7 @@ async def _breakdown_by_session(
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
 
         # Get prices
-        item_codes = [line.get("item_code") for line in count_lines]
+        item_codes = list({line.get("item_code") for line in count_lines if line.get("item_code")})
         items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
         price_map = {
             item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
@@ -528,7 +528,7 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
 
-        item_codes = [line.get("item_code") for line in count_lines]
+        item_codes = list({line.get("item_code") for line in count_lines if line.get("item_code")})
         items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
         price_map = {
             item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
