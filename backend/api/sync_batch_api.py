@@ -408,12 +408,16 @@ async def sync_batch(
 
     try:
         # Validate all records first
+        # ⚡ Bolt: Replace N+1 query loop with a single bulk query
+        operation_ids = [record.client_record_id for record in request.records]
+        existing_ops = await db.idempotency_operations.find(
+            {"operation_id": {"$in": operation_ids}}
+        ).to_list(length=None) if operation_ids else []
+        existing_op_ids = {op.get("operation_id") for op in existing_ops if op.get("operation_id")}
+
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in existing_op_ids:
                 ok_records.append(record.client_record_id)
                 continue
 
