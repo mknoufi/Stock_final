@@ -407,13 +407,22 @@ async def sync_batch(
     errors = []
 
     try:
+        # ⚡ Bolt: Pre-fetch idempotency operations using a bulk $in query to fix O(N) database queries
+        client_record_ids = list(
+            {r.client_record_id for r in request.records if r.client_record_id}
+        )
+        existing_ops_set = set()
+        if client_record_ids:
+            cursor = db.idempotency_operations.find(
+                {"operation_id": {"$in": client_record_ids}}, {"operation_id": 1, "_id": 0}
+            )
+            existing_ops = await cursor.to_list(length=None)
+            existing_ops_set = {op["operation_id"] for op in existing_ops if "operation_id" in op}
+
         # Validate all records first
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in existing_ops_set:
                 ok_records.append(record.client_record_id)
                 continue
 
