@@ -10,7 +10,14 @@ from backend.api.sync_batch_api import SyncRecord, _process_count_line_op, sync_
 @pytest.mark.asyncio
 async def test_sync_single_record_scopes_upsert_by_session_id(monkeypatch):
     db = MagicMock()
+    db.count_lines.find_one = AsyncMock(return_value=None)
+    db.erp_items.find_one = AsyncMock(return_value=None)
+    db.sessions.find_one = AsyncMock(return_value={"id": "session-a", "status": "OPEN"})
     db.count_lines.update_one = AsyncMock(return_value=SimpleNamespace())
+
+    mock_cursor = AsyncMock()
+    mock_cursor.to_list = AsyncMock(return_value=[])
+    db.idempotency_operations.find.return_value = mock_cursor
     db.item_serials.insert_many = AsyncMock(return_value=None)
     recompute = AsyncMock(return_value=None)
     monkeypatch.setattr("backend.api.sync_batch_api.recompute_session_totals", recompute)

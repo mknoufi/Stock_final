@@ -407,13 +407,26 @@ async def sync_batch(
     errors = []
 
     try:
+        # Bolt: Resolve N+1 query in idempotency checks
+        # Batch fetch all potential idempotency operations outside the loop
+        client_record_ids = list(
+            {record.client_record_id for record in request.records if record.client_record_id}
+        )
+        existing_op_ids = set()
+
+        if client_record_ids:
+            existing_ops_cursor = db.idempotency_operations.find(
+                {"operation_id": {"$in": client_record_ids}}
+            )
+            existing_ops = await existing_ops_cursor.to_list(length=None)
+            existing_op_ids = {
+                op.get("operation_id") for op in existing_ops if op.get("operation_id")
+            }
+
         # Validate all records first
         for record in request.records:
-            # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            # Check idempotency using in-memory O(1) set lookup
+            if record.client_record_id in existing_op_ids:
                 ok_records.append(record.client_record_id)
                 continue
 
