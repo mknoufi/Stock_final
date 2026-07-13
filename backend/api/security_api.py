@@ -3,6 +3,7 @@ Security Dashboard API
 Provides endpoints for security monitoring, failed login tracking, and audit logs
 """
 
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
@@ -60,9 +61,6 @@ async def get_failed_logins(
             if "timestamp" in login:
                 login["timestamp"] = login["timestamp"].isoformat()
 
-        # Get statistics
-        total_failed = await db.login_attempts.count_documents(query)
-
         # Group by IP
         ip_pipeline: list[dict[str, Any]] = [
             {"$match": query},
@@ -70,7 +68,6 @@ async def get_failed_logins(
             {"$sort": {"count": -1}},
             {"$limit": 10},
         ]
-        top_ips = await db.login_attempts.aggregate(ip_pipeline).to_list(10)
 
         # Group by username
         user_pipeline: list[dict[str, Any]] = [
@@ -79,7 +76,13 @@ async def get_failed_logins(
             {"$sort": {"count": -1}},
             {"$limit": 10},
         ]
-        top_users = await db.login_attempts.aggregate(user_pipeline).to_list(10)
+
+        # Get statistics concurrently
+        total_failed, top_ips, top_users = await asyncio.gather(
+            db.login_attempts.count_documents(query),
+            db.login_attempts.aggregate(ip_pipeline).to_list(10),
+            db.login_attempts.aggregate(user_pipeline).to_list(10),
+        )
 
         return {
             "success": True,
@@ -128,7 +131,6 @@ async def get_suspicious_activity(
             {"$match": {"count": {"$gte": 5}}},  # 5+ failed attempts
             {"$sort": {"count": -1}},
         ]
-        suspicious_ips = await db.login_attempts.aggregate(ip_pipeline).to_list(50)
 
         # Multiple failed logins for same username
         user_pipeline: list[dict[str, Any]] = [
@@ -144,7 +146,12 @@ async def get_suspicious_activity(
             {"$match": {"count": {"$gte": 5}}},  # 5+ failed attempts
             {"$sort": {"count": -1}},
         ]
-        suspicious_users = await db.login_attempts.aggregate(user_pipeline).to_list(50)
+
+        # Execute queries concurrently
+        suspicious_ips, suspicious_users = await asyncio.gather(
+            db.login_attempts.aggregate(ip_pipeline).to_list(50),
+            db.login_attempts.aggregate(user_pipeline).to_list(50),
+        )
 
         # Convert to response format
         for item in suspicious_ips:
@@ -231,13 +238,15 @@ async def get_security_sessions(
                         }
                     )
 
-        # Get statistics
-        total_sessions = await db.refresh_tokens.count_documents({"revoked": False})
-        active_sessions = await db.refresh_tokens.count_documents(
-            {
-                "revoked": False,
-                "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)},
-            }
+        # Get statistics concurrently
+        total_sessions, active_sessions = await asyncio.gather(
+            db.refresh_tokens.count_documents({"revoked": False}),
+            db.refresh_tokens.count_documents(
+                {
+                    "revoked": False,
+                    "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)},
+                }
+            ),
         )
 
         return {
@@ -407,24 +416,6 @@ async def get_security_summary(
 
         cutoff_time = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(hours=hours)
 
-        # Failed logins count
-        failed_count = await db.login_attempts.count_documents(
-            {"success": False, "timestamp": {"$gte": cutoff_time}}
-        )
-
-        # Successful logins count
-        success_count = await db.login_attempts.count_documents(
-            {"success": True, "timestamp": {"$gte": cutoff_time}}
-        )
-
-        # Active sessions
-        active_sessions = await db.refresh_tokens.count_documents(
-            {
-                "revoked": False,
-                "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)},
-            }
-        )
-
         # Suspicious IPs (5+ failed attempts)
         suspicious_summary_pipeline: list[dict[str, Any]] = [
             {"$match": {"success": False, "timestamp": {"$gte": cutoff_time}}},
@@ -432,15 +423,29 @@ async def get_security_summary(
             {"$match": {"count": {"$gte": 5}}},
             {"$count": "total"},
         ]
-        suspicious_ips_count = await db.login_attempts.aggregate(
-            suspicious_summary_pipeline
-        ).to_list(1)
 
-        suspicious_ips = suspicious_ips_count[0]["total"] if suspicious_ips_count else 0
-
-        # Recent security events
-        recent_events = (
-            await db.activity_logs.find(
+        # Execute all aggregations concurrently
+        (
+            failed_count,
+            success_count,
+            active_sessions,
+            suspicious_ips_count,
+            recent_events,
+        ) = await asyncio.gather(
+            db.login_attempts.count_documents(
+                {"success": False, "timestamp": {"$gte": cutoff_time}}
+            ),
+            db.login_attempts.count_documents(
+                {"success": True, "timestamp": {"$gte": cutoff_time}}
+            ),
+            db.refresh_tokens.count_documents(
+                {
+                    "revoked": False,
+                    "expires_at": {"$gt": datetime.now(timezone.utc).replace(tzinfo=None)},
+                }
+            ),
+            db.login_attempts.aggregate(suspicious_summary_pipeline).to_list(1),
+            db.activity_logs.find(
                 {
                     "action": {"$in": ["login", "logout", "register", "password_change"]},
                     "timestamp": {"$gte": cutoff_time},
@@ -448,8 +453,10 @@ async def get_security_summary(
             )
             .sort("timestamp", -1)
             .limit(10)
-            .to_list(10)
+            .to_list(10),
         )
+
+        suspicious_ips = suspicious_ips_count[0]["total"] if suspicious_ips_count else 0
 
         for event in recent_events:
             if "_id" in event:
