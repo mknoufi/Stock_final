@@ -1,3 +1,7 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+
+## 2024-05-30 - N+1 database queries optimization in dashboard breakdown endpoints
+**Learning:** Found N+1 database queries when iterating over item codes dynamically during aggregation/grouping loops in endpoints such as `_breakdown_by_location`, `_breakdown_by_category`, `_breakdown_by_session`, and `_breakdown_by_date` in `backend/api/dashboard_analytics_api.py`. It iteratively calls `await db.erp_items.find(...)` which is detrimental to latency and efficiency.
+**Action:** Used `list({line.get("item_code") for ...})` or similar aggregation to collect all unique `item_codes` needed across all items in a single `$in` query beforehand, constructed a `master_price_map` and mapping, and referenced the map during group iterations inside the breakdowns.
