@@ -3,6 +3,8 @@ API v2 Sessions Endpoints
 Upgraded session endpoints with standardized responses
 """
 
+import asyncio
+
 from datetime import datetime, timezone
 from typing import Any, Optional
 
@@ -184,25 +186,19 @@ async def get_rack_progress(
             {"$match": {"warehouse": warehouse, "rack": {"$exists": True, "$ne": ""}}},
             {"$group": {"_id": "$rack", "total_items": {"$sum": 1}}},
         ]
-        total_counts = await db.erp_items.aggregate(total_pipeline).to_list(length=1000)
-        # Map: { "A1": 100, "B2": 50 }
-        totals_map = {item["_id"]: item["total_items"] for item in total_counts}
-
-        # 3. Aggregation: Counted Items per Rack (Session Data)
-        # Filter by session_id and group by rack (need to lookup item first or assuming count_lines has rack?
-        # Usually count_lines records what was scanned. If it doesn't store rack, we might need a lookup.
-        # However, typically optimization implies count_lines should have location snapshot or we rely on item master.
-        # Let's check count_lines schema. If it doesn't have rack, we have to look it up.
-        # Assuming for 'progress' we want to know how many *unique items* from that rack have been counted.
-
-        # Strategy: Get all distinct item_codes counted in this session.
-        # Then check which racks those items belong to.
-
         count_pipeline = [
             {"$match": {"session_id": session_id}},
             {"$group": {"_id": "$item_code"}},  # distinct item codes
         ]
-        counted_items = await db.count_lines.aggregate(count_pipeline).to_list(length=10000)
+
+        # ⚡ Bolt: Execute independent queries concurrently to reduce total latency
+        total_counts, counted_items = await asyncio.gather(
+            db.erp_items.aggregate(total_pipeline).to_list(length=1000),
+            db.count_lines.aggregate(count_pipeline).to_list(length=10000),
+        )
+
+        # Map: { "A1": 100, "B2": 50 }
+        totals_map = {item["_id"]: item["total_items"] for item in total_counts}
         counted_item_codes = [c["_id"] for c in counted_items]
 
         # Now query erp_items to see which racks these counted items belong to
