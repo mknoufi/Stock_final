@@ -170,7 +170,7 @@ async def get_tables(
         ORDER BY TABLE_NAME
         """
         cursor.execute(query, (schema,))
-        tables = [row[0] for row in cursor.fetchall()]
+        tables = [row[0] for row in cursor]  # ⚡ Bolt: Stream rows directly from cursor to save memory
 
         conn.close()
         return {"tables": tables, "count": len(tables)}
@@ -207,7 +207,7 @@ async def get_columns(
         cursor.execute(query, (table_name, schema))
 
         columns = []
-        for row in cursor.fetchall():
+        for row in cursor:  # ⚡ Bolt: Stream rows directly from cursor to save memory
             columns.append(
                 {
                     "name": row[0],
@@ -274,9 +274,7 @@ async def preview_mapping(
 
         cursor.execute(query)
         columns = [column[0] for column in cursor.description]
-        results = []
-        for row in cursor.fetchall():
-            results.append(dict(zip(columns, row)))
+        results = [dict(zip(columns, row)) for row in cursor]  # ⚡ Bolt: Stream rows directly from cursor to save memory
 
         conn.close()
         return {"success": True, "sample_data": results}
