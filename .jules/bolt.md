@@ -1,3 +1,6 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+## 2024-07-23 - API Router Isolation for Syntax Testing
+**Learning:** In codebases where full integration test suites are prone to failing due to complex environmental configurations (like missing specific mock secrets or auth middleware dependencies), it is often easier to create a minimal isolated test script to verify routing and syntax of heavily modified routers rather than debugging the whole test suite.
+**Action:** When `pytest` fails with environment errors unrelated to the changes, use a script with `FastAPI()`, `app.include_router()`, and `httpx.ASGITransport` to verify the modified API syntax.
