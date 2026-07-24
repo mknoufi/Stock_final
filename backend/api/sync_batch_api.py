@@ -407,13 +407,18 @@ async def sync_batch(
     errors = []
 
     try:
+        # Batch check idempotency to avoid N+1 queries
+        record_ids = [record.client_record_id for record in request.records]
+        existing_ops_set = set()
+        if record_ids:
+            cursor = db.idempotency_operations.find({"operation_id": {"$in": record_ids}})
+            ops = await cursor.to_list(length=None)
+            existing_ops_set = {op.get("operation_id") for op in ops if op.get("operation_id")}
+
         # Validate all records first
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in existing_ops_set:
                 ok_records.append(record.client_record_id)
                 continue
 
