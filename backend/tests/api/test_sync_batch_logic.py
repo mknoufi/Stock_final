@@ -10,8 +10,19 @@ from backend.api.sync_batch_api import SyncRecord, _process_count_line_op, sync_
 @pytest.mark.asyncio
 async def test_sync_single_record_scopes_upsert_by_session_id(monkeypatch):
     db = MagicMock()
+
+    # We must mock Async Mock correctly, because MagicMock cannot be awaited.
+
     db.count_lines.update_one = AsyncMock(return_value=SimpleNamespace())
     db.item_serials.insert_many = AsyncMock(return_value=None)
+    db.item_serials.find_one = AsyncMock(return_value=None)
+    db.sessions.find_one = AsyncMock(return_value={"id": "session-a", "status": "active"})
+
+    cursor_mock = MagicMock()
+    cursor_mock.to_list = AsyncMock(return_value=[])
+    db.count_lines.find = MagicMock(return_value=cursor_mock)
+    db.idempotency_operations.find = MagicMock(return_value=cursor_mock)
+
     recompute = AsyncMock(return_value=None)
     monkeypatch.setattr("backend.api.sync_batch_api.recompute_session_totals", recompute)
 
