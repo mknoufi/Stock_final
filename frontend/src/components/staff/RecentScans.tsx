@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Animated,
 } from "react-native";
@@ -12,6 +11,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useThemeContext } from "../../context/ThemeContext";
 import { useHapticFeedback } from "../../hooks/useHapticFeedback";
 import { RecentItemsService } from "../../services/enhancedFeatures";
+import { VirtualList } from "../common/VirtualList";
 
 interface RecentScansProps {
   sessionId: string;
@@ -184,9 +184,10 @@ export const RecentScans: React.FC<RecentScansProps> = ({
           </View>
         )}
       </View>
-      <FlatList
+      {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve scrolling performance of recent scans list. */}
+      <VirtualList
         data={items}
-        renderItem={renderItem}
+        renderItem={renderItem as any}
         keyExtractor={(item) => item.item_code}
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -194,6 +195,7 @@ export const RecentScans: React.FC<RecentScansProps> = ({
         snapToInterval={220}
         decelerationRate="fast"
         pagingEnabled={false}
+        estimatedItemSize={220} // Based on styles.itemContainer width
       />
     </View>
   );
