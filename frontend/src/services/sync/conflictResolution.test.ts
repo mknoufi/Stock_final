@@ -32,13 +32,13 @@ describe("Conflict Resolution Strategies", () => {
   });
 
   describe("mergeQuantityStrategy", () => {
-    it("should sum quantities if both have numeric quantity", () => {
+    it("should take the max quantity if both have numeric quantity", () => {
       const result = resolveConflict(
         clientData,
         serverData,
         mergeQuantityStrategy,
       );
-      expect(result).toEqual({ ...serverData, quantity: 30 });
+      expect(result).toEqual({ ...serverData, quantity: 20 });
     });
 
     it("should fallback to server wins if quantity is missing", () => {

@@ -269,7 +269,7 @@ export function MultiSelectList<T extends SelectableItem>({
               {/* ⚡ Bolt: Replaced FlatList with VirtualList to ensure smooth scrolling and quick rendering even with large datasets in multi-select modals. */}
         <VirtualList estimatedItemSize={60}
         data={items}
-        renderItem={renderItemWrapper}
+        renderItem={renderItemWrapper as any}
         keyExtractor={keyExtractor}
         ListEmptyComponent={renderEmpty}
         contentContainerStyle={items.length === 0 && styles.emptyList}
