@@ -10,6 +10,8 @@ from backend.api.sync_batch_api import SyncRecord, _process_count_line_op, sync_
 @pytest.mark.asyncio
 async def test_sync_single_record_scopes_upsert_by_session_id(monkeypatch):
     db = MagicMock()
+    db.sessions.find_one = AsyncMock(return_value={'status': 'OPEN'})
+    db.item_serials.find_one = AsyncMock(return_value=None)
     db.count_lines.update_one = AsyncMock(return_value=SimpleNamespace())
     db.item_serials.insert_many = AsyncMock(return_value=None)
     recompute = AsyncMock(return_value=None)
@@ -38,6 +40,8 @@ async def test_sync_single_record_scopes_upsert_by_session_id(monkeypatch):
 @pytest.mark.asyncio
 async def test_process_count_line_op_accepts_non_dict_audit_metadata(monkeypatch):
     db = MagicMock()
+    db.sessions.find_one = AsyncMock(return_value={'status': 'OPEN'})
+    db.item_serials.find_one = AsyncMock(return_value=None)
     db.count_lines.find_one = AsyncMock(return_value=None)
     db.count_lines.insert_one = AsyncMock(return_value=None)
 
@@ -75,6 +79,8 @@ async def test_process_count_line_op_accepts_non_dict_audit_metadata(monkeypatch
 @pytest.mark.asyncio
 async def test_process_count_line_op_drops_object_id_from_recount_update(monkeypatch):
     db = MagicMock()
+    db.sessions.find_one = AsyncMock(return_value={'status': 'OPEN'})
+    db.item_serials.find_one = AsyncMock(return_value=None)
     db.count_lines.find_one = AsyncMock(return_value=None)
     db.count_lines.update_one = AsyncMock(return_value=None)
 
