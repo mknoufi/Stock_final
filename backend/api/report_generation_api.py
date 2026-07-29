@@ -3,6 +3,7 @@ Report Generation API - Multiple report types with filtering and export
 Supports Stock Summary, Variance, User Activity, Session History, and Audit Trail reports
 """
 
+import asyncio
 import csv
 import io
 import json
@@ -652,12 +653,20 @@ async def get_report_filter_options(
     db = get_db()
 
     try:
-        # Get distinct values for common filters
-        warehouses = await db.erp_items.distinct("warehouse")
-        floors = await db.erp_items.distinct("floor")
-        categories = await db.erp_items.distinct("category")
-        count_line_statuses = await db.count_lines.distinct("status")
-        session_statuses = await db.sessions.distinct("status")
+        # Get distinct values for common filters concurrently
+        (
+            warehouses,
+            floors,
+            categories,
+            count_line_statuses,
+            session_statuses,
+        ) = await asyncio.gather(
+            db.erp_items.distinct("warehouse"),
+            db.erp_items.distinct("floor"),
+            db.erp_items.distinct("category"),
+            db.count_lines.distinct("status"),
+            db.sessions.distinct("status"),
+        )
         statuses = sorted(set(count_line_statuses) | set(session_statuses))
 
         # Get user list for admin/supervisor
