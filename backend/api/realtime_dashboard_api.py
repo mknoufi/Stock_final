@@ -372,11 +372,13 @@ async def get_filter_options(
     db = get_db()
 
     with trace_span("fetch_filter_options"):
-        warehouses = await db.count_lines.distinct("warehouse")
-        floors = await db.count_lines.distinct("floor")
-        categories = await db.count_lines.distinct("category")
-        statuses = await db.count_lines.distinct("status")
-        users = await db.count_lines.distinct("counted_by")
+        warehouses, floors, categories, statuses, users = await asyncio.gather(
+            db.count_lines.distinct("warehouse"),
+            db.count_lines.distinct("floor"),
+            db.count_lines.distinct("category"),
+            db.count_lines.distinct("status"),
+            db.count_lines.distinct("counted_by"),
+        )
 
     return {
         "success": True,
