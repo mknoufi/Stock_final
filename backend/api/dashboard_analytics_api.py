@@ -10,7 +10,7 @@ Provides comprehensive dashboard KPIs for admin/supervisor monitoring:
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -66,14 +66,14 @@ class BreakdownItem(BaseModel):
     quantity_status: QuantityStatus
     value_status: ValueStatus
     session_count: int
-    last_activity: Optional[datetime] = None
+    last_activity: datetime | None = None
 
 
 class DashboardBreakdown(BaseModel):
     """Breakdown by specified grouping"""
 
     group_by: str = Field(..., description="Grouping type: location, category, session, date")
-    items: List[BreakdownItem]
+    items: list[BreakdownItem]
     total_groups: int
 
 
@@ -82,7 +82,7 @@ class DrilldownItem(BaseModel):
 
     item_code: str
     item_name: str
-    category: Optional[str] = None
+    category: str | None = None
     expected_qty: float
     counted_qty: float
     variance_qty: float
@@ -90,7 +90,7 @@ class DrilldownItem(BaseModel):
     counted_value: float
     variance_value: float
     status: str  # pending, approved, rejected
-    last_counted: Optional[datetime] = None
+    last_counted: datetime | None = None
 
 
 # Helper Functions
@@ -276,15 +276,32 @@ async def get_dashboard_breakdown(
 
 async def _breakdown_by_location(
     db: AsyncIOMotorDatabase, valuation_basis: str
-) -> List[BreakdownItem]:
+) -> list[BreakdownItem]:
     """Breakdown by floor/rack location"""
     # Group count lines by floor_no
-    pipeline: List[Dict[str, Any]] = [
+    pipeline: list[dict[str, Any]] = [
         {"$match": {"floor_no": {"$exists": True, "$ne": None}}},
         {"$group": {"_id": "$floor_no", "count_lines": {"$push": "$$ROOT"}}},
     ]
 
     groups = await db.count_lines.aggregate(pipeline).to_list(None)
+
+    # ⚡ Bolt: Batch fetch all item prices to avoid N+1 queries in the loop
+    all_item_codes = list(
+        {
+            line.get("item_code")
+            for group in groups
+            for line in group.get("count_lines", [])
+            if line.get("item_code")
+        }
+    )
+
+    global_price_map = {}
+    if all_item_codes:
+        items = await db.erp_items.find({"item_code": {"$in": all_item_codes}}).to_list(None)
+        global_price_map = {
+            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
+        }
 
     breakdown = []
     for group in groups:
@@ -295,18 +312,13 @@ async def _breakdown_by_location(
         total_counted = sum(line.get("counted_qty", 0) for line in lines)
         total_expected = sum(line.get("erp_qty", 0) for line in lines)
 
-        # Get item prices
-        item_codes = [line.get("item_code") for line in lines]
-        items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
-        price_map = {
-            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
-        }
-
         total_counted_value = sum(
-            line.get("counted_qty", 0) * price_map.get(line.get("item_code"), 0) for line in lines
+            line.get("counted_qty", 0) * global_price_map.get(line.get("item_code"), 0)
+            for line in lines
         )
         total_expected_value = sum(
-            line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0) for line in lines
+            line.get("erp_qty", 0) * global_price_map.get(line.get("item_code"), 0)
+            for line in lines
         )
 
         # Get session count for this location
@@ -355,14 +367,14 @@ async def _breakdown_by_location(
 
 async def _breakdown_by_category(
     db: AsyncIOMotorDatabase, valuation_basis: str
-) -> List[BreakdownItem]:
+) -> list[BreakdownItem]:
     """Breakdown by item category"""
     # Get all items with categories
     items_cursor = db.erp_items.find({"category": {"$exists": True, "$ne": None}})
     items = await items_cursor.to_list(None)
 
     # Group by category
-    category_items: Dict[str, List[Dict[str, Any]]] = {}
+    category_items: dict[str, list[dict[str, Any]]] = {}
     for item in items:
         cat = item.get("category", "Uncategorized")
         if cat not in category_items:
@@ -370,11 +382,30 @@ async def _breakdown_by_category(
         category_items[cat].append(item)
 
     breakdown = []
+
+    # ⚡ Bolt: Batch fetch all count lines for these items to avoid N+1 queries in the loop
+    all_item_codes = [item["item_code"] for item in items if "item_code" in item]
+    all_count_lines = []
+    if all_item_codes:
+        all_count_lines = await db.count_lines.find({"item_code": {"$in": all_item_codes}}).to_list(
+            None
+        )
+
+    lines_by_item_code = {}
+    for line in all_count_lines:
+        ic = line.get("item_code")
+        if ic:
+            if ic not in lines_by_item_code:
+                lines_by_item_code[ic] = []
+            lines_by_item_code[ic].append(line)
+
     for category, cat_items in category_items.items():
         item_codes = [item["item_code"] for item in cat_items]
 
-        # Get count lines for these items
-        count_lines = await db.count_lines.find({"item_code": {"$in": item_codes}}).to_list(None)
+        # Get count lines for these items from pre-fetched
+        count_lines = []
+        for ic in item_codes:
+            count_lines.extend(lines_by_item_code.get(ic, []))
 
         # Calculate metrics (similar to location breakdown)
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
@@ -436,16 +467,43 @@ async def _breakdown_by_category(
 
 async def _breakdown_by_session(
     db: AsyncIOMotorDatabase, valuation_basis: str
-) -> List[BreakdownItem]:
+) -> list[BreakdownItem]:
     """Breakdown by individual sessions"""
     sessions = await db.sessions.find({"status": {"$in": ["OPEN", "ACTIVE", "CLOSED"]}}).to_list(
         None
     )
 
+    # ⚡ Bolt: Batch fetch all count lines and items to avoid N+1 queries in the loop
+    target_sessions = sessions[:20]
+    target_session_ids = [s.get("id") for s in target_sessions if s.get("id")]
+
+    all_count_lines = []
+    if target_session_ids:
+        all_count_lines = await db.count_lines.find(
+            {"session_id": {"$in": target_session_ids}}
+        ).to_list(None)
+
+    lines_by_session = {sid: [] for sid in target_session_ids}
+    for line in all_count_lines:
+        sid = line.get("session_id")
+        if sid in lines_by_session:
+            lines_by_session[sid].append(line)
+
+    all_item_codes = list(
+        {line.get("item_code") for line in all_count_lines if line.get("item_code")}
+    )
+
+    global_price_map = {}
+    if all_item_codes:
+        items = await db.erp_items.find({"item_code": {"$in": all_item_codes}}).to_list(None)
+        global_price_map = {
+            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
+        }
+
     breakdown = []
-    for session in sessions[:20]:  # Limit to 20 most recent sessions
+    for session in target_sessions:  # Limit to 20 most recent sessions
         session_id = session.get("id")
-        count_lines = await db.count_lines.find({"session_id": session_id}).to_list(None)
+        count_lines = lines_by_session.get(session_id, [])
 
         if not count_lines:
             continue
@@ -454,19 +512,13 @@ async def _breakdown_by_session(
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
 
-        # Get prices
-        item_codes = [line.get("item_code") for line in count_lines]
-        items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
-        price_map = {
-            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
-        }
-
         total_counted_value = sum(
-            line.get("counted_qty", 0) * price_map.get(line.get("item_code"), 0)
+            line.get("counted_qty", 0) * global_price_map.get(line.get("item_code"), 0)
             for line in count_lines
         )
         total_expected_value = sum(
-            line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0) for line in count_lines
+            line.get("erp_qty", 0) * global_price_map.get(line.get("item_code"), 0)
+            for line in count_lines
         )
 
         label = f"{session.get('warehouse', 'Unknown')} - {session.get('staff_user', 'Unknown')}"
@@ -507,19 +559,41 @@ async def _breakdown_by_session(
     return breakdown
 
 
-async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> List[BreakdownItem]:
+async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> list[BreakdownItem]:
     """Breakdown by date (last 7 days)"""
     breakdown = []
 
+    # ⚡ Bolt: Batch fetch all count lines for the last 7 days to avoid N+1 queries
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    start_of_period = (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_period = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    all_count_lines = await db.count_lines.find(
+        {"counted_at": {"$gte": start_of_period, "$lte": end_of_period}}
+    ).to_list(None)
+
+    all_item_codes = list(
+        {line.get("item_code") for line in all_count_lines if line.get("item_code")}
+    )
+
+    global_price_map = {}
+    if all_item_codes:
+        items = await db.erp_items.find({"item_code": {"$in": all_item_codes}}).to_list(None)
+        global_price_map = {
+            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
+        }
+
     for days_ago in range(7):
-        date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days_ago)
+        date = now - timedelta(days=days_ago)
         start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_of_day = date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-        # Get count lines for this date
-        count_lines = await db.count_lines.find(
-            {"counted_at": {"$gte": start_of_day, "$lte": end_of_day}}
-        ).to_list(None)
+        # Get count lines for this date from the pre-fetched list
+        count_lines = [
+            line
+            for line in all_count_lines
+            if line.get("counted_at") and start_of_day <= line.get("counted_at") <= end_of_day
+        ]
 
         if not count_lines:
             continue
@@ -528,18 +602,13 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
 
-        item_codes = [line.get("item_code") for line in count_lines]
-        items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
-        price_map = {
-            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
-        }
-
         total_counted_value = sum(
-            line.get("counted_qty", 0) * price_map.get(line.get("item_code"), 0)
+            line.get("counted_qty", 0) * global_price_map.get(line.get("item_code"), 0)
             for line in count_lines
         )
         total_expected_value = sum(
-            line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0) for line in count_lines
+            line.get("erp_qty", 0) * global_price_map.get(line.get("item_code"), 0)
+            for line in count_lines
         )
 
         session_ids = set(line.get("session_id") for line in count_lines)
