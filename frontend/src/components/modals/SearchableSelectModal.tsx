@@ -10,11 +10,11 @@ import {
   Modal,
   TextInput,
   TouchableOpacity,
-  FlatList,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import { VirtualList } from "../common/VirtualList";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import {
@@ -144,7 +144,9 @@ export const SearchableSelectModal: React.FC<SearchableSelectModalProps> = ({
           </View>
 
           {/* Options List */}
-          <FlatList
+          <VirtualList
+            // ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve rendering performance for large option lists.
+            estimatedItemSize={57}
             data={filteredOptions}
             keyExtractor={(item, index) => `${item}-${index}`}
             renderItem={renderOption}
