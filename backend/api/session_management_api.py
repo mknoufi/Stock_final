@@ -1,3 +1,4 @@
+import asyncio
 """
 Session Management API - Enhanced session tracking with heartbeat
 Extends existing session API with rack-based workflow support
@@ -718,10 +719,13 @@ async def _build_sessions_analytics_payload(db: AsyncIOMotorDatabase) -> dict[st
         }
     ]
 
-    overall = await db.sessions.aggregate(pipeline).to_list(1)
-    by_date = await db.sessions.aggregate(date_pipeline).to_list(None)  # type: ignore[arg-type]
-    by_warehouse = await db.sessions.aggregate(warehouse_pipeline).to_list(None)
-    by_staff = await db.sessions.aggregate(staff_pipeline).to_list(None)
+    # ⚡ Bolt: Execute independent aggregations concurrently for improved performance
+    overall, by_date, by_warehouse, by_staff = await asyncio.gather(
+        db.sessions.aggregate(pipeline).to_list(1),
+        db.sessions.aggregate(date_pipeline).to_list(None),  # type: ignore[arg-type]
+        db.sessions.aggregate(warehouse_pipeline).to_list(None),
+        db.sessions.aggregate(staff_pipeline).to_list(None),
+    )
 
     overall_summary = overall[0] if overall else {}
 
