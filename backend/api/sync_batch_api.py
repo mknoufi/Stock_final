@@ -407,13 +407,21 @@ async def sync_batch(
     errors = []
 
     try:
+        # Pre-fetch idempotency operations to prevent N+1 queries
+        record_ids = list({record.client_record_id for record in request.records if record.client_record_id})
+        existing_ops_set = set()
+        if record_ids:
+            cursor = db.idempotency_operations.find(
+                {"operation_id": {"$in": record_ids}},
+                {"operation_id": 1, "_id": 0}
+            )
+            existing_ops = await cursor.to_list(length=None) if hasattr(cursor, 'to_list') else []
+            existing_ops_set = {op.get("operation_id") for op in existing_ops if op.get("operation_id")}
+
         # Validate all records first
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in existing_ops_set:
                 ok_records.append(record.client_record_id)
                 continue
 
@@ -923,14 +931,24 @@ async def _process_legacy_operations(
 
     ordered_ops = sorted(operations, key=lambda op: op.timestamp or "")
 
+    # Pre-fetch idempotency operations to prevent N+1 queries
+    op_ids = list({op.id for op in ordered_ops if op.id})
+    existing_ops_set = set()
+    if op_ids:
+        cursor = db.idempotency_operations.find(
+            {"operation_id": {"$in": op_ids}},
+            {"operation_id": 1, "_id": 0}
+        )
+        existing_ops = await cursor.to_list(length=None) if hasattr(cursor, 'to_list') else []
+        existing_ops_set = {op.get("operation_id") for op in existing_ops if op.get("operation_id")}
+
     for op in ordered_ops:
         success = False
         message: Optional[str] = None
 
         try:
             # Check idempotency
-            existing_op = await db.idempotency_operations.find_one({"operation_id": op.id})
-            if existing_op:
+            if op.id in existing_ops_set:
                 success = True
                 message = "Already processed (idempotency)"
             else:
