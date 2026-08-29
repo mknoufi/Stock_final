@@ -10,7 +10,7 @@ import time
 import uuid
 from copy import deepcopy
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
@@ -41,7 +41,7 @@ class LegacySyncOperation(BaseModel):
     id: str
     type: str
     data: dict[str, Any]
-    timestamp: Optional[str] = None
+    timestamp: str | None = None
 
     model_config = ConfigDict(extra="allow")
 
@@ -57,18 +57,18 @@ class SyncRecord(BaseModel):
 
     client_record_id: str = Field(..., description="Unique client-side record ID")
     session_id: str = Field(..., description="Session ID")
-    rack_id: Optional[str] = Field(None, description="Rack ID")
-    floor: Optional[str] = Field(None, description="Floor")
+    rack_id: str | None = Field(None, description="Rack ID")
+    floor: str | None = Field(None, description="Floor")
     item_code: str = Field(..., description="Item code")
     verified_qty: float = Field(..., description="Verified quantity")
     damaged_qty: float = Field(0, description="Damage quantity")
     serial_numbers: list[str] = Field(default_factory=list, description="Serial numbers")
-    mfg_date: Optional[str] = Field(None, description="Manufacturing date")
-    mrp: Optional[float] = Field(None, description="MRP")
-    uom: Optional[str] = Field(None, description="Unit of measure")
-    category: Optional[str] = Field(None, description="Category")
-    subcategory: Optional[str] = Field(None, description="Subcategory")
-    item_condition: Optional[str] = Field(None, description="Item condition")
+    mfg_date: str | None = Field(None, description="Manufacturing date")
+    mrp: float | None = Field(None, description="MRP")
+    uom: str | None = Field(None, description="Unit of measure")
+    category: str | None = Field(None, description="Category")
+    subcategory: str | None = Field(None, description="Subcategory")
+    item_condition: str | None = Field(None, description="Item condition")
     evidence_photos: list[str] = Field(default_factory=list, description="Photo URLs")
     status: str = Field("finalized", description="Record status (partial/finalized)")
     created_at: str = Field(..., description="Client creation timestamp")
@@ -85,7 +85,7 @@ class BatchSyncRequest(BaseModel):
         default_factory=list,
         description="Legacy operations array used by earlier clients",
     )
-    batch_id: Optional[str] = Field(None, description="Client batch ID for tracking")
+    batch_id: str | None = Field(None, description="Client batch ID for tracking")
 
     model_config = ConfigDict(extra="ignore")
 
@@ -112,7 +112,7 @@ class SyncResult(BaseModel):
 
     id: str = Field(..., description="Client record identifier")
     success: bool = Field(..., description="Whether the record synced successfully")
-    message: Optional[str] = Field(
+    message: str | None = Field(
         None, description="Optional error or conflict message for the record"
     )
 
@@ -125,18 +125,18 @@ class BatchSyncResponse(BaseModel):
         default_factory=list, description="Records with conflicts"
     )
     errors: list[SyncError] = Field(default_factory=list, description="Failed records")
-    batch_id: Optional[str] = Field(None, description="Batch ID from request")
+    batch_id: str | None = Field(None, description="Batch ID from request")
     processing_time_ms: float = Field(..., description="Server processing time")
     total_records: int = Field(..., description="Total records in batch")
     results: list[SyncResult] = Field(
         default_factory=list,
         description="Backward compatible per-record results (id/success/message)",
     )
-    processed_count: Optional[int] = Field(
+    processed_count: int | None = Field(
         None, description="Legacy summary: total operations processed"
     )
-    success_count: Optional[int] = Field(None, description="Legacy summary: successful operations")
-    failed_count: Optional[int] = Field(None, description="Legacy summary: failed operations")
+    success_count: int | None = Field(None, description="Legacy summary: successful operations")
+    failed_count: int | None = Field(None, description="Legacy summary: failed operations")
 
 
 # Sync Logic
@@ -146,9 +146,9 @@ async def validate_record(
     record: SyncRecord,
     db,
     lock_manager: LockManager,
-    sync_service: Optional[SyncConflictsService] = None,
-    user_id: Optional[str] = None,
-) -> Optional[SyncConflict]:
+    sync_service: SyncConflictsService | None = None,
+    user_id: str | None = None,
+) -> SyncConflict | None:
     """
     Validate a single record before syncing
 
@@ -215,7 +215,7 @@ async def validate_record(
     return None
 
 
-async def sync_single_record(record: SyncRecord, db, user_id: str) -> tuple[bool, Optional[str]]:
+async def sync_single_record(record: SyncRecord, db, user_id: str) -> tuple[bool, str | None]:
     """
     Sync a single record to database
 
@@ -317,7 +317,7 @@ async def sync_single_record(record: SyncRecord, db, user_id: str) -> tuple[bool
         return True, None
 
     except Exception as e:
-        logger.error(f"Error syncing record {record.client_record_id}: {str(e)}")
+        logger.error(f"Error syncing record {record.client_record_id}: {e!s}")
         return False, str(e)
 
 
@@ -407,13 +407,22 @@ async def sync_batch(
     errors = []
 
     try:
+        # Pre-fetch idempotency operations to avoid N+1 queries
+        client_record_ids = list(
+            {record.client_record_id for record in request.records if record.client_record_id}
+        )
+        existing_ops_set = set()
+        if client_record_ids:
+            cursor = db.idempotency_operations.find(
+                {"operation_id": {"$in": client_record_ids}}, {"operation_id": 1, "_id": 0}
+            )
+            existing_ops = await cursor.to_list(length=None)
+            existing_ops_set = {op["operation_id"] for op in existing_ops if "operation_id" in op}
+
         # Validate all records first
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in existing_ops_set:
                 ok_records.append(record.client_record_id)
                 continue
 
@@ -432,6 +441,7 @@ async def sync_batch(
                             "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         }
                     )
+                    existing_ops_set.add(record.client_record_id)
                     ok_records.append(record.client_record_id)
                 else:
                     errors.append(
@@ -448,8 +458,8 @@ async def sync_batch(
     except Exception as e:
         # Record failure in circuit breaker
         await circuit_breaker.record_failure()
-        logger.error(f"Batch sync failed: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Batch sync failed: {str(e)}")
+        logger.error(f"Batch sync failed: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Batch sync failed: {e!s}")
 
     processing_time = (time.time() - start_time) * 1000
 
@@ -491,7 +501,7 @@ async def session_heartbeat(
     session_id: str,
     current_user: dict[str, Any] = Depends(get_current_user),
     redis_service=Depends(get_redis),
-    rack_id: Optional[str] = None,
+    rack_id: str | None = None,
 ) -> dict[str, Any]:
     """
     Session heartbeat - maintain rack lock and user presence
@@ -528,7 +538,7 @@ async def _process_session_op(
     operation_raw = session_data.get("operation")
     operation = operation_raw.strip().lower() if isinstance(operation_raw, str) else None
 
-    def _resolve_session_id(value: Any) -> Optional[str]:
+    def _resolve_session_id(value: Any) -> str | None:
         if value is None:
             return None
         key = str(value)
@@ -909,7 +919,7 @@ _LEGACY_OP_HANDLERS: dict[str, Any] = {
 
 async def _process_legacy_operations(
     operations: list[LegacySyncOperation],
-    batch_id: Optional[str],
+    batch_id: str | None,
     current_user: dict[str, Any],
     start_time: float,
 ) -> BatchSyncResponse:
@@ -923,14 +933,23 @@ async def _process_legacy_operations(
 
     ordered_ops = sorted(operations, key=lambda op: op.timestamp or "")
 
+    # Pre-fetch idempotency operations to avoid N+1 queries
+    op_ids = list({op.id for op in ordered_ops if op.id})
+    existing_ops_set = set()
+    if op_ids:
+        cursor = db.idempotency_operations.find(
+            {"operation_id": {"$in": op_ids}}, {"operation_id": 1, "_id": 0}
+        )
+        existing_ops = await cursor.to_list(length=None)
+        existing_ops_set = {op["operation_id"] for op in existing_ops if "operation_id" in op}
+
     for op in ordered_ops:
         success = False
-        message: Optional[str] = None
+        message: str | None = None
 
         try:
             # Check idempotency
-            existing_op = await db.idempotency_operations.find_one({"operation_id": op.id})
-            if existing_op:
+            if op.id in existing_ops_set:
                 success = True
                 message = "Already processed (idempotency)"
             else:
@@ -946,6 +965,7 @@ async def _process_legacy_operations(
                             "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         }
                     )
+                    existing_ops_set.add(op.id)
                 else:
                     message = f"Unknown operation type: {op.type}"
         except Exception as exc:
