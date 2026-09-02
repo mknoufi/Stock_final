@@ -3,10 +3,10 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   Animated,
 } from "react-native";
+import { VirtualList } from "../common/VirtualList";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useThemeContext } from "../../context/ThemeContext";
@@ -17,6 +17,118 @@ interface RecentScansProps {
   sessionId: string;
   onRefresh?: () => void;
 }
+
+// ⚡ Bolt: Extracted RenderItem outside the parent component to prevent it from being
+// redefined on every render, which is a major performance anti-pattern in React Native lists.
+const RenderItem = React.memo(function RenderItem({
+  item,
+  index,
+  colors,
+  onPress,
+  onLongPress,
+}: {
+  item: any;
+  index: number;
+  colors: any;
+  onPress: (item: any) => void;
+  onLongPress: (item: any) => void;
+}) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+
+  // Animation for item appearance
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 300 + index * 50,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        tension: 50,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [index, opacityAnim, scaleAnim]);
+
+  const handlePressIn = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 0.98,
+      tension: 100,
+      friction: 10,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scaleAnim, {
+      toValue: 1,
+      tension: 50,
+      friction: 8,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <Animated.View
+      style={{ opacity: opacityAnim, transform: [{ scale: scaleAnim }] }}
+    >
+      <TouchableOpacity
+        style={[
+          styles.itemContainer,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            shadowColor: colors.accent,
+            shadowOpacity: 0.1,
+            shadowRadius: 4,
+            elevation: 3,
+          },
+        ]}
+        onPress={() => onPress(item)}
+        onLongPress={() => onLongPress(item)}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={0.8}
+        accessibilityLabel={`Item ${item.item_name || item.item_code}`}
+        accessibilityRole="button"
+        accessibilityHint="Tap to view item details"
+      >
+        <View
+          style={[
+            styles.iconContainer,
+            { backgroundColor: `${colors.accent}20` },
+          ]}
+        >
+          <Ionicons name="cube-outline" size={24} color={colors.accent} />
+        </View>
+        <View style={styles.textContainer}>
+          <Text
+            style={[styles.itemName, { color: colors.text }]}
+            numberOfLines={1}
+          >
+            {item.item_name || "Unknown Item"}
+          </Text>
+          <Text
+            style={[styles.itemCode, { color: colors.textSecondary }]}
+            numberOfLines={1}
+          >
+            {item.item_code}
+          </Text>
+        </View>
+        <Animated.View style={{ transform: [{ rotate: "0deg" }] }}>
+          <Ionicons
+            name="chevron-forward"
+            size={20}
+            color={colors.textSecondary}
+          />
+        </Animated.View>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
 
 export const RecentScans: React.FC<RecentScansProps> = ({
   sessionId,
@@ -45,7 +157,8 @@ export const RecentScans: React.FC<RecentScansProps> = ({
     loadItems();
   }, [onRefresh]);
 
-  const handlePress = (item: any) => {
+  // ⚡ Bolt: Memoized handlers to prevent unnecessary re-renders of list items
+  const handlePress = React.useCallback((item: any) => {
     triggerHaptic("impactLight");
     // Use barcode for navigation (what was originally scanned), fallback to item_code
     const navigationBarcode = item.barcode || item.item_code;
@@ -53,120 +166,22 @@ export const RecentScans: React.FC<RecentScansProps> = ({
       pathname: "/staff/item-detail",
       params: { barcode: navigationBarcode, sessionId },
     } as any);
-  };
+  }, [router, sessionId, triggerHaptic]);
 
-  const handleLongPress = (_item: any) => {
+  const handleLongPress = React.useCallback((_item: any) => {
     triggerHaptic("impactMedium");
     // Could show item details or quick actions
-  };
+  }, [triggerHaptic]);
 
-  const RenderItem = React.memo(function RenderItem({
-    item,
-    index,
-  }: {
-    item: any;
-    index: number;
-  }) {
-    const scaleAnim = useRef(new Animated.Value(1)).current;
-    const opacityAnim = useRef(new Animated.Value(0)).current;
-
-    // Animation for item appearance
-    useEffect(() => {
-      Animated.parallel([
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 300 + index * 50,
-          useNativeDriver: true,
-        }),
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          tension: 50,
-          friction: 8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    }, [index, opacityAnim, scaleAnim]);
-
-    const handlePressIn = () => {
-      Animated.spring(scaleAnim, {
-        toValue: 0.98,
-        tension: 100,
-        friction: 10,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    const handlePressOut = () => {
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        tension: 50,
-        friction: 8,
-        useNativeDriver: true,
-      }).start();
-    };
-
-    return (
-      <Animated.View
-        style={{ opacity: opacityAnim, transform: [{ scale: scaleAnim }] }}
-      >
-        <TouchableOpacity
-          style={[
-            styles.itemContainer,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              shadowColor: colors.accent,
-              shadowOpacity: 0.1,
-              shadowRadius: 4,
-              elevation: 3,
-            },
-          ]}
-          onPress={() => handlePress(item)}
-          onLongPress={() => handleLongPress(item)}
-          onPressIn={handlePressIn}
-          onPressOut={handlePressOut}
-          activeOpacity={0.8}
-          accessibilityLabel={`Item ${item.item_name || item.item_code}`}
-          accessibilityRole="button"
-          accessibilityHint="Tap to view item details"
-        >
-          <View
-            style={[
-              styles.iconContainer,
-              { backgroundColor: `${colors.accent}20` },
-            ]}
-          >
-            <Ionicons name="cube-outline" size={24} color={colors.accent} />
-          </View>
-          <View style={styles.textContainer}>
-            <Text
-              style={[styles.itemName, { color: colors.text }]}
-              numberOfLines={1}
-            >
-              {item.item_name || "Unknown Item"}
-            </Text>
-            <Text
-              style={[styles.itemCode, { color: colors.textSecondary }]}
-              numberOfLines={1}
-            >
-              {item.item_code}
-            </Text>
-          </View>
-          <Animated.View style={{ transform: [{ rotate: "0deg" }] }}>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={colors.textSecondary}
-            />
-          </Animated.View>
-        </TouchableOpacity>
-      </Animated.View>
-    );
-  });
-
-  const renderItem = ({ item, index }: { item: any; index: number }) => (
-    <RenderItem item={item} index={index} />
-  );
+  const renderItem = React.useCallback(({ item, index }: { item: any; index: number }) => (
+    <RenderItem
+      item={item}
+      index={index}
+      colors={colors}
+      onPress={handlePress}
+      onLongPress={handleLongPress}
+    />
+  ), [colors, handlePress, handleLongPress]);
 
   if (items.length === 0 && !isLoading) {
     return null;
@@ -184,7 +199,9 @@ export const RecentScans: React.FC<RecentScansProps> = ({
           </View>
         )}
       </View>
-      <FlatList
+      {/* ⚡ Bolt: Replaced FlatList with VirtualList to improve horizontal scrolling performance and prevent nested component memory leaks. */}
+      <VirtualList
+        estimatedItemSize={228}
         data={items}
         renderItem={renderItem}
         keyExtractor={(item) => item.item_code}
