@@ -129,7 +129,7 @@ async def calculate_dashboard_overview(
     qty_completion = (total_counted_qty / total_stock_qty * 100) if total_stock_qty > 0 else 0
 
     # Get unique items counted
-    items_counted = len(set(line.get("item_code") for line in count_lines))
+    items_counted = len({line.get("item_code") for line in count_lines if line.get("item_code") is not None})
     items_total = len(all_items)
 
     # Calculate value metrics
@@ -310,7 +310,7 @@ async def _breakdown_by_location(
         )
 
         # Get session count for this location
-        session_ids = set(line.get("session_id") for line in lines)
+        session_ids = {line.get("session_id") for line in lines if line.get("session_id") is not None}
 
         # Get last activity
         last_activity = max(
@@ -326,7 +326,7 @@ async def _breakdown_by_location(
                     completion_percentage=round(
                         (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
                     ),
-                    items_counted=len(set(line.get("item_code") for line in lines)),
+                    items_counted=len({line.get("item_code") for line in lines if line.get("item_code") is not None}),
                     items_total=len(items),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),
@@ -393,7 +393,7 @@ async def _breakdown_by_category(
             item.get("stock_qty", 0) * price_map.get(item["item_code"], 0) for item in cat_items
         )
 
-        session_ids = set(line.get("session_id") for line in count_lines)
+        session_ids = {line.get("session_id") for line in count_lines if line.get("session_id") is not None}
         last_activity = max(
             (line.get("counted_at") for line in count_lines if line.get("counted_at")), default=None
         )
@@ -407,7 +407,7 @@ async def _breakdown_by_category(
                     completion_percentage=round(
                         (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
                     ),
-                    items_counted=len(set(line.get("item_code") for line in count_lines)),
+                    items_counted=len({line.get("item_code") for line in count_lines if line.get("item_code") is not None}),
                     items_total=len(cat_items),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),
@@ -480,7 +480,7 @@ async def _breakdown_by_session(
                     completion_percentage=round(
                         (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
                     ),
-                    items_counted=len(set(line.get("item_code") for line in count_lines)),
+                    items_counted=len({line.get("item_code") for line in count_lines if line.get("item_code") is not None}),
                     items_total=len(items),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),
@@ -542,7 +542,7 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
             line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0) for line in count_lines
         )
 
-        session_ids = set(line.get("session_id") for line in count_lines)
+        session_ids = {line.get("session_id") for line in count_lines if line.get("session_id") is not None}
 
         breakdown.append(
             BreakdownItem(
@@ -553,7 +553,7 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
                     completion_percentage=round(
                         (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
                     ),
-                    items_counted=len(set(line.get("item_code") for line in count_lines)),
+                    items_counted=len({line.get("item_code") for line in count_lines if line.get("item_code") is not None}),
                     items_total=len(items),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),
