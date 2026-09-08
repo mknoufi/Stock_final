@@ -408,12 +408,18 @@ async def sync_batch(
 
     try:
         # Validate all records first
+        record_ids = {r.client_record_id for r in request.records if r.client_record_id}
+        existing_op_ids = set()
+        if record_ids:
+            cursor = db.idempotency_operations.find(
+                {"operation_id": {"$in": list(record_ids)}}, {"_id": 0, "operation_id": 1}
+            )
+            ops_list = await cursor.to_list(length=None)
+            existing_op_ids = {op["operation_id"] for op in ops_list}
+
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in existing_op_ids:
                 ok_records.append(record.client_record_id)
                 continue
 
@@ -923,14 +929,22 @@ async def _process_legacy_operations(
 
     ordered_ops = sorted(operations, key=lambda op: op.timestamp or "")
 
+    op_ids = {op.id for op in ordered_ops if op.id}
+    existing_op_ids = set()
+    if op_ids:
+        cursor = db.idempotency_operations.find(
+            {"operation_id": {"$in": list(op_ids)}}, {"_id": 0, "operation_id": 1}
+        )
+        ops_list = await cursor.to_list(length=None)
+        existing_op_ids = {op["operation_id"] for op in ops_list}
+
     for op in ordered_ops:
         success = False
         message: Optional[str] = None
 
         try:
             # Check idempotency
-            existing_op = await db.idempotency_operations.find_one({"operation_id": op.id})
-            if existing_op:
+            if op.id in existing_op_ids:
                 success = True
                 message = "Already processed (idempotency)"
             else:
