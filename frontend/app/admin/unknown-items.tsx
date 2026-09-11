@@ -3,7 +3,6 @@ import {
     View,
     Text,
     StyleSheet,
-    FlatList,
     Alert,
     Modal,
     TextInput as _TextInput,
@@ -28,6 +27,7 @@ import {
     deleteUnknownItem,
 } from "../../src/services/api";
 import { useSettingsStore } from "../../src/store/settingsStore";
+import { VirtualList } from "../../src/components/common/VirtualList";
 
 export default function UnknownItemsScreen() {
     const router = useRouter();
@@ -198,7 +198,10 @@ export default function UnknownItemsScreen() {
                     <LoadingSpinner size={40} color={auroraTheme.colors.primary[500]} />
                 </View>
             ) : (
-                <FlatList
+                <>
+                    {/* ⚡ Bolt: Replaced FlatList with VirtualList to improve rendering performance for potentially long lists of unknown items. */}
+                <VirtualList
+                    estimatedItemSize={130}
                     data={items}
                     renderItem={renderItem}
                     keyExtractor={(item) => item.id || item._id}
@@ -222,6 +225,7 @@ export default function UnknownItemsScreen() {
                         </View>
                     }
                 />
+            </>
             )}
 
             <Modal
