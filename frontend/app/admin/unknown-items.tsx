@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { VirtualList } from "../../src/components/common/VirtualList";
 import {
     View,
     Text,
     StyleSheet,
-    FlatList,
     Alert,
     Modal,
     TextInput as _TextInput,
@@ -123,7 +123,7 @@ export default function UnknownItemsScreen() {
         );
     };
 
-    const renderItem = ({ item }: { item: any }) => (
+    const renderItem = ({ item }: { item: { id?: string, _id?: string, barcode?: string, reported_at: string, reported_by?: string, counted_qty?: number, description?: string, remark?: string } }) => (
         <GlassCard style={styles.itemCard}>
             <View style={styles.itemHeader}>
                 <View>
@@ -198,10 +198,13 @@ export default function UnknownItemsScreen() {
                     <LoadingSpinner size={40} color={auroraTheme.colors.primary[500]} />
                 </View>
             ) : (
-                <FlatList
+                <>
+                {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve scrolling performance, handle potentially long lists of unknown items without lag, and reduce frame drops. */}
+                <VirtualList
                     data={items}
+                    estimatedItemSize={175}
                     renderItem={renderItem}
-                    keyExtractor={(item) => item.id || item._id}
+                    keyExtractor={(item: { id?: string, _id?: string }) => item.id || item._id || ''}
                     contentContainerStyle={styles.listContent}
                     ListEmptyComponent={
                         <View style={styles.emptyContainer}>
@@ -222,6 +225,7 @@ export default function UnknownItemsScreen() {
                         </View>
                     }
                 />
+                </>
             )}
 
             <Modal

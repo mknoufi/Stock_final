@@ -7,12 +7,13 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { VirtualList } from "../src/components/common/VirtualList";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNotificationStore } from "../src/store/notificationStore";
 import { getCountLineById, type Notification } from "../src/services/api/api";
@@ -210,8 +211,10 @@ export default function NotificationsScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
+      {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve scrolling performance, handle potentially long lists of notifications without lag, and reduce frame drops. */}
+      <VirtualList
         data={notifications}
+        estimatedItemSize={140}
         renderItem={renderNotificationItem}
         keyExtractor={(item) => item._id}
         contentContainerStyle={styles.listContent}
