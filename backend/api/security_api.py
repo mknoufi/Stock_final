@@ -194,11 +194,21 @@ async def get_security_sessions(
         tokens = await cursor.to_list(limit)
 
         # Get user info for each token
+        # ⚡ Bolt: Fixed N+1 query by batching user fetches using $in
+        usernames = list({token.get("username") for token in tokens if token.get("username")})
+
+        # O(1) user lookup map
+        users_by_username = {}
+        if usernames:
+            users_cursor = db.users.find({"username": {"$in": usernames}})
+            users = await users_cursor.to_list(length=None)
+            users_by_username = {u.get("username"): u for u in users if u.get("username")}
+
         sessions: list[dict[str, Any]] = []
         for token in tokens:
             username = token.get("username")
             if username:
-                user = await db.users.find_one({"username": username})
+                user = users_by_username.get(username)
                 if user:
                     sessions.append(
                         {
