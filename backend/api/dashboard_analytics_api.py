@@ -8,6 +8,7 @@ Provides comprehensive dashboard KPIs for admin/supervisor monitoring:
 - Drill-down to item/batch/serial level
 """
 
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -109,17 +110,43 @@ async def calculate_dashboard_overview(
     Returns:
         DashboardOverview with all KPIs
     """
-    # Get all items from ERP
-    all_items_cursor = db.erp_items.find({})
-    all_items = await all_items_cursor.to_list(None)
 
-    # Get all count lines from active sessions
-    active_sessions_cursor = db.sessions.find({"status": {"$in": ["OPEN", "ACTIVE"]}})
+    # ⚡ Bolt: Optimize performance by using concurrent queries and strict projections
+    # to significantly reduce memory footprint and database query latency.
+
+    price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
+
+    projection = {
+        "item_code": 1,
+        "stock_qty": 1,
+        price_field: 1,
+        "sale_price": 1,
+        "mrp": 1,
+        "_id": 0
+    }
+
+    # Run active sessions query first to get session_ids
+    active_sessions_cursor = db.sessions.find({"status": {"$in": ["OPEN", "ACTIVE"]}}, {"id": 1, "_id": 0})
     active_sessions = await active_sessions_cursor.to_list(None)
     session_ids = [s.get("id") for s in active_sessions]
 
-    count_lines_cursor = db.count_lines.find({"session_id": {"$in": session_ids}})
-    count_lines = await count_lines_cursor.to_list(None)
+    # Use gather to fetch items and count lines concurrently
+    count_lines_cursor = db.count_lines.find({"session_id": {"$in": session_ids}}, {"item_code": 1, "counted_qty": 1, "_id": 0})
+    all_items_cursor = db.erp_items.find({}, projection)
+
+    # Fetch concurrently and also count approvals to avoid extra awaiting later
+    pending_approvals_cursor = db.count_lines.count_documents(
+        {"status": {"$in": ["pending_approval", "NEEDS_REVIEW"]}}
+    )
+    total_users_cursor = db.users.count_documents({})
+
+    count_lines, all_items, pending_approvals, total_users = await asyncio.gather(
+        count_lines_cursor.to_list(None),
+        all_items_cursor.to_list(None),
+        pending_approvals_cursor,
+        total_users_cursor
+    )
+
 
     # Calculate quantity metrics
     total_stock_qty = sum(item.get("stock_qty", 0) for item in all_items)
@@ -133,8 +160,6 @@ async def calculate_dashboard_overview(
     items_total = len(all_items)
 
     # Calculate value metrics
-    price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
-
     # Build item price map
     item_price_map = {}
     for item in all_items:
@@ -157,13 +182,6 @@ async def calculate_dashboard_overview(
         (total_counted_value / total_stock_value * 100) if total_stock_value > 0 else 0
     )
 
-    # Get pending approvals count
-    pending_approvals = await db.count_lines.count_documents(
-        {"status": {"$in": ["pending_approval", "NEEDS_REVIEW"]}}
-    )
-
-    # Get total users
-    total_users = await db.users.count_documents({})
 
     return DashboardOverview(
         quantity_status=QuantityStatus(
