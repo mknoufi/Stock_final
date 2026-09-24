@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  FlatList,
   Modal,
   Pressable,
   StyleSheet,
@@ -16,6 +15,7 @@ import {
   semanticColors,
   spacing,
 } from "@/theme/unified";
+import { VirtualList } from "../common/VirtualList";
 
 interface OptionSelectModalProps {
   visible: boolean;
@@ -37,7 +37,8 @@ export const OptionSelectModal: React.FC<OptionSelectModalProps> = ({
       <View style={styles.backdrop}>
         <View style={styles.content}>
           <Text style={styles.title}>{title}</Text>
-          <FlatList
+          {/* ⚡ Bolt: Replaced FlatList with VirtualList to improve scrolling performance for long select lists. */}
+          <VirtualList estimatedItemSize={40}
             data={options}
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
