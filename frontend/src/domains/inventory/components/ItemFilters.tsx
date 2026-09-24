@@ -12,7 +12,6 @@ import {
   StyleSheet,
   Platform,
   Modal,
-  FlatList,
   ActivityIndicator,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -21,6 +20,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { ItemVerificationAPI } from "@/domains/inventory/services/itemVerificationApi";
 import { getRackProgress } from "@/services/api/api";
 import { RackProgressCard } from "@/components/scan/RackProgressCard";
+import { VirtualList } from "../../../components/common/VirtualList";
 
 export interface FilterValues {
   category?: string;
@@ -180,7 +180,9 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
                 style={{ margin: 20 }}
               />
             ) : (
-              <FlatList
+              <>
+                {/* ⚡ Bolt: Replaced FlatList with VirtualList to improve scrolling performance for large filter option lists. */}
+                <VirtualList estimatedItemSize={50}
                 data={data}
                 keyExtractor={(item) =>
                   typeof item === "string" ? item : item.rack
@@ -240,6 +242,7 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
                   </Text>
                 }
               />
+              </>
             )}
           </View>
         </View>
