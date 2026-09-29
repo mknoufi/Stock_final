@@ -195,10 +195,19 @@ async def get_security_sessions(
 
         # Get user info for each token
         sessions: list[dict[str, Any]] = []
+
+        # ⚡ Bolt: Fixed N+1 query. Fetched all users in a single query and mapped them for O(1) lookup.
+        usernames = list({t.get("username") for t in tokens if t.get("username")})
+        users_map = {}
+        if usernames:
+            users_cursor = db.users.find({"username": {"$in": usernames}})
+            users_list = await users_cursor.to_list(length=None)
+            users_map = {u.get("username"): u for u in users_list}
+
         for token in tokens:
             username = token.get("username")
             if username:
-                user = await db.users.find_one({"username": username})
+                user = users_map.get(username)
                 if user:
                     sessions.append(
                         {
