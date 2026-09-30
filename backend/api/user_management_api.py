@@ -666,51 +666,72 @@ async def bulk_user_action(
     success_count = 0
     failed_ids: list[str] = []
 
+    # Validate OIDs and exclude self-modification
+    valid_oids = []
     for user_id in request.user_ids:
+        if user_id == current_user_id:
+            failed_ids.append(user_id)
+            continue
         try:
-            oid = ObjectId(user_id)
+            valid_oids.append(ObjectId(user_id))
+        except Exception:
+            failed_ids.append(user_id)
 
-            # Skip self-modification
-            if user_id == current_user_id:
-                failed_ids.append(user_id)
-                continue
+    if not valid_oids:
+        return BulkActionResult(
+            success_count=0,
+            failed_count=len(failed_ids),
+            failed_ids=failed_ids,
+            message="No valid users to process",
+        )
 
-            user = await db.users.find_one({"_id": oid})
-            if not user:
-                failed_ids.append(user_id)
-                continue
+    # Batch fetch existing users
+    cursor = db.users.find({"_id": {"$in": valid_oids}}, {"_id": 1})
+    existing_users = (
+        await cursor.to_list(length=None)
+        if hasattr(cursor, "to_list")
+        else [doc async for doc in cursor]
+    )
+    existing_user_ids = {str(user["_id"]) for user in existing_users}
 
+    # Filter out non-existent users
+    verified_oids = []
+    for oid in valid_oids:
+        if str(oid) not in existing_user_ids:
+            failed_ids.append(str(oid))
+        else:
+            verified_oids.append(oid)
+
+    if verified_oids:
+        try:
             if request.action == "activate":
-                await db.users.update_one(
-                    {"_id": oid},
+                await db.users.update_many(
+                    {"_id": {"$in": verified_oids}},
                     {"$set": {"is_active": True}},
                 )
+                success_count = len(verified_oids)
             elif request.action == "deactivate":
-                await db.users.update_one(
-                    {"_id": oid},
+                await db.users.update_many(
+                    {"_id": {"$in": verified_oids}},
                     {"$set": {"is_active": False}},
                 )
+                success_count = len(verified_oids)
             elif request.action == "delete":
-                await db.users.delete_one({"_id": oid})
+                await db.users.delete_many({"_id": {"$in": verified_oids}})
+                success_count = len(verified_oids)
             elif request.action == "change_role":
                 if request.role:
-                    await db.users.update_one(
-                        {"_id": oid},
+                    await db.users.update_many(
+                        {"_id": {"$in": verified_oids}},
                         {"$set": {"role": request.role}},
                     )
+                    success_count = len(verified_oids)
                 else:
-                    failed_ids.append(user_id)
-                    continue
-
-            success_count += 1
-
+                    failed_ids.extend([str(oid) for oid in verified_oids])
         except Exception as e:
-            logger.error(
-                "Bulk action failed for user %s: %s",
-                user_id,
-                str(e),
-            )
-            failed_ids.append(user_id)
+            logger.error("Bulk action %s failed: %s", request.action, str(e))
+            # If batch fails, mark all verified as failed
+            failed_ids.extend([str(oid) for oid in verified_oids])
 
     action_msg = {
         "activate": "activated",
