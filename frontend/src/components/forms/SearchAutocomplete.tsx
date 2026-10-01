@@ -9,8 +9,7 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  FlatList,
-  TouchableOpacity,
+    TouchableOpacity,
   ActivityIndicator,
   Keyboard,
 } from "react-native";
@@ -23,6 +22,7 @@ import {
 } from "../../services/enhancedSearchService";
 import { useStableDebouncedCallback } from "../../hooks/useDebouncedCallback";
 import { localDb } from "../../db/localDb";
+import { VirtualList } from "../common/VirtualList";
 
 interface SearchAutocompleteProps {
   onSelectItem: (item: SearchResult) => void;
@@ -50,7 +50,6 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<TextInput>(null);
-  const listRef = useRef<FlatList>(null);
 
   // Search function
   const performSearch = React.useCallback(
@@ -433,17 +432,17 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   {results.length === 1 ? "ITEM" : "ITEMS"}
                 </Text>
               </View>
-              <FlatList
-                ref={listRef}
-                data={results}
-                renderItem={renderResultItem}
-                keyExtractor={(item, index) => `${item.item_code}-${index}`}
-                style={styles.resultsList}
-                keyboardShouldPersistTaps="handled"
-                maxToRenderPerBatch={10}
-                windowSize={5}
-                showsVerticalScrollIndicator={true}
-              />
+              {/* ⚡ Bolt: Replaced FlatList with VirtualList to improve rendering performance of search results dropdown. */}
+              <View style={styles.resultsListContainer}>
+                <VirtualList
+                  data={results}
+                  renderItem={renderResultItem}
+                  keyExtractor={(item: SearchResult, index: number) => `${item.item_code}-${index}`}
+                  keyboardShouldPersistTaps="handled"
+                  showsVerticalScrollIndicator={true}
+                  estimatedItemSize={70}
+                />
+              </View>
             </>
           ) : query.trim().length >= minChars ? (
             <View style={styles.noResultsContainer}>
@@ -560,8 +559,11 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1,
   },
-  resultsList: {
+  resultsListContainer: {
+    minHeight: 2,
+    flex: 1,
     maxHeight: 400,
+    width: "100%",
   },
   resultItem: {
     flexDirection: "row",
