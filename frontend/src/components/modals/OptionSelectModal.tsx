@@ -1,6 +1,5 @@
 import React from "react";
 import {
-  FlatList,
   Modal,
   Pressable,
   StyleSheet,
@@ -8,6 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { VirtualList } from "../common/VirtualList";
 import {
   colors,
   fontSize,
@@ -37,7 +37,8 @@ export const OptionSelectModal: React.FC<OptionSelectModalProps> = ({
       <View style={styles.backdrop}>
         <View style={styles.content}>
           <Text style={styles.title}>{title}</Text>
-          <FlatList
+                    {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to optimize rendering for option selection menus with many items */}
+          <VirtualList
             data={options}
             keyExtractor={(item) => item}
             renderItem={({ item }) => (
@@ -45,6 +46,7 @@ export const OptionSelectModal: React.FC<OptionSelectModalProps> = ({
                 <Text style={styles.optionText}>{item}</Text>
               </Pressable>
             )}
+            estimatedItemSize={44}
           />
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>Close</Text>
