@@ -9,11 +9,13 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  FlatList,
+
   TouchableOpacity,
   ActivityIndicator,
   Keyboard,
 } from "react-native";
+import { VirtualList } from "../common/VirtualList";
+import { FlashList } from "@shopify/flash-list";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "../../hooks/useTheme";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -50,7 +52,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<TextInput>(null);
-  const listRef = useRef<FlatList>(null);
+  const listRef = useRef<any>(null);
 
   // Search function
   const performSearch = React.useCallback(
@@ -433,8 +435,10 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   {results.length === 1 ? "ITEM" : "ITEMS"}
                 </Text>
               </View>
-              <FlatList
+              {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList under the hood) to significantly improve rendering performance and reduce memory usage for long autocomplete search result lists. */}
+              <VirtualList
                 ref={listRef}
+                estimatedItemSize={70}
                 data={results}
                 renderItem={renderResultItem}
                 keyExtractor={(item, index) => `${item.item_code}-${index}`}
