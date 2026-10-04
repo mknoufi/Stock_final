@@ -12,9 +12,9 @@ import {
   StyleSheet,
   Platform,
   Modal,
-  FlatList,
   ActivityIndicator,
 } from "react-native";
+import { VirtualList } from "@/components/common/VirtualList";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "@/hooks/useTheme";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -180,7 +180,10 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
                 style={{ margin: 20 }}
               />
             ) : (
-              <FlatList
+              <>
+                {/* ⚡ Bolt: Replaced FlatList with VirtualList to improve rendering performance and reduce memory usage for long floor/rack filter lists. */}
+                <VirtualList
+                estimatedItemSize={70}
                 data={data}
                 keyExtractor={(item) =>
                   typeof item === "string" ? item : item.rack
@@ -240,6 +243,7 @@ export const ItemFilters: React.FC<ItemFiltersProps> = ({
                   </Text>
                 }
               />
+              </>
             )}
           </View>
         </View>
