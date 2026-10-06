@@ -774,13 +774,10 @@ async def bulk_export_sessions(
         raise HTTPException(status_code=403, detail="Insufficient permissions")
 
     try:
-        sessions = []
-        for session_id in session_ids:
-            session = await db.sessions.find_one(
-                {"$or": [{"id": session_id}, {"session_id": session_id}]}
-            )
-            if session:
-                sessions.append(session)
+        sessions_cursor = db.sessions.find(
+            {"$or": [{"id": {"$in": session_ids}}, {"session_id": {"$in": session_ids}}]}
+        )
+        sessions = await sessions_cursor.to_list(length=None) if hasattr(sessions_cursor, 'to_list') else []
 
         # Log activity
         await activity_log_service.log_activity(

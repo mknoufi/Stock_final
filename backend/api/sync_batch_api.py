@@ -408,14 +408,21 @@ async def sync_batch(
 
     try:
         # Validate all records first
+        record_ids = list({r.client_record_id for r in request.records if r.client_record_id})
+        existing_ops_cursor = db.idempotency_operations.find(
+            {"operation_id": {"$in": record_ids}}, {"operation_id": 1}
+        )
+        existing_ops = await existing_ops_cursor.to_list(length=None) if hasattr(existing_ops_cursor, 'to_list') else []
+        processed_ids = {op["operation_id"] for op in existing_ops if op.get("operation_id")}
+
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in processed_ids:
                 ok_records.append(record.client_record_id)
                 continue
+
+            # Add to processed_ids for intra-batch duplicates
+            processed_ids.add(record.client_record_id)
 
             conflict = await validate_record(record, db, lock_manager, sync_service, user_id)
             if conflict:
@@ -558,21 +565,19 @@ async def _process_session_op(
                 if resolved
             ]
 
-            updated = 0
-            for session_id in resolved_ids:
-                if operation == "bulk_close":
-                    result = await db.sessions.update_one(
-                        {"id": session_id},
-                        {"$set": {"status": "CLOSED", "closed_at": now, "ended_at": now}},
-                    )
-                else:
-                    # M2 fix: Set status to RECONCILE (not ACTIVE) for consistency
-                    result = await db.sessions.update_one(
-                        {"id": session_id},
-                        {"$set": {"status": "RECONCILE", "reconciled_at": now}},
-                    )
-                if getattr(result, "modified_count", 0) > 0:
-                    updated += 1
+            if operation == "bulk_close":
+                result = await db.sessions.update_many(
+                    {"id": {"$in": resolved_ids}},
+                    {"$set": {"status": "CLOSED", "closed_at": now, "ended_at": now}},
+                )
+            else:
+                # M2 fix: Set status to RECONCILE (not ACTIVE) for consistency
+                result = await db.sessions.update_many(
+                    {"id": {"$in": resolved_ids}},
+                    {"$set": {"status": "RECONCILE", "reconciled_at": now}},
+                )
+
+            updated = getattr(result, "modified_count", 0)
 
             return f"Bulk session operation '{operation}' applied (updated={updated})"
 
@@ -923,17 +928,25 @@ async def _process_legacy_operations(
 
     ordered_ops = sorted(operations, key=lambda op: op.timestamp or "")
 
+    op_ids = list({op.id for op in ordered_ops if op.id})
+    existing_ops_cursor = db.idempotency_operations.find(
+        {"operation_id": {"$in": op_ids}}, {"operation_id": 1}
+    )
+    existing_ops = await existing_ops_cursor.to_list(length=None) if hasattr(existing_ops_cursor, 'to_list') else []
+    processed_ids = {op["operation_id"] for op in existing_ops if op.get("operation_id")}
+
     for op in ordered_ops:
         success = False
         message: Optional[str] = None
 
         try:
             # Check idempotency
-            existing_op = await db.idempotency_operations.find_one({"operation_id": op.id})
-            if existing_op:
+            if op.id in processed_ids:
                 success = True
                 message = "Already processed (idempotency)"
             else:
+                # Add to processed_ids for intra-batch duplicates
+                processed_ids.add(op.id)
                 handler = _LEGACY_OP_HANDLERS.get(op.type)
                 if handler:
                     data = deepcopy(op.data)
