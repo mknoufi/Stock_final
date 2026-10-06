@@ -31,6 +31,8 @@ class _FakeExportResultsCollection:
                 return self
 
             async def to_list(self, length=100):
+                if length is None:
+                    return list(self._docs)
                 return list(self._docs)[:length]
 
         return _FakeCursor(self.documents)
