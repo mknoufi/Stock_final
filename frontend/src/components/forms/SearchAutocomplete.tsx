@@ -9,7 +9,6 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Keyboard,
@@ -22,6 +21,7 @@ import {
   SearchResult,
 } from "../../services/enhancedSearchService";
 import { useStableDebouncedCallback } from "../../hooks/useDebouncedCallback";
+import { VirtualList } from "../common/VirtualList";
 import { localDb } from "../../db/localDb";
 
 interface SearchAutocompleteProps {
@@ -50,7 +50,6 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<TextInput>(null);
-  const listRef = useRef<FlatList>(null);
 
   // Search function
   const performSearch = React.useCallback(
@@ -433,16 +432,15 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   {results.length === 1 ? "ITEM" : "ITEMS"}
                 </Text>
               </View>
-              <FlatList
-                ref={listRef}
+              {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve rendering performance and reduce frame drops for potentially large search result lists. */}
+              <VirtualList
                 data={results}
                 renderItem={renderResultItem}
-                keyExtractor={(item, index) => `${item.item_code}-${index}`}
+                keyExtractor={(item: SearchResult, index: number) => `${item.item_code}-${index}`}
                 style={styles.resultsList}
                 keyboardShouldPersistTaps="handled"
-                maxToRenderPerBatch={10}
-                windowSize={5}
                 showsVerticalScrollIndicator={true}
+                estimatedItemSize={75}
               />
             </>
           ) : query.trim().length >= minChars ? (
@@ -561,6 +559,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   resultsList: {
+    minHeight: 2,
+    flex: 1,
     maxHeight: 400,
   },
   resultItem: {
