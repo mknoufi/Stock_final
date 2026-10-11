@@ -9,7 +9,6 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Keyboard,
@@ -23,6 +22,7 @@ import {
 } from "../../services/enhancedSearchService";
 import { useStableDebouncedCallback } from "../../hooks/useDebouncedCallback";
 import { localDb } from "../../db/localDb";
+import { VirtualList } from "../common/VirtualList";
 
 interface SearchAutocompleteProps {
   onSelectItem: (item: SearchResult) => void;
@@ -50,7 +50,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<TextInput>(null);
-  const listRef = useRef<FlatList>(null);
+  const listRef = useRef<any>(null);
 
   // Search function
   const performSearch = React.useCallback(
@@ -433,7 +433,8 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   {results.length === 1 ? "ITEM" : "ITEMS"}
                 </Text>
               </View>
-              <FlatList
+              {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve scrolling performance, handle potentially long paginated search results without lag, and reduce frame drops. */}
+              <VirtualList
                 ref={listRef}
                 data={results}
                 renderItem={renderResultItem}
@@ -443,6 +444,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                 maxToRenderPerBatch={10}
                 windowSize={5}
                 showsVerticalScrollIndicator={true}
+                estimatedItemSize={60}
               />
             </>
           ) : query.trim().length >= minChars ? (
@@ -562,6 +564,8 @@ const styles = StyleSheet.create({
   },
   resultsList: {
     maxHeight: 400,
+    minHeight: 2,
+    flex: 1,
   },
   resultItem: {
     flexDirection: "row",
