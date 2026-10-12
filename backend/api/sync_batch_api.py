@@ -407,13 +407,20 @@ async def sync_batch(
     errors = []
 
     try:
+        # Pre-fetch existing idempotency operations to prevent N+1 queries
+        record_ids = [record.client_record_id for record in request.records if record.client_record_id]
+        existing_ops = set()
+        if record_ids:
+            cursor = db.idempotency_operations.find(
+                {"operation_id": {"$in": record_ids}},
+                {"operation_id": 1, "_id": 0}
+            )
+            existing_ops = {op["operation_id"] for op in await cursor.to_list(length=None)}
+
         # Validate all records first
         for record in request.records:
             # Check idempotency first using client_record_id as operation_id
-            existing_op = await db.idempotency_operations.find_one(
-                {"operation_id": record.client_record_id}
-            )
-            if existing_op:
+            if record.client_record_id in existing_ops:
                 ok_records.append(record.client_record_id)
                 continue
 
@@ -432,6 +439,7 @@ async def sync_batch(
                             "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         }
                     )
+                    existing_ops.add(record.client_record_id)
                     ok_records.append(record.client_record_id)
                 else:
                     errors.append(
@@ -923,14 +931,23 @@ async def _process_legacy_operations(
 
     ordered_ops = sorted(operations, key=lambda op: op.timestamp or "")
 
+    # Pre-fetch idempotency operations to prevent N+1 queries
+    op_ids = [op.id for op in ordered_ops if op.id]
+    existing_legacy_ops = set()
+    if op_ids:
+        cursor = db.idempotency_operations.find(
+            {"operation_id": {"$in": op_ids}},
+            {"operation_id": 1, "_id": 0}
+        )
+        existing_legacy_ops = {op_doc["operation_id"] for op_doc in await cursor.to_list(length=None)}
+
     for op in ordered_ops:
         success = False
         message: Optional[str] = None
 
         try:
             # Check idempotency
-            existing_op = await db.idempotency_operations.find_one({"operation_id": op.id})
-            if existing_op:
+            if op.id in existing_legacy_ops:
                 success = True
                 message = "Already processed (idempotency)"
             else:
@@ -946,6 +963,7 @@ async def _process_legacy_operations(
                             "created_at": datetime.now(timezone.utc).replace(tzinfo=None),
                         }
                     )
+                    existing_legacy_ops.add(op.id)
                 else:
                     message = f"Unknown operation type: {op.type}"
         except Exception as exc:
