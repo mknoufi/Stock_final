@@ -1,0 +1,6 @@
+⚡ Bolt: Replace FlatList with VirtualList in SearchAutocomplete
+
+💡 What: Replaced standard React Native `FlatList` with `VirtualList` (which wraps `@shopify/flash-list`) in the `SearchAutocomplete` component dropdown. Ensured `listRef` is properly forwarded to support programmatic list actions.
+🎯 Why: `FlatList` can suffer significant frame drops and memory issues when rendering potentially long lists (like search results in an autocomplete dropdown). `VirtualList` is optimized for high performance and smooth scrolling.
+📊 Impact: Reduces frame drops and memory usage during search interactions, ensuring the UI remains responsive even with many search results.
+🔬 Measurement: Open any Search Autocomplete input, search for a generic term with many results, and scroll through the dropdown list. Observe improved scrolling performance without lag or skipped frames.
