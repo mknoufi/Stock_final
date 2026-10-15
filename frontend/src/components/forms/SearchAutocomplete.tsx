@@ -4,16 +4,8 @@
  */
 
 import React, { useState, useEffect, useRef } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  ActivityIndicator,
-  Keyboard,
-} from "react-native";
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, ActivityIndicator, Keyboard } from "react-native";
+import { VirtualList } from "../common/VirtualList";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useTheme } from "../../hooks/useTheme";
 import { useSettingsStore } from "../../store/settingsStore";
@@ -50,7 +42,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<TextInput>(null);
-  const listRef = useRef<FlatList>(null);
+  const listRef = useRef<any>(null);
 
   // Search function
   const performSearch = React.useCallback(
@@ -433,11 +425,12 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   {results.length === 1 ? "ITEM" : "ITEMS"}
                 </Text>
               </View>
-              <FlatList
+              <VirtualList
                 ref={listRef}
                 data={results}
+                estimatedItemSize={70}
                 renderItem={renderResultItem}
-                keyExtractor={(item, index) => `${item.item_code}-${index}`}
+                keyExtractor={(item: SearchResult, index: number) => `${item.item_code}-${index}`}
                 style={styles.resultsList}
                 keyboardShouldPersistTaps="handled"
                 maxToRenderPerBatch={10}
@@ -561,6 +554,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   resultsList: {
+    minHeight: 2,
+    flex: 1,
     maxHeight: 400,
   },
   resultItem: {
