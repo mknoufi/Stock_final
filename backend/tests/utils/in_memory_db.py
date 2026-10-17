@@ -187,7 +187,9 @@ class InMemoryCursor:
         """Set batch size (no-op for in-memory, just returns self for chaining)."""
         return self
 
-    async def to_list(self, length: int) -> list[dict[str, Any]]:
+    async def to_list(self, length: int = None) -> list[dict[str, Any]]:
+        if length is None:
+            return [copy.deepcopy(doc) for doc in self._documents]
         return [copy.deepcopy(doc) for doc in self._documents[:length]]
 
     def __aiter__(self):

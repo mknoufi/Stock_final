@@ -1,3 +1,6 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+## 2024-05-25 - [Batch Sync N+1 Optimization]
+**Learning:** In `backend/api/sync_batch_api.py`, checking for idempotent operations within a batch loop can cause N+1 database queries. A pre-fetch pattern fetching only the `operation_id` using a `$in` query is much faster.
+**Action:** When refactoring N+1 queries in batch processing loops by replacing `find_one()` with a pre-fetched `$in` query and an in-memory set, always update the in-memory set during the loop iteration (e.g., `processed_ids.add(record.id)`) to preserve intra-batch idempotency for duplicate records within the same batch.
