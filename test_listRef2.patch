@@ -1,0 +1,4 @@
+<<<<<<< SEARCH
+  const listRef = useRef<FlatList>(null);
+=======
+>>>>>>> REPLACE

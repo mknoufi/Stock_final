@@ -1,0 +1,24 @@
+<<<<<<< SEARCH
+              <FlatList
+                ref={listRef}
+                data={results}
+                renderItem={renderResultItem}
+                keyExtractor={(item, index) => `${item.item_code}-${index}`}
+                style={styles.resultsList}
+                keyboardShouldPersistTaps="handled"
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                showsVerticalScrollIndicator={true}
+              />
+=======
+              {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve scrolling performance, handle potentially long paginated search results without lag, and reduce frame drops. */}
+              <VirtualList
+                data={results}
+                renderItem={renderResultItem}
+                estimatedItemSize={70}
+                keyExtractor={(item, index) => `${item.item_code}-${index}`}
+                style={styles.resultsList}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+              />
+>>>>>>> REPLACE

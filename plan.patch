@@ -1,0 +1,55 @@
+<<<<<<< SEARCH
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Keyboard,
+} from "react-native";
+=======
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Keyboard,
+} from "react-native";
+import { VirtualList } from "../common/VirtualList";
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+  const inputRef = useRef<TextInput>(null);
+  const listRef = useRef<FlatList>(null);
+=======
+  const inputRef = useRef<TextInput>(null);
+  const listRef = useRef<any>(null);
+>>>>>>> REPLACE
+<<<<<<< SEARCH
+              <FlatList
+                ref={listRef}
+                data={results}
+                renderItem={renderResultItem}
+                keyExtractor={(item, index) => `${item.item_code}-${index}`}
+                style={styles.resultsList}
+                keyboardShouldPersistTaps="handled"
+                maxToRenderPerBatch={10}
+                windowSize={5}
+                showsVerticalScrollIndicator={true}
+              />
+=======
+              {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve scrolling performance, handle potentially long paginated search results without lag, and reduce frame drops. */}
+              <VirtualList
+                ref={listRef}
+                data={results}
+                renderItem={renderResultItem}
+                estimatedItemSize={70}
+                keyExtractor={(item, index) => `${item.item_code}-${index}`}
+                style={styles.resultsList}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={true}
+              />
+>>>>>>> REPLACE
