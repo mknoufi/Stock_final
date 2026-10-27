@@ -1,3 +1,6 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+## 2023-10-27 - [VirtualList in Horizontal Containers]
+**Learning:** When using `VirtualList` (FlashList) as a horizontal replacement for `FlatList`, you must provide explicit bounding dimensions (e.g. `minWidth: 2, flex: 1, minHeight: 120`) to the style prop. Without this, the FlashList component may compute a zero width or height container, causing the horizontal list to silently disappear from the UI.
+**Action:** Always include explicit `style` boundaries (`flex`, `minWidth`, `minHeight`) when swapping `FlatList` with `VirtualList` for horizontal orientations, just as required with `maxHeight` for dropdowns.
