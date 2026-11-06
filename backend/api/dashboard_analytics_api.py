@@ -10,7 +10,7 @@ Provides comprehensive dashboard KPIs for admin/supervisor monitoring:
 
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -31,7 +31,9 @@ class QuantityStatus(BaseModel):
 
     total_stock_qty: float = Field(..., description="Total stock quantity in ERP")
     total_counted_qty: float = Field(..., description="Total quantity counted")
-    completion_percentage: float = Field(..., description="Percentage complete by quantity")
+    completion_percentage: float = Field(
+        ..., description="Percentage complete by quantity"
+    )
     items_counted: int = Field(..., description="Number of unique items counted")
     items_total: int = Field(..., description="Total number of items in ERP")
     variance_qty: float = Field(..., description="Total quantity variance")
@@ -44,7 +46,9 @@ class ValueStatus(BaseModel):
     currency: str = Field(default="INR", description="Currency code")
     total_stock_value: float = Field(..., description="Total stock value in INR")
     total_counted_value: float = Field(..., description="Total counted value in INR")
-    completion_percentage: float = Field(..., description="Percentage complete by value")
+    completion_percentage: float = Field(
+        ..., description="Percentage complete by value"
+    )
     variance_value: float = Field(..., description="Total value variance in INR")
 
 
@@ -66,14 +70,16 @@ class BreakdownItem(BaseModel):
     quantity_status: QuantityStatus
     value_status: ValueStatus
     session_count: int
-    last_activity: Optional[datetime] = None
+    last_activity: datetime | None = None
 
 
 class DashboardBreakdown(BaseModel):
     """Breakdown by specified grouping"""
 
-    group_by: str = Field(..., description="Grouping type: location, category, session, date")
-    items: List[BreakdownItem]
+    group_by: str = Field(
+        ..., description="Grouping type: location, category, session, date"
+    )
+    items: list[BreakdownItem]
     total_groups: int
 
 
@@ -82,7 +88,7 @@ class DrilldownItem(BaseModel):
 
     item_code: str
     item_name: str
-    category: Optional[str] = None
+    category: str | None = None
     expected_qty: float
     counted_qty: float
     variance_qty: float
@@ -90,7 +96,7 @@ class DrilldownItem(BaseModel):
     counted_value: float
     variance_value: float
     status: str  # pending, approved, rejected
-    last_counted: Optional[datetime] = None
+    last_counted: datetime | None = None
 
 
 # Helper Functions
@@ -109,8 +115,11 @@ async def calculate_dashboard_overview(
     Returns:
         DashboardOverview with all KPIs
     """
+    # ⚡ Bolt: Optimize memory usage by projecting only the necessary fields
     # Get all items from ERP
-    all_items_cursor = db.erp_items.find({})
+    all_items_cursor = db.erp_items.find(
+        {}, {"item_code": 1, "stock_qty": 1, "mrp": 1, valuation_basis: 1}
+    )
     all_items = await all_items_cursor.to_list(None)
 
     # Get all count lines from active sessions
@@ -126,24 +135,33 @@ async def calculate_dashboard_overview(
     total_counted_qty = sum(line.get("counted_qty", 0) for line in count_lines)
     variance_qty = total_counted_qty - total_stock_qty
 
-    qty_completion = (total_counted_qty / total_stock_qty * 100) if total_stock_qty > 0 else 0
+    qty_completion = (
+        (total_counted_qty / total_stock_qty * 100) if total_stock_qty > 0 else 0
+    )
 
     # Get unique items counted
-    items_counted = len(set(line.get("item_code") for line in count_lines))
+    items_counted = len({line.get("item_code") for line in count_lines})
     items_total = len(all_items)
 
     # Calculate value metrics
-    price_field = valuation_basis if valuation_basis in ["last_cost", "sale_price"] else "last_cost"
+    price_field = (
+        valuation_basis
+        if valuation_basis in ["last_cost", "sale_price"]
+        else "last_cost"
+    )
 
     # Build item price map
     item_price_map = {}
     for item in all_items:
-        price = item.get(price_field, 0) or item.get("sale_price", 0) or item.get("mrp", 0)
+        price = (
+            item.get(price_field, 0) or item.get("sale_price", 0) or item.get("mrp", 0)
+        )
         item_price_map[item["item_code"]] = price
 
     # Calculate total stock value
     total_stock_value = sum(
-        item.get("stock_qty", 0) * item_price_map.get(item["item_code"], 0) for item in all_items
+        item.get("stock_qty", 0) * item_price_map.get(item["item_code"], 0)
+        for item in all_items
     )
 
     # Calculate total counted value
@@ -229,7 +247,9 @@ async def get_dashboard_overview(
 
 @router.get("/breakdown", response_model=DashboardBreakdown)
 async def get_dashboard_breakdown(
-    group_by: str = Query(..., description="Group by: location, category, session, date"),
+    group_by: str = Query(
+        ..., description="Group by: location, category, session, date"
+    ),
     valuation_basis: str = Query("last_cost", description="Valuation basis"),
     current_user: dict = require_permission(Permission.REPORT_ANALYTICS),
     db: AsyncIOMotorDatabase = Depends(get_db),
@@ -276,10 +296,10 @@ async def get_dashboard_breakdown(
 
 async def _breakdown_by_location(
     db: AsyncIOMotorDatabase, valuation_basis: str
-) -> List[BreakdownItem]:
+) -> list[BreakdownItem]:
     """Breakdown by floor/rack location"""
     # Group count lines by floor_no
-    pipeline: List[Dict[str, Any]] = [
+    pipeline: list[dict[str, Any]] = [
         {"$match": {"floor_no": {"$exists": True, "$ne": None}}},
         {"$group": {"_id": "$floor_no", "count_lines": {"$push": "$$ROOT"}}},
     ]
@@ -297,24 +317,35 @@ async def _breakdown_by_location(
 
         # Get item prices
         item_codes = [line.get("item_code") for line in lines]
-        items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
+        items = (
+            await db.erp_items.find(
+                {"item_code": {"$in": item_codes}},
+                {"item_code": 1, "stock_qty": 1, "mrp": 1, valuation_basis: 1},
+            ).to_list(None)
+            if item_codes
+            else []
+        )
         price_map = {
-            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
+            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0)
+            for item in items
         }
 
         total_counted_value = sum(
-            line.get("counted_qty", 0) * price_map.get(line.get("item_code"), 0) for line in lines
+            line.get("counted_qty", 0) * price_map.get(line.get("item_code"), 0)
+            for line in lines
         )
         total_expected_value = sum(
-            line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0) for line in lines
+            line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0)
+            for line in lines
         )
 
         # Get session count for this location
-        session_ids = set(line.get("session_id") for line in lines)
+        session_ids = {line.get("session_id") for line in lines}
 
         # Get last activity
         last_activity = max(
-            (line.get("counted_at") for line in lines if line.get("counted_at")), default=None
+            (line.get("counted_at") for line in lines if line.get("counted_at")),
+            default=None,
         )
 
         breakdown.append(
@@ -324,9 +355,14 @@ async def _breakdown_by_location(
                     total_stock_qty=total_expected,
                     total_counted_qty=total_counted,
                     completion_percentage=round(
-                        (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
+                        (
+                            (total_counted / total_expected * 100)
+                            if total_expected > 0
+                            else 0
+                        ),
+                        2,
                     ),
-                    items_counted=len(set(line.get("item_code") for line in lines)),
+                    items_counted=len({line.get("item_code") for line in lines}),
                     items_total=len(items),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),
@@ -355,14 +391,17 @@ async def _breakdown_by_location(
 
 async def _breakdown_by_category(
     db: AsyncIOMotorDatabase, valuation_basis: str
-) -> List[BreakdownItem]:
+) -> list[BreakdownItem]:
     """Breakdown by item category"""
     # Get all items with categories
-    items_cursor = db.erp_items.find({"category": {"$exists": True, "$ne": None}})
+    items_cursor = db.erp_items.find(
+        {"category": {"$exists": True, "$ne": None}},
+        {"item_code": 1, "category": 1, "stock_qty": 1, "mrp": 1, valuation_basis: 1},
+    )
     items = await items_cursor.to_list(None)
 
     # Group by category
-    category_items: Dict[str, List[Dict[str, Any]]] = {}
+    category_items: dict[str, list[dict[str, Any]]] = {}
     for item in items:
         cat = item.get("category", "Uncategorized")
         if cat not in category_items:
@@ -374,7 +413,9 @@ async def _breakdown_by_category(
         item_codes = [item["item_code"] for item in cat_items]
 
         # Get count lines for these items
-        count_lines = await db.count_lines.find({"item_code": {"$in": item_codes}}).to_list(None)
+        count_lines = await db.count_lines.find(
+            {"item_code": {"$in": item_codes}}
+        ).to_list(None)
 
         # Calculate metrics (similar to location breakdown)
         total_counted = sum(line.get("counted_qty", 0) for line in count_lines)
@@ -390,12 +431,14 @@ async def _breakdown_by_category(
             for line in count_lines
         )
         total_expected_value = sum(
-            item.get("stock_qty", 0) * price_map.get(item["item_code"], 0) for item in cat_items
+            item.get("stock_qty", 0) * price_map.get(item["item_code"], 0)
+            for item in cat_items
         )
 
-        session_ids = set(line.get("session_id") for line in count_lines)
+        session_ids = {line.get("session_id") for line in count_lines}
         last_activity = max(
-            (line.get("counted_at") for line in count_lines if line.get("counted_at")), default=None
+            (line.get("counted_at") for line in count_lines if line.get("counted_at")),
+            default=None,
         )
 
         breakdown.append(
@@ -405,9 +448,16 @@ async def _breakdown_by_category(
                     total_stock_qty=total_expected,
                     total_counted_qty=total_counted,
                     completion_percentage=round(
-                        (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
+                        (
+                            (total_counted / total_expected * 100)
+                            if total_expected > 0
+                            else 0
+                        ),
+                        2,
                     ),
-                    items_counted=len(set(line.get("item_code") for line in count_lines)),
+                    items_counted=len(
+                        {line.get("item_code") for line in count_lines}
+                    ),
                     items_total=len(cat_items),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),
@@ -436,16 +486,18 @@ async def _breakdown_by_category(
 
 async def _breakdown_by_session(
     db: AsyncIOMotorDatabase, valuation_basis: str
-) -> List[BreakdownItem]:
+) -> list[BreakdownItem]:
     """Breakdown by individual sessions"""
-    sessions = await db.sessions.find({"status": {"$in": ["OPEN", "ACTIVE", "CLOSED"]}}).to_list(
-        None
-    )
+    sessions = await db.sessions.find(
+        {"status": {"$in": ["OPEN", "ACTIVE", "CLOSED"]}}
+    ).to_list(None)
 
     breakdown = []
     for session in sessions[:20]:  # Limit to 20 most recent sessions
         session_id = session.get("id")
-        count_lines = await db.count_lines.find({"session_id": session_id}).to_list(None)
+        count_lines = await db.count_lines.find({"session_id": session_id}).to_list(
+            None
+        )
 
         if not count_lines:
             continue
@@ -456,9 +508,17 @@ async def _breakdown_by_session(
 
         # Get prices
         item_codes = [line.get("item_code") for line in count_lines]
-        items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
+        items = (
+            await db.erp_items.find(
+                {"item_code": {"$in": item_codes}},
+                {"item_code": 1, "stock_qty": 1, "mrp": 1, valuation_basis: 1},
+            ).to_list(None)
+            if item_codes
+            else []
+        )
         price_map = {
-            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
+            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0)
+            for item in items
         }
 
         total_counted_value = sum(
@@ -466,7 +526,8 @@ async def _breakdown_by_session(
             for line in count_lines
         )
         total_expected_value = sum(
-            line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0) for line in count_lines
+            line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0)
+            for line in count_lines
         )
 
         label = f"{session.get('warehouse', 'Unknown')} - {session.get('staff_user', 'Unknown')}"
@@ -478,9 +539,16 @@ async def _breakdown_by_session(
                     total_stock_qty=total_expected,
                     total_counted_qty=total_counted,
                     completion_percentage=round(
-                        (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
+                        (
+                            (total_counted / total_expected * 100)
+                            if total_expected > 0
+                            else 0
+                        ),
+                        2,
                     ),
-                    items_counted=len(set(line.get("item_code") for line in count_lines)),
+                    items_counted=len(
+                        {line.get("item_code") for line in count_lines}
+                    ),
                     items_total=len(items),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),
@@ -507,12 +575,16 @@ async def _breakdown_by_session(
     return breakdown
 
 
-async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> List[BreakdownItem]:
+async def _breakdown_by_date(
+    db: AsyncIOMotorDatabase, valuation_basis: str
+) -> list[BreakdownItem]:
     """Breakdown by date (last 7 days)"""
     breakdown = []
 
     for days_ago in range(7):
-        date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days_ago)
+        date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(
+            days=days_ago
+        )
         start_of_day = date.replace(hour=0, minute=0, second=0, microsecond=0)
         end_of_day = date.replace(hour=23, minute=59, second=59, microsecond=999999)
 
@@ -529,9 +601,17 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
         total_expected = sum(line.get("erp_qty", 0) for line in count_lines)
 
         item_codes = [line.get("item_code") for line in count_lines]
-        items = await db.erp_items.find({"item_code": {"$in": item_codes}}).to_list(None)
+        items = (
+            await db.erp_items.find(
+                {"item_code": {"$in": item_codes}},
+                {"item_code": 1, "stock_qty": 1, "mrp": 1, valuation_basis: 1},
+            ).to_list(None)
+            if item_codes
+            else []
+        )
         price_map = {
-            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0) for item in items
+            item["item_code"]: item.get(valuation_basis, 0) or item.get("mrp", 0)
+            for item in items
         }
 
         total_counted_value = sum(
@@ -539,10 +619,11 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
             for line in count_lines
         )
         total_expected_value = sum(
-            line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0) for line in count_lines
+            line.get("erp_qty", 0) * price_map.get(line.get("item_code"), 0)
+            for line in count_lines
         )
 
-        session_ids = set(line.get("session_id") for line in count_lines)
+        session_ids = {line.get("session_id") for line in count_lines}
 
         breakdown.append(
             BreakdownItem(
@@ -551,9 +632,16 @@ async def _breakdown_by_date(db: AsyncIOMotorDatabase, valuation_basis: str) -> 
                     total_stock_qty=total_expected,
                     total_counted_qty=total_counted,
                     completion_percentage=round(
-                        (total_counted / total_expected * 100) if total_expected > 0 else 0, 2
+                        (
+                            (total_counted / total_expected * 100)
+                            if total_expected > 0
+                            else 0
+                        ),
+                        2,
                     ),
-                    items_counted=len(set(line.get("item_code") for line in count_lines)),
+                    items_counted=len(
+                        {line.get("item_code") for line in count_lines}
+                    ),
                     items_total=len(items),
                     variance_qty=round(total_counted - total_expected, 2),
                 ),

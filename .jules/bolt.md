@@ -1,3 +1,4 @@
-## 2024-05-24 - [List Rendering Optimization in React Native]
-**Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
-**Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+
+## 2026-11-06 - Dashboard memory optimization
+**Learning:** Returning all fields from `db.erp_items.find({})` can lead to huge memory overhead when only fields like `item_code`, `stock_qty`, and pricing fields are needed for aggregation. Also, using `$in` query with dynamically constructed `item_codes` might pass an empty list which fails or returns unexpected results if not handled safely.
+**Action:** Use MongoDB projections in `find()` calls to restrict returned fields to what's strictly necessary. Apply safety checks like `... if item_codes else []` when executing `$in` queries against dynamic arrays.
