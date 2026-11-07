@@ -1,3 +1,6 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+## 2024-05-19 - Using typeof for React Native Components
+**Learning:** In TypeScript, wrapped components (e.g. from `@shopify/flash-list`) that are exported as values, when forwarded as refs, should be typed using `typeof` cast (e.g., `React.ElementRef<typeof VirtualList>`) rather than trying to type a ref directly as `React.Ref<FlashList<T>>`, which can cause `TS2749` errors since it's a value, not a type.
+**Action:** Use `React.ElementRef<typeof Component>` when passing refs to generic wrapped UI components like lists.
