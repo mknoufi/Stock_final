@@ -3,8 +3,7 @@ import {
     View,
     Text,
     StyleSheet,
-    FlatList,
-    Alert,
+      Alert,
     Modal,
     TextInput as _TextInput,
     ScrollView as _ScrollView,
@@ -18,6 +17,7 @@ import {
     ModernInput,
 } from "@/components/ui";
 import { auroraTheme } from "../../src/theme/auroraTheme";
+import { VirtualList } from "../../src/components/common/VirtualList";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRouter } from "expo-router";
 import { usePermission } from "../../src/hooks/usePermission";
@@ -198,30 +198,34 @@ export default function UnknownItemsScreen() {
                     <LoadingSpinner size={40} color={auroraTheme.colors.primary[500]} />
                 </View>
             ) : (
-                <FlatList
-                    data={items}
-                    renderItem={renderItem}
-                    keyExtractor={(item) => item.id || item._id}
-                    contentContainerStyle={styles.listContent}
-                    ListEmptyComponent={
-                        <View style={styles.emptyContainer}>
-                            <Ionicons
-                                name={offlineMode ? "cloud-offline-outline" : "checkmark-circle-outline"}
-                                size={64}
-                                color={
-                                    offlineMode
-                                        ? auroraTheme.colors.warning[500]
-                                        : auroraTheme.colors.success[500]
-                                }
-                            />
-                            <Text style={styles.emptyText}>
-                                {offlineMode
-                                    ? "Reconnect to review unknown items"
-                                    : "All unknown items resolved!"}
-                            </Text>
-                        </View>
-                    }
-                />
+                <View style={{ flex: 1 }}>
+                    {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to improve scrolling performance for potentially long lists of unknown items. */}
+                    <VirtualList
+                        data={items}
+                        renderItem={renderItem}
+                        keyExtractor={(item: any) => item.id || item._id}
+                        contentContainerStyle={styles.listContent}
+                        ListEmptyComponent={
+                            <View style={styles.emptyContainer}>
+                                <Ionicons
+                                    name={offlineMode ? "cloud-offline-outline" : "checkmark-circle-outline"}
+                                    size={64}
+                                    color={
+                                        offlineMode
+                                            ? auroraTheme.colors.warning[500]
+                                            : auroraTheme.colors.success[500]
+                                    }
+                                />
+                                <Text style={styles.emptyText}>
+                                    {offlineMode
+                                        ? "Reconnect to review unknown items"
+                                        : "All unknown items resolved!"}
+                                </Text>
+                            </View>
+                        }
+                        estimatedItemSize={250}
+                    />
+                </View>
             )}
 
             <Modal

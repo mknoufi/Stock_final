@@ -9,7 +9,6 @@ import {
   Text,
   TextInput,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   Keyboard,
@@ -23,6 +22,7 @@ import {
 } from "../../services/enhancedSearchService";
 import { useStableDebouncedCallback } from "../../hooks/useDebouncedCallback";
 import { localDb } from "../../db/localDb";
+import { VirtualList } from "../common/VirtualList";
 
 interface SearchAutocompleteProps {
   onSelectItem: (item: SearchResult) => void;
@@ -50,7 +50,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const inputRef = useRef<TextInput>(null);
-  const listRef = useRef<FlatList>(null);
+  const listRef = useRef<React.ElementRef<typeof VirtualList>>(null);
 
   // Search function
   const performSearch = React.useCallback(
@@ -433,15 +433,15 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   {results.length === 1 ? "ITEM" : "ITEMS"}
                 </Text>
               </View>
-              <FlatList
+                            {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to significantly improve scrolling performance and reduce frame drops when viewing many search results. */}
+              <VirtualList
                 ref={listRef}
                 data={results}
                 renderItem={renderResultItem}
-                keyExtractor={(item, index) => `${item.item_code}-${index}`}
+                keyExtractor={(item: SearchResult, index: number) => `${item.item_code}-${index}`}
                 style={styles.resultsList}
                 keyboardShouldPersistTaps="handled"
-                maxToRenderPerBatch={10}
-                windowSize={5}
+                estimatedItemSize={60}
                 showsVerticalScrollIndicator={true}
               />
             </>

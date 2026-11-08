@@ -5,12 +5,12 @@ import {
   View,
   TouchableOpacity,
   StatusBar,
-  FlatList,
   Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image } from "expo-image";
+import { VirtualList } from "../common/VirtualList";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -43,19 +43,15 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
       <GestureHandlerRootView style={{ flex: 1 }}>
         <View style={styles.container}>
           <StatusBar hidden={true} />
-          <FlatList
+                    {/* ⚡ Bolt: Replaced FlatList with VirtualList (FlashList) to optimize horizontal swiping performance and memory management when viewing multiple high-res images. */}
+          <VirtualList
             data={images}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
             initialScrollIndex={safeInitialIndex}
-            keyExtractor={(item, index) => `${item}-${index}`}
-            getItemLayout={(_, index) => ({
-              length: SCREEN_WIDTH,
-              offset: SCREEN_WIDTH * index,
-              index,
-            })}
-            renderItem={({ item }) => (
+            keyExtractor={(item: string, index: number) => `${item}-${index}`}
+            renderItem={({ item }: { item: string }) => (
               <View style={styles.page}>
                 <Image
                   source={{ uri: item }}
@@ -64,6 +60,7 @@ export const ImageViewerModal: React.FC<ImageViewerModalProps> = ({
                 />
               </View>
             )}
+            estimatedItemSize={SCREEN_WIDTH}
           />
           <SafeAreaView style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
