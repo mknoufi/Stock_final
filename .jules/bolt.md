@@ -1,3 +1,6 @@
 ## 2024-05-24 - [List Rendering Optimization in React Native]
 **Learning:** React Native's standard `FlatList` can suffer significant frame drops and memory issues when rendering long, complex items or paginated lists with infinite scrolling (like search results). The `VirtualList` component (which wraps `@shopify/flash-list`) is vastly superior for these use cases but requires a precisely calculated `estimatedItemSize` to function optimally.
 **Action:** When working with potentially long lists in this codebase (especially in search or data tables), always prefer `VirtualList` over `FlatList`. Ensure you calculate an accurate `estimatedItemSize` by inspecting the item's layout and styles (padding, margins, font sizes) rather than guessing.
+## 2024-05-24 - [Database N+1 Optimization in Motor/MongoDB]
+**Learning:** In MongoDB, checking if any of a set of candidates exists by looping over them and calling `find_one()` causes multiple database roundtrips. The Motor async driver does not automatically batch these.
+**Action:** When you need to check existence for multiple variations of a value (e.g. `normalized` and `normalized.upper()`), use the `$in` operator with a list of values to combine them into a single `find_one()` query to reduce latency.
