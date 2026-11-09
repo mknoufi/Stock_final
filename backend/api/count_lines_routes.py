@@ -1297,7 +1297,7 @@ async def check_serial_uniqueness(
     if not normalized:
         raise HTTPException(status_code=400, detail="serial_number is required")
 
-    candidates = {normalized, normalized.upper()}
+    candidates = list({normalized, normalized.upper()})
     projection = {
         "_id": 0,
         "item_code": 1,
@@ -1308,19 +1308,20 @@ async def check_serial_uniqueness(
         "status": 1,
     }
 
-    for candidate in candidates:
-        existing = await db.count_lines.find_one(
-            {
-                "session_id": session_id,
-                "$or": [
-                    {"serial_numbers": candidate},
-                    {"serial_entries.serial_number": candidate},
-                ],
-            },
-            projection,
-        )
-        if existing:
-            return {"exists": True, **existing}
+    # ⚡ Bolt: Combine multiple queries into a single query using $in to reduce database roundtrips
+    existing = await db.count_lines.find_one(
+        {
+            "session_id": session_id,
+            "$or": [
+                {"serial_numbers": {"$in": candidates}},
+                {"serial_entries.serial_number": {"$in": candidates}},
+            ],
+        },
+        projection,
+    )
+
+    if existing:
+        return {"exists": True, **existing}
 
     return {"exists": False}
 
